@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RollForward>Major</RollForward>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <ReqnrollDeleteObsoleteCodeBehindFilesOnClean>true</ReqnrollDeleteObsoleteCodeBehindFilesOnClean>
+    <SquadProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad\squad.csproj'))</SquadProject>
+    <SquadHqProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad-hq\squad-hq.csproj'))</SquadHqProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="Reqnroll.NUnit" Version="3.3.4" />
+    <PackageReference Include="nunit" Version="4.5.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Reqnroll" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.Agent\squad.Agent.csproj" />
+    <ProjectReference Include="..\squad.Core\squad.Core.csproj" />
+    <ProjectReference Include="..\squad-hq\squad-hq.csproj" />
+    <ProjectReference Include="..\squad\squad.csproj" />
+  </ItemGroup>
+
+  <Target Name="PublishSquadTools" BeforeTargets="VSTest">
+    <PropertyGroup>
+      <SquadToolsDir>$(TargetDir)squad-tools</SquadToolsDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(SquadToolsDir)" />
+    <Exec Command="dotnet publish &quot;$(SquadProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
+    <Exec Command="dotnet publish &quot;$(SquadHqProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
+  </Target>
+
+</Project>

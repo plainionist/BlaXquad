@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\Directory.Build.Tool.props" />
+  <Import Project="..\squad.CopilotSdk\CopilotSdk.Publish.targets" />
+  <Import Project="..\squad.Photino\Photino.Publish.targets" />
+
+  <PropertyGroup>
+    <ApplicationIcon>..\squad.Photino\Assets\BlaXquad.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+    <ProjectReference Include="..\squad.Agent\squad.Agent.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+    <ProjectReference Include="..\squad.CopilotSdk\squad.CopilotSdk.csproj"
+              AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+    <ProjectReference Include="..\squad.Photino\squad.Photino.csproj"
+              AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+    <ProjectReference Include="..\squad.Core\squad.Core.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+  </ItemGroup>
+
+  <Target Name="BuildCopilotSdkRuntimeForPublish"
+          BeforeTargets="Publish"
+          Condition="'$(RuntimeIdentifier)' != ''">
+    <MSBuild Projects="..\squad.CopilotSdk\squad.CopilotSdk.csproj"
+             Targets="Build"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);TargetFramework=$(TargetFramework)" />
+  </Target>
+</Project>

@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <_CopilotSdkOutputRoot>$(MSBuildThisFileDirectory)bin\$(Configuration)</_CopilotSdkOutputRoot>
+    <_CopilotSdkRuntimeDirectory>$(_CopilotSdkOutputRoot)\$(TargetFramework)\$(RuntimeIdentifier)\runtimes\$(RuntimeIdentifier)\native</_CopilotSdkRuntimeDirectory>
+  </PropertyGroup>
+
+  <Target Name="IncludeCopilotSdkRuntime" AfterTargets="Publish">
+    <ItemGroup>
+      <CopilotSdkRuntimeFile Include="$(_CopilotSdkRuntimeDirectory)\*" />
+    </ItemGroup>
+    <Error Condition="'@(CopilotSdkRuntimeFile)' == ''"
+           Text="Copilot SDK runtime assets were not found at $(_CopilotSdkRuntimeDirectory)." />
+    <Copy SourceFiles="@(CopilotSdkRuntimeFile)"
+          DestinationFiles="@(CopilotSdkRuntimeFile->'$(PublishDir)runtimes\$(RuntimeIdentifier)\native\%(Filename)%(Extension)')" />
+  </Target>
+</Project>

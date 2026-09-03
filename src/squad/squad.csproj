@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\Directory.Build.Tool.props" />
+
+  <ItemGroup>
+    <ProjectReference Include="..\squad.Agent\squad.Agent.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+  </ItemGroup>
+</Project>

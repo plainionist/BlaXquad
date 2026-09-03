@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.13-preview.4" />
+    <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj" />
+  </ItemGroup>
+
+  <Target Name="IncludeCopilotRuntimeInReferencingPublish"
+          AfterTargets="_RegisterCopilotCliForCopy"
+          BeforeTargets="GetCopyToPublishDirectoryItems">
+    <ItemGroup>
+      <ContentWithTargetPath Update="$(_CopilotCliBinaryPath)"
+                             CopyToPublishDirectory="PreserveNewest" />
+      <ContentWithTargetPath Update="$(_CopilotRuntimeNodePath)"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+</Project>

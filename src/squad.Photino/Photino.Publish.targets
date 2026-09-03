@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <_PhotinoUiDirectory>$(MSBuildThisFileDirectory)..\squad-ui\dist</_PhotinoUiDirectory>
+  </PropertyGroup>
+
+  <Target Name="IncludePhotinoAssets" AfterTargets="Publish">
+    <ItemGroup>
+      <PhotinoIcon Include="$(MSBuildThisFileDirectory)Assets\BlaXquad.ico" />
+      <PhotinoUiFile Include="$(_PhotinoUiDirectory)\**\*" Condition="Exists('$(_PhotinoUiDirectory)\index.html')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PhotinoIcon)"
+          DestinationFiles="@(PhotinoIcon->'$(PublishDir)Assets\%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(PhotinoUiFile)"
+          DestinationFiles="@(PhotinoUiFile->'$(PublishDir)ui\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+</Project>

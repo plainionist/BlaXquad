@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="src/squad.Abstractions/squad.Abstractions.csproj" />
+  <Project Path="src/squad.Agent/squad.Agent.csproj" />
+  <Project Path="src/squad.Core/squad.Core.csproj" />
+  <Project Path="src/squad.Photino/squad.Photino.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/squad.CopilotSdk/squad.CopilotSdk.csproj" />
+  </Folder>
+  <Project Path="src/squad-hq/squad-hq.csproj" />
+  <Project Path="src/squad.Specs/squad.Specs.csproj" />
+  <Project Path="src/squad/squad.csproj" />
+</Solution>

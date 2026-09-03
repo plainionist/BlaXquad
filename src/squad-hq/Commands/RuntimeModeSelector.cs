@@ -1,0 +1,42 @@
+using global::squad.Abstractions;
+using global::squad.Abstractions.Agents;
+using global::squad.CopilotSdk;
+using global::squad.Photino;
+
+namespace squad_hq.Commands;
+
+public static class RuntimeModeSelector
+{
+    private static readonly IRuntimeModeFactory myFactory = new CopilotSdkRuntimeModeFactory();
+
+    public static IRuntimeModeFactory Select(string? value)
+    {
+        if (value is not null && !string.Equals(value, myFactory.Name, StringComparison.Ordinal))
+            throw new InvalidOperationException("BLAXQUAD_AGENT_BACKEND must be unset or 'sdk'.");
+        return myFactory;
+    }
+
+    public static RuntimeMode Create(
+        IRuntimeModeFactory factory,
+        Func<AgentBackendContext> context,
+        ISquadUi ui)
+    {
+        var backend = factory.CreateBackend(context);
+        return new RuntimeMode(
+            backend,
+            new PhotinoWindowHost(ui, context().WorkingDirectory),
+            new SleepInhibitor(),
+            cancellationToken => factory.PrepareAsync(context, cancellationToken));
+    }
+
+    public static bool TryRunPrivateCommand(string command, string[] arguments, out int exitCode)
+    {
+        return myFactory.TryRunPrivateCommand(command, arguments, out exitCode);
+    }
+
+    public static string WindowTitle(string workspaceDirectory) =>
+        PhotinoWindowHost.CreateTitle(workspaceDirectory);
+}
+
+
+

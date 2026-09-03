@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Photino.NET" Version="4.0.16" />
+    <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.Core\squad.Core.csproj" />
+    <Content Include="Assets\BlaXquad.ico" />
+  </ItemGroup>
+
+</Project>

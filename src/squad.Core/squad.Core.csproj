@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\squad.Agent\squad.Agent.csproj" />
+    <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

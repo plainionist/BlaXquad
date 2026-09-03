@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.tmp-tests/
+/bin/
+src/squad-ui/dist/
+src/squad-ui/test-results/
+src/squad-ui/playwright-report/
+**/bin/**
+**/obj/**
+TestResults/
+*.feature.cs

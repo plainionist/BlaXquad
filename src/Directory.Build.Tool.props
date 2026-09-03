@@ -1,0 +1,15 @@
+<!-- Imported explicitly by each tool's .csproj (not the shared library) -->
+<Project>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishDir Condition="'$(PublishDir)' == '' and '$(RuntimeIdentifier)' != ''">$(MSBuildThisFileDirectory)..\bin\</PublishDir>
+  </PropertyGroup>
+
+  <Target Name="ValidatePackageRuntimeIdentifier" BeforeTargets="Publish">
+    <Error
+      Condition="'$(RuntimeIdentifier)' != 'win-x64' and '$(RuntimeIdentifier)' != 'linux-x64' and '$(RuntimeIdentifier)' != 'osx-x64' and '$(RuntimeIdentifier)' != 'osx-arm64'"
+      Text="RuntimeIdentifier must be one of win-x64, linux-x64, osx-x64, or osx-arm64." />
+  </Target>
+</Project>
