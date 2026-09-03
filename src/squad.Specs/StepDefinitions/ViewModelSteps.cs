@@ -1061,6 +1061,10 @@ public sealed class ViewModelSteps
     public void WhenTheRecordingSessionEmitsSystemMessage(string role, string message) =>
         Emit(role, new AgentSystemMessageEvent(DateTimeOffset.UtcNow, message));
 
+    [When("the recording {string} session invokes skill {string}")]
+    public void WhenTheRecordingSessionInvokesSkill(string role, string name) =>
+        Emit(role, new AgentSkillInvokedEvent(DateTimeOffset.UtcNow, name));
+
     [When("the recording {string} session starts subagent {string} displayed as {string} using model {string}")]
     public void WhenTheRecordingSessionStartsSubagent(string role, string agentName, string displayName, string model) =>
         Emit(role, new AgentSubagentStartedEvent(

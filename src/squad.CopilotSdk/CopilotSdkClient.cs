@@ -199,7 +199,7 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     {
         var name = GetProperty(GetProperty(sessionEvent, "Data"), "Name") as string;
         if (!string.IsNullOrWhiteSpace(name))
-            agentSession.Publish(new AgentSystemMessageEvent(occurredAt, $"skill({name})"));
+            agentSession.Publish(new AgentSkillInvokedEvent(occurredAt, name));
     }
 
     private static object? GetProperty(object? value, string name) => value?.GetType().GetProperty(name)?.GetValue(value);

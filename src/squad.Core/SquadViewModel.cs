@@ -458,12 +458,21 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                         "subagent",
                         DescribeSubagent(subagent));
                     break;
+                case AgentSkillInvokedEvent skill:
+                    state.IsWorking = true;
+                    transcriptUpdate = AddTranscriptEntry(
+                        state,
+                        skill.OccurredAt,
+                        "tool",
+                        $"using skill({skill.Name})");
+                    break;
                 case AgentToolStartedEvent tool:
                     state.IsWorking = true;
-                    if (IsSubagentPlumbingTool(tool.ToolName))
+                    if (IsSubagentPlumbingTool(tool.ToolName) ||
+                        tool.ToolName.Equals("skill", StringComparison.OrdinalIgnoreCase))
                         break;
                     var isRead = tool.Kind == "read" || IsReadTool(tool.ToolName);
-                    var suppressOutput = isRead || tool.ToolName.Equals("skill", StringComparison.OrdinalIgnoreCase);
+                    var suppressOutput = isRead;
                     var toolDescription = isRead ? DescribeRead(tool) : DescribeToolStart(tool);
                     if (!string.IsNullOrWhiteSpace(toolDescription))
                         transcriptUpdate = state.StartTool(

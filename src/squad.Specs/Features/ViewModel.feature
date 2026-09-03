@@ -676,15 +676,18 @@ Feature: Squad ViewModel
 
   Scenario: Skill application is visible in the transcript
     Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits system message "skill(project-setup)"
-    Then ViewModel role "coder" transcript has a "system" entry "skill(project-setup)"
+    When the recording "coder" session invokes skill "project-setup"
+    Then ViewModel role "coder" transcript has a "tool" entry "using skill(project-setup)"
 
-  Scenario: Loading a skill omits the skill file content
+  Scenario: Skill tool plumbing is omitted from the transcript
     Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "skill"
+    When the recording "coder" session emits tool start "skill" with arguments:
+      """
+      {"skill":"project-setup"}
+      """
     And the recording "coder" session emits tool output "full SKILL.md contents"
     And the recording "coder" session emits tool completion "skill"
-    Then ViewModel role "coder" transcript has a "tool" entry "skill"
+    Then ViewModel role "coder" transcript has no entry "project-setup"
     And ViewModel role "coder" transcript has no entry "full SKILL.md contents"
 
   Scenario: Skill discovery is distinguished from file reads
