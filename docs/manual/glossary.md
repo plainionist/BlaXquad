@@ -25,12 +25,26 @@ Role-specific instructions stored at `blaxquad/roles/<role>.prompt`. Each agent
 reads this prompt after the constitution prompt, including files referenced by
 the prompt recursively.
 
+## Headquarters
+
+The central process that runs and coordinates a squad. It prepares each role's
+worktree, starts its Copilot agent session, opens the desktop dashboard, moves
+handoffs between roles, and manages startup, relaunch, and shutdown.
+
+The user runs headquarters through the `squad-hq` executable.
+
+## Agent provider
+
+An external system that supplies the agent capabilities including models,
+conversation sessions, tool execution, interaction requests, events, and usage data.
+
+Example: GitHub Copilot (SDK/CLI).
+
 ## Agent backend
 
 The adapter between headquarters and an agent provider. The current
 implementation uses the GitHub Copilot SDK, creates one agent session per role,
-and translates provider events and interaction requests into BlaXquad's typed
-runtime model. The configured backend name is `copilot`.
+and translates provider events and interaction requests into th typed runtime model.
 
 ## Worktree
 
@@ -40,39 +54,6 @@ uses a dedicated checkout under `.worktrees/<name>` on branch `squad-<name>`.
 
 Worktrees isolate concurrent role changes, provide role identity to the
 `squad` CLI, and hold each role's durable handoff state.
-
-## Shared worktree path
-
-A repository-relative directory listed in `sharedWorktreePaths` in
-`blaxquad/squad.json`. Headquarters keeps it in the main checkout and links the
-corresponding location in every dedicated worktree, using a junction on Windows
-or a symbolic link on other platforms. Shared paths must remain inside the
-repository and may not overlap each other.
-
-## Execution context
-
-The identity resolved by `squad context` from the current Git worktree. It
-includes the role, project root, role worktree root, and shared source path.
-Role identity does not depend on a role environment variable.
-
-## Runtime state
-
-Generated, untracked state stored under `.blaxquad/`. The project root contains
-host metadata and the delivery log; each role worktree contains its handoff
-queues. `.worktrees/` contains dedicated Git worktrees.
-
-This is distinct from the checked-in `blaxquad/` directory, which contains the
-squad configuration and prompts.
-
-## Headquarters (`squad-hq`)
-
-The operator-facing executable and runtime composition root. It reads the squad
-configuration, prepares worktrees, acquires host ownership, opens the desktop
-UI, starts the Copilot backend and role sessions, delivers handoffs, and
-coordinates relaunch and shutdown.
-
-The main commands are `squad-hq launch`, `squad-hq shutdown`, and
-`squad-hq wait-for-agent`.
 
 ## Dashboard
 
@@ -109,12 +90,6 @@ Recent content is retained in live state for fast updates. Older entries are
 available through bounded, paged transcript history; the UI synchronizes by
 sequence so reconnects and concurrent streaming do not reorder content.
 
-## Manual prompt
-
-A prompt sent from a dashboard role panel to that role's existing session.
-Prompts are serialized within one role, while different roles can continue
-independently.
-
 ## Interaction request
 
 A request that pauses an agent operation until a user responds. The dashboard
@@ -130,9 +105,20 @@ down.
 
 ## Elicitation
 
-A structured request from an agent for user-supplied information. BlaXquad
-supports form and URL elicitations, and lets the user accept, decline, or cancel
-them in the dashboard.
+A structured request from an agent that asks the user to supply information or
+complete an external action before the agent continues. Unlike a free-form
+input request, an elicitation tells the dashboard what interaction to present:
+
+- A **form elicitation** defines named fields and which are required. For
+  example, an agent preparing a deployment could request an environment, a
+  version number, and a confirmation checkbox. The dashboard renders the form
+  and returns the submitted values to the agent.
+- A **URL elicitation** asks the user to open a specific web page. For example,
+  a tool could ask the user to complete authentication on its website. The
+  dashboard shows the destination and lets the user open it or cancel.
+
+The user may accept, decline, or cancel the request in the dashboard. The
+response is sent back to the waiting agent session.
 
 ## Permission mode
 
@@ -144,17 +130,6 @@ The role-level `agent.permissions` setting in `blaxquad/squad.json`:
 
 Safe reads inside the role worktree are approved automatically in either mode.
 Managed approval requests still require an explicit response.
-
-## AI credits (AIC)
-
-The provider-reported usage accumulated by an agent session. The dashboard shows
-the value when the SDK supplies it and reports it as unavailable otherwise.
-
-## Context usage
-
-The number of tokens currently attributed to a session compared with the
-selected model's context limit. The dashboard displays this as a meter when the
-SDK can resolve both values.
 
 ## Handoff
 
@@ -177,24 +152,18 @@ commit.
 A handoff of type `note` containing a short message rather than a commit. A note
 may target one or several roles and its message is limited to 80 characters.
 
-## Priority
-
-A two-digit handoff value from `00` through `99`. Lower numbers are processed
-first, so `10` has priority over `50`.
-
 ## Handoff queue
 
-The durable state machine under each role worktree's
-`.blaxquad/handoffs/` directory:
+The durable state machine under each role worktree's `.blaxquad/handoffs/` directory:
 
-| Location | Meaning |
-|---|---|
-| `outbox/` | Validated handoffs waiting for headquarters delivery |
-| `sent/` | Sender copies that were delivered |
-| `failed/` | Sender copies that could not be delivered |
-| `inbox/new/` | Delivered work not yet claimed by the recipient |
-| `inbox/in_process/` | The recipient's current task or batch |
-| `inbox/completed/` | Work explicitly completed by the recipient |
+| Location            | Meaning                                              |
+| ------------------- | ---------------------------------------------------- |
+| `outbox/`           | Validated handoffs waiting for headquarters delivery |
+| `sent/`             | Sender copies that were delivered                    |
+| `failed/`           | Sender copies that could not be delivered            |
+| `inbox/new/`        | Delivered work not yet claimed by the recipient      |
+| `inbox/in_process/` | The recipient's current task or batch                |
+| `inbox/completed/`  | Work explicitly completed by the recipient           |
 
 Moving files between these locations is the authoritative queue transition.
 
@@ -233,46 +202,6 @@ directory under `inbox/in_process`.
 
 Completing the batch archives all its items and immediately checks for the next
 batch.
-
-## `squad` CLI
-
-The role-side helper executable available inside agent sessions. It creates
-handoffs, resolves execution context, claims queued work, and completes current
-work. Unlike `squad-hq`, it does not own the application lifecycle or desktop
-UI.
-
-## Lifecycle, recovery, and synchronization
-
-## Readiness
-
-A role is ready when its current session is idle, has no active work, and
-headquarters is accepting commands. `squad-hq wait-for-agent <role>` waits on
-this host-owned state instead of guessing from process existence.
-
-## Continue launch
-
-`squad-hq launch --continue` starts the squad without resetting existing
-dedicated worktrees or clearing handoff state. Use it to resume work from a
-previous run.
-
-A normal `squad-hq launch` resets dedicated worktrees to the repository's
-current `HEAD` and clears configured handoff queues before starting.
-
-## Recovery
-
-The ability to resume durable work after a command or host restart. A current
-task remains in `inbox/in_process`, queued work remains in `inbox/new`, and
-headquarters wakes roles that already have pending inbox work when sessions
-start again.
-
-## Relaunch
-
-A live replacement of every agent session without restarting headquarters or the
-desktop shell. Headquarters stops handoff polling, retires the old session
-generation, clears transient session state, starts a complete replacement
-generation, recovers inbox notifications, and resumes delivery.
-
-Relaunch does not reset worktrees or discard durable handoffs.
 
 ## Host lease
 
