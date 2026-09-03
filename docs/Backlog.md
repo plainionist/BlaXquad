@@ -8,15 +8,10 @@
 
 ## v3
 
-- add a "headquarter" tool box above the agents for management tools
-  - add "re-launch" button, use an icon or symbol, add tooltip, should not look like refresh should indicate that it has impact,
-    it restarts the squad (all copilot sessions) without restarting the shell app
-
 - intelligent filtering of tool and read file output
   - when reading files i only want to see the line count
   - when running tools i want the full command line but we need to trim the output, 
     what about first 5 lines and last 5 lines?
-
 
 - effort recording
   - sqlite db
