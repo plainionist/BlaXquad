@@ -1061,6 +1061,14 @@ public sealed class ViewModelSteps
     public void WhenTheRecordingSessionEmitsSystemMessage(string role, string message) =>
         Emit(role, new AgentSystemMessageEvent(DateTimeOffset.UtcNow, message));
 
+    [When("the recording {string} session starts subagent {string} displayed as {string} using model {string}")]
+    public void WhenTheRecordingSessionStartsSubagent(string role, string agentName, string displayName, string model) =>
+        Emit(role, new AgentSubagentStartedEvent(
+            DateTimeOffset.UtcNow,
+            NullIfEmpty(agentName),
+            NullIfEmpty(displayName),
+            NullIfEmpty(model)));
+
     [When("the recording {string} session emits tool completion {string}")]
     public void WhenTheRecordingSessionEmitsToolCompletion(string role, string tool)
     {
@@ -1108,6 +1116,8 @@ public sealed class ViewModelSteps
     private static string DecodeEscapes(string value) =>
         value.Replace("\\r", "\r", StringComparison.Ordinal)
             .Replace("\\n", "\n", StringComparison.Ordinal);
+
+    private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 
     [When("the recording {string} session reports {long} context tokens of {long}")]
     public void WhenTheRecordingSessionReportsContextUsage(string role, long usedTokens, long limitTokens) =>

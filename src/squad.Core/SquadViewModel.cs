@@ -450,8 +450,18 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 state.IsWorking = true;
                 transcriptUpdate = ApplyAssistantMessage(state, message);
                     break;
+                case AgentSubagentStartedEvent subagent:
+                    state.IsWorking = true;
+                    transcriptUpdate = AddTranscriptEntry(
+                        state,
+                        subagent.OccurredAt,
+                        "subagent",
+                        DescribeSubagent(subagent));
+                    break;
                 case AgentToolStartedEvent tool:
                     state.IsWorking = true;
+                    if (IsSubagentPlumbingTool(tool.ToolName))
+                        break;
                     var isRead = tool.Kind == "read" || IsReadTool(tool.ToolName);
                     var suppressOutput = isRead || tool.ToolName.Equals("skill", StringComparison.OrdinalIgnoreCase);
                     var toolDescription = isRead ? DescribeRead(tool) : DescribeToolStart(tool);
@@ -554,6 +564,40 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         "view", "read_file", "view_file"
     };
 
+    private static readonly HashSet<string> SubagentPlumbingTools = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "task", "read_agent", "list_agents"
+    };
+
+    private static string DescribeSubagent(AgentSubagentStartedEvent subagent)
+    {
+        var agentName = string.IsNullOrWhiteSpace(subagent.AgentName)
+            ? null
+            : HumanizeIdentifier(subagent.AgentName);
+        var displayName = string.IsNullOrWhiteSpace(subagent.AgentDisplayName)
+            ? null
+            : subagent.AgentDisplayName.Trim();
+        var label = agentName ?? displayName ?? "Subagent";
+        var taskDescription = agentName is not null && displayName is not null &&
+            !AreEquivalentLabels(subagent.AgentName!, displayName)
+                ? displayName
+                : null;
+
+        return string.Join(" · ", new[] { label, subagent.Model?.Trim(), taskDescription }
+            .Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
+
+    private static string HumanizeIdentifier(string value) =>
+        string.Join(' ', value.Trim()
+            .Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+
+    private static bool AreEquivalentLabels(string left, string right) =>
+        string.Equals(NormalizeLabel(left), NormalizeLabel(right), StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeLabel(string value) =>
+        new(value.Where(char.IsLetterOrDigit).ToArray());
+
     private static string? DescribeToolStart(AgentToolStartedEvent tool)
     {
         if (string.IsNullOrWhiteSpace(tool.Arguments))
@@ -601,6 +645,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     }
 
     private static bool IsReadTool(string toolName) => KnownReadTools.Contains(toolName);
+
+    private static bool IsSubagentPlumbingTool(string toolName) => SubagentPlumbingTools.Contains(toolName);
 
     private static string DescribeRead(AgentToolStartedEvent tool)
     {

@@ -158,6 +158,13 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
             case SkillInvokedEvent:
                 PublishSkillInvocation(sessionEvent, agentSession, occurredAt);
                 break;
+            case SubagentStartedEvent { Data: { } data }:
+                agentSession.Publish(new AgentSubagentStartedEvent(
+                    occurredAt,
+                    data.AgentName,
+                    data.AgentDisplayName,
+                    data.Model?.ToString()));
+                break;
             case SessionIdleEvent:
                 agentSession.Publish(new AgentIdleEvent(occurredAt));
                 agentSession.RefreshContextUsage();

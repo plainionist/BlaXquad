@@ -18,6 +18,7 @@ export function categoryFor(source: string) {
 
 export function prefixFor(source: string) {
   if (source === 'user') return '>'
+  if (source === 'subagent') return '>>'
   if (source === 'tool') return '$'
   return ''
 }

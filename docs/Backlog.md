@@ -9,20 +9,24 @@
 ## v3
 
 - add a "headquarter" tool box above the agents for management tools
-  - add "re-launch" button, use an icon or symbol, add tooltip, should not look like refresh should indicate that it has impact
+  - add "re-launch" button, use an icon or symbol, add tooltip, should not look like refresh should indicate that it has impact,
+    it restarts the squad (all copilot sessions) without restarting the shell app
 
 - intelligent filtering of tool and read file output
   - when reading files i only want to see the line count
   - when running tools i want the full command line but we need to trim the output, 
     what about first 5 lines and last 5 lines?
 
-- "skill {"skill":"land-change"}" to "running skill(<name>)"
 
 - effort recording
   - sqlite db
   - tool args
   - must work from all sessions 
   - no hook deployed into repo
+
+- sub-agents
+  - i want to see their output but we need to make clear that it is sub-agent output in the transcript
+  - some vertical bar like "quote"?
 
 ## CLI feature gap
 
