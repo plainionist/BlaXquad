@@ -2,9 +2,9 @@ using global::squad.Ui.Abstractions;
 
 namespace squad.Photino;
 
-internal static class PhotinoTranscriptProtocol
+public static class PhotinoTranscriptProtocol
 {
-    internal static object CreateSynchronizationPayload(
+    public static object CreateSynchronizationPayload(
         IReadOnlyList<RoleTranscriptSnapshot> transcriptSnapshot,
         IReadOnlyDictionary<string, TranscriptRecoveryAnnouncement>? recoveryAnnouncements = null,
         bool recovery = false) => new
@@ -36,7 +36,7 @@ internal static class PhotinoTranscriptProtocol
             }),
         };
 
-    internal static object CreateUpdatePayload(TranscriptUpdate update) => new
+    public static object CreateUpdatePayload(TranscriptUpdate update) => new
     {
         role = update.Role,
         sequence = update.Sequence,

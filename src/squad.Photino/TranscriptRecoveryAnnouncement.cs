@@ -1,7 +1,7 @@
 
 namespace squad.Photino;
 
-internal sealed record TranscriptRecoveryAnnouncement(
+public sealed record TranscriptRecoveryAnnouncement(
     long AfterSequence,
     long ThroughSequence,
     IReadOnlyList<SequencedTranscriptAnnouncement> Fragments,

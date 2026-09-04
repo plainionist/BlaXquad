@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace squad.CopilotSdk;
 
-internal sealed class CopilotSdkAgentSession : IAgentSession
+public sealed class CopilotSdkAgentSession : IAgentSession
 {
     private static readonly TimeSpan myDefaultFailureTeardownTimeout = TimeSpan.FromSeconds(5);
     private readonly AgentEventChannel myEvents;
@@ -50,7 +50,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
 
     public void Publish(AgentEvent agentEvent) => myEvents.Publish(agentEvent);
 
-    internal Task PublishAsync(AgentEvent agentEvent, CancellationToken cancellationToken = default) =>
+    public Task PublishAsync(AgentEvent agentEvent, CancellationToken cancellationToken = default) =>
         myEvents.PublishAsync(agentEvent, cancellationToken);
 
     public Task SendAsync(string prompt, CancellationToken cancellationToken = default)

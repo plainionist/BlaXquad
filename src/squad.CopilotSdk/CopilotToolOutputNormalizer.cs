@@ -1,6 +1,6 @@
 namespace squad.CopilotSdk;
 
-internal sealed class CopilotToolOutputNormalizer
+public sealed class CopilotToolOutputNormalizer
 {
     private readonly Dictionary<string, ToolOutputState> myOutputs = new(StringComparer.Ordinal);
     private readonly object myStateLock = new();

@@ -46,7 +46,7 @@ public sealed class PhotinoWindowHost : IWindowHost
     {
     }
 
-    internal PhotinoWindowHost(
+    public PhotinoWindowHost(
         ISquadUi ui,
         string workspaceDirectory,
         string? uiDirectory,
@@ -232,7 +232,7 @@ public sealed class PhotinoWindowHost : IWindowHost
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr windowHandle, int attribute, ref int value, int valueSize);
 
-    internal Task ReceiveMessageAsync(string message) =>
+    public Task ReceiveMessageAsync(string message) =>
         HandleMessageAsync(message);
 
     private async Task HandleMessageAsync(string serializedMessage)

@@ -46,7 +46,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public IReadOnlyCollection<AgentPermissionRequest> PendingPermissions => GetPendingInteractions(myPendingPermissions);
     public IReadOnlyCollection<AgentInputRequest> PendingInputs => GetPendingInteractions(myPendingInputs);
     public IReadOnlyCollection<AgentElicitationRequest> PendingElicitations => GetPendingInteractions(myPendingElicitations);
-    internal string TranscriptHistoryDirectory => myTranscriptArchive.DirectoryPath;
+    public string TranscriptHistoryDirectory => myTranscriptArchive.DirectoryPath;
     public event Action? StateChanged;
     public event Action<UiRefreshPriority>? SnapshotRequested;
     public event Action<TranscriptUpdate>? TranscriptChanged;

@@ -2,7 +2,7 @@ using global::squad.Ui.Abstractions;
 
 namespace squad.Photino;
 
-internal sealed record SequencedTranscriptAnnouncement(
+public sealed record SequencedTranscriptAnnouncement(
     long Sequence,
     TranscriptAnnouncement Announcement);
 
