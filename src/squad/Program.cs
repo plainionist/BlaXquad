@@ -1,4 +1,3 @@
-using global::squad.Agent;
 using global::squad.Agent.Cli;
 using global::squad.Commands;
 
