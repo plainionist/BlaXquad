@@ -1,0 +1,34 @@
+{
+  "roles": [
+    {
+      "name": "architect",
+      "worktree": "architect",
+      "agent": {
+        "backend": "copilot",
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "permissions": "prompt"
+      }
+    },
+    {
+      "name": "coder",
+      "worktree": "master",
+      "agent": {
+        "backend": "copilot",
+        "model": "claude-sonnet-5",
+        "effort": "high",
+        "permissions": "prompt"
+      }
+    },
+    {
+      "name": "reviewer",
+      "worktree": "reviewer",
+      "agent": {
+        "backend": "copilot",
+        "model": "grok-4.6",
+        "effort": "high",
+        "permissions": "prompt"
+      }
+    }
+  ]
+}
