@@ -183,20 +183,42 @@ The focused refactors remain separate issues and are prerequisites rather than h
 
 ### Slice 2: Extract the transcript aggregate
 
-**Status: waiting for acceptance of `030 refactor agent role state.md` and Slice 1**
+**Status: in progress — `030` Slice 1 accepted at ba6aa836b5; hand off to coder**
 
-1. Add `src/squad.Core.Transcripts/squad.Core.Transcripts.csproj` to `squad.slnx`, with only the contract reference
-   required by the accepted `RoleTranscriptState` API.
-2. Move the accepted `RoleTranscriptState`, `TranscriptArchive`, `TranscriptEntryBuffer`,
-   `TranscriptRetentionOptions`, and transcript-only policies/helpers into the new assembly. Do not add forwarding
-   services or split the aggregate's shared ordering and retention invariants.
-3. Keep aggregate creation and disposal with the Core coordinator. Expose explicit mutation and snapshot operations to
-   the internal event projector; do not permit callbacks into `SquadViewModel`.
-4. Update Core/spec references and namespaces without changing public snapshot, paging, or transcript protocol shapes.
-5. Extend the architecture scenario to prove the transcript assembly's allowed references and absence of Core, host,
-   provider-adapter, and presentation-adapter dependencies.
-6. Run focused transcript, archived-entry reconstruction, snapshot-publication, context, ViewModel, and architecture
-   scenarios, followed by the complete build and acceptance suite.
+1. Add `src/squad.Core.Transcripts/squad.Core.Transcripts.csproj` to `squad.slnx`. Its only project reference is
+   `squad.Ui.Abstractions`, which owns the existing transcript entry, update, snapshot, page, archive-entry, and
+   announcement contracts.
+2. Move `RoleTranscriptState`, `TranscriptArchive`, `TranscriptEntryBuffer`, `TranscriptRetentionOptions`, and
+   `ToolCompletionResult` to that project under the `squad.Core.Transcripts` namespace. Keep
+   `TranscriptEntryBuffer` and archive implementation methods internal. Put `ToolCompletionResult` in its own source
+   file so every source file contains one top-level type.
+3. Make only the cross-assembly composition and aggregate API public:
+   - `TranscriptArchive` construction, `DirectoryPath`, and disposal;
+   - `RoleTranscriptState` construction, transcript reads, event-projection mutations, stream finalization, and
+     interaction unprotection;
+   - `TranscriptRetentionOptions`; and
+   - `ToolCompletionResult`.
+   Do not add interfaces or forwarding services around these concrete cohesive owners, and do not expose archive
+   storage algorithms to Core.
+4. Preserve the accepted synchronization boundary from `030`: `AgentRoleState` creates and owns the per-role lock,
+   passes it to `RoleTranscriptState`, and the serialized Core event projector holds that lock while committing role
+   status, active-tool, and transcript changes. Transcript read methods lock the same object. Do not add a lock, event
+   loop, background task, callback, or `InternalsVisibleTo` coupling in the transcript assembly.
+5. Keep `TranscriptArchive` creation, shared lifetime, history-directory exposure, and disposal in `SquadViewModel`.
+   Keep `AgentRoleState.Transcript` as the explicit internal aggregate reference and retain its public
+   `TranscriptEntries` compatibility projection. The transcript assembly must not reference `AgentRoleState`,
+   `SquadViewModel`, or any other Core type; remove the current Core-specific XML reference from
+   `ToolCompletionResult`.
+6. Update Core/spec project references and namespaces. Remove the transcript implementation files from
+   `squad.Core`; do not change the `SquadViewModel` constructor contract, public snapshot/page/archive APIs, serialized
+   JSON fields, or UI protocol contracts.
+7. Extend `Architecture.feature` and its step definitions to prove:
+   - `squad.Core.Transcripts` references only `squad.Ui.Abstractions`;
+   - it does not reference `squad.Core`, hosting, handoff, configuration, provider adapters, Copilot SDK, or Photino;
+   - `squad.Core` references `squad.Core.Transcripts`; and
+   - transcript implementation types are owned by the transcript assembly rather than Core.
+8. Run focused `ViewModel`, `ArchivedEntryReconstruction`, `SnapshotPublication`, `Context`,
+   `PhotinoUiProtocol`, and `Architecture` scenarios, followed by the complete build and acceptance suite.
 
 **Slice acceptance**
 
@@ -205,6 +227,9 @@ The focused refactors remain separate issues and are prerequisites rather than h
 - Sequence and entry indexes remain monotonic across retention and archive paging.
 - Core remains the mutation/lifecycle authority; the transcript assembly has no event loop, session registry, or
   callback to the coordinator.
+- Provider-event projection still commits role status, active-tool, transcript update, sequence, and notification
+  ordering through the one Core event-loop/per-role-lock boundary.
+- Public snapshot, paging, archive reconstruction, announcement, JSON, and UI protocol shapes remain unchanged.
 
 ### Slice 3: Enforce and document the final Core boundary
 
@@ -234,8 +259,8 @@ The focused refactors remain separate issues and are prerequisites rather than h
   admission, event projection, lifecycle coordination, and UI-facing snapshots.
 - Transcript retention, streaming, archival, paging, and truncation have one cohesive owner in
   `squad.Core.Transcripts`.
-- Handoff polling, recovery, filesystem delivery, and notification wiring have one cohesive owner in
-  `squad.Core.Handoffs`.
+- Handoff polling, recovery, filesystem delivery, and notification invocation have one cohesive owner in
+  `squad.Core.Handoffs`; the Core-session notification adapter remains in host composition.
 - `RoleOperations`, `Interactions`, and `Events` are internal Core modules unless a concrete independent assembly
   boundary is demonstrated.
 - There is exactly one event-loop commit boundary and one session/lifecycle authority.
