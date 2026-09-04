@@ -31,7 +31,7 @@ share ordering and retention invariants.
 
 ### Slice 1: Extract the in-Core transcript aggregate
 
-**Status: implemented — hand off to reviewer**
+**Status: complete (ba6aa836b5)**
 
 This issue changes ownership inside `squad.Core` only. The later move to `squad.Core.Transcripts` remains Slice 2 of
 `060 split squad core.md` and must wait for review acceptance of this refactor.
