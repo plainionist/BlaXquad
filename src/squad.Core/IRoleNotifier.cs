@@ -1,8 +1,8 @@
 using global::squad.Agent;
 
-namespace squad.Abstractions;
+namespace squad.Core;
 
-public interface IRoleNotifier
+internal interface IRoleNotifier
 {
     Task NotifyAsync(RoleRow role, CancellationToken cancellationToken = default);
 }

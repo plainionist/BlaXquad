@@ -1,4 +1,3 @@
-using global::squad.Abstractions;
 using global::squad.Agent;
 using global::squad.Hosting.Abstractions;
 using System.Diagnostics;

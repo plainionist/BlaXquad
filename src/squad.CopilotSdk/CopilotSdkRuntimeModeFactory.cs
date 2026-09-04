@@ -6,7 +6,6 @@ public sealed class CopilotSdkRuntimeModeFactory : IRuntimeModeFactory
 {
     public string Name => "sdk";
     public bool IsAvailable => true;
-    public bool UsesPhotino => true;
 
     public IAgentBackend CreateBackend(Func<AgentBackendContext> context) =>
         new CopilotSdkBackend(context);

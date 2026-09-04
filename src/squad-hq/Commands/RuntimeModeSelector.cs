@@ -1,4 +1,3 @@
-using global::squad.Abstractions;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.CopilotSdk;
 using global::squad.Photino;
@@ -8,7 +7,7 @@ namespace squad_hq.Commands;
 
 public static class RuntimeModeSelector
 {
-    private static readonly IRuntimeModeFactory myFactory = new CopilotSdkRuntimeModeFactory();
+    private static readonly CopilotSdkRuntimeModeFactory myFactory = new();
 
     public static IRuntimeModeFactory Select(string? value)
     {
@@ -17,7 +16,7 @@ public static class RuntimeModeSelector
         return myFactory;
     }
 
-    public static RuntimeMode Create(
+    internal static RuntimeMode Create(
         IRuntimeModeFactory factory,
         Func<AgentBackendContext> context,
         ISquadUi ui)

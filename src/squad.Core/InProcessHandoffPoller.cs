@@ -1,4 +1,3 @@
-using global::squad.Abstractions;
 using global::squad.Agent;
 namespace squad.Core;
 
@@ -13,13 +12,13 @@ public sealed class InProcessHandoffPoller : IHandoffPump
     private Task? myPolling;
     private bool myDisposed;
 
-    public InProcessHandoffPoller(Func<IReadOnlyList<RoleRow>> rolesProvider, IRoleNotifier notifier, Action<string[]> log)
+    internal InProcessHandoffPoller(Func<IReadOnlyList<RoleRow>> rolesProvider, IRoleNotifier notifier, Action<string[]> log)
     {
         myRolesProvider = rolesProvider;
         myDelivery = new HandoffDeliveryService(notifier, log);
     }
 
-    public InProcessHandoffPoller(IReadOnlyList<RoleRow> roles, IRoleNotifier notifier, Action<string[]> log)
+    internal InProcessHandoffPoller(IReadOnlyList<RoleRow> roles, IRoleNotifier notifier, Action<string[]> log)
         : this(() => roles, notifier, log)
     {
     }

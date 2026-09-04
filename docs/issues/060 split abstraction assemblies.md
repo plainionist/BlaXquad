@@ -80,19 +80,6 @@ Perform the split in the following independently buildable slices. The implement
 types as part of each slice; this plan fixes assembly ownership and migration order rather than prescribing a
 class-by-class move list.
 
-### Slice 4: Rehome types that are not boundary contracts
-
-- [ ] Slice 4 complete
-
-Move domain state, generation and session identities, and internal collaboration interfaces used only by the
-application into `squad.Core`. Move concrete process execution, operating-system integration, serialization, and
-framework helpers into the adapter or executable that owns the implementation. Move runtime composition records,
-implementation selection, startup policy, and private command dispatch into the relevant executable composition
-root.
-
-Do not create another shared project for types that fail the ownership test. Reduce visibility to `internal` when a
-type no longer crosses an assembly boundary.
-
 ### Slice 5: Remove the catch-all assembly
 
 - [ ] Slice 5 complete

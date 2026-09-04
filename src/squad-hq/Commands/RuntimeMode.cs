@@ -1,9 +1,9 @@
 using squad.AgentProvider.Abstractions;
 using squad.Hosting.Abstractions;
 
-namespace squad.Abstractions;
+namespace squad_hq.Commands;
 
-public sealed record RuntimeMode(
+internal sealed record RuntimeMode(
     IAgentBackend AgentBackend,
     IWindowHost WindowHost,
     ISleepInhibitor SleepInhibitor,
