@@ -1,5 +1,5 @@
 using System.Text.Json;
-using squad.Abstractions.Agents;
+using squad.AgentProvider.Abstractions.Agents;
 
 namespace squad.Abstractions;
 

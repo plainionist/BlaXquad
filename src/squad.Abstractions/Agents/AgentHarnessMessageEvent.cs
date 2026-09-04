@@ -1,7 +1,0 @@
-namespace squad.Abstractions.Agents;
-
-public sealed record AgentHarnessMessageEvent(DateTimeOffset OccurredAt, string Content) : AgentEvent(OccurredAt);
-
-
-
-

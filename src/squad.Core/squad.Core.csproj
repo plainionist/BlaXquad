@@ -3,5 +3,6 @@
   <ItemGroup>
     <ProjectReference Include="..\squad.Agent\squad.Agent.csproj" />
     <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj" />
   </ItemGroup>
 </Project>

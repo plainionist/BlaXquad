@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj" />
     <ProjectReference Include="..\squad.Agent\squad.Agent.csproj" />
     <ProjectReference Include="..\squad.Core\squad.Core.csproj" />
     <ProjectReference Include="..\squad-hq\squad-hq.csproj" />

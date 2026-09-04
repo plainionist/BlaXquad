@@ -1,5 +1,4 @@
 using global::squad.Abstractions;
-using global::squad.Abstractions.Agents;
 using global::squad.Agent;
 using global::squad.Core;
 using System.Text.RegularExpressions;

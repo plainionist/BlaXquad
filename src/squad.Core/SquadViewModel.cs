@@ -1,5 +1,6 @@
 using global::squad.Abstractions;
-using global::squad.Abstractions.Agents;
+using global::squad.AgentProvider.Abstractions;
+using global::squad.AgentProvider.Abstractions.Agents;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Text.Json;

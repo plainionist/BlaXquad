@@ -1,0 +1,14 @@
+namespace squad.AgentProvider.Abstractions;
+
+public sealed record AgentRoleContext(
+    string Role,
+    string DisplayName,
+    string WorktreePath,
+    string InitialInstruction,
+    string Backend,
+    string Permissions,
+    string? Model,
+    string? Effort);
+
+
+

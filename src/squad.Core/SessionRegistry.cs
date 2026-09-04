@@ -1,5 +1,4 @@
-using global::squad.Abstractions;
-using global::squad.Abstractions.Agents;
+using global::squad.AgentProvider.Abstractions;
 namespace squad.Core;
 
 public sealed class SessionRegistry

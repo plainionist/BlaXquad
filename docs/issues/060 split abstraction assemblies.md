@@ -80,17 +80,9 @@ Perform the split in the following independently buildable slices. The implement
 types as part of each slice; this plan fixes assembly ownership and migration order rather than prescribing a
 class-by-class move list.
 
-### Slice 1: Introduce agent provider contracts
-
-Create `squad.AgentProvider.Abstractions`. Move provider-neutral backend and session lifecycle interfaces into it,
-together with provider creation and selection contracts, startup and role context values, agent events, interaction
-requests and responses, readiness and failure reporting, usage values, and transport-neutral event-channel
-primitives.
-
-Update `squad.Core` and provider adapters such as `squad.CopilotSdk` to consume this assembly directly. This assembly
-must have no project reference to core, UI, hosting, Photino, a provider adapter, or either executable.
-
 ### Slice 2: Introduce UI contracts
+
+- [ ] Slice 2 complete
 
 Create `squad.Ui.Abstractions`. Move the application-facing presentation port into it: UI commands and queries,
 application snapshots and transcript models, presentation notifications, refresh semantics, and interaction models
@@ -102,6 +94,8 @@ Where an interaction model is genuinely provider-neutral and shared with present
 
 ### Slice 3: Introduce hosting contracts
 
+- [ ] Slice 3 complete
+
 Create `squad.Hosting.Abstractions`. Move only replaceable process-wide host capabilities into it: window and host
 lifetime contracts, sleep-inhibition contracts, and terminal or process-control signals consumed by the application
 run loop.
@@ -110,6 +104,8 @@ Update host adapters and executable composition roots to consume this assembly. 
 core, Photino, and executable assemblies unless a boundary type proves a narrower dependency is required.
 
 ### Slice 4: Rehome types that are not boundary contracts
+
+- [ ] Slice 4 complete
 
 Move domain state, generation and session identities, and internal collaboration interfaces used only by the
 application into `squad.Core`. Move concrete process execution, operating-system integration, serialization, and
@@ -121,6 +117,8 @@ Do not create another shared project for types that fail the ownership test. Red
 type no longer crosses an assembly boundary.
 
 ### Slice 5: Remove the catch-all assembly
+
+- [ ] Slice 5 complete
 
 Replace remaining references to `squad.Abstractions` with direct references to the owning contract assemblies, remove
 `squad.Abstractions` from the solution, and delete the project once no consumers remain. Add architecture scenarios

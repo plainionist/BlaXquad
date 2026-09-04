@@ -1,3 +1,5 @@
+using squad.AgentProvider.Abstractions;
+
 namespace squad.Abstractions;
 
 public sealed record RuntimeMode(

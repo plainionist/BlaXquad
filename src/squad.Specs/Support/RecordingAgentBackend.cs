@@ -1,5 +1,5 @@
-using global::squad.Abstractions;
-using global::squad.Abstractions.Agents;
+using global::squad.AgentProvider.Abstractions;
+using global::squad.AgentProvider.Abstractions.Agents;
 using global::squad_hq.Commands;
 
 namespace squad.Specs.Support;

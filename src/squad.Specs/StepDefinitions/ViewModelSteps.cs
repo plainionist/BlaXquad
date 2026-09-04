@@ -1,6 +1,6 @@
 using global::squad.Specs.Support;
-using global::squad.Abstractions;
-using global::squad.Abstractions.Agents;
+using global::squad.AgentProvider.Abstractions;
+using global::squad.AgentProvider.Abstractions.Agents;
 using global::squad.Agent;
 using global::squad.CopilotSdk;
 using global::squad.Core;

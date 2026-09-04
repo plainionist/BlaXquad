@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="src/squad.Abstractions/squad.Abstractions.csproj" />
+  <Project Path="src/squad.AgentProvider.Abstractions/squad.AgentProvider.Abstractions.csproj" />
   <Project Path="src/squad.Agent/squad.Agent.csproj" />
   <Project Path="src/squad.Core/squad.Core.csproj" />
   <Project Path="src/squad.Photino/squad.Photino.csproj" />

@@ -1,5 +1,4 @@
 using global::squad.Abstractions;
-using global::squad.Abstractions.Agents;
 
 namespace squad.Specs.Support;
 
