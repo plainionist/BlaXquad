@@ -119,6 +119,8 @@ Status: complete (bb01e9fa8c)
 
 ### Slice 3: Extract configuration
 
+Status: complete (8192fd6d40)
+
 1. Create `squad.Agent.Configuration` and move project and role discovery types.
 2. Reference `squad.Agent.Process` for Git invocation and `squad.Agent.Cli` for user-facing resolution failures.
 3. Update CLI commands, headquarters workspace setup, `squad.Core`, and configuration test support.
