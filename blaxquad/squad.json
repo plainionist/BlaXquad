@@ -7,7 +7,7 @@
         "backend": "copilot",
         "model": "gpt-5.6-sol",
         "effort": "high",
-        "permissions": "prompt"
+        "permissions": "approveAll"
       }
     },
     {
@@ -17,7 +17,7 @@
         "backend": "copilot",
         "model": "claude-sonnet-5",
         "effort": "high",
-        "permissions": "prompt"
+        "permissions": "approveAll"
       }
     },
     {
@@ -27,7 +27,7 @@
         "backend": "copilot",
         "model": "grok-4.6",
         "effort": "high",
-        "permissions": "prompt"
+        "permissions": "approveAll"
       }
     }
   ]
