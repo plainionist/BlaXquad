@@ -1,4 +1,4 @@
-using global::squad.Abstractions;
+using global::squad.Hosting.Abstractions;
 
 namespace squad.Specs.Support;
 

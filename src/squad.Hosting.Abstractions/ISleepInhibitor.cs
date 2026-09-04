@@ -1,4 +1,4 @@
-namespace squad.Abstractions;
+namespace squad.Hosting.Abstractions;
 
 public interface ISleepInhibitor : IAsyncDisposable
 {

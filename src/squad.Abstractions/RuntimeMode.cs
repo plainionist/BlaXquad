@@ -1,4 +1,5 @@
 using squad.AgentProvider.Abstractions;
+using squad.Hosting.Abstractions;
 
 namespace squad.Abstractions;
 

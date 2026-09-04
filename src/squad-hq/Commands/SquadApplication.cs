@@ -1,4 +1,4 @@
-using global::squad.Abstractions;
+using global::squad.Hosting.Abstractions;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
 using global::squad.Core;

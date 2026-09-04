@@ -80,17 +80,6 @@ Perform the split in the following independently buildable slices. The implement
 types as part of each slice; this plan fixes assembly ownership and migration order rather than prescribing a
 class-by-class move list.
 
-### Slice 3: Introduce hosting contracts
-
-- [ ] Slice 3 complete
-
-Create `squad.Hosting.Abstractions`. Move only replaceable process-wide host capabilities into it: window and host
-lifetime contracts, sleep-inhibition contracts, and terminal or process-control signals consumed by the application
-run loop.
-
-Update host adapters and executable composition roots to consume this assembly. Keep it independent of provider, UI,
-core, Photino, and executable assemblies unless a boundary type proves a narrower dependency is required.
-
 ### Slice 4: Rehome types that are not boundary contracts
 
 - [ ] Slice 4 complete
