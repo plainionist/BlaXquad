@@ -14,5 +14,12 @@ Feature: Runtime assembly boundaries
     And handoff, context, ready-for-next, and done-with-current remain available
     And squad-hq retains launch, shutdown, and wait-for-agent behavior
 
+  Scenario: Contract assemblies enforce the split boundaries
+    Then squad.Abstractions is no longer part of the solution
+    And the application core depends on the agent provider and UI abstractions but not on hosting or presentation adapters
+    And the copilot sdk adapter depends only on the agent provider abstraction
+    And the photino adapter depends on the UI and hosting abstractions but not directly on the agent provider or copilot sdk adapter
+    And the agent provider and hosting abstractions do not depend on presentation or provider adapters
+
   Scenario: Installers declare supported package targets
     Then the installers declare every supported runtime identifier

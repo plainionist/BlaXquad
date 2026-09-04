@@ -1,6 +1,11 @@
 using global::squad.Specs.Support;
 using global::squad.Agent;
+using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
+using global::squad.CopilotSdk;
+using global::squad.Hosting.Abstractions;
+using global::squad.Photino;
+using global::squad.Ui.Abstractions;
 using System.Reflection;
 
 namespace squad.Specs.StepDefinitions;
@@ -192,6 +197,79 @@ public sealed class ArchitectureSteps
             .And.Contain("WaitForAgent"));
     }
 
+    [Then("squad.Abstractions is no longer part of the solution")]
+    public void ThenSquadAbstractionsIsNoLongerPartOfTheSolution()
+    {
+        var solution = File.ReadAllText(Path.Combine(myWorkspace.RepositoryRootPath, "squad.slnx"));
+        var projectDirectory = Path.Combine(myWorkspace.RepositoryRootPath, "src", "squad.Abstractions");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(solution, Does.Not.Contain("squad.Abstractions"));
+            Assert.That(Directory.Exists(projectDirectory), Is.False);
+        });
+    }
+
+    [Then("the application core depends on the agent provider and UI abstractions but not on hosting or presentation adapters")]
+    public void ThenTheApplicationCoreDependsOnlyOnAllowedContracts()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(references, Does.Contain("squad.AgentProvider.Abstractions"));
+            Assert.That(references, Does.Contain("squad.Ui.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Photino"));
+            Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
+        });
+    }
+
+    [Then("the copilot sdk adapter depends only on the agent provider abstraction")]
+    public void ThenTheCopilotSdkAdapterDependsOnlyOnTheAgentProviderAbstraction()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(CopilotSdkRuntimeModeFactory).Assembly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(references, Does.Contain("squad.AgentProvider.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Ui.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(references, Does.Not.Contain("squad.Photino"));
+        });
+    }
+
+    [Then("the photino adapter depends on the UI and hosting abstractions but not directly on the agent provider or copilot sdk adapter")]
+    public void ThenThePhotinoAdapterDependsOnlyOnAllowedContracts()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(SleepInhibitor).Assembly);
+        var photinoProject = File.ReadAllText(Path.Combine(
+            myWorkspace.RepositoryRootPath, "src", "squad.Photino", "squad.Photino.csproj"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(references, Does.Contain("squad.Ui.Abstractions"));
+            Assert.That(references, Does.Contain("squad.Hosting.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
+            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(photinoProject, Does.Not.Contain("squad.AgentProvider.Abstractions"));
+        });
+    }
+
+    [Then("the agent provider and hosting abstractions do not depend on presentation or provider adapters")]
+    public void ThenTheAgentProviderAndHostingAbstractionsRemainIndependentOfAdapters()
+    {
+        var agentProviderReferences = ReferencedSquadAssemblyNames(typeof(IRuntimeModeFactory).Assembly);
+        var hostingReferences = ReferencedSquadAssemblyNames(typeof(IWindowHost).Assembly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(agentProviderReferences, Is.Empty);
+            Assert.That(hostingReferences, Is.Empty);
+        });
+    }
+
     [Then("production source does not use the legacy backend selector")]
     public void ThenProductionSourceDoesNotUseTheLegacyBackendSelector()
     {
@@ -248,6 +326,13 @@ public sealed class ArchitectureSteps
         }
         return visited.Values;
     }
+
+    private static string[] ReferencedSquadAssemblyNames(Assembly assembly) =>
+        assembly.GetReferencedAssemblies()
+            .Select(reference => reference.Name)
+            .Where(name => name?.StartsWith("squad", StringComparison.Ordinal) == true)
+            .Select(name => name!)
+            .ToArray();
 }
 
 
