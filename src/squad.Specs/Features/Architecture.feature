@@ -29,5 +29,12 @@ Feature: Runtime assembly boundaries
     Then the transcript assembly depends only on UI abstractions
     And the application core depends on the transcript assembly
 
+  Scenario: The final Core boundary is enforced
+    Then the application core depends on exactly the agent provider abstraction, the UI abstraction, and the transcript assembly
+    And the transcript and handoff assemblies do not depend on the application core
+    And headquarters composes the application core, transcript assembly, and handoff assembly without a reverse dependency
+    And role-operation, interaction, and event-projection coordinators are internal modules owned by the application core
+    And transcript and handoff implementation types are owned only by their extracted assemblies
+
   Scenario: Installers declare supported package targets
     Then the installers declare every supported runtime identifier

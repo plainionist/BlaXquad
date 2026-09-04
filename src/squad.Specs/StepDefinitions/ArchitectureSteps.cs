@@ -374,6 +374,99 @@ public sealed class ArchitectureSteps
         Assert.That(references, Does.Contain("squad.Core.Transcripts"));
     }
 
+    [Then("the application core depends on exactly the agent provider abstraction, the UI abstraction, and the transcript assembly")]
+    public void ThenTheApplicationCoreDependsOnExactlyTheAllowedAssemblies()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
+
+        Assert.That(references, Is.EquivalentTo(new[]
+        {
+            "squad.AgentProvider.Abstractions",
+            "squad.Ui.Abstractions",
+            "squad.Core.Transcripts",
+        }));
+    }
+
+    [Then("the transcript and handoff assemblies do not depend on the application core")]
+    public void ThenTheTranscriptAndHandoffAssembliesDoNotDependOnTheApplicationCore()
+    {
+        var transcriptReferences = ReferencedSquadAssemblyNames(typeof(RoleTranscriptState).Assembly);
+        var handoffReferences = ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(transcriptReferences, Does.Not.Contain("squad.Core"));
+            Assert.That(handoffReferences, Does.Not.Contain("squad.Core"));
+        });
+    }
+
+    [Then("headquarters composes the application core, transcript assembly, and handoff assembly without a reverse dependency")]
+    public void ThenHeadquartersComposesCoreModulesWithoutAReverseDependency()
+    {
+        var headquartersReferences = ReferencedSquadAssemblyNames(Assembly.Load("squad-hq"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(headquartersReferences, Does.Contain("squad.Core"));
+            Assert.That(headquartersReferences, Does.Contain("squad.Core.Handoffs"));
+            Assert.That(ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly), Does.Not.Contain("squad-hq"));
+            Assert.That(ReferencedSquadAssemblyNames(typeof(RoleTranscriptState).Assembly), Does.Not.Contain("squad-hq"));
+            Assert.That(ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly), Does.Not.Contain("squad-hq"));
+        });
+    }
+
+    [Then("role-operation, interaction, and event-projection coordinators are internal modules owned by the application core")]
+    public void ThenCoordinatorTypesAreInternalCoreModules()
+    {
+        var coreAssembly = typeof(SquadViewModel).Assembly;
+
+        AssertInternalCoreType(coreAssembly, "squad.Core.RoleOperations.RoleOperationCoordinator");
+        AssertInternalCoreType(coreAssembly, "squad.Core.Interactions.PendingInteractionRegistry");
+        AssertInternalCoreType(coreAssembly, "squad.Core.Events.AgentEventProjector");
+    }
+
+    [Then("transcript and handoff implementation types are owned only by their extracted assemblies")]
+    public void ThenTranscriptAndHandoffImplementationTypesAreOwnedOnlyByTheirExtractedAssemblies()
+    {
+        var coreAssembly = typeof(SquadViewModel).Assembly;
+        var coreTypeNames = coreAssembly.GetTypes().Select(type => type.Name).ToHashSet(StringComparer.Ordinal);
+        var transcriptAssembly = typeof(RoleTranscriptState).Assembly;
+        var handoffAssembly = typeof(InProcessHandoffPoller).Assembly;
+
+        var transcriptImplementationTypes = new[]
+        {
+            "RoleTranscriptState", "TranscriptArchive", "TranscriptEntryBuffer", "TranscriptRetentionOptions", "ToolCompletionResult",
+        };
+        var handoffImplementationTypes = new[] { "HandoffDeliveryService", "InProcessHandoffPoller" };
+
+        Assert.Multiple(() =>
+        {
+            foreach (var typeName in transcriptImplementationTypes)
+            {
+                Assert.That(coreTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Core.");
+                Assert.That(
+                    transcriptAssembly.GetType($"squad.Core.Transcripts.{typeName}"),
+                    Is.Not.Null,
+                    $"{typeName} should be defined in squad.Core.Transcripts.");
+            }
+            foreach (var typeName in handoffImplementationTypes)
+            {
+                Assert.That(coreTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Core.");
+                Assert.That(
+                    handoffAssembly.GetType($"squad.Core.Handoffs.{typeName}"),
+                    Is.Not.Null,
+                    $"{typeName} should be defined in squad.Core.Handoffs.");
+            }
+        });
+    }
+
+    private static void AssertInternalCoreType(Assembly coreAssembly, string fullName)
+    {
+        var type = coreAssembly.GetType(fullName, throwOnError: false);
+        Assert.That(type, Is.Not.Null, $"{fullName} should be defined in {coreAssembly.GetName().Name}.");
+        Assert.That(type!.IsPublic, Is.False, $"{fullName} should not be public.");
+    }
+
     [Then("production source does not use the legacy backend selector")]
     public void ThenProductionSourceDoesNotUseTheLegacyBackendSelector()
     {
