@@ -240,7 +240,7 @@ The focused refactors remain separate issues and are prerequisites rather than h
 
 ### Slice 3: Enforce and document the final Core boundary
 
-**Status: implemented — hand off to reviewer**
+**Status: complete (c9e2b23e38)**
 
 1. Extend the black-box architecture scenario to assert the implemented dependency graph: Core references only agent
    provider/UI contracts and Transcripts; Transcripts references only UI contracts; Handoffs references only agent
