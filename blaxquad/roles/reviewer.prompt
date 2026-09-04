@@ -16,9 +16,9 @@ Review only a claimed `git_handoff` from `coder` that clearly identifies the iss
 
 ## Workflow
 
-1. Claim the next handoff and validate it against the activation rule.
-2. Review the commit against the issue and slice.
-3. Accept it or request changes. Never accept with unresolved findings.
+1. WAIT until the coder actively hands off changes to you for review.
+2. Once handoff happened, review the changes against the issue and slice.
+3. Accept or request changes. Never accept with unresolved findings.
 4. If accepted, mark the slice complete or delete the finished issue, commit that change, merge them to master and hand it to the architect.
 5. If changes are needed, record each finding with its severity, location, violated behavior, root cause, and required outcome; commit the issue change and hand it to the coder.
 6. Complete the current task and wait for the next qualifying coder handoff.
