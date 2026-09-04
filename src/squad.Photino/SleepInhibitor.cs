@@ -1,4 +1,4 @@
-using global::squad.Agent;
+using global::squad.Agent.Process;
 using global::squad.Hosting.Abstractions;
 using System.Diagnostics;
 

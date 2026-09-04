@@ -1,6 +1,7 @@
 using global::squad.Specs.Support;
 using global::squad.Agent;
 using global::squad.Agent.Cli;
+using global::squad.Agent.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
 using global::squad.CopilotSdk;
@@ -87,7 +88,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Agent", "squad.Agent.Cli" }));
+            Is.EquivalentTo(new[] { "squad", "squad.Agent", "squad.Agent.Cli", "squad.Agent.Process" }));
 
         var agentTypes = Assembly.Load("squad.Agent")
             .GetTypes()
@@ -101,8 +102,6 @@ public sealed class ArchitectureSteps
             "HandoffHeaders",
             "HandoffQueue",
             "Priority",
-            "ProcessResult",
-            "ProcessRunner",
             "ProjectRoot",
             "RoleRow",
             "SequenceCounter",
@@ -120,6 +119,18 @@ public sealed class ArchitectureSteps
         Assert.That(agentCliTypes, Is.EqualTo(new[]
         {
             "CliExitException",
+        }));
+
+        var agentProcessTypes = Assembly.Load("squad.Agent.Process")
+            .GetTypes()
+            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Process")
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.That(agentProcessTypes, Is.EqualTo(new[]
+        {
+            "ProcessResult",
+            "ProcessRunner",
         }));
 
         var processMethods = typeof(ProcessRunner)
