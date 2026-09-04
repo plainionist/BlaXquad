@@ -1,4 +1,4 @@
-namespace squad.Agent;
+namespace squad.Agent.Tooling;
 
 /// <summary>Resolves a sibling tool binary in the published bin/ folder.</summary>
 public static class SiblingTool

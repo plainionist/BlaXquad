@@ -164,6 +164,19 @@ public sealed class ArchitectureSteps
             "ResolveProjectRoot",
             "ResolveViaGit",
         }));
+
+        // squad.Agent.Tooling is only reachable from squad-hq, not from squad, but it is still one of the
+        // extracted agent-safe assemblies and must keep its single-responsibility type list.
+        var agentToolingTypes = Assembly.Load("squad.Agent.Tooling")
+            .GetTypes()
+            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Tooling")
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.That(agentToolingTypes, Is.EqualTo(new[]
+        {
+            "SiblingTool",
+        }));
     }
 
     [Then("no headquarters-only helper is reachable from squad")]

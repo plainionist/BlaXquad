@@ -15,8 +15,6 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
-    <ProjectReference Include="..\squad.Agent\squad.Agent.csproj"
-                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Agent.Cli\squad.Agent.Cli.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Agent.Configuration\squad.Agent.Configuration.csproj"
@@ -24,6 +22,8 @@
     <ProjectReference Include="..\squad.Agent.Handoff\squad.Agent.Handoff.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Agent.Process\squad.Agent.Process.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+    <ProjectReference Include="..\squad.Agent.Tooling\squad.Agent.Tooling.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.CopilotSdk\squad.CopilotSdk.csproj"
               AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
