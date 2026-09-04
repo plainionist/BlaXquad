@@ -30,16 +30,16 @@ split.
 
 ## Proposed assemblies
 
-### `squad.Process`
+### `squad.Agent.Process`
 
 Own external process execution and its result value:
 
 - `ProcessRunner`
 - `ProcessResult`
 
-`squad.Configuration` may reference this assembly because project-root discovery invokes Git.
+`squad.Agent.Configuration` references this assembly because project-root discovery invokes Git.
 
-### `squad.Configuration`
+### `squad.Agent.Configuration`
 
 Own squad repository discovery and role configuration:
 
@@ -84,48 +84,56 @@ in `squad.Agent.Process`.
 ## Dependency direction
 
 ```text
-squad --------------------> Configuration, Handoff, Process, Tooling, Cli
-squad-hq ------------------> Configuration, Tooling, Cli
-squad.Core -----------------> Configuration, Handoff
-squad.Photino --------------> Process, Tooling
-Configuration --------------> Process
+squad --------------------> squad.Agent.Configuration, squad.Agent.Handoff,
+                            squad.Agent.Process, squad.Agent.Cli
+squad-hq ------------------> squad.Agent.Configuration, squad.Agent.Handoff,
+                            squad.Agent.Process, squad.Agent.Tooling, squad.Agent.Cli
+squad.Core -----------------> squad.Agent.Configuration, squad.Agent.Handoff
+squad.Photino --------------> squad.Agent.Process
+squad.Agent.Configuration --> squad.Agent.Process, squad.Agent.Cli
+squad.Agent.Handoff --------> squad.Agent.Cli
 ```
 
 The new assemblies must not reference each other in a cycle. In particular, none of them may reference `squad.Core`.
-The architecture rule currently verified in `ArchitectureSteps` should be updated to validate the new reachable
-assembly set rather than a single `squad.Agent` assembly.
+The architecture rule currently verified in `ArchitectureSteps` should evolve with each slice so every intermediate
+commit is green, and finish by validating the complete graph rather than a single `squad.Agent` assembly.
 
 ## Implementation plan
 
-### Slice 1: Extract process execution
+### Slice 1: Extract the CLI exit contract
+
+1. Create `squad.Agent.Cli` and move `CliExitException`.
+2. Update the two executable catch boundaries plus configuration, handoff, and headquarters callers to reference the
+   new namespace and assembly directly.
+3. Update solution membership and architecture assertions for the extracted contract.
+
+### Slice 2: Extract process execution
 
 1. Create `squad.Agent.Process` and move `ProcessRunner` and `ProcessResult`.
 2. Update project references and namespaces in the CLI, headquarters, Photino, and configuration code.
-3. Verify Git discovery and external-tool execution behavior.
-
-### Slice 2: Extract handoff behavior
-
-1. Create `squad.Agent.Handoff` and move the handoff types.
-2. Update CLI commands and `squad.Core` handoff delivery consumers.
-3. Preserve file ordering, header parsing, timestamp formatting, sequence allocation, and CLI rendering behavior.
+3. Update architecture assertions and verify Git discovery and external-tool execution behavior.
 
 ### Slice 3: Extract configuration
 
 1. Create `squad.Agent.Configuration` and move project and role discovery types.
-2. Reference `squad.Agent.Process` for Git invocation.
+2. Reference `squad.Agent.Process` for Git invocation and `squad.Agent.Cli` for user-facing resolution failures.
 3. Update CLI commands, headquarters workspace setup, `squad.Core`, and configuration test support.
+4. Update architecture assertions and preserve project-root, role parsing, and current-role resolution behavior.
 
-### Slice 4: Extract tooling and CLI contracts
+### Slice 4: Extract handoff behavior
 
-1. Create `squad.Agent.Tooling` and move `SiblingTool`.
-2. Create `squad.Agent.Cli` and move `CliExitException`.
-3. Update executable catch boundaries and all remaining consumers.
+1. Create `squad.Agent.Handoff` and move the handoff types.
+2. Reference `squad.Agent.Cli` for ambiguous queue-state failures.
+3. Update CLI commands, headquarters timestamp logging, and `squad.Core` handoff delivery consumers.
+4. Update architecture assertions and preserve file ordering, header parsing, timestamp formatting, sequence
+   allocation, and CLI rendering behavior.
 
-### Slice 5: Remove the umbrella assembly
+### Slice 5: Extract tooling and remove the umbrella assembly
 
-1. Remove the old `squad.Agent` project and its project references.
-2. Update solution membership, architecture tests, documentation, and build/publish checks.
-3. Run the focused acceptance scenarios followed by the complete build and test suite.
+1. Create `squad.Agent.Tooling`, move `SiblingTool`, and update its headquarters consumer.
+2. Remove the now-empty `squad.Agent` project and all remaining project references.
+3. Finalize solution membership, architecture tests, documentation, and build/publish checks for the complete graph.
+4. Run the focused acceptance scenarios followed by the complete build and test suite.
 
 ## Acceptance criteria
 
@@ -140,7 +148,9 @@ assembly set rather than a single `squad.Agent` assembly.
 
 ## Risks and decisions
 
-- Moving `ProcessRunner` affects several projects and should be completed before moving configuration because
+- `CliExitException` must move first because both configuration and handoff behavior depend on it; extracting either
+  first would retain an inverted dependency on the umbrella assembly or require a temporary cycle.
+- Moving `ProcessRunner` affects several projects and must be completed before moving configuration because
   `ProjectRoot` uses it.
 - `RoleRow` should not be extracted into a standalone contracts assembly unless a future dependency cycle requires it.
 - `HandoffQueue` currently includes stdout rendering as well as file enumeration. Keep those together for this change;
