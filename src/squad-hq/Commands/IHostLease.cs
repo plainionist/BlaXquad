@@ -1,4 +1,4 @@
-namespace squad.Core;
+namespace squad_hq.Commands;
 
 public interface IHostLease : IAsyncDisposable
 {

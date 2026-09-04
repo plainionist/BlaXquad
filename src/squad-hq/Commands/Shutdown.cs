@@ -1,4 +1,3 @@
-using global::squad.Core;
 namespace squad_hq.Commands;
 
 static class Shutdown

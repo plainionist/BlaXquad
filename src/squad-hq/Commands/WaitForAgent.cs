@@ -1,4 +1,3 @@
-using global::squad.Core;
 using System.Text.Json;
 
 namespace squad_hq.Commands;

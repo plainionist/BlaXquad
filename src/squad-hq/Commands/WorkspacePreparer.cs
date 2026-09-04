@@ -1,5 +1,4 @@
 using global::squad.Agent;
-using global::squad.Core;
 using global::squad.Photino;
 using System.Text.RegularExpressions;
 

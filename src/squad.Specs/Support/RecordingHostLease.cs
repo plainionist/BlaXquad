@@ -1,4 +1,4 @@
-using global::squad.Core;
+using global::squad_hq.Commands;
 
 namespace squad.Specs.Support;
 

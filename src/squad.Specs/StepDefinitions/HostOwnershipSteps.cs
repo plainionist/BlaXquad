@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
-using global::squad.Core;
+using global::squad_hq.Commands;
 using squad.Specs.Support;
 
 namespace squad.Specs.StepDefinitions;
