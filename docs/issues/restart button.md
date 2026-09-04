@@ -1,12 +1,318 @@
 ---
 title: restart button
-priority: 2
+priority: 100
 ---
 
-add a "headquarter" tool box above the agents for management tools
+# Restart the squad without restarting the shell
 
-- add "re-launch" button, use an icon or symbol, add tooltip, should not look like refresh should indicate that it has impact,
-  it restarts the squad (all copilot sessions) without restarting the shell app
+## Goal
+
+Add a headquarters toolbox above the agent panels with a relaunch action that:
+
+- uses an impact-oriented icon or symbol rather than a refresh icon;
+- has a tooltip that clearly explains that all agent sessions will be replaced;
+- restarts every Copilot session without restarting the shell, window, or process-wide services;
+- keeps transcript history while clearing pending interactions and other transient state owned by the retired sessions;
+- preserves queued handoff work and wakes the replacement sessions; and
+- leaves the shell usable after a failed relaunch, permitting retry only when the failed runtime was conclusively
+  retired.
+
+## Decision
+
+The previous implementation attempt was reverted. Do not recover it wholesale.
+
+It mixed the user-facing feature with lifecycle redesign, backend ownership, command admission, handoff persistence,
+protocol changes, frontend behavior, and unrelated queue changes. Repeated review rounds found new high-severity failures
+at adjacent boundaries. This showed that the architecture was not ready for relaunch and that local fixes were moving
+the same ownership problems rather than resolving them.
+
+Implement the architecture in small behavior-preserving slices first. The relaunch feature is the final slice.
+
+## Retained learnings
+
+### Separate shell lifetime from runtime-generation lifetime
+
+The shell lives for the process. A squad runtime is replaceable.
+
+| Owner | Lifetime and responsibility |
+|---|---|
+| `SquadApplication` | Process lifetime: run loop, window, host lease, workspace preparation, sleep inhibitor, and final shutdown |
+| `SquadRuntimeController` | Coordinates startup, relaunch, failure rollback, and shutdown using the lifecycle authority |
+| `SquadRuntime` | One generation: backend runtime handle, registered sessions, event/completion observers, and ordered teardown |
+| `SquadLifecycle` | Authoritative phase, generation identity, transition exclusion, command admission, and capability projection; owns no I/O resources |
+| `IAgentRuntime` | Backend-owned handle for one SDK client and its sessions, including confirmed stop and force-stop escalation |
+| `SquadViewModel` | Serialized domain-state mutation and snapshots; consumes lifecycle capabilities and session leases but does not own lifecycle |
+| Handoff pump | Handoff discovery, delivery, wake-up acknowledgement, and retry; participates in generation transitions through a narrow API |
+| Vue | Presentation and transient client state only; consumes typed capabilities and acknowledgements |
+
+The names are proposals, but the ownership boundaries are requirements. Do not turn `SessionRegistry`,
+`SquadApplication`, or `SquadViewModel` into a lifecycle god object.
+
+### Use one authoritative lifecycle state machine
+
+```text
+Created -> Starting -> Running
+                    \-> Failed
+
+Running -> Relaunching -> Running
+                       \-> Failed
+
+Failed -> Relaunching -> Running or Failed
+any    -> Stopping    -> Stopped
+```
+
+A failed state is relaunchable only when the previous or partial backend runtime is conclusively retired. An uncertain
+runtime stop keeps relaunch unavailable while the retained backend handle is retried or escalated during cleanup.
+
+Lifecycle phase, transition exclusion, command admission, and published capabilities must share one atomic state
+boundary. Do not represent them with independent booleans or publish capability changes as a separate caller-managed
+step.
+
+### Make generation identity explicit
+
+Registration creates a session lease containing generation, role, and session identity. Carry that lease through:
+
+- session events;
+- completion and failure observation;
+- readiness probes;
+- prompts, aborts, and interaction responses; and
+- every queued ViewModel mutation originating from a session.
+
+Revalidate the lease inside the serialized mutation immediately before changing role, transcript, interaction, or
+failure state. A check before an `await`, callback, or queue write is not sufficient.
+
+### Keep runtime ownership until retirement is proven
+
+The backend exclusively owns its SDK client and sessions. Starting a generation returns an `IAgentRuntime`-style handle
+that remains valid until stop is confirmed.
+
+Retirement returns an explicit result such as `Confirmed` or `Uncertain(errors)`. On uncertain retirement, retain the
+runtime handle and prohibit replacement startup. Never clear client/session references merely because cleanup was
+attempted, and never dispose sessions directly outside the backend owner.
+
+### Treat command cancellation and command retirement as different states
+
+External commands acquire a generation-bound command lease before any domain mutation. Beginning relaunch or shutdown
+atomically closes admission and requests cancellation of admitted commands.
+
+Retirement must have a bounded, ownership-safe terminal path:
+
+1. request cooperative cancellation;
+2. wait for command leases to complete for a runtime-owned deadline;
+3. transfer remaining ownership to the backend runtime;
+4. force-stop the runtime; and
+5. complete transferred leases only when force-stop proves they can no longer access sessions.
+
+Timing out a drain and continuing with session disposal is not safe.
+
+### Make teardown one mandatory transaction
+
+Every begun transition reaches exactly one `Commit` or `Fail`, and every teardown stage runs even if an earlier stage
+fails. Collect failures rather than skipping later cleanup.
+
+The required generation teardown order is:
+
+1. leave `Running`, close admission, and cancel command retirement tokens;
+2. stop handoff production;
+3. retire or safely transfer admitted commands;
+4. cancel event observers;
+5. stop the backend runtime, resolving session completion;
+6. drain observer tasks;
+7. dispose observer cancellation resources;
+8. clear generation-owned pending interactions and transient role state; and
+9. commit the new phase and release transition ownership.
+
+Observer draining before backend shutdown can deadlock because session observers await session completion.
+
+### Keep handoff recovery generation-aware and retryable
+
+The inbox is the durable source of pending work. Notification acknowledgement is scoped to the target session
+generation and advances only after that generation accepts the wake-up.
+
+Normal polling, not only startup recovery, retries failed wake-ups. Pending-work enumeration must cover:
+
+- files in `inbox/new`;
+- task-mode files directly in `inbox/in_process`; and
+- active batch work in nested `inbox/in_process/batch_*` directories.
+
+Use one shared queue abstraction to enumerate these states. Do not add a one-shot `force` bypass or persist an
+ephemeral process/generation identifier inside agent worktrees.
+
+### Keep protocol authority in C#
+
+C# publishes lifecycle phase and per-role capabilities such as `canSendPrompt`, `canAbort`, `canRespond`, and
+`canRelaunch` from the same state used for command admission.
+
+Vue renders those values and owns only transient state. Every dispatch path, including keyboard shortcuts, consumes the
+current published capability while C# remains the final authority for stale-snapshot races.
+
+Commands that affect transient UI state use typed request IDs and acknowledgements. A prompt draft is cleared only
+after acceptance. Relaunch also has a typed acknowledgement rather than relying only on a later protocol error.
+
+## Preparation
+
+Before implementing relaunch:
+
+- use the ownership direction in `010 refactor squad view model.md`, extracting lifecycle-critical role-operation and
+  pending-interaction state without introducing pass-through services;
+- use `020 refactor squad application.md` to separate process lifetime from generation lifetime;
+- apply the internal split described by `040 refactor session registry.md` from the start rather than first creating a
+  large registry and refactoring it afterward;
+- treat `030`, `050`, `060`, and `070` as independent work and do not pull them into this feature;
+- characterize observable startup, shutdown, command admission, event ordering, and handoff recovery before changing
+  their timing; and
+- keep any agent-CLI handoff queue atomicity change in a separate issue and change set.
+
+The abandoned implementation types referenced by other documents are not assumed to exist. This issue's ownership and
+ordering invariants are authoritative for the new attempt.
+
+## Implementation slices
+
+Each slice is independently reviewable and leaves the repository in a working state. Slices 1-6 do not expose relaunch.
+
+### Slice 1: Narrow ViewModel responsibilities
+
+Extract cohesive owners for:
+
+- per-role prompt/abort serialization, active-operation cancellation, and generation-scoped unavailable state; and
+- pending permission, input, and elicitation state.
+
+Keep the ViewModel event loop as the only mutation commit boundary. Do not extract thin forwarding interfaces.
+
+**Exit criteria:** Existing behavior and public protocol remain unchanged; no lifecycle state is added to the ViewModel.
+
+### Slice 2: Introduce backend runtime ownership
+
+Change backend startup to return one runtime handle that owns its SDK client and sessions. Add confirmed/uncertain
+retirement and force-stop escalation. Preserve the handle after failed stop.
+
+Remove any pass-through `RelaunchAsync` abstraction; replacement is orchestration, not a backend primitive.
+
+**Exit criteria:** Existing startup/shutdown behavior is unchanged, session disposal occurs only through the runtime
+owner, and failed teardown remains recoverable without losing handles.
+
+### Slice 3: Introduce lifecycle, catalog, and command ledger
+
+Add the authoritative lifecycle aggregate with small internal collaborators:
+
+- a session catalog for generation-scoped role/session identity and role availability; and
+- a command ledger for admitted command leases, cancellation, draining, transfer, and completion.
+
+Support only `Created`, `Starting`, `Running`, `Stopping`, and `Stopped` initially. Delete test-only registration paths
+that bypass real transitions. No public API returns a session without a lease.
+
+**Exit criteria:** Startup and shutdown use one phase/admission authority; capability publication occurs as part of
+transition release; rejected commands are side-effect free.
+
+### Slice 4: Extract one-generation runtime orchestration
+
+Move generation creation, session registration, observer ownership, backend/handoff participation, and ordered teardown
+into `SquadRuntime`. Add `SquadRuntimeController` to coordinate it with `SquadLifecycle`.
+
+Keep `SquadApplication` responsible only for the outer process run loop and process-wide resources.
+
+**Exit criteria:** Existing startup/shutdown behavior is unchanged; teardown always executes mandatory stages and
+aggregates failures; no session resource is owned by the shell.
+
+### Slice 5: Add typed capabilities and command acknowledgements
+
+Publish lifecycle and per-role capabilities while keeping `canRelaunch` false. Add correlated acknowledgements for
+commands that mutate transient UI state.
+
+Route visible controls and keyboard shortcuts through the same capability-aware Vue actions. Retain server-side
+admission.
+
+**Exit criteria:** Rejected prompts preserve drafts; unavailable aborts are not dispatched by either button or
+double-Escape; Vue contains no independent lifecycle rules.
+
+### Slice 6: Make handoff wake-up recovery generation-aware
+
+Give the pump explicit generation start/stop/recover participation. Derive pending work through the shared queue model,
+including active batches. Retry failed wake-ups during normal polling and acknowledge them per generation.
+
+**Exit criteria:** Failed notification remains retryable; a new generation rearms existing inbox work; no new
+notification-state artifact is written into agent worktrees.
+
+### Slice 7: Add relaunch
+
+Add `Relaunching` and retryable `Failed`, implement runtime replacement in `SquadRuntimeController`, and expose the typed
+relaunch command through the existing UI application port.
+
+Add `HeadquarterToolbox.vue` only now.
+
+**Exit criteria:** The feature commit adds orchestration and presentation but does not redesign ownership established in
+the earlier slices.
+
+## Required relaunch sequence
+
+1. Atomically enter `Relaunching`, close command admission, request retirement, and publish unavailable capabilities.
+2. Stop handoff production.
+3. Retire commands cooperatively or transfer them to backend force-stop ownership.
+4. Teardown the old runtime and drain its observers.
+5. Clear old generation transient state while preserving transcript history.
+6. Start and register all replacement sessions.
+7. Recover pending handoffs and start normal retry polling.
+8. Commit `Running`, release transition exclusion, and publish capabilities from the same lifecycle operation.
+9. Acknowledge relaunch success.
+
+On failure, teardown any partial replacement through its backend owner, drain observers, clear partial state, publish
+the error, and enter `Failed`. Permit retry only after retirement is confirmed.
+
+## Acceptance scenarios
+
+### Lifecycle and ownership
+
+- Relaunch replaces every role session exactly once without restarting the window or process-wide services.
+- A second concurrent relaunch is rejected without changing state.
+- Shutdown during relaunch completes without overlapping session mutation or deadlock.
+- Failure or cancellation at every transition stage still executes mandatory later cleanup.
+- A hung command is force-stopped through backend ownership before session teardown proceeds.
+- Failed backend stop retains its runtime handle and prevents overlapping replacement startup.
+- A failed relaunch leaves the shell usable and permits retry only after confirmed retirement.
+
+### Generation isolation
+
+- Events, readiness results, and completion failures from a retired generation cannot mutate replacement state.
+- Replacement events are accepted while external commands remain unavailable.
+- A partially started replacement leaves no pending interactions, working/tool state, or stale failure state.
+- A failed abort blocks commands only for its originating generation until retry, termination, or replacement.
+
+### Handoffs
+
+- Pending task-mode inbox work wakes replacement sessions.
+- Active nested batch work wakes replacement sessions.
+- A transient wake-up failure is retried by normal polling.
+- A prior generation's acknowledgement cannot suppress notification for a replacement generation.
+
+### Protocol and UI
+
+- The toolbox appears above agent panels.
+- The relaunch control uses an impact-oriented non-refresh symbol and explanatory tooltip.
+- Relaunch and role controls reflect C#-published capabilities.
+- Button and keyboard dispatch paths use the same capability-aware actions.
+- Rejected prompt admission preserves the draft.
+- Relaunch success and rejection use typed correlated acknowledgements.
+
+Use the existing black-box Gherkin suite for C# behavior and focused Playwright specs with shared support for frontend
+behavior.
+
+## Stop/go gates
+
+- Do not combine architecture cleanup and relaunch behavior in one slice.
+- Do not add another lifecycle flag or lock outside the authoritative lifecycle aggregate.
+- Do not expose a session without a generation-bound lease.
+- Do not validate generation only before an asynchronous boundary; validate at mutation commit.
+- Do not dispose sessions outside their backend runtime owner.
+- Do not treat cancellation requested, timeout elapsed, wrapper completion, or cleanup attempted as confirmed
+  retirement.
+- Do not let one teardown failure skip mandatory later stages.
+- Do not publish command capability independently from transition release.
+- Do not add UI-derived lifecycle rules or presentation-only workarounds.
+- Do not add one-shot handoff recovery or generation-blind acknowledgement.
+- Do not add production APIs solely for test setup.
+- If a feature slice must redesign an earlier boundary, stop and repair that architecture slice first.
+- If two consecutive reviews produce multiple high-severity lifecycle findings, stop implementation and revisit
+  ownership rather than adding guards.
 
 ## Architectural diagnosis
 
