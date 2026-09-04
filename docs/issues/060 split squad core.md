@@ -101,12 +101,14 @@ Create a separate assembly for filesystem-backed handoff delivery:
 
 - `HandoffDeliveryService`;
 - `InProcessHandoffPoller`;
-- `SessionRoleNotifier`, if notification wiring remains part of handoff recovery;
-- `IHandoffPump` and `IRoleNotifier`, if they are only used by this delivery boundary.
+- `IHandoffPump`; and
+- `IRoleNotifier`.
 
 This assembly may depend on `squad.Agent.Configuration`, `squad.Agent.Handoff`, and a narrow role-notification
-contract. It must not become a second session or lifecycle authority. The application core should own the decision to
-start, stop, and recover the pump; the handoff assembly should own delivery mechanics.
+contract. Narrow `IRoleNotifier` to the recipient role name so notification does not expose delivery configuration.
+`SessionRoleNotifier` is the host adapter between that contract and `SessionRegistry`/`SquadViewModel`; place it beside
+the `squad-hq` composition code rather than making either extracted assembly depend on the other. `SquadApplication`
+continues to own the decision to start, stop, and recover the pump; the handoff assembly owns delivery mechanics.
 
 ### Keep event projection as an internal Core module
 
@@ -118,63 +120,113 @@ and therefore has a close dependency on Core state. Keep it stateless where poss
 
 ```text
 squad-hq / host
+        +--> squad.Core --------------------> AgentProvider.Abstractions
+        |       |                             Ui.Abstractions
+        |       |
+        |       +--> squad.Core.Transcripts -> transcript contracts only
         |
-        v
-  squad.Core --------------------> AgentProvider.Abstractions
-        |                           Ui.Abstractions
-        |                           Agent.Configuration
-        |
-        +--> squad.Core.Transcripts
-        +--> squad.Core.Handoffs ----> Agent.Handoff
-                                    -> Agent.Configuration
-
-squad.Core.Transcripts -----------> transcript contracts only
-squad.Core.Handoffs --------------> role notification contract only
+        +--> squad.Core.Handoffs ------------> Agent.Handoff
+                                               Agent.Configuration
 ```
 
 The following dependency rules are required:
 
 - `squad.Core` remains the only owner of authoritative application lifecycle and command admission.
 - `squad.Core.Transcripts` cannot call back into `SquadViewModel`.
-- `squad.Core.Handoffs` cannot look up or mutate sessions directly except through its injected notifier contract.
+- `squad.Core.Handoffs` cannot reference `squad.Core`, look up sessions, or mutate application state; it can only invoke
+  its injected notifier contract with a recipient role name.
+- `squad-hq` owns the `SessionRoleNotifier` adapter and handoff-pump lifecycle because it composes the pump,
+  `SessionRegistry`, and `SquadViewModel`.
 - Provider adapters and host adapters depend on Core contracts; Core does not depend on Copilot SDK or Photino.
 - UI protocol serialization remains at the existing UI/application boundary; transcript state must not know Vue details.
 - No assembly introduced by this split may create a second lock, event loop, lifecycle registry, or source of truth.
 
 ## Implementation plan
 
-### Slice 1: Establish the Core boundary
+The focused refactors remain separate issues and are prerequisites rather than hidden work in this issue:
 
-1. Complete the existing `SquadViewModel`, `AgentRoleState`, and `SessionRegistry` refactor issues in dependency order.
-2. Keep the event loop as the single serialized mutation boundary.
-3. Define the minimal contracts needed by extracted transcript and handoff modules before moving implementation code.
+- `030 refactor agent role state.md` must be accepted before the transcript assembly move.
+- `010 refactor squad view model.md` and `040 refactor session registry.md` must be accepted before final boundary
+  verification.
+- The handoff extraction has no dependency on those refactors and is the first independently reviewable slice.
 
-### Slice 2: Extract transcript state
+### Slice 1: Extract filesystem handoff delivery
 
-1. Extract `RoleTranscriptState` from `AgentRoleState`.
-2. Move the archive, streaming buffer, retention options, and transcript-only helpers to `squad.Core.Transcripts`.
-3. Preserve transcript snapshot, paging, streaming, truncation, protection, and archive cleanup behavior.
-4. Add or retain black-box coverage for ordering and state-preservation invariants before changing the assembly boundary.
+**Status: in progress — hand off to coder**
 
-### Slice 3: Extract handoff delivery
+1. Add `src/squad.Core.Handoffs/squad.Core.Handoffs.csproj` to `squad.slnx`. Reference only
+   `squad.Agent.Configuration` and `squad.Agent.Handoff`.
+2. Move `HandoffDeliveryService`, `InProcessHandoffPoller`, `IHandoffPump`, and `IRoleNotifier` from `squad.Core` into
+   the new assembly and namespace without changing polling, recovery, delivery, archival, collision, cancellation, or
+   failure behavior.
+3. Change `IRoleNotifier.NotifyAsync` to accept the recipient role name rather than `RoleRow`. Delivery retains
+   `RoleRow` internally for filesystem paths.
+4. Move `SessionRoleNotifier` to `squad-hq/Commands`; it implements the narrow notifier by resolving the active role
+   through `SessionRegistry` and sending the existing wake message through `SquadViewModel`.
+5. Update host/spec project references, namespaces, test doubles, and composition. Remove
+   `squad.Agent.Configuration` and `squad.Agent.Handoff` references from `squad.Core`; the current code uses those
+   references only for the handoff files being moved.
+6. Extend `Architecture.feature` and its step definitions to prove `squad.Core.Handoffs` has only the two allowed
+   project dependencies, does not reference `squad.Core`, and `squad.Core` no longer references the handoff or
+   configuration assemblies.
+7. Run the focused `Delivery`, `Recovery`, `ViewModel`, `Startup`, and `Architecture` scenarios, followed by the
+   complete build and acceptance suite.
 
-1. Move delivery, polling, and recovery mechanics to `squad.Core.Handoffs`.
-2. Inject a narrow notifier rather than referencing the complete ViewModel or session registry.
-3. Keep pump startup, stop, recovery, and generation ownership in the application lifecycle owner.
-4. Preserve outbox-to-inbox, sent/failed archival, collision handling, multi-recipient delivery, and notification behavior.
+**Slice acceptance**
 
-### Slice 4: Retain only genuine common primitives
+- `squad.Core.Handoffs` is the sole owner of filesystem polling, recovery, delivery, and delivery contracts.
+- `squad.Core.Handoffs` has no dependency on `squad.Core`, hosting, provider, UI, Copilot SDK, or Photino assemblies.
+- `squad-hq` remains the lifecycle/composition owner and is the only production location that bridges handoff
+  notification to active Core sessions.
+- Existing delivery ordering, durability, fan-out validation, notification-failure, recovery, cancellation, and
+  shutdown behavior is unchanged.
 
-1. Inventory actual cross-module logging and contract-checking call sites.
-2. Introduce a small dependency-free common assembly only if the same abstraction is needed by independent assemblies.
-3. Keep logging and design-by-contract APIs narrow and explicit; do not move domain rules into a generic helper package.
+### Slice 2: Extract the transcript aggregate
 
-### Slice 5: Verify and simplify references
+**Status: waiting for acceptance of `030 refactor agent role state.md` and Slice 1**
 
-1. Update architecture tests to assert the new dependency graph and the single Core lifecycle authority.
-2. Remove obsolete project references and namespaces.
-3. Run focused transcript, interaction, lifecycle, handoff, startup, relaunch, and shutdown acceptance scenarios, then the
-   complete build and test suite.
+1. Add `src/squad.Core.Transcripts/squad.Core.Transcripts.csproj` to `squad.slnx`, with only the contract reference
+   required by the accepted `RoleTranscriptState` API.
+2. Move the accepted `RoleTranscriptState`, `TranscriptArchive`, `TranscriptEntryBuffer`,
+   `TranscriptRetentionOptions`, and transcript-only policies/helpers into the new assembly. Do not add forwarding
+   services or split the aggregate's shared ordering and retention invariants.
+3. Keep aggregate creation and disposal with the Core coordinator. Expose explicit mutation and snapshot operations to
+   the internal event projector; do not permit callbacks into `SquadViewModel`.
+4. Update Core/spec references and namespaces without changing public snapshot, paging, or transcript protocol shapes.
+5. Extend the architecture scenario to prove the transcript assembly's allowed references and absence of Core, host,
+   provider-adapter, and presentation-adapter dependencies.
+6. Run focused transcript, archived-entry reconstruction, snapshot-publication, context, ViewModel, and architecture
+   scenarios, followed by the complete build and acceptance suite.
+
+**Slice acceptance**
+
+- Transcript ordering, streaming, tool progress, protection, retention, truncation, paging, and archive lifetime have
+  one owner in `squad.Core.Transcripts`.
+- Sequence and entry indexes remain monotonic across retention and archive paging.
+- Core remains the mutation/lifecycle authority; the transcript assembly has no event loop, session registry, or
+  callback to the coordinator.
+
+### Slice 3: Enforce and document the final Core boundary
+
+**Status: waiting for acceptance of Slice 2 and the `010`/`040` refactor issues**
+
+1. Update the architecture scenario to assert the complete dependency graph and exactly one lifecycle/admission owner.
+2. Verify `RoleOperations`, `Interactions`, and `Events` remain internal Core modules and remove obsolete references,
+   namespaces, and transitional APIs left by the accepted prerequisite refactors.
+3. Update the repository architecture documentation to name Core, Transcripts, Handoffs, host composition, and their
+   allowed dependency directions.
+4. Inventory logging and contract checks touched by the split. Create no common assembly unless at least two
+   independent modules already need the same narrow, dependency-free abstraction; otherwise leave each concern with
+   its owner.
+5. Run focused interaction, transcript, handoff, lifecycle, relaunch, startup, shutdown, and architecture scenarios,
+   followed by the complete build and acceptance suite.
+
+**Slice acceptance**
+
+- The implemented project graph matches this issue and is protected by black-box architecture scenarios.
+- There is one event-loop commit boundary and one session/lifecycle/admission authority.
+- No placeholder common assembly, pass-through layer, duplicate synchronization boundary, or duplicate source of truth
+  was introduced.
 
 ## Acceptance criteria
 
