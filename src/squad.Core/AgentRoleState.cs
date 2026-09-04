@@ -1,3 +1,4 @@
+using global::squad.Core.Transcripts;
 using global::squad.Ui.Abstractions;
 
 namespace squad.Core;

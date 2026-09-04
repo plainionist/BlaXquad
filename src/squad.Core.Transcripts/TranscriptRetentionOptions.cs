@@ -1,4 +1,4 @@
-namespace squad.Core;
+namespace squad.Core.Transcripts;
 
 public sealed record TranscriptRetentionOptions(
     int MaxRetainedEntries = 500,

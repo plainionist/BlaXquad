@@ -25,5 +25,9 @@ Feature: Runtime assembly boundaries
     Then the handoff delivery assembly depends only on agent configuration and handoff contracts
     And the application core no longer depends on agent configuration or handoff contracts
 
+  Scenario: Transcript state is isolated in its own assembly
+    Then the transcript assembly depends only on UI abstractions
+    And the application core depends on the transcript assembly
+
   Scenario: Installers declare supported package targets
     Then the installers declare every supported runtime identifier

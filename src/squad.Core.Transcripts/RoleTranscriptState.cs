@@ -1,6 +1,6 @@
 using global::squad.Ui.Abstractions;
 
-namespace squad.Core;
+namespace squad.Core.Transcripts;
 
 /// <summary>
 /// Owns the retained transcript, streaming buffers, tool-call correlation, archive access, and retention policy for
@@ -8,7 +8,7 @@ namespace squad.Core;
 /// mutation methods rely on the caller (the event projector) already holding that same lock so status and transcript
 /// changes commit atomically.
 /// </summary>
-internal sealed class RoleTranscriptState
+public sealed class RoleTranscriptState
 {
     private const string myArchivedContentAvailableMarker =
         "[Earlier content is available in transcript history.]\n";
@@ -29,7 +29,7 @@ internal sealed class RoleTranscriptState
     private int myNextTranscriptEntryIndex;
     private int myRetainedContentCharacters;
 
-    internal RoleTranscriptState(
+    public RoleTranscriptState(
         string role,
         TranscriptArchive transcriptArchive,
         TranscriptRetentionOptions retentionOptions,
@@ -41,7 +41,7 @@ internal sealed class RoleTranscriptState
         mySyncRoot = syncRoot;
     }
 
-    internal IReadOnlyList<TranscriptEntry> Entries
+    public IReadOnlyList<TranscriptEntry> Entries
     {
         get
         {
@@ -50,7 +50,7 @@ internal sealed class RoleTranscriptState
         }
     }
 
-    internal RoleTranscriptSnapshot CreateTranscriptSnapshot(int maxEntries)
+    public RoleTranscriptSnapshot CreateTranscriptSnapshot(int maxEntries)
     {
         lock (mySyncRoot)
         {
@@ -70,7 +70,7 @@ internal sealed class RoleTranscriptState
         }
     }
 
-    internal RoleTranscriptPage CreateTranscriptPage(int beforeIndex, int maxEntries)
+    public RoleTranscriptPage CreateTranscriptPage(int beforeIndex, int maxEntries)
     {
         lock (mySyncRoot)
         {
@@ -84,13 +84,13 @@ internal sealed class RoleTranscriptState
         }
     }
 
-    internal RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(int entryIndex)
+    public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(int entryIndex)
     {
         lock (mySyncRoot)
             return myTranscriptArchive.ReadEntry(myRole, entryIndex, myTranscriptSequence);
     }
 
-    internal TranscriptUpdate AddTranscriptEntry(TranscriptEntry entry, bool protect = false)
+    public TranscriptUpdate AddTranscriptEntry(TranscriptEntry entry, bool protect = false)
     {
         var entryIndex = myNextTranscriptEntryIndex++;
         var update = CreateUpdate(
@@ -124,7 +124,7 @@ internal sealed class RoleTranscriptState
         };
     }
 
-    internal TranscriptUpdate StartTool(
+    public TranscriptUpdate StartTool(
         string toolCallId,
         string toolName,
         bool suppressOutput,
@@ -143,7 +143,7 @@ internal sealed class RoleTranscriptState
         return update;
     }
 
-    internal TranscriptUpdate? ChangeToolOutput(
+    public TranscriptUpdate? ChangeToolOutput(
         string toolCallId,
         string output)
     {
@@ -156,7 +156,7 @@ internal sealed class RoleTranscriptState
         return ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
     }
 
-    internal TranscriptUpdate? ChangeToolProgress(
+    public TranscriptUpdate? ChangeToolProgress(
         string toolCallId,
         string progress)
     {
@@ -169,7 +169,7 @@ internal sealed class RoleTranscriptState
         return ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
     }
 
-    internal ToolCompletionResult? CompleteTool(
+    public ToolCompletionResult? CompleteTool(
         string toolCallId,
         string? displayOutputFallback,
         string? contentFallback)
@@ -208,7 +208,7 @@ internal sealed class RoleTranscriptState
             ? 0
             : content.Count(character => character == '\n') + (content[^1] == '\n' ? 0 : 1);
 
-    internal TranscriptUpdate AppendAssistantEntry(DateTimeOffset occurredAt, string content) =>
+    public TranscriptUpdate AppendAssistantEntry(DateTimeOffset occurredAt, string content) =>
         AppendStreamingEntry(
             ref myAssistantEntryBuffer,
             ref myAssistantTranscriptEntryIndex,
@@ -216,7 +216,7 @@ internal sealed class RoleTranscriptState
             "assistant",
             content);
 
-    internal TranscriptUpdate AppendReasoningEntry(DateTimeOffset occurredAt, string content) =>
+    public TranscriptUpdate AppendReasoningEntry(DateTimeOffset occurredAt, string content) =>
         AppendStreamingEntry(
             ref myReasoningEntryBuffer,
             ref myReasoningTranscriptEntryIndex,
@@ -224,25 +224,25 @@ internal sealed class RoleTranscriptState
             "reasoning",
             content);
 
-    internal TranscriptUpdate CompleteAssistantEntry(DateTimeOffset occurredAt, string content) =>
+    public TranscriptUpdate CompleteAssistantEntry(DateTimeOffset occurredAt, string content) =>
         CompleteStreamingEntry(
             ref myAssistantEntryBuffer,
             ref myAssistantTranscriptEntryIndex,
             new TranscriptEntry(occurredAt, "assistant", content));
 
-    internal TranscriptUpdate CompleteReasoningEntry(DateTimeOffset occurredAt, string content) =>
+    public TranscriptUpdate CompleteReasoningEntry(DateTimeOffset occurredAt, string content) =>
         CompleteStreamingEntry(
             ref myReasoningEntryBuffer,
             ref myReasoningTranscriptEntryIndex,
             new TranscriptEntry(occurredAt, "reasoning", content));
 
-    internal void FinalizeAssistantEntry() =>
+    public void FinalizeAssistantEntry() =>
         FinalizeStreamingEntry(ref myAssistantEntryBuffer, ref myAssistantTranscriptEntryIndex);
 
-    internal void FinalizeReasoningEntry() =>
+    public void FinalizeReasoningEntry() =>
         FinalizeStreamingEntry(ref myReasoningEntryBuffer, ref myReasoningTranscriptEntryIndex);
 
-    internal void UnprotectTranscriptEntry(int entryIndex)
+    public void UnprotectTranscriptEntry(int entryIndex)
     {
         myProtectedTranscriptEntries.Remove(entryIndex);
         EnforceRetentionLimits();
@@ -571,9 +571,3 @@ internal sealed class RoleTranscriptState
             ..Math.Min(myArchivedContentUnavailableMarker.Length, content.Length)];
     }
 }
-
-/// <summary>
-/// Reports the transcript update (if any) produced by completing a tool call, along with the active tool name that
-/// the event projector should assign to <see cref="AgentRoleState.ActiveTool"/> at the same commit point.
-/// </summary>
-internal sealed record ToolCompletionResult(TranscriptUpdate? Update, string? ActiveTool);

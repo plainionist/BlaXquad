@@ -6,6 +6,7 @@ using global::squad.Agent.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
 using global::squad.Core.Handoffs;
+using global::squad.Core.Transcripts;
 using global::squad.CopilotSdk;
 using global::squad.Hosting.Abstractions;
 using global::squad.Photino;
@@ -344,6 +345,33 @@ public sealed class ArchitectureSteps
             Assert.That(references, Does.Not.Contain("squad.Agent.Configuration"));
             Assert.That(references, Does.Not.Contain("squad.Agent.Handoff"));
         });
+    }
+
+    [Then("the transcript assembly depends only on UI abstractions")]
+    public void ThenTheTranscriptAssemblyDependsOnlyOnUiAbstractions()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(RoleTranscriptState).Assembly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(references, Does.Contain("squad.Ui.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(references, Does.Not.Contain("squad.Core.Handoffs"));
+            Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Agent.Configuration"));
+            Assert.That(references, Does.Not.Contain("squad.Agent.Handoff"));
+            Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Photino"));
+            Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
+        });
+    }
+
+    [Then("the application core depends on the transcript assembly")]
+    public void ThenTheApplicationCoreDependsOnTheTranscriptAssembly()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
+
+        Assert.That(references, Does.Contain("squad.Core.Transcripts"));
     }
 
     [Then("production source does not use the legacy backend selector")]

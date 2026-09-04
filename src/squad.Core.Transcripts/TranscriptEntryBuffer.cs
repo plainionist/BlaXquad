@@ -1,7 +1,7 @@
 using System.Text;
 using global::squad.Ui.Abstractions;
 
-namespace squad.Core;
+namespace squad.Core.Transcripts;
 
 internal sealed class TranscriptEntryBuffer
 {

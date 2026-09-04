@@ -3,9 +3,9 @@ using System.Text;
 using System.Text.Json;
 using global::squad.Ui.Abstractions;
 
-namespace squad.Core;
+namespace squad.Core.Transcripts;
 
-internal sealed class TranscriptArchive : IDisposable
+public sealed class TranscriptArchive : IDisposable
 {
     private const string myTruncationMarker = "\n[Transcript content truncated at the configured storage limit.]";
     private const UnixFileMode myPrivateDirectoryMode =
@@ -22,7 +22,7 @@ internal sealed class TranscriptArchive : IDisposable
     private readonly HashSet<string> myTruncatedRoles = new(StringComparer.Ordinal);
     private bool myDisposed;
 
-    internal TranscriptArchive(TranscriptRetentionOptions options)
+    public TranscriptArchive(TranscriptRetentionOptions options)
     {
         myOptions = options;
         myDirectory = Path.Combine(
@@ -30,7 +30,7 @@ internal sealed class TranscriptArchive : IDisposable
             $"blaxquad-transcript-history-{Guid.NewGuid():N}");
     }
 
-    internal string DirectoryPath => myDirectory;
+    public string DirectoryPath => myDirectory;
 
     internal void Apply(TranscriptUpdate update)
     {
