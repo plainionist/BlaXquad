@@ -111,6 +111,8 @@ Status: complete (6d645a67a1)
 
 ### Slice 2: Extract process execution
 
+Status: complete (bb01e9fa8c)
+
 1. Create `squad.Agent.Process` and move `ProcessRunner` and `ProcessResult`.
 2. Update project references and namespaces in the CLI, headquarters, Photino, and configuration code.
 3. Update architecture assertions and verify Git discovery and external-tool execution behavior.
