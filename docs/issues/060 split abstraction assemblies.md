@@ -74,6 +74,59 @@ The expected dependency direction is:
 - the executable composition root depends on the selected adapters, core, and required contracts; and
 - the agent provider and hosting abstractions remain independent of presentation implementations.
 
+## Migration plan
+
+Perform the split in the following independently buildable slices. The implementing agent should inventory individual
+types as part of each slice; this plan fixes assembly ownership and migration order rather than prescribing a
+class-by-class move list.
+
+### Slice 1: Introduce agent provider contracts
+
+Create `squad.AgentProvider.Abstractions`. Move provider-neutral backend and session lifecycle interfaces into it,
+together with provider creation and selection contracts, startup and role context values, agent events, interaction
+requests and responses, readiness and failure reporting, usage values, and transport-neutral event-channel
+primitives.
+
+Update `squad.Core` and provider adapters such as `squad.CopilotSdk` to consume this assembly directly. This assembly
+must have no project reference to core, UI, hosting, Photino, a provider adapter, or either executable.
+
+### Slice 2: Introduce UI contracts
+
+Create `squad.Ui.Abstractions`. Move the application-facing presentation port into it: UI commands and queries,
+application snapshots and transcript models, presentation notifications, refresh semantics, and interaction models
+needed to render or answer application state.
+
+Update `squad.Core` to implement these contracts and presentation adapters such as `squad.Photino` to consume them.
+Where an interaction model is genuinely provider-neutral and shared with presentation, reference
+`squad.AgentProvider.Abstractions` from this assembly instead of duplicating it.
+
+### Slice 3: Introduce hosting contracts
+
+Create `squad.Hosting.Abstractions`. Move only replaceable process-wide host capabilities into it: window and host
+lifetime contracts, sleep-inhibition contracts, and terminal or process-control signals consumed by the application
+run loop.
+
+Update host adapters and executable composition roots to consume this assembly. Keep it independent of provider, UI,
+core, Photino, and executable assemblies unless a boundary type proves a narrower dependency is required.
+
+### Slice 4: Rehome types that are not boundary contracts
+
+Move domain state, generation and session identities, and internal collaboration interfaces used only by the
+application into `squad.Core`. Move concrete process execution, operating-system integration, serialization, and
+framework helpers into the adapter or executable that owns the implementation. Move runtime composition records,
+implementation selection, startup policy, and private command dispatch into the relevant executable composition
+root.
+
+Do not create another shared project for types that fail the ownership test. Reduce visibility to `internal` when a
+type no longer crosses an assembly boundary.
+
+### Slice 5: Remove the catch-all assembly
+
+Replace remaining references to `squad.Abstractions` with direct references to the owning contract assemblies, remove
+`squad.Abstractions` from the solution, and delete the project once no consumers remain. Add architecture scenarios
+that verify the allowed dependency direction and representative forbidden references, then run the existing
+black-box suite to confirm the split has not changed observable behavior.
+
 ## Acceptance criteria
 
 - The general-purpose abstractions assembly is replaced by agent provider, UI, and hosting contract assemblies with
