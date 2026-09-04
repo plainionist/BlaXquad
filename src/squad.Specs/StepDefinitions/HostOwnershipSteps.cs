@@ -52,7 +52,7 @@ public sealed class HostOwnershipSteps
             $$"""
             {
               "roles": [
-                { "name": "{{role}}", "worktree": "master", "agent": { "backend": "copilot" } }
+                { "name": "{{role}}", "worktree": "master", "agent": {} }
               ]
             }
             """ + "\n");

@@ -7,8 +7,8 @@ Feature: Preparing squad startup
       """
       {
         "roles": [
-          { "name": "coordinator", "worktree": "master", "agent": { "backend": "copilot" } },
-          { "name": "coder", "worktree": "coder", "receiveMode": "task", "agent": { "backend": "copilot" } }
+          { "name": "coordinator", "worktree": "master", "agent": {} },
+          { "name": "coder", "worktree": "coder", "receiveMode": "task", "agent": {} }
         ]
       }
       """
@@ -24,8 +24,8 @@ Feature: Preparing squad startup
       """
       {
         "roles": [
-          { "name": "coordinator", "worktree": "master", "agent": { "backend": "copilot" } },
-          { "name": "coder", "worktree": "coder", "agent": { "backend": "copilot" } }
+          { "name": "coordinator", "worktree": "master", "agent": {} },
+          { "name": "coder", "worktree": "coder", "agent": {} }
         ]
       }
       """
@@ -41,8 +41,8 @@ Feature: Preparing squad startup
       """
       {
         "roles": [
-          { "name": "coordinator", "worktree": "master", "agent": { "backend": "copilot" } },
-          { "name": "coder", "worktree": "coder", "agent": { "backend": "copilot" } }
+          { "name": "coordinator", "worktree": "master", "agent": {} },
+          { "name": "coder", "worktree": "coder", "agent": {} }
         ]
       }
       """
@@ -59,8 +59,8 @@ Feature: Preparing squad startup
       {
         "sharedWorktreePaths": ["agent_context"],
         "roles": [
-          { "name": "coordinator", "worktree": "master", "agent": { "backend": "copilot" } },
-          { "name": "coder", "worktree": "coder", "agent": { "backend": "copilot" } }
+          { "name": "coordinator", "worktree": "master", "agent": {} },
+          { "name": "coder", "worktree": "coder", "agent": {} }
         ]
       }
       """

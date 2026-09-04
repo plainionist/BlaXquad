@@ -29,7 +29,7 @@ public sealed class DeliverySteps
             var worktree = myWorkspace.PathInWorkspace("worktrees", role);
             myWorktrees[role] = worktree;
             Directory.CreateDirectory(worktree);
-            myDeliveryRoles.Add(new RoleRow(role, role, worktree, role, "copilot", "task"));
+            myDeliveryRoles.Add(new RoleRow(role, role, worktree, role, "task"));
         }
     }
 

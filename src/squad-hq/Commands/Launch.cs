@@ -118,7 +118,6 @@ static class Launch
                     role.DisplayName,
                     role.WorktreePath,
                     InitialInstruction(role.Role),
-                    role.Agent,
                     role.Permissions,
                     role.Model,
                     role.Effort)).ToArray(),
@@ -215,7 +214,7 @@ static class Launch
                 var runtime = RuntimeModeSelector.Create(factory, () => BuildBackendContext(context), viewModel);
                 var sessionRegistry = new SessionRegistry();
                 var handoffPump = new InProcessHandoffPoller(
-                    () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.Agent, r.ReceiveMode)).ToArray(),
+                    () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
                     new SessionRoleNotifier(sessionRegistry, viewModel),
                     LogHandoff);
 

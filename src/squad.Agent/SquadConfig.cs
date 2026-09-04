@@ -25,18 +25,12 @@ public static class SquadConfig
                 var worktree = roleElem.TryGetProperty("worktree", out var w) ? w.GetString() ?? "" : "";
                 var receiveMode = roleElem.TryGetProperty("receiveMode", out var r) ? r.GetString() ?? "task" : "task";
                 var displayName = roleElem.TryGetProperty("displayName", out var d) ? d.GetString() ?? name : name;
-                var agent = "copilot";
-                if (roleElem.TryGetProperty("agent", out var agentElem) && agentElem.ValueKind == JsonValueKind.Object)
-                {
-                    if (agentElem.TryGetProperty("backend", out var b))
-                        agent = b.GetString() ?? "copilot";
-                }
 
                 var worktreePath = worktree == "master"
                     ? projectRoot
                     : Path.Combine(projectRoot, ".worktrees", worktree);
 
-                list.Add(new RoleRow(name, worktree, worktreePath, displayName, agent, receiveMode));
+                list.Add(new RoleRow(name, worktree, worktreePath, displayName, receiveMode));
             }
             return list;
         }

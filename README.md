@@ -61,13 +61,13 @@ squad-hq shutdown
       "name": "coordinator",
       "worktree": "master",
       "receiveMode": "task",
-      "agent": { "backend": "copilot", "permissions": "prompt" }
+      "agent": { "permissions": "prompt" }
     },
     {
       "name": "coder",
       "worktree": "coder",
       "receiveMode": "task",
-      "agent": { "backend": "copilot", "permissions": "approveAll", "model": "gpt-5", "effort": "high" }
+      "agent": { "permissions": "approveAll", "model": "gpt-5", "effort": "high" }
     }
   ]
 }

@@ -195,7 +195,7 @@ public sealed class ViewModelSteps
             WorkingDir = myApplicationRoot,
             ScriptDir = AppContext.BaseDirectory.TrimEnd('/', '\\'),
             ContinueLaunch = true,
-            Roles = roleNames.Select(role => new RoleConfigRow(role, "copilot", role, "master", myApplicationRoot, "task")).ToList(),
+            Roles = roleNames.Select(role => new RoleConfigRow(role, role, "master", myApplicationRoot, "task")).ToList(),
         };
         ctx.ConfigFile = Path.Combine(myApplicationRoot, "blaxquad", "squad.json");
         ctx.RolesDir = Path.Combine(myApplicationRoot, "blaxquad", "roles");
@@ -363,7 +363,7 @@ public sealed class ViewModelSteps
         {
             var worktreePath = Path.Combine(myApplicationRoot, ".worktrees", role);
             Directory.CreateDirectory(Path.Combine(worktreePath, ".git"));
-            return new RoleConfigRow(role, "copilot", role, $"sdk-{index + 1}", worktreePath, "task");
+            return new RoleConfigRow(role, role, $"sdk-{index + 1}", worktreePath, "task");
         }).ToList();
         myApplicationContext!.Roles = sdkRoles;
         Directory.CreateDirectory(myApplicationContext.StateDir);
@@ -2095,7 +2095,7 @@ public sealed class ViewModelSteps
         WorkingDir = myApplicationRoot,
         ScriptDir = AppContext.BaseDirectory.TrimEnd('/', '\\'),
         ContinueLaunch = true,
-        Roles = [new RoleConfigRow("coder", "copilot", "Coder", "master", myApplicationRoot, "task")],
+        Roles = [new RoleConfigRow("coder", "Coder", "master", myApplicationRoot, "task")],
         StateDir = Path.Combine(myApplicationRoot, ".blaxquad"),
         WorktreesDir = Path.Combine(myApplicationRoot, ".worktrees"),
         HandoffLog = Path.Combine(myApplicationRoot, ".blaxquad", "handoff-delivery.log"),
@@ -2112,7 +2112,6 @@ public sealed class ViewModelSteps
                 role.DisplayName,
                 role.WorktreePath,
                 "Follow the test instructions.\n",
-                role.Agent,
                 role.Permissions,
                 role.Model,
                 role.Effort)).ToArray(),
@@ -2162,7 +2161,7 @@ public sealed class ViewModelSteps
 
         var registry = new SessionRegistry();
         myInProcessHandoffLog.Clear();
-        var roles = myApplicationContext!.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.Agent, r.ReceiveMode)).ToArray();
+        var roles = myApplicationContext!.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray();
         myInProcessHandoffPump = new InProcessHandoffPoller(
             roles,
             new SessionRoleNotifier(registry, myApplication!.ViewModel),

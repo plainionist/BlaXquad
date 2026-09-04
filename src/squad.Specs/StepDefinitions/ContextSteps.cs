@@ -27,7 +27,7 @@ public sealed class ContextSteps
         }
 
         var rolesJson = string.Join(",\n", roles.Select(role =>
-            $"{{ \"name\": \"{role}\", \"worktree\": \"{role}\", \"agent\": {{ \"backend\": \"copilot\" }} }}"));
+            $"{{ \"name\": \"{role}\", \"worktree\": \"{role}\", \"agent\": {{}} }}"));
         myWorkspace.WriteFile("blaxquad/squad.json", $"{{\n  \"roles\": [\n{rolesJson}\n  ]\n}}\n");
         myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow constitution.\n");
         foreach (var role in roles)

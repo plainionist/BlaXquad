@@ -9,8 +9,8 @@ Feature: Squad configuration
       """
       {
         "roles": [
-          { "name": "coder", "worktree": "master", "agent": { "backend": "copilot" } },
-          { "name": "reviewer", "worktree": "review", "receiveMode": "batch", "agent": { "backend": "copilot", "permissions": "approveAll" } }
+          { "name": "coder", "worktree": "master", "agent": {} },
+          { "name": "reviewer", "worktree": "review", "receiveMode": "batch", "agent": { "permissions": "approveAll" } }
         ]
       }
       """
@@ -25,7 +25,7 @@ Feature: Squad configuration
   Scenario: Role names containing underscores are rejected
     Given this squad configuration:
       """
-      { "roles": [ { "name": "code_reviewer", "worktree": "master", "agent": { "backend": "copilot" } } ] }
+      { "roles": [ { "name": "code_reviewer", "worktree": "master", "agent": {} } ] }
       """
     And role prompts exist for "code_reviewer"
     When the squad configuration is parsed
@@ -35,7 +35,7 @@ Feature: Squad configuration
   Scenario: Every configured role requires a prompt
     Given this squad configuration:
       """
-      { "roles": [ { "name": "coder", "worktree": "master", "agent": { "backend": "copilot" } } ] }
+      { "roles": [ { "name": "coder", "worktree": "master", "agent": {} } ] }
       """
     When the squad configuration is parsed
     Then the command fails
@@ -44,7 +44,7 @@ Feature: Squad configuration
   Scenario: Explicit agent settings map to SDK session settings
     Given this squad configuration:
       """
-      { "roles": [ { "name": "coder", "worktree": "master", "agent": { "backend": "copilot", "permissions": "approveAll", "model": "gpt-5", "effort": "high" } } ] }
+      { "roles": [ { "name": "coder", "worktree": "master", "agent": { "permissions": "approveAll", "model": "gpt-5", "effort": "high" } } ] }
       """
     And role prompts exist for "coder"
     When the squad configuration is parsed
@@ -56,7 +56,7 @@ Feature: Squad configuration
   Scenario: Unknown JSON properties are rejected
     Given this squad configuration:
       """
-      { "roles": [ { "name": "coder", "worktree": "master", "agent": { "backend": "copilot" }, "recieveMode": "batch" } ] }
+      { "roles": [ { "name": "coder", "worktree": "master", "agent": {}, "recieveMode": "batch" } ] }
       """
     And role prompts exist for "coder"
     When the squad configuration is parsed
@@ -66,7 +66,7 @@ Feature: Squad configuration
   Scenario: Invalid agent permissions are rejected
     Given this squad configuration:
       """
-      { "roles": [ { "name": "coder", "worktree": "master", "agent": { "backend": "copilot", "permissions": "always" } } ] }
+      { "roles": [ { "name": "coder", "worktree": "master", "agent": { "permissions": "always" } } ] }
       """
     And role prompts exist for "coder"
     When the squad configuration is parsed
@@ -76,7 +76,7 @@ Feature: Squad configuration
   Scenario: Duplicate worktrees are rejected
     Given this squad configuration:
       """
-      { "roles": [ { "name": "coder", "worktree": "shared", "agent": { "backend": "copilot" } }, { "name": "reviewer", "worktree": "shared", "agent": { "backend": "copilot" } } ] }
+      { "roles": [ { "name": "coder", "worktree": "shared", "agent": {} }, { "name": "reviewer", "worktree": "shared", "agent": {} } ] }
       """
     And role prompts exist for "coder,reviewer"
     When the squad configuration is parsed
@@ -88,7 +88,7 @@ Feature: Squad configuration
       """
       {
         "sharedWorktreePaths": ["shared", "shared/child"],
-        "roles": [ { "name": "coder", "worktree": "master", "agent": { "backend": "copilot" } } ]
+        "roles": [ { "name": "coder", "worktree": "master", "agent": {} } ]
       }
       """
     And role prompts exist for "coder"
