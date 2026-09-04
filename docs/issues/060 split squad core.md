@@ -152,7 +152,7 @@ The focused refactors remain separate issues and are prerequisites rather than h
 
 ### Slice 1: Extract filesystem handoff delivery
 
-**Status: implemented — hand off to reviewer**
+**Status: complete (27aec057b5)**
 
 1. Add `src/squad.Core.Handoffs/squad.Core.Handoffs.csproj` to `squad.slnx`. Reference only
    `squad.Agent.Configuration` and `squad.Agent.Handoff`.
