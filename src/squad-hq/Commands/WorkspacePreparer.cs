@@ -82,7 +82,6 @@ public sealed class WorkspacePreparer
             var worktreePath = role.Worktree == "master" ? ctx.WorkingDir : Path.Combine(ctx.WorktreesDir, role.Worktree);
             return new RoleConfigRow(
                 role.Name,
-                role.Agent.Backend,
                 DisplayNameForRole(role.Name),
                 role.Worktree,
                 worktreePath,

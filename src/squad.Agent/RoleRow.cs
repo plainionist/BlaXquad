@@ -5,7 +5,6 @@ public sealed record RoleRow(
     string WorktreeName,
     string WorktreePath,
     string DisplayName,
-    string Agent,
     string ReceiveMode);
 
 

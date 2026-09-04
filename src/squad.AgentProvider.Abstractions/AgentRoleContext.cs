@@ -5,7 +5,6 @@ public sealed record AgentRoleContext(
     string DisplayName,
     string WorktreePath,
     string InitialInstruction,
-    string Backend,
     string Permissions,
     string? Model,
     string? Effort);

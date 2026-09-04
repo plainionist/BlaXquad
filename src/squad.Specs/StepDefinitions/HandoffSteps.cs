@@ -34,7 +34,7 @@ public sealed class HandoffSteps
         }
 
         var rolesJson = string.Join(",\n", roles.Select((role, index) =>
-            $"{{ \"name\": \"{role}\", \"worktree\": \"{(index == 0 ? "master" : role)}\", \"agent\": {{ \"backend\": \"copilot\" }} }}"));
+            $"{{ \"name\": \"{role}\", \"worktree\": \"{(index == 0 ? "master" : role)}\", \"agent\": {{}} }}"));
         myWorkspace.WriteFile("blaxquad/squad.json", $"{{\n  \"roles\": [\n{rolesJson}\n  ]\n}}\n");
         myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow constitution.\n");
         foreach (var role in roles)

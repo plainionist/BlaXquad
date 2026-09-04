@@ -2,7 +2,6 @@ namespace squad_hq.Commands;
 
 public record RoleConfigRow(
     string Role,
-    string Agent,
     string DisplayName,
     string WorktreeName,
     string WorktreePath,

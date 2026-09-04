@@ -77,8 +77,8 @@ public sealed class QueueSteps
             """
             {
               "roles": [
-                { "name": "coder", "worktree": "master", "agent": { "backend": "copilot" } },
-                { "name": "reviewer", "worktree": "master", "agent": { "backend": "copilot" } }
+                { "name": "coder", "worktree": "master", "agent": {} },
+                { "name": "reviewer", "worktree": "master", "agent": {} }
               ]
             }
             """ + "\n");
@@ -111,7 +111,7 @@ public sealed class QueueSteps
             $$"""
             {
               "roles": [
-                { "name": "{{role}}", "worktree": "master", "receiveMode": "{{receiveMode}}", "agent": { "backend": "copilot" } }
+                { "name": "{{role}}", "worktree": "master", "receiveMode": "{{receiveMode}}", "agent": {} }
               ]
             }
             """ + "\n");

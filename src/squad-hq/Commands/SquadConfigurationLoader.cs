@@ -52,7 +52,6 @@ internal static class SquadConfigurationLoader
             var worktree = Required(role.Worktree, $"worktree for role '{name}'");
             var receiveMode = role.ReceiveMode ?? "task";
             var agent = role.Agent ?? throw Error($"role '{name}' requires agent");
-            var backend = Required(agent.Backend, $"agent.backend for role '{name}'").ToLowerInvariant();
             var permissions = agent.Permissions ?? "prompt";
 
             if (agent.Model is not null && string.IsNullOrWhiteSpace(agent.Model))
@@ -72,8 +71,6 @@ internal static class SquadConfigurationLoader
                 throw Error($"Duplicate worktree 'master' in {configFile}");
             if (receiveMode is not ("task" or "batch"))
                 throw Error($"Invalid receive mode '{receiveMode}' for role '{name}': expected task or batch");
-            if (backend != "copilot")
-                throw Error($"Unsupported agent '{backend}' for role '{name}': only 'copilot' is supported");
             if (permissions is not ("prompt" or "approveAll"))
                 throw Error($"Invalid permissions '{permissions}' for role '{name}': expected prompt or approveAll");
 
@@ -88,7 +85,7 @@ internal static class SquadConfigurationLoader
                 throw Error($"Duplicate normalized worktree path '{worktreePath}' in {configFile}");
 
             roles.Add(new SquadRoleConfiguration(name, worktree, receiveMode,
-                new SquadAgentConfiguration(backend, permissions, agent.Model, agent.Effort)));
+                new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
         }
 
         return new SquadConfiguration(roles, sharedWorktreePaths);
