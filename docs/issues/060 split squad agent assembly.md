@@ -134,6 +134,14 @@ Status: complete (8192fd6d40)
 4. Update architecture assertions and preserve file ordering, header parsing, timestamp formatting, sequence
    allocation, and CLI rendering behavior.
 
+#### Review findings (fd509c6c04)
+
+- **Severity:** High
+- **Location:** `src/squad/Program.cs:1`
+- **Violated behavior:** Slice 4 must keep the `squad` executable compiling and all existing CLI commands available after dropping the `squad.Agent` project reference.
+- **Root cause:** `squad.csproj` no longer references `squad.Agent`, but `Program.cs` still has `using global::squad.Agent;`. That namespace now lives only in the unreferenced umbrella assembly (`SiblingTool`); this file only needs `CliExitException` from `squad.Agent.Cli`.
+- **Required outcome:** Remove the leftover `squad.Agent` import from `src/squad/Program.cs` so the CLI compiles against the assemblies it actually references.
+
 ### Slice 5: Extract tooling and remove the umbrella assembly
 
 1. Create `squad.Agent.Tooling`, move `SiblingTool`, and update its headquarters consumer.
