@@ -1,0 +1,149 @@
+---
+title: Split squad agent assembly
+priority: 2
+---
+
+`squad.Agent` is currently the shared dependency for several unrelated responsibilities: Git and project discovery,
+role configuration, handoff file handling, process execution, deployment-tool lookup, and CLI exit signaling. The
+assembly is dependency-free and agent-safe, but its broad surface means a consumer can reference substantially more
+behavior than it needs.
+
+## Analysis
+
+The current assembly is a useful boundary for the `squad` CLI, but it is not a cohesive module. Its types fall into
+five groups with distinct reasons to change:
+
+1. Process execution: `ProcessRunner` and `ProcessResult`.
+2. Project and role configuration: `ProjectRoot`, `SquadConfig`, `CurrentRoleResolver`, and `RoleRow`.
+3. Handoff protocol and queue state: `HandoffHeaders`, `HandoffQueue`, `Priority`, `Timestamps`, and
+   `SequenceCounter`.
+4. Published-tool layout: `SiblingTool`.
+5. CLI boundary behavior: `CliExitException`.
+
+Do not split solely to reduce the number of files in one project. The goal is to make dependency ownership visible and
+to prevent unrelated consumers such as Photino or headquarters from taking a dependency on the complete agent
+utility surface.
+
+Keep the new assemblies agent-safe: they must not depend on `squad.Core`, `squad-hq`, Photino, the Copilot SDK, UI
+abstractions, or hosting abstractions. The `squad` executable must retain access to all agent commands after the
+split.
+
+## Proposed assemblies
+
+### `squad.Process`
+
+Own external process execution and its result value:
+
+- `ProcessRunner`
+- `ProcessResult`
+
+`squad.Configuration` may reference this assembly because project-root discovery invokes Git.
+
+### `squad.Configuration`
+
+Own squad repository discovery and role configuration:
+
+- `ProjectRoot`
+- `SquadConfig`
+- `CurrentRoleResolver`
+- `RoleRow`
+
+Keep `RoleRow` here initially. It is the output of configuration discovery, and a separate contracts assembly would
+add another package boundary without resolving a current dependency problem.
+
+### `squad.Agent.Handoff`
+
+Own the on-disk handoff format, queue enumeration, and handoff metadata:
+
+- `HandoffHeaders`
+- `HandoffQueue`
+- `Priority`
+- `Timestamps`
+- `SequenceCounter`
+
+`SequenceCounter` belongs with handoff state because it allocates unique handoff sequence values, rather than being a
+general-purpose runtime utility.
+
+### `squad.Agent.Tooling`
+
+Own lookup of tools shipped beside the application:
+
+- `SiblingTool`
+
+This keeps publish-directory knowledge separate from agent configuration and handoff behavior.
+
+### `squad.Agent.Cli`
+
+Own the command-line error boundary:
+
+- `CliExitException`
+
+Both executable entry points catch this exception, but it is not a process-execution concern and should not be placed
+in `squad.Agent.Process`.
+
+## Dependency direction
+
+```text
+squad --------------------> Configuration, Handoff, Process, Tooling, Cli
+squad-hq ------------------> Configuration, Tooling, Cli
+squad.Core -----------------> Configuration, Handoff
+squad.Photino --------------> Process, Tooling
+Configuration --------------> Process
+```
+
+The new assemblies must not reference each other in a cycle. In particular, none of them may reference `squad.Core`.
+The architecture rule currently verified in `ArchitectureSteps` should be updated to validate the new reachable
+assembly set rather than a single `squad.Agent` assembly.
+
+## Implementation plan
+
+### Slice 1: Extract process execution
+
+1. Create `squad.Agent.Process` and move `ProcessRunner` and `ProcessResult`.
+2. Update project references and namespaces in the CLI, headquarters, Photino, and configuration code.
+3. Verify Git discovery and external-tool execution behavior.
+
+### Slice 2: Extract handoff behavior
+
+1. Create `squad.Agent.Handoff` and move the handoff types.
+2. Update CLI commands and `squad.Core` handoff delivery consumers.
+3. Preserve file ordering, header parsing, timestamp formatting, sequence allocation, and CLI rendering behavior.
+
+### Slice 3: Extract configuration
+
+1. Create `squad.Agent.Configuration` and move project and role discovery types.
+2. Reference `squad.Agent.Process` for Git invocation.
+3. Update CLI commands, headquarters workspace setup, `squad.Core`, and configuration test support.
+
+### Slice 4: Extract tooling and CLI contracts
+
+1. Create `squad.Agent.Tooling` and move `SiblingTool`.
+2. Create `squad.Agent.Cli` and move `CliExitException`.
+3. Update executable catch boundaries and all remaining consumers.
+
+### Slice 5: Remove the umbrella assembly
+
+1. Remove the old `squad.Agent` project and its project references.
+2. Update solution membership, architecture tests, documentation, and build/publish checks.
+3. Run the focused acceptance scenarios followed by the complete build and test suite.
+
+## Acceptance criteria
+
+- Each proposed assembly has one cohesive responsibility and contains only the types listed for it.
+- `squad` retains all existing handoff, context, ready-for-next, and done-with-current commands.
+- Project-root, role-resolution, configuration, handoff, process, tool lookup, and CLI exit behavior is unchanged.
+- No new assembly references `squad.Core`, `squad-hq`, Photino, the Copilot SDK, UI abstractions, or hosting abstractions.
+- Consumers reference the narrowest assembly needed for their behavior.
+- `squad.Agent` is removed, unless an external compatibility requirement is discovered and explicitly documented.
+- Architecture tests verify the new dependency graph and agent-safe boundary.
+- Existing black-box Gherkin acceptance scenarios and the full .NET build/test suite remain green.
+
+## Risks and decisions
+
+- Moving `ProcessRunner` affects several projects and should be completed before moving configuration because
+  `ProjectRoot` uses it.
+- `RoleRow` should not be extracted into a standalone contracts assembly unless a future dependency cycle requires it.
+- `HandoffQueue` currently includes stdout rendering as well as file enumeration. Keep those together for this change;
+  split presentation later only if a second consumer needs a non-CLI representation.
+- If published or external consumers depend on the `squad.Agent` assembly identity, introduce a deliberate compatibility
+  package rather than silently retaining an umbrella dependency.
