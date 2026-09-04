@@ -5,6 +5,7 @@ using global::squad.Agent.Handoff;
 using global::squad.Agent.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
+using global::squad.Core.Handoffs;
 using global::squad.CopilotSdk;
 using global::squad.Hosting.Abstractions;
 using global::squad.Photino;
@@ -312,6 +313,36 @@ public sealed class ArchitectureSteps
         {
             Assert.That(agentProviderReferences, Is.Empty);
             Assert.That(hostingReferences, Is.Empty);
+        });
+    }
+
+    [Then("the handoff delivery assembly depends only on agent configuration and handoff contracts")]
+    public void ThenTheHandoffDeliveryAssemblyDependsOnlyOnAgentConfigurationAndHandoffContracts()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(references, Does.Contain("squad.Agent.Configuration"));
+            Assert.That(references, Does.Contain("squad.Agent.Handoff"));
+            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Ui.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
+            Assert.That(references, Does.Not.Contain("squad.Photino"));
+            Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
+        });
+    }
+
+    [Then("the application core no longer depends on agent configuration or handoff contracts")]
+    public void ThenTheApplicationCoreNoLongerDependsOnAgentConfigurationOrHandoffContracts()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(references, Does.Not.Contain("squad.Agent.Configuration"));
+            Assert.That(references, Does.Not.Contain("squad.Agent.Handoff"));
         });
     }
 

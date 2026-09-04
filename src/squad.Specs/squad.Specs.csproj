@@ -33,6 +33,7 @@
     <ProjectReference Include="..\squad.Agent.Process\squad.Agent.Process.csproj" />
     <ProjectReference Include="..\squad.Agent.Tooling\squad.Agent.Tooling.csproj" />
     <ProjectReference Include="..\squad.Core\squad.Core.csproj" />
+    <ProjectReference Include="..\squad.Core.Handoffs\squad.Core.Handoffs.csproj" />
     <ProjectReference Include="..\squad-hq\squad-hq.csproj" />
     <ProjectReference Include="..\squad\squad.csproj" />
   </ItemGroup>

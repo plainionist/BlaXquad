@@ -1,5 +1,7 @@
-using global::squad.Agent.Configuration;
-namespace squad.Core;
+using global::squad.Core;
+using global::squad.Core.Handoffs;
+
+namespace squad_hq.Commands;
 
 public sealed class SessionRoleNotifier : IRoleNotifier
 {
@@ -13,10 +15,10 @@ public sealed class SessionRoleNotifier : IRoleNotifier
         myViewModel = viewModel;
     }
 
-    public async Task NotifyAsync(RoleRow role, CancellationToken cancellationToken = default)
+    public async Task NotifyAsync(string role, CancellationToken cancellationToken = default)
     {
-        _ = mySessions.GetActive(role.Role);
-        await myViewModel.SendHarnessAsync(role.Role, myWakeMessage, cancellationToken);
+        _ = mySessions.GetActive(role);
+        await myViewModel.SendHarnessAsync(role, myWakeMessage, cancellationToken);
     }
 }
 

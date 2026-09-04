@@ -1,4 +1,4 @@
-namespace squad.Core;
+namespace squad.Core.Handoffs;
 
 public interface IHandoffPump : IAsyncDisposable
 {

@@ -3,6 +3,7 @@ using global::squad.Agent.Cli;
 using global::squad.Agent.Configuration;
 using global::squad.Agent.Handoff;
 using global::squad.Core;
+using global::squad.Core.Handoffs;
 using global::squad.Photino;
 
 namespace squad_hq.Commands;

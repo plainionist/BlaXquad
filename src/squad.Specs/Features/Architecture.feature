@@ -21,5 +21,9 @@ Feature: Runtime assembly boundaries
     And the photino adapter depends on the UI and hosting abstractions but not directly on the agent provider or copilot sdk adapter
     And the agent provider and hosting abstractions do not depend on presentation or provider adapters
 
+  Scenario: Handoff delivery is isolated in its own assembly
+    Then the handoff delivery assembly depends only on agent configuration and handoff contracts
+    And the application core no longer depends on agent configuration or handoff contracts
+
   Scenario: Installers declare supported package targets
     Then the installers declare every supported runtime identifier

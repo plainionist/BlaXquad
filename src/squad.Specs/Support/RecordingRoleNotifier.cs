@@ -1,5 +1,4 @@
-using global::squad.Agent.Configuration;
-using global::squad.Core;
+using global::squad.Core.Handoffs;
 
 namespace squad.Specs.Support;
 
@@ -10,10 +9,10 @@ public sealed class RecordingRoleNotifier : IRoleNotifier
     public bool Fail { get; set; }
     public List<(string Recipient, string Message)> Notifications { get; } = [];
 
-    public Task NotifyAsync(RoleRow role, CancellationToken cancellationToken = default)
+    public Task NotifyAsync(string role, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Notifications.Add((role.Role, WakeMessage));
+        Notifications.Add((role, WakeMessage));
         return Fail
             ? Task.FromException(new InvalidOperationException("notifier failed"))
             : Task.CompletedTask;

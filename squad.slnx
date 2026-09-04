@@ -6,6 +6,7 @@
   <Project Path="src/squad.Agent.Process/squad.Agent.Process.csproj" />
   <Project Path="src/squad.Agent.Tooling/squad.Agent.Tooling.csproj" />
   <Project Path="src/squad.Core/squad.Core.csproj" />
+  <Project Path="src/squad.Core.Handoffs/squad.Core.Handoffs.csproj" />
   <Project Path="src/squad.Photino/squad.Photino.csproj" />
   <Project Path="src/squad.Hosting.Abstractions/squad.Hosting.Abstractions.csproj" />
   <Project Path="src/squad.Ui.Abstractions/squad.Ui.Abstractions.csproj" />

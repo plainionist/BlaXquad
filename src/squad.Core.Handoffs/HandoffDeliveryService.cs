@@ -1,6 +1,6 @@
 using global::squad.Agent.Configuration;
 using global::squad.Agent.Handoff;
-namespace squad.Core;
+namespace squad.Core.Handoffs;
 
 sealed class HandoffDeliveryService
 {
@@ -63,7 +63,7 @@ sealed class HandoffDeliveryService
                 continue;
             try
             {
-                await myNotifier.NotifyAsync(role, cancellationToken);
+                await myNotifier.NotifyAsync(role.Role, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -121,7 +121,7 @@ sealed class HandoffDeliveryService
         {
             try
             {
-                await myNotifier.NotifyAsync(roleInfo, cancellationToken);
+                await myNotifier.NotifyAsync(roleInfo.Role, cancellationToken);
             }
             catch (Exception exception)
             {
