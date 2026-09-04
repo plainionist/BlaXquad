@@ -1,4 +1,4 @@
-using global::squad.Agent;
+using global::squad.Agent.Configuration;
 using global::squad.Core;
 
 namespace squad.Specs.Support;

@@ -1,4 +1,5 @@
 using global::squad.Agent;
+using global::squad.Agent.Configuration;
 namespace squad.Core;
 
 sealed class HandoffDeliveryService

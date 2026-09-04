@@ -1,6 +1,7 @@
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Agent;
 using global::squad.Agent.Cli;
+using global::squad.Agent.Configuration;
 using global::squad.Core;
 using global::squad.Photino;
 

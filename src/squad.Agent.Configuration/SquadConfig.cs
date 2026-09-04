@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace squad.Agent;
+namespace squad.Agent.Configuration;
 
 /// <summary>Reads role configurations from blaxquad/squad.json.</summary>
 public static class SquadConfig

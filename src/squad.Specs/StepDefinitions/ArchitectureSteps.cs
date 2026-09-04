@@ -1,6 +1,7 @@
 using global::squad.Specs.Support;
 using global::squad.Agent;
 using global::squad.Agent.Cli;
+using global::squad.Agent.Configuration;
 using global::squad.Agent.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
@@ -88,7 +89,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Agent", "squad.Agent.Cli", "squad.Agent.Process" }));
+            Is.EquivalentTo(new[] { "squad", "squad.Agent", "squad.Agent.Cli", "squad.Agent.Configuration", "squad.Agent.Process" }));
 
         var agentTypes = Assembly.Load("squad.Agent")
             .GetTypes()
@@ -98,15 +99,11 @@ public sealed class ArchitectureSteps
             .ToArray();
         Assert.That(agentTypes, Is.EqualTo(new[]
         {
-            "CurrentRoleResolver",
             "HandoffHeaders",
             "HandoffQueue",
             "Priority",
-            "ProjectRoot",
-            "RoleRow",
             "SequenceCounter",
             "SiblingTool",
-            "SquadConfig",
             "Timestamps",
         }));
 
@@ -119,6 +116,20 @@ public sealed class ArchitectureSteps
         Assert.That(agentCliTypes, Is.EqualTo(new[]
         {
             "CliExitException",
+        }));
+
+        var agentConfigurationTypes = Assembly.Load("squad.Agent.Configuration")
+            .GetTypes()
+            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Configuration")
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.That(agentConfigurationTypes, Is.EqualTo(new[]
+        {
+            "CurrentRoleResolver",
+            "ProjectRoot",
+            "RoleRow",
+            "SquadConfig",
         }));
 
         var agentProcessTypes = Assembly.Load("squad.Agent.Process")
