@@ -28,8 +28,8 @@ creating a large registry and refactoring it afterward. At that point:
   atomic lifecycle owner; and
 - do not expose the current unleased `GetActive` API from the new lifecycle boundary.
 
-This issue is therefore a design constraint on `restart button.md`, not a prerequisite or coder handoff for
-`060 split squad core.md`.
+This issue is therefore a design constraint on `restart button.md`, not an independent coder handoff in the current
+architecture.
 
 ## Refactoring direction
 

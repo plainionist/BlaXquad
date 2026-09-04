@@ -153,12 +153,13 @@ after acceptance. Relaunch also has a typed acknowledgement rather than relying 
 
 Before implementing relaunch:
 
-- use the ownership direction in `010 refactor squad view model.md`, extracting lifecycle-critical role-operation and
-  pending-interaction state without introducing pass-through services;
+- build on the implemented `RoleOperationCoordinator` and `PendingInteractionRegistry` ownership boundaries without
+  introducing pass-through services or moving lifecycle state back into `SquadViewModel`;
 - use `020 refactor squad application.md` to separate process lifetime from generation lifetime;
 - apply the internal split described by `040 refactor session registry.md` from the start rather than first creating a
   large registry and refactoring it afterward;
-- treat `030`, `050`, `060`, and `070` as independent work and do not pull them into this feature;
+- treat transcript, provider-session, assembly-boundary, and headquarters-ownership refactors as independent work and
+  do not pull them into this feature;
 - characterize observable startup, shutdown, command admission, event ordering, and handoff recovery before changing
   their timing; and
 - keep any agent-CLI handoff queue atomicity change in a separate issue and change set.
