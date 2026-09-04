@@ -200,6 +200,7 @@ function setRowElement(entryIndex: number, element: Element | null) {
         class="transcript-line"
         :class="[`is-${entry.category}`, { 'is-separated': entry.separated }]"
       >
+        <time class="transcript-timestamp" :datetime="entry.occurredAt">{{ entry.timestamp }}</time>
         <span v-if="entry.marker" class="transcript-marker" :class="`is-${entry.marker}`" aria-hidden="true"></span>
         <span v-if="entry.prefix" class="transcript-prefix">{{ entry.prefix }}</span>
         <span class="transcript-content">{{ entry.content || ' ' }}</span>

@@ -6,6 +6,7 @@ export type ConsoleEntry = TranscriptEntry & {
   prefix: string
   marker: string
   separated: boolean
+  timestamp: string
 }
 
 export function categoryFor(source: string) {
@@ -40,6 +41,16 @@ export function isRenderable(entry: TranscriptEntry | undefined) {
   return normalizeContent(entry?.content).trim().length > 0
 }
 
+export function formatTimestamp(occurredAt: string) {
+  const occurredAtDate = new Date(occurredAt)
+  if (Number.isNaN(occurredAtDate.getTime()))
+    return ''
+  const hours = String(occurredAtDate.getHours()).padStart(2, '0')
+  const minutes = String(occurredAtDate.getMinutes()).padStart(2, '0')
+  const seconds = String(occurredAtDate.getSeconds()).padStart(2, '0')
+  return `${hours}:${minutes}:${seconds}`
+}
+
 export function projectEntry(
   entry: TranscriptEntry | undefined,
   entryIndex: number,
@@ -47,8 +58,9 @@ export function projectEntry(
 ): ConsoleEntry {
   const source = typeof entry?.source === 'string' ? entry.source : 'system'
   const category = categoryFor(source)
+  const occurredAt = entry?.occurredAt ?? ''
   return {
-    occurredAt: entry?.occurredAt ?? '',
+    occurredAt,
     source,
     content: normalizeContent(entry?.content),
     entryIndex,
@@ -59,5 +71,6 @@ export function projectEntry(
     marker: markerFor(source),
     separated: previousRenderableEntry != null
       && category !== categoryFor(previousRenderableEntry.source ?? 'system'),
+    timestamp: formatTimestamp(occurredAt),
   }
 }
