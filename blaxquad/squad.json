@@ -2,7 +2,7 @@
   "roles": [
     {
       "name": "architect",
-      "worktree": "architect",
+      "worktree": "master",
       "agent": {
         "backend": "copilot",
         "model": "gpt-5.6-sol",
@@ -12,7 +12,7 @@
     },
     {
       "name": "coder",
-      "worktree": "master",
+      "worktree": "coder",
       "agent": {
         "backend": "copilot",
         "model": "claude-sonnet-5",
