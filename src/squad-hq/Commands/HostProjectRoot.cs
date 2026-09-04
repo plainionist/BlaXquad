@@ -1,4 +1,5 @@
 using global::squad.Agent;
+using global::squad.Agent.Cli;
 namespace squad_hq.Commands;
 
 /// <summary>Resolves the main checkout that owns the live squad host.</summary>

@@ -1,3 +1,5 @@
+using global::squad.Agent.Cli;
+
 namespace squad.Agent;
 
 /// <summary>Listing, sorting, and stdout rendering for handoff files and batch directories under an inbox.</summary>

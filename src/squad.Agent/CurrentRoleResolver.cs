@@ -1,3 +1,5 @@
+using global::squad.Agent.Cli;
+
 namespace squad.Agent;
 
 public static class CurrentRoleResolver

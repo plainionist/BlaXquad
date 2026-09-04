@@ -1,5 +1,6 @@
 using global::squad.Specs.Support;
 using global::squad.Agent;
+using global::squad.Agent.Cli;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
 using global::squad.CopilotSdk;
@@ -86,7 +87,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Agent" }));
+            Is.EquivalentTo(new[] { "squad", "squad.Agent", "squad.Agent.Cli" }));
 
         var agentTypes = Assembly.Load("squad.Agent")
             .GetTypes()
@@ -96,7 +97,6 @@ public sealed class ArchitectureSteps
             .ToArray();
         Assert.That(agentTypes, Is.EqualTo(new[]
         {
-            "CliExitException",
             "CurrentRoleResolver",
             "HandoffHeaders",
             "HandoffQueue",
@@ -109,6 +109,17 @@ public sealed class ArchitectureSteps
             "SiblingTool",
             "SquadConfig",
             "Timestamps",
+        }));
+
+        var agentCliTypes = Assembly.Load("squad.Agent.Cli")
+            .GetTypes()
+            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Cli")
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.That(agentCliTypes, Is.EqualTo(new[]
+        {
+            "CliExitException",
         }));
 
         var processMethods = typeof(ProcessRunner)

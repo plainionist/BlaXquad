@@ -1,4 +1,5 @@
 using global::squad.Agent;
+using global::squad.Agent.Cli;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;

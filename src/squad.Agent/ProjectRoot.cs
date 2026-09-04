@@ -1,3 +1,5 @@
+using global::squad.Agent.Cli;
+
 namespace squad.Agent;
 
 /// <summary>Locates the squad project root and current worktree root.</summary>

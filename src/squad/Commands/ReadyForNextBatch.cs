@@ -1,4 +1,5 @@
 using global::squad.Agent;
+using global::squad.Agent.Cli;
 
 namespace squad.Commands;
 
