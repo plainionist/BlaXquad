@@ -3,10 +3,10 @@ title: Split squad core into meaningful modules
 priority: 2
 ---
 
-`squad.Core` is currently the application-domain assembly, but it contains several different kinds of state and
-infrastructure. It owns the UI-facing coordination boundary, agent role state, transcript retention and archival,
-session lifecycle, and handoff delivery. The existing refactor issues describe important extractions inside these
-types; this issue defines which concerns deserve module or assembly boundaries and what the actual repository core is.
+`squad.Core` was the application-domain assembly, but it contained several different kinds of state and infrastructure.
+It owned the UI-facing coordination boundary, agent role state, transcript retention and archival, session lookup, and
+handoff delivery. The existing refactor issues describe important extractions inside these types; this issue defines
+which concerns deserve module or assembly boundaries and what the actual repository core is.
 
 ## Responsibilities currently combined
 
@@ -17,8 +17,9 @@ pending interactions, event projection, snapshots, notifications, and shutdown o
 
 ### Role and session state
 
-`AgentRoleState` owns role identity and current observable session status. `SessionRegistry` owns session registration,
-active-session lookup, shutdown admission, and lifecycle safety rules.
+`AgentRoleState` owns role identity and current observable session status. The current `SessionRegistry` owns only
+session registration, active-session lookup, and shutdown admission. The authoritative generation lifecycle described
+by `restart button.md` does not exist yet and is outside this assembly-split issue.
 
 ### Transcript state and storage
 
@@ -49,12 +50,15 @@ The enduring core of this repository is the authoritative application state mach
 - which roles exist and what their current session state is;
 - which commands and interactions are admitted;
 - how provider events become observable role and transcript state;
-- how lifecycle transitions stop, drain, and replace sessions; and
 - which snapshots and notifications are exposed to the UI.
 
 That is the part that should remain in `squad.Core`. It should not become a generic “everything shared by the
 application” library, and it should not own technology-specific runtime composition, Photino, Copilot SDK behavior,
 filesystem handoff transport, or Vue protocol presentation.
+
+Process startup/shutdown and generation replacement remain host responsibilities until `restart button.md` introduces
+one authoritative lifecycle aggregate. That future aggregate belongs with application-domain authority, but this issue
+must not invent it or claim that the current `SessionRegistry` already provides it.
 
 Logging and design-by-contract helpers may eventually belong in a slim dependency-free common layer if they are used
 by several independent modules. Do not add placeholder abstractions before there are real cross-module consumers:
@@ -73,7 +77,8 @@ Keep the application-domain coordination and authoritative state in the existing
 
 - `SquadViewModel`, refactored as the serialized application coordinator;
 - `AgentRoleState`, reduced to role/session status;
-- `SessionRegistry`, retained as the single lifecycle and admission authority;
+- the current narrow `SessionRegistry`, retained for session lookup and shutdown admission until the restart lifecycle
+  redesign replaces its unleased API;
 - `AgentRoleSnapshot` and application-facing contracts that describe this state;
 - internal `RoleOperations`, `Interactions`, and `Events` modules extracted from `SquadViewModel`.
 
@@ -131,7 +136,8 @@ squad-hq / host
 
 The following dependency rules are required:
 
-- `squad.Core` remains the only owner of authoritative application lifecycle and command admission.
+- `squad.Core` remains the owner of authoritative in-memory role state, command mutation admission, interaction state,
+  and provider-event projection; `squad-hq` owns the current process/runtime lifecycle.
 - `squad.Core.Transcripts` cannot call back into `SquadViewModel`.
 - `squad.Core.Handoffs` cannot reference `squad.Core`, look up sessions, or mutate application state; it can only invoke
   its injected notifier contract with a recipient role name.
@@ -146,8 +152,9 @@ The following dependency rules are required:
 The focused refactors remain separate issues and are prerequisites rather than hidden work in this issue:
 
 - `030 refactor agent role state.md` must be accepted before the transcript assembly move.
-- `010 refactor squad view model.md` and `040 refactor session registry.md` must be accepted before final boundary
-  verification.
+- `010 refactor squad view model.md` must be accepted before final boundary verification.
+- `040 refactor session registry.md` is not a blocker: its target lifecycle aggregate does not exist in the current
+  code and its internal split is deferred to Slice 3 of `restart button.md`.
 - The handoff extraction has no dependency on those refactors and is the first independently reviewable slice.
 
 ### Slice 1: Extract filesystem handoff delivery
@@ -233,23 +240,34 @@ The focused refactors remain separate issues and are prerequisites rather than h
 
 ### Slice 3: Enforce and document the final Core boundary
 
-**Status: waiting for acceptance of Slice 2 and the `010`/`040` refactor issues**
+**Status: in progress — Slice 2 and all `010` slices accepted; hand off to coder**
 
-1. Update the architecture scenario to assert the complete dependency graph and exactly one lifecycle/admission owner.
-2. Verify `RoleOperations`, `Interactions`, and `Events` remain internal Core modules and remove obsolete references,
-   namespaces, and transitional APIs left by the accepted prerequisite refactors.
-3. Update the repository architecture documentation to name Core, Transcripts, Handoffs, host composition, and their
-   allowed dependency directions.
-4. Inventory logging and contract checks touched by the split. Create no common assembly unless at least two
+1. Extend the black-box architecture scenario to assert the implemented dependency graph: Core references only agent
+   provider/UI contracts and Transcripts; Transcripts references only UI contracts; Handoffs references only agent
+   configuration/handoff contracts; neither extracted assembly references Core; and host composition references the
+   concrete modules without creating a reverse edge.
+2. Assert that `PendingInteractionRegistry`, `RoleOperationCoordinator`, and `AgentEventProjector` are internal types
+   owned by `squad.Core`, while transcript and handoff implementation types are owned only by their extracted
+   assemblies.
+3. Add a concise assembly-boundary section to `docs/manual/glossary.md` naming:
+   - `squad.Core` as serialized in-memory application coordination and role state;
+   - `squad.Core.Transcripts` as transcript aggregate/storage;
+   - `squad.Core.Handoffs` as filesystem delivery;
+   - `squad-hq` as process/runtime composition; and
+   - the current `SessionRegistry` limitation and deferred authoritative lifecycle work in `restart button.md`.
+4. Remove only references, namespaces, or transitional APIs proven obsolete by the accepted slices. Do not rename
+   public protocol types or widen implementation visibility solely to make architecture tests convenient.
+5. Inventory logging and contract checks touched by the split. Create no common assembly unless at least two
    independent modules already need the same narrow, dependency-free abstraction; otherwise leave each concern with
    its owner.
-5. Run focused interaction, transcript, handoff, lifecycle, relaunch, startup, shutdown, and architecture scenarios,
+6. Run focused interaction, transcript, handoff, startup, shutdown, and architecture scenarios,
    followed by the complete build and acceptance suite.
 
 **Slice acceptance**
 
 - The implemented project graph matches this issue and is protected by black-box architecture scenarios.
-- There is one event-loop commit boundary and one session/lifecycle/admission authority.
+- There is one Core event-loop commit boundary, and each current state/admission concern has one documented owner.
+- The issue does not claim that the current `SessionRegistry` implements the future restart lifecycle authority.
 - No placeholder common assembly, pass-through layer, duplicate synchronization boundary, or duplicate source of truth
   was introduced.
 
@@ -263,7 +281,8 @@ The focused refactors remain separate issues and are prerequisites rather than h
   `squad.Core.Handoffs`; the Core-session notification adapter remains in host composition.
 - `RoleOperations`, `Interactions`, and `Events` are internal Core modules unless a concrete independent assembly
   boundary is demonstrated.
-- There is exactly one event-loop commit boundary and one session/lifecycle authority.
+- There is exactly one Core event-loop commit boundary; process/runtime lifecycle remains in host composition until the
+  dedicated restart redesign introduces its authoritative lifecycle aggregate.
 - No Core module depends on Copilot SDK, Photino, hosting adapters, or Vue implementation details.
 - Public snapshot and transcript protocol shapes remain unchanged unless a separate issue explicitly changes them.
 - Logging or design-by-contract code is added only where it has real cross-module reuse and a narrow, testable contract.
