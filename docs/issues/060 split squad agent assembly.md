@@ -102,6 +102,8 @@ commit is green, and finish by validating the complete graph rather than a singl
 
 ### Slice 1: Extract the CLI exit contract
 
+Status: complete (6d645a67a1)
+
 1. Create `squad.Agent.Cli` and move `CliExitException`.
 2. Update the two executable catch boundaries plus configuration, handoff, and headquarters callers to reference the
    new namespace and assembly directly.
