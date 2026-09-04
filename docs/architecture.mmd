@@ -1,0 +1,53 @@
+flowchart TD
+    subgraph CLI ["CLI Entry Points"]
+        HQ["Squad HQ Orchestrator CLI<br/>Program.cs"]
+        SQUAD_CLI["Squad CLI<br/>Program.cs"]
+    end
+
+    subgraph Presentation ["Presentation & UI Layer"]
+        VUE["Vue Desktop Frontend<br/>squad-ui"]
+        PHOTINO_HOST["Photino Window Host & Sleep Inhibitor<br/>PhotinoWindowHost.cs"]
+        DELIVERY["Photino UI Delivery Coordinator<br/>PhotinoUiDeliveryCoordinator.cs"]
+    end
+
+    subgraph Core ["Core Orchestration & Domain State"]
+        CONFIG["Squad Configuration Loader<br/>SquadConfiguration.cs"]
+        VM["Squad ViewModel Orchestrator<br/>SquadViewModel.cs"]
+        REGISTRY["Session Registry & Leases<br/>SessionRegistry.cs"]
+        HANDOFF["Handoff Delivery Service<br/>HandoffDeliveryService.cs"]
+        ARCHIVE["Transcript Archive & Journal<br/>TranscriptArchive.cs"]
+    end
+
+    subgraph Backend ["Pluggable Backend & Copilot SDK"]
+        FACTORY["Runtime Mode Factory<br/>CopilotSdkRuntimeModeFactory.cs"]
+        SDK_BACKEND["Copilot SDK Backend & Client<br/>CopilotSdkBackend.cs"]
+        SDK_SESSION["Copilot SDK Agent Session<br/>CopilotSdkAgentSession.cs"]
+    end
+
+    subgraph AgentExecution ["Agent Workspace & Tooling"]
+        AGENT_TOOLS["Agent Execution Primitives<br/>ProcessRunner, SiblingTool"]
+    end
+
+    %% Control and Data Flows
+    HQ -->|1. Load YAML Config| CONFIG
+    HQ -->|2. Bootstrap Mode| FACTORY
+    HQ -->|3. Initialize & Loop| VM
+    HQ -->|4. Launch Window Shell| PHOTINO_HOST
+
+    PHOTINO_HOST -->|Hosts Webview| VUE
+    VUE <-->|JSON Protocol Bridge| DELIVERY
+    DELIVERY <-->|ISquadUi / ITranscriptUi| VM
+
+    VM -->|Manage Session Lifecycle| REGISTRY
+    VM -->|Persist Event Stream| ARCHIVE
+    VM <-->|Dispatch Prompts & Events| SDK_SESSION
+
+    HANDOFF -->|Deliver Inbox Tasks & Notify| VM
+    HANDOFF <-->|Poll Outbox .handoff Files| AGENT_TOOLS
+
+    FACTORY -->|Instantiate Backend| SDK_BACKEND
+    SDK_BACKEND -->|Spawn Per-Role Sessions| SDK_SESSION
+    SDK_SESSION <-->|Execute Tools & Commands| AGENT_TOOLS
+
+    SQUAD_CLI -->|Write .handoff Files| HANDOFF
+    SQUAD_CLI -->|Inspect Role Context| AGENT_TOOLS
