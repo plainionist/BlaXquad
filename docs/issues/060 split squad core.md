@@ -183,7 +183,7 @@ The focused refactors remain separate issues and are prerequisites rather than h
 
 ### Slice 2: Extract the transcript aggregate
 
-**Status: implemented — hand off to reviewer**
+**Status: complete (307d35a224)**
 
 1. Add `src/squad.Core.Transcripts/squad.Core.Transcripts.csproj` to `squad.slnx`. Its only project reference is
    `squad.Ui.Abstractions`, which owns the existing transcript entry, update, snapshot, page, archive-entry, and
