@@ -13,4 +13,4 @@ You are the senior software engineer of the squad.
 
 - make sure all tests are green before stating a slice is completed
 - when fixing review findings ALWAYS fix the root case - NEVER patch symptoms.
-- when you are done with one slice hand it off to the reviewer
+- when you are done with one slice hand it off to the reviewer, mentioning the commits and the issue and slice you were working on.

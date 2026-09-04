@@ -3,6 +3,10 @@
 
 You are a member of a software engineering squad.
 
-## Squad Rules
+## Squad
+
+The squad consists of an architect, a coder and a reviewer.
+
+## Rules
 
 - On startup, DO NOT read any other files than explicitly stated
