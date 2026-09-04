@@ -1,6 +1,7 @@
 using global::squad.AgentProvider.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
 using global::squad.Core.Interactions;
+using global::squad.Core.RoleOperations;
 using global::squad.Core.Transcripts;
 using global::squad.Ui.Abstractions;
 using System.Collections.Concurrent;
@@ -18,14 +19,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private readonly Dictionary<string, AgentRoleState> myRoles = new(StringComparer.Ordinal);
     private readonly TranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myTranscriptRetentionOptions;
-    private readonly Dictionary<string, SemaphoreSlim> myRoleLocks = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, SemaphoreSlim> myPromptLocks = new(StringComparer.Ordinal);
-    private readonly object myRoleOperationsLock = new();
-    private readonly Dictionary<string, CancellationTokenSource> myActiveRoleOperations = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, TaskCompletionSource> myRoleAborts = new(StringComparer.Ordinal);
-    private readonly HashSet<string> myInvalidatedRoles = new(StringComparer.Ordinal);
-    private readonly HashSet<string> myFailedRoleAborts = new(StringComparer.Ordinal);
-    private readonly HashSet<string> myFailedRoles = new(StringComparer.Ordinal);
+    private readonly RoleOperationCoordinator myRoleOperations = new();
     private readonly Task myEventLoop;
     private readonly object myAdmissionLock = new();
     private readonly HashSet<Task> myAcceptedCommands = [];
@@ -144,11 +138,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         {
             if (!myAccepting)
                 return false;
-            lock (myRoleOperationsLock)
-            {
-                if (myInvalidatedRoles.Contains(role))
-                    return false;
-            }
+            if (myRoleOperations.IsInvalidated(role))
+                return false;
             lock (state.SyncRoot)
                 return state.Status == "idle" && !state.IsWorking;
         }
@@ -165,11 +156,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             if (!myAccepting)
                 return false;
         }
-        lock (myRoleOperationsLock)
-        {
-            if (myInvalidatedRoles.Contains(role))
-                return false;
-        }
+        if (myRoleOperations.IsInvalidated(role))
+            return false;
         lock (state.SyncRoot)
         {
             if (state.Status is "error" or "stopped")
@@ -204,11 +192,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         {
             if (!myRoles.TryGetValue(role, out var state))
                 return Task.CompletedTask;
-            lock (myRoleOperationsLock)
-            {
-                myFailedRoles.Add(role);
-                CancelRoleOperation(role);
-            }
+            myRoleOperations.MarkRoleFailed(role);
             RemovePendingInteractionsForRole(role);
             lock (state.SyncRoot)
             {
@@ -307,10 +291,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             finally
             {
                 myShutdown.Dispose();
-                foreach (var roleLock in myRoleLocks.Values)
-                    roleLock.Dispose();
-                foreach (var promptLock in myPromptLocks.Values)
-                    promptLock.Dispose();
+                myRoleOperations.Dispose();
                 myTranscriptArchive.Dispose();
             }
         }
@@ -382,7 +363,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         if (!myRoles.TryGetValue(role, out var state))
             return Task.CompletedTask;
-        if (IsRoleFailed(role))
+        if (myRoleOperations.IsRoleFailed(role))
             return Task.CompletedTask;
         if (agentEvent is AgentReadinessEvent readinessObservation
             && (!mySessions.TryGetValue(role, out var readinessSession)
@@ -755,23 +736,15 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private async Task DispatchPromptAsync(string role, Func<IAgentSession, CancellationToken, Task> operation, CancellationToken cancellationToken)
     {
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdown.Token);
-        var promptLock = GetPromptLock(role);
-        await promptLock.WaitAsync(lifetimeCancellation.Token);
-        try
-        {
-            EnsureRoleAvailable(role);
-            await WaitForAbortAsync(role, lifetimeCancellation.Token);
-            ResumeRoleEvents(role);
-            if (mySessions.TryGetValue(role, out var session)
-                && session is IAgentReadinessProbe readinessProbe)
-                readinessProbe.InvalidateReadiness();
-            await EnqueueCoreAsync(() => MarkWaitingForResponseAsync(role), lifetimeCancellation.Token);
-            await RunForRoleAsync(role, operation, lifetimeCancellation.Token);
-        }
-        finally
-        {
-            promptLock.Release();
-        }
+        using var promptLease = await myRoleOperations.AcquirePromptLeaseAsync(role, lifetimeCancellation.Token);
+        EnsureRoleAvailable(role);
+        await myRoleOperations.WaitForAbortAsync(role, lifetimeCancellation.Token);
+        myRoleOperations.ResumeEvents(role);
+        if (mySessions.TryGetValue(role, out var session)
+            && session is IAgentReadinessProbe readinessProbe)
+            readinessProbe.InvalidateReadiness();
+        await EnqueueCoreAsync(() => MarkWaitingForResponseAsync(role), lifetimeCancellation.Token);
+        await RunForRoleAsync(role, operation, lifetimeCancellation.Token);
     }
 
     private Task MarkWaitingForResponseAsync(string role)
@@ -797,25 +770,16 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdown.Token);
         if (!mySessions.TryGetValue(role, out var session))
             throw new InvalidOperationException($"Unknown role: {role}");
-        var roleLock = GetRoleLock(role);
-        await roleLock.WaitAsync(lifetimeCancellation.Token);
-        try
-        {
-            EnsureAccepting();
-            EnsureRoleAvailable(role);
-            RegisterRoleOperation(role, lifetimeCancellation);
-            await operation(session, lifetimeCancellation.Token);
-        }
-        finally
-        {
-            UnregisterRoleOperation(role, lifetimeCancellation);
-            roleLock.Release();
-        }
+        using var operationLease = await myRoleOperations.AcquireOperationLeaseAsync(role, lifetimeCancellation.Token);
+        EnsureAccepting();
+        EnsureRoleAvailable(role);
+        operationLease.Register(lifetimeCancellation);
+        await operation(session, lifetimeCancellation.Token);
     }
 
     private void EnsureRoleAvailable(string role)
     {
-        if (!IsRoleFailed(role))
+        if (!myRoleOperations.IsRoleFailed(role))
             return;
         if (myRoles.TryGetValue(role, out var state))
         {
@@ -825,55 +789,27 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         throw new InvalidOperationException($"Role '{role}' is unavailable.");
     }
 
-    private bool IsRoleFailed(string role)
-    {
-        lock (myRoleOperationsLock)
-            return myFailedRoles.Contains(role);
-    }
-
     private async Task AbortRoleAndWaitAsync(string role, CancellationToken cancellationToken)
     {
-        TaskCompletionSource? completion = null;
-        Task? existingAbort = null;
-        lock (myRoleOperationsLock)
+        var lease = myRoleOperations.TryBeginAbort(role, out var existingAbort);
+        if (lease is null)
         {
-            if (myRoleAborts.TryGetValue(role, out var existing))
-            {
-                existingAbort = existing.Task;
-            }
-            else
-            {
-                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                myRoleAborts.Add(role, completion);
-                myInvalidatedRoles.Add(role);
-                CancelRoleOperation(role);
-            }
-        }
-
-        if (existingAbort is not null)
-        {
-            await existingAbort.WaitAsync(cancellationToken);
+            await existingAbort!.WaitAsync(cancellationToken);
             return;
         }
 
-        try
+        using (lease)
         {
-            await TrackCommand(() => AbortRoleAsync(role));
-            lock (myRoleOperationsLock)
-                myFailedRoleAborts.Remove(role);
-            completion!.TrySetResult();
-        }
-        catch (Exception exception)
-        {
-            lock (myRoleOperationsLock)
-                myFailedRoleAborts.Add(role);
-            completion!.TrySetException(exception);
-            throw;
-        }
-        finally
-        {
-            lock (myRoleOperationsLock)
-                myRoleAborts.Remove(role);
+            try
+            {
+                await TrackCommand(() => AbortRoleAsync(role));
+                lease.Complete();
+            }
+            catch (Exception exception)
+            {
+                lease.Fail(exception);
+                throw;
+            }
         }
     }
 
@@ -895,56 +831,11 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
     }
 
-    private Task WaitForAbortAsync(string role, CancellationToken cancellationToken)
-    {
-        Task? abort;
-        var abortFailed = false;
-        lock (myRoleOperationsLock)
-        {
-            abort = myRoleAborts.GetValueOrDefault(role)?.Task;
-            abortFailed = myFailedRoleAborts.Contains(role);
-        }
-        return abort?.WaitAsync(cancellationToken) ??
-            (abortFailed
-                ? Task.FromException(new InvalidOperationException($"Role '{role}' remains cancelled because its abort failed."))
-                : Task.CompletedTask);
-    }
-
-    private void ResumeRoleEvents(string role)
-    {
-        lock (myRoleOperationsLock)
-            myInvalidatedRoles.Remove(role);
-    }
-
-    private void RegisterRoleOperation(string role, CancellationTokenSource cancellation)
-    {
-        lock (myRoleOperationsLock)
-        {
-            myActiveRoleOperations[role] = cancellation;
-            if (myInvalidatedRoles.Contains(role))
-                cancellation.Cancel();
-        }
-    }
-
-    private void UnregisterRoleOperation(string role, CancellationTokenSource cancellation)
-    {
-        lock (myRoleOperationsLock)
-            if (myActiveRoleOperations.TryGetValue(role, out var active) && ReferenceEquals(active, cancellation))
-                myActiveRoleOperations.Remove(role);
-    }
-
-    private void CancelRoleOperation(string role)
-    {
-        if (myActiveRoleOperations.TryGetValue(role, out var operation))
-            operation.Cancel();
-    }
-
     private bool ShouldIgnoreEvent(string role, AgentEvent agentEvent)
     {
         if (agentEvent is AgentStartedEvent or AgentStoppedEvent or AgentSessionConfigurationEvent or AgentSessionModelChangedEvent or AgentContextUsageEvent or AgentSessionUsageEvent)
             return false;
-        lock (myRoleOperationsLock)
-            return myInvalidatedRoles.Contains(role);
+        return myRoleOperations.IsInvalidated(role);
     }
 
     private void MarkRoleIdle(string role)
@@ -990,7 +881,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
         catch
         {
-            if (!IsRoleFailed(role))
+            if (!myRoleOperations.IsRoleFailed(role))
                 restore(request);
             else
                 UnprotectPendingTranscriptEntry(role, requestId);
@@ -1080,26 +971,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             return 128000;
 
         return 128000;
-    }
-
-    private SemaphoreSlim GetRoleLock(string role)
-    {
-        lock (myRoleLocks)
-        {
-            if (!myRoleLocks.TryGetValue(role, out var roleLock))
-                myRoleLocks[role] = roleLock = new SemaphoreSlim(1, 1);
-            return roleLock;
-        }
-    }
-
-    private SemaphoreSlim GetPromptLock(string role)
-    {
-        lock (myPromptLocks)
-        {
-            if (!myPromptLocks.TryGetValue(role, out var promptLock))
-                myPromptLocks[role] = promptLock = new SemaphoreSlim(1, 1);
-            return promptLock;
-        }
     }
 
     private void EnsureAccepting()

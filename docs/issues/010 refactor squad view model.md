@@ -78,7 +78,7 @@ state from background tasks. Avoid pass-through interfaces whose only purpose is
 
 ### Slice 2: Extract role-operation coordination
 
-**Status: in progress — Slice 1 accepted at cff6609856; hand off to coder**
+**Status: implemented — hand off to reviewer**
 
 1. Add one internal `RoleOperationCoordinator` under a `RoleOperations` folder/namespace. Move the per-role prompt and
    operation semaphores, active-operation cancellation sources, abort completions, invalidation state, failed-abort
