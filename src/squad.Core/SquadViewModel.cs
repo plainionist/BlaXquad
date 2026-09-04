@@ -114,7 +114,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntriesPerRole);
         return myRoles.Values
-            .Select(role => role.CreateTranscriptSnapshot(maxEntriesPerRole))
+            .Select(role => role.Transcript.CreateTranscriptSnapshot(maxEntriesPerRole))
             .ToArray();
     }
 
@@ -124,7 +124,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
         if (!myRoles.TryGetValue(role, out var state))
             throw new InvalidOperationException($"Unknown role: {role}");
-        return state.CreateTranscriptPage(beforeIndex, maxEntries);
+        return state.Transcript.CreateTranscriptPage(beforeIndex, maxEntries);
     }
 
     public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex)
@@ -132,7 +132,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfNegative(entryIndex);
         if (!myRoles.TryGetValue(role, out var state))
             throw new InvalidOperationException($"Unknown role: {role}");
-        return state.CreateArchivedTranscriptEntry(entryIndex);
+        return state.Transcript.CreateArchivedTranscriptEntry(entryIndex);
     }
 
     public AgentElicitationRequest GetPendingElicitation(string role, string requestId) =>
@@ -425,8 +425,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 case AgentIdleEvent:
                 state.Status = "idle";
                 state.IsWorking = false;
-                state.FinalizeAssistantEntry();
-                state.FinalizeReasoningEntry();
+                state.Transcript.FinalizeAssistantEntry();
+                state.Transcript.FinalizeReasoningEntry();
                 break;
                 case AgentReadinessEvent readiness:
                     state.Status = readiness.State;
@@ -436,8 +436,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                     break;
                 case AgentUserMessageEvent message:
                 state.IsWorking = true;
-                state.FinalizeAssistantEntry();
-                state.FinalizeReasoningEntry();
+                state.Transcript.FinalizeAssistantEntry();
+                state.Transcript.FinalizeReasoningEntry();
                 transcriptUpdate = AddTranscriptEntry(state, message.OccurredAt, "user", message.Content);
                     break;
                 case AgentHarnessMessageEvent message:
@@ -476,7 +476,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                     var suppressOutput = isRead;
                     var toolDescription = isRead ? DescribeRead(tool) : DescribeToolStart(tool);
                     if (!string.IsNullOrWhiteSpace(toolDescription))
-                        transcriptUpdate = state.StartTool(
+                    {
+                        transcriptUpdate = state.Transcript.StartTool(
                             tool.ToolCallId,
                             tool.ToolName,
                             suppressOutput,
@@ -485,22 +486,29 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                                 tool.OccurredAt,
                                 isRead ? "read" : "tool",
                                 toolDescription));
+                        state.ActiveTool = tool.ToolName;
+                    }
                     break;
                 case AgentToolCompletedEvent tool:
-                    transcriptUpdate = state.CompleteTool(
+                    var completion = state.Transcript.CompleteTool(
                         tool.ToolCallId,
                         tool.DisplayOutputFallback,
                         tool.ContentFallback);
+                    if (completion is not null)
+                    {
+                        transcriptUpdate = completion.Update;
+                        state.ActiveTool = completion.ActiveTool;
+                    }
                     break;
                 case AgentToolOutputChangedEvent output:
                     state.IsWorking = true;
-                    transcriptUpdate = state.ChangeToolOutput(
+                    transcriptUpdate = state.Transcript.ChangeToolOutput(
                         output.ToolCallId,
                         output.Output);
                     break;
                 case AgentToolProgressEvent progress:
                     state.IsWorking = true;
-                    transcriptUpdate = state.ChangeToolProgress(
+                    transcriptUpdate = state.Transcript.ChangeToolProgress(
                         progress.ToolCallId,
                         progress.Progress);
                     break;
@@ -551,17 +559,17 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private static TranscriptUpdate ApplyAssistantMessage(AgentRoleState state, AgentAssistantMessageEvent message)
     {
         if (message.IsDelta)
-            return state.AppendAssistantEntry(message.OccurredAt, message.Content);
+            return state.Transcript.AppendAssistantEntry(message.OccurredAt, message.Content);
 
-        return state.CompleteAssistantEntry(message.OccurredAt, message.Content);
+        return state.Transcript.CompleteAssistantEntry(message.OccurredAt, message.Content);
     }
 
     private static TranscriptUpdate ApplyReasoning(AgentRoleState state, AgentReasoningEvent reasoning)
     {
         if (reasoning.IsDelta)
-            return state.AppendReasoningEntry(reasoning.OccurredAt, reasoning.Content);
+            return state.Transcript.AppendReasoningEntry(reasoning.OccurredAt, reasoning.Content);
 
-        return state.CompleteReasoningEntry(reasoning.OccurredAt, reasoning.Content);
+        return state.Transcript.CompleteReasoningEntry(reasoning.OccurredAt, reasoning.Content);
     }
 
     private static readonly HashSet<string> KnownShellRunners = new(StringComparer.OrdinalIgnoreCase)
@@ -744,7 +752,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         string source,
         string content,
         bool protect = false) =>
-        state.AddTranscriptEntry(new TranscriptEntry(occurredAt, source, content), protect);
+        state.Transcript.AddTranscriptEntry(new TranscriptEntry(occurredAt, source, content), protect);
 
     private async Task DispatchPromptAsync(string role, Func<IAgentSession, CancellationToken, Task> operation, CancellationToken cancellationToken)
     {
@@ -1067,7 +1075,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         foreach (var protectedEntry in protectedEntries)
             if (myRoles.TryGetValue(protectedEntry.Role, out var state))
                 lock (state.SyncRoot)
-                    state.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
+                    state.Transcript.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
     }
 
     private static void RemovePendingInteractionsForRole<TRequest>(Dictionary<string, TRequest> pendingInteractions, string role)
@@ -1097,7 +1105,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
         if (myRoles.TryGetValue(protectedEntry.Role, out var state))
             lock (state.SyncRoot)
-                state.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
+                state.Transcript.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
     }
 
     private static void ValidateTranscriptRetentionOptions(TranscriptRetentionOptions options)
