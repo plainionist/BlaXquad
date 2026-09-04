@@ -106,7 +106,7 @@ state from background tasks. Avoid pass-through interfaces whose only purpose is
 
 ### Slice 3: Extract agent event projection
 
-**Status: implemented — hand off to reviewer**
+**Status: complete (5ac02544d0)**
 
 1. Add one internal `AgentEventProjector` under an `Events` folder/namespace. Move the complete provider-event switch,
    assistant/reasoning stream projection, transcript entry construction, tool/read/subagent/skill formatting, tool
