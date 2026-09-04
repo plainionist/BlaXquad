@@ -1,5 +1,6 @@
 using global::squad.AgentProvider.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
+using global::squad.Core.Interactions;
 using global::squad.Core.Transcripts;
 using global::squad.Ui.Abstractions;
 using System.Collections.Concurrent;
@@ -44,19 +45,15 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     }
 
     public ReadOnlyDictionary<string, AgentRoleState> Roles => new(myRoles);
-    public IReadOnlyCollection<AgentPermissionRequest> PendingPermissions => GetPendingInteractions(myPendingPermissions);
-    public IReadOnlyCollection<AgentInputRequest> PendingInputs => GetPendingInteractions(myPendingInputs);
-    public IReadOnlyCollection<AgentElicitationRequest> PendingElicitations => GetPendingInteractions(myPendingElicitations);
+    public IReadOnlyCollection<AgentPermissionRequest> PendingPermissions => myInteractions.Permissions;
+    public IReadOnlyCollection<AgentInputRequest> PendingInputs => myInteractions.Inputs;
+    public IReadOnlyCollection<AgentElicitationRequest> PendingElicitations => myInteractions.Elicitations;
     public string TranscriptHistoryDirectory => myTranscriptArchive.DirectoryPath;
     public event Action? StateChanged;
     public event Action<UiRefreshPriority>? SnapshotRequested;
     public event Action<TranscriptUpdate>? TranscriptChanged;
 
-    private readonly object myInteractionLock = new();
-    private readonly Dictionary<string, AgentPermissionRequest> myPendingPermissions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AgentInputRequest> myPendingInputs = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AgentElicitationRequest> myPendingElicitations = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, (string Role, int EntryIndex)> myPendingTranscriptEntries = new(StringComparer.Ordinal);
+    private readonly PendingInteractionRegistry myInteractions = new();
 
     public void InitializeRoles(IEnumerable<string> roleNames)
     {
@@ -137,7 +134,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     }
 
     public AgentElicitationRequest GetPendingElicitation(string role, string requestId) =>
-        GetPendingInteraction(myPendingElicitations, role, requestId);
+        myInteractions.GetElicitation(role, requestId);
 
     public bool? GetRoleReadiness(string role)
     {
@@ -535,19 +532,19 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 transcriptUpdate = AddTranscriptEntry(state, message.OccurredAt, "system", message.Content);
                     break;
                 case AgentPermissionRequest permission:
-                AddPendingInteraction(myPendingPermissions, permission.RequestId, permission);
+                myInteractions.RegisterPermission(permission);
                 transcriptUpdate = AddTranscriptEntry(state, permission.OccurredAt, "harness", $"Permission required: {permission.Description}.", protect: true);
-                TrackPendingTranscriptEntry(permission.Role, permission.RequestId, transcriptUpdate.EntryIndex);
+                myInteractions.ProtectTranscriptEntry(permission.Role, permission.RequestId, transcriptUpdate.EntryIndex);
                     break;
                 case AgentInputRequest input:
-                AddPendingInteraction(myPendingInputs, input.RequestId, input);
+                myInteractions.RegisterInput(input);
                 transcriptUpdate = AddTranscriptEntry(state, input.OccurredAt, "harness", input.Prompt, protect: true);
-                TrackPendingTranscriptEntry(input.Role, input.RequestId, transcriptUpdate.EntryIndex);
+                myInteractions.ProtectTranscriptEntry(input.Role, input.RequestId, transcriptUpdate.EntryIndex);
                     break;
                 case AgentElicitationRequest elicitation:
-                AddPendingInteraction(myPendingElicitations, elicitation.RequestId, elicitation);
+                myInteractions.RegisterElicitation(elicitation);
                 transcriptUpdate = AddTranscriptEntry(state, elicitation.OccurredAt, "harness", elicitation.Prompt, protect: true);
-                TrackPendingTranscriptEntry(elicitation.Role, elicitation.RequestId, transcriptUpdate.EntryIndex);
+                myInteractions.ProtectTranscriptEntry(elicitation.Role, elicitation.RequestId, transcriptUpdate.EntryIndex);
                     break;
                 }
             if (transcriptUpdate is not null)
@@ -962,20 +959,29 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     }
 
     private Task CompletePermissionCoreAsync(string? expectedRole, string requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
-        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(myPendingPermissions, expectedRole, requestId, (session, token) => session.RespondToPermissionAsync(requestId, response, token), cancellationToken), cancellationToken);
+        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
+            myInteractions.RemovePermission, myInteractions.RegisterPermission, expectedRole, requestId,
+            (session, token) => session.RespondToPermissionAsync(requestId, response, token), cancellationToken), cancellationToken);
 
     private Task CompleteInputCoreAsync(string? expectedRole, string requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
-        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(myPendingInputs, expectedRole, requestId, (session, token) => session.RespondToInputAsync(requestId, response, token), cancellationToken), cancellationToken);
+        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
+            myInteractions.RemoveInput, myInteractions.RegisterInput, expectedRole, requestId,
+            (session, token) => session.RespondToInputAsync(requestId, response, token), cancellationToken), cancellationToken);
 
     private Task CompleteElicitationCoreAsync(string? expectedRole, string requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
-        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(myPendingElicitations, expectedRole, requestId, (session, token) => session.RespondToElicitationAsync(requestId, response, token), cancellationToken), cancellationToken);
+        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
+            myInteractions.RemoveElicitation, myInteractions.RegisterElicitation, expectedRole, requestId,
+            (session, token) => session.RespondToElicitationAsync(requestId, response, token), cancellationToken), cancellationToken);
 
-    private async Task CompleteInteractionCoreAsync<TRequest>(Dictionary<string, TRequest> pendingInteractions, string? expectedRole, string requestId, Func<IAgentSession, CancellationToken, Task> respond, CancellationToken cancellationToken)
-        where TRequest : AgentEvent
+    private async Task CompleteInteractionCoreAsync<TRequest>(
+        Func<string?, string, (string Role, TRequest Request)> remove,
+        Action<TRequest> restore,
+        string? expectedRole,
+        string requestId,
+        Func<IAgentSession, CancellationToken, Task> respond,
+        CancellationToken cancellationToken)
     {
-        var request = GetPendingInteraction(pendingInteractions, expectedRole, requestId);
-        var role = GetRole(request);
-        RemovePendingInteraction(pendingInteractions, role, requestId);
+        var (role, request) = remove(expectedRole, requestId);
         try
         {
             await RunForRoleAsync(role, respond, cancellationToken);
@@ -985,7 +991,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         catch
         {
             if (!IsRoleFailed(role))
-                AddPendingInteraction(pendingInteractions, requestId, request);
+                restore(request);
             else
                 UnprotectPendingTranscriptEntry(role, requestId);
             NotifyStateChanged();
@@ -1001,112 +1007,26 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             if (!session.Completion.IsCompleted)
                 await session.CancelPendingInteractionsAsync();
         }
-        lock (myInteractionLock)
-        {
-            myPendingPermissions.Clear();
-            myPendingInputs.Clear();
-            myPendingElicitations.Clear();
-        }
+        myInteractions.Clear();
         NotifyStateChanged();
-    }
-
-    private IReadOnlyCollection<TRequest> GetPendingInteractions<TRequest>(Dictionary<string, TRequest> pendingInteractions)
-    {
-        lock (myInteractionLock)
-            return pendingInteractions.Values.ToArray();
-    }
-
-    private void AddPendingInteraction<TRequest>(Dictionary<string, TRequest> pendingInteractions, string requestId, TRequest request)
-        where TRequest : AgentEvent
-    {
-        var key = InteractionKey(GetRole(request), requestId);
-        lock (myInteractionLock)
-        {
-            if (!pendingInteractions.TryAdd(key, request))
-                throw new InvalidOperationException($"Interaction '{requestId}' is already pending for role '{GetRole(request)}'.");
-        }
-    }
-
-    private TRequest GetPendingInteraction<TRequest>(Dictionary<string, TRequest> pendingInteractions, string? expectedRole, string requestId)
-        where TRequest : AgentEvent
-    {
-        lock (myInteractionLock)
-        {
-            if (expectedRole is not null)
-            {
-                if (pendingInteractions.TryGetValue(InteractionKey(expectedRole, requestId), out var request))
-                    return request;
-                throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{expectedRole}'.");
-            }
-
-            var matches = pendingInteractions.Values.Where(request => GetRequestId(request) == requestId).ToArray();
-            return matches.Length switch
-            {
-                1 => matches[0],
-                0 => throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists."),
-                _ => throw new InvalidOperationException($"Interaction ID '{requestId}' is pending for multiple roles; specify the role."),
-            };
-        }
-    }
-
-    private void RemovePendingInteraction<TRequest>(Dictionary<string, TRequest> pendingInteractions, string role, string requestId)
-    {
-        lock (myInteractionLock)
-            pendingInteractions.Remove(InteractionKey(role, requestId));
     }
 
     private void RemovePendingInteractionsForRole(string role)
     {
-        (string Role, int EntryIndex)[] protectedEntries;
-        lock (myInteractionLock)
-        {
-            RemovePendingInteractionsForRole(myPendingPermissions, role);
-            RemovePendingInteractionsForRole(myPendingInputs, role);
-            RemovePendingInteractionsForRole(myPendingElicitations, role);
-            var keys = myPendingTranscriptEntries
-                .Where(pair => pair.Value.Role == role)
-                .Select(pair => pair.Key)
-                .ToArray();
-            protectedEntries = keys
-                .Select(key => myPendingTranscriptEntries[key])
-                .ToArray();
-            foreach (var key in keys)
-                myPendingTranscriptEntries.Remove(key);
-        }
-        foreach (var protectedEntry in protectedEntries)
+        foreach (var protectedEntry in myInteractions.RemoveForRole(role))
             if (myRoles.TryGetValue(protectedEntry.Role, out var state))
                 lock (state.SyncRoot)
                     state.Transcript.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
     }
 
-    private static void RemovePendingInteractionsForRole<TRequest>(Dictionary<string, TRequest> pendingInteractions, string role)
-        where TRequest : AgentEvent
-    {
-        foreach (var key in pendingInteractions.Where(pair => GetRole(pair.Value) == role).Select(pair => pair.Key).ToArray())
-            pendingInteractions.Remove(key);
-    }
-
-    private static string InteractionKey(string role, string requestId) => $"{role}\u001f{requestId}";
-
-    private void TrackPendingTranscriptEntry(string role, string requestId, int entryIndex)
-    {
-        lock (myInteractionLock)
-            myPendingTranscriptEntries[InteractionKey(role, requestId)] = (role, entryIndex);
-    }
-
     private void UnprotectPendingTranscriptEntry(string role, string requestId)
     {
-        (string Role, int EntryIndex) protectedEntry;
-        lock (myInteractionLock)
-        {
-            if (!myPendingTranscriptEntries.Remove(
-                    InteractionKey(role, requestId),
-                    out protectedEntry))
-                return;
-        }
-        if (myRoles.TryGetValue(protectedEntry.Role, out var state))
+        var protectedEntry = myInteractions.TryRemoveProtectedTranscriptEntry(role, requestId);
+        if (protectedEntry is null)
+            return;
+        if (myRoles.TryGetValue(protectedEntry.Value.Role, out var state))
             lock (state.SyncRoot)
-                state.Transcript.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
+                state.Transcript.UnprotectTranscriptEntry(protectedEntry.Value.EntryIndex);
     }
 
     private static void ValidateTranscriptRetentionOptions(TranscriptRetentionOptions options)
@@ -1161,22 +1081,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
         return 128000;
     }
-
-    private static string GetRole(AgentEvent request) => request switch
-    {
-        AgentPermissionRequest permission => permission.Role,
-        AgentInputRequest input => input.Role,
-        AgentElicitationRequest elicitation => elicitation.Role,
-        _ => throw new ArgumentException("Expected an interaction request.", nameof(request)),
-    };
-
-    private static string GetRequestId(AgentEvent request) => request switch
-    {
-        AgentPermissionRequest permission => permission.RequestId,
-        AgentInputRequest input => input.RequestId,
-        AgentElicitationRequest elicitation => elicitation.RequestId,
-        _ => throw new ArgumentException("Expected an interaction request.", nameof(request)),
-    };
 
     private SemaphoreSlim GetRoleLock(string role)
     {

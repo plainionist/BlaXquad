@@ -794,6 +794,21 @@ Feature: Squad ViewModel
     And the ViewModel stops
     Then the recording "reviewer" session cancelled pending interactions
 
+  Scenario: The same request ID can be pending for two roles independently
+    Given a ViewModel with recording roles "coder,reviewer"
+    When the recording "coder" session requests permission "shared-request"
+    And the recording "reviewer" session requests permission "shared-request"
+    Then ViewModel has 2 pending permissions "shared-request"
+    When permission "shared-request" is completed
+    Then interaction completion is rejected
+    And ViewModel has 2 pending permissions "shared-request"
+    When permission "shared-request" is approved for "coder"
+    Then the recording "coder" session received approved permission "shared-request"
+    And ViewModel has 1 pending permissions "shared-request"
+    When permission "shared-request" is approved for "reviewer"
+    Then the recording "reviewer" session received approved permission "shared-request"
+    And ViewModel has no pending permission
+
   Scenario: Tool state is visible only while the tool is active
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session emits tool start "git status"

@@ -993,7 +993,8 @@ public sealed class ViewModelSteps
         await myViewModel.RequestElicitationAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, requestId, role, "Complete sign-in", "url", null, "https://example.test/authorize"));
 
     [When("permission {string} is completed")]
-    public async Task WhenPermissionIsCompleted(string requestId) => await myViewModel.CompletePermissionAsync(requestId);
+    public async Task WhenPermissionIsCompleted(string requestId) =>
+        await CompleteInteractionAsync(() => myViewModel.CompletePermissionAsync(requestId));
 
     [When("permission {string} is rejected for {string}")]
     public async Task WhenPermissionIsRejectedFor(string requestId, string role) =>
@@ -1987,6 +1988,10 @@ public sealed class ViewModelSteps
 
     [Then("ViewModel has one pending permission {string}")]
     public void ThenViewModelHasOnePendingPermission(string requestId) => Assert.That(myViewModel.PendingPermissions.Single().RequestId, Is.EqualTo(requestId));
+
+    [Then("ViewModel has {int} pending permissions {string}")]
+    public void ThenViewModelHasNPendingPermissions(int count, string requestId) =>
+        Assert.That(myViewModel.PendingPermissions.Count(permission => permission.RequestId == requestId), Is.EqualTo(count));
 
     [Then("ViewModel has no pending permission")]
     public void ThenViewModelHasNoPendingPermission() => Assert.That(myViewModel.PendingPermissions, Is.Empty);

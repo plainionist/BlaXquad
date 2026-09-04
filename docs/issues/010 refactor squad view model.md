@@ -37,7 +37,7 @@ state from background tasks. Avoid pass-through interfaces whose only purpose is
 
 ### Slice 1: Extract pending interaction state
 
-**Status: in progress — hand off to coder**
+**Status: implemented — hand off to reviewer**
 
 1. Add one internal `PendingInteractionRegistry` type under an `Interactions` folder/namespace in `squad.Core`. It owns
    the interaction lock, typed permission/input/elicitation dictionaries, role-scoped key construction, uniqueness
