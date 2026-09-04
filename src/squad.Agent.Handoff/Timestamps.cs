@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace squad.Agent;
+namespace squad.Agent.Handoff;
 
 /// <summary>Provides the two timestamp formats used by squad state and messages.</summary>
 public static class Timestamps

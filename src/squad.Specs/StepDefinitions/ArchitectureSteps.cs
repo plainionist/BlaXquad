@@ -1,7 +1,7 @@
 using global::squad.Specs.Support;
-using global::squad.Agent;
 using global::squad.Agent.Cli;
 using global::squad.Agent.Configuration;
+using global::squad.Agent.Handoff;
 using global::squad.Agent.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
@@ -89,23 +89,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Agent", "squad.Agent.Cli", "squad.Agent.Configuration", "squad.Agent.Process" }));
-
-        var agentTypes = Assembly.Load("squad.Agent")
-            .GetTypes()
-            .Where(type => !type.IsNested && type.Namespace == "squad.Agent")
-            .Select(type => type.Name)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-        Assert.That(agentTypes, Is.EqualTo(new[]
-        {
-            "HandoffHeaders",
-            "HandoffQueue",
-            "Priority",
-            "SequenceCounter",
-            "SiblingTool",
-            "Timestamps",
-        }));
+            Is.EquivalentTo(new[] { "squad", "squad.Agent.Cli", "squad.Agent.Configuration", "squad.Agent.Handoff", "squad.Agent.Process" }));
 
         var agentCliTypes = Assembly.Load("squad.Agent.Cli")
             .GetTypes()
@@ -130,6 +114,21 @@ public sealed class ArchitectureSteps
             "ProjectRoot",
             "RoleRow",
             "SquadConfig",
+        }));
+
+        var agentHandoffTypes = Assembly.Load("squad.Agent.Handoff")
+            .GetTypes()
+            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Handoff")
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.That(agentHandoffTypes, Is.EqualTo(new[]
+        {
+            "HandoffHeaders",
+            "HandoffQueue",
+            "Priority",
+            "SequenceCounter",
+            "Timestamps",
         }));
 
         var agentProcessTypes = Assembly.Load("squad.Agent.Process")
