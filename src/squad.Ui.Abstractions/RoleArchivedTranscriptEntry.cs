@@ -1,4 +1,4 @@
-namespace squad.Core;
+namespace squad.Ui.Abstractions;
 
 public sealed record RoleArchivedTranscriptEntry(
     string Role,

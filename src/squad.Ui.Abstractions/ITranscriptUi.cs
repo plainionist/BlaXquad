@@ -1,4 +1,4 @@
-namespace squad.Core;
+namespace squad.Ui.Abstractions;
 
 public interface ITranscriptUi
 {

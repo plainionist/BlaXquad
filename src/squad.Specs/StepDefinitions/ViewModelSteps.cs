@@ -5,6 +5,7 @@ using global::squad.Agent;
 using global::squad.CopilotSdk;
 using global::squad.Core;
 using global::squad.Photino;
+using global::squad.Ui.Abstractions;
 using global::squad_hq.Commands;
 using System.Collections.Concurrent;
 using System.Text.Json;

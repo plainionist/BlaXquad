@@ -1,4 +1,4 @@
-namespace squad.Abstractions;
+namespace squad.Ui.Abstractions;
 
 public enum UiRefreshPriority
 {

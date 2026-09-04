@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using global::squad.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Core;
+using global::squad.Ui.Abstractions;
 
 namespace squad.Specs.Support;
 

@@ -1,4 +1,4 @@
-using global::squad.Core;
+using global::squad.Ui.Abstractions;
 
 namespace squad.Photino;
 

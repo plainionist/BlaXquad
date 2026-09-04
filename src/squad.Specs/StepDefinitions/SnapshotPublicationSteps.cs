@@ -1,4 +1,4 @@
-using global::squad.Abstractions;
+using global::squad.Ui.Abstractions;
 using global::squad.Photino;
 
 namespace squad.Specs.StepDefinitions;

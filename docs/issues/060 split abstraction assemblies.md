@@ -80,18 +80,6 @@ Perform the split in the following independently buildable slices. The implement
 types as part of each slice; this plan fixes assembly ownership and migration order rather than prescribing a
 class-by-class move list.
 
-### Slice 2: Introduce UI contracts
-
-- [ ] Slice 2 complete
-
-Create `squad.Ui.Abstractions`. Move the application-facing presentation port into it: UI commands and queries,
-application snapshots and transcript models, presentation notifications, refresh semantics, and interaction models
-needed to render or answer application state.
-
-Update `squad.Core` to implement these contracts and presentation adapters such as `squad.Photino` to consume them.
-Where an interaction model is genuinely provider-neutral and shared with presentation, reference
-`squad.AgentProvider.Abstractions` from this assembly instead of duplicating it.
-
 ### Slice 3: Introduce hosting contracts
 
 - [ ] Slice 3 complete

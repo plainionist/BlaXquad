@@ -4,6 +4,7 @@
   <Project Path="src/squad.Agent/squad.Agent.csproj" />
   <Project Path="src/squad.Core/squad.Core.csproj" />
   <Project Path="src/squad.Photino/squad.Photino.csproj" />
+  <Project Path="src/squad.Ui.Abstractions/squad.Ui.Abstractions.csproj" />
   <Folder Name="/src/">
     <Project Path="src/squad.CopilotSdk/squad.CopilotSdk.csproj" />
   </Folder>

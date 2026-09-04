@@ -3,7 +3,7 @@
   <ItemGroup>
     <PackageReference Include="Photino.NET" Version="4.0.16" />
     <ProjectReference Include="..\squad.Abstractions\squad.Abstractions.csproj" />
-    <ProjectReference Include="..\squad.Core\squad.Core.csproj" />
+    <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj" />
     <Content Include="Assets\BlaXquad.ico" />
   </ItemGroup>
 

@@ -13,6 +13,8 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+    <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Agent\squad.Agent.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.CopilotSdk\squad.CopilotSdk.csproj"

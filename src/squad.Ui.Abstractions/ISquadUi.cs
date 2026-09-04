@@ -1,7 +1,7 @@
 using System.Text.Json;
 using squad.AgentProvider.Abstractions.Agents;
 
-namespace squad.Abstractions;
+namespace squad.Ui.Abstractions;
 
 public interface ISquadUi
 {

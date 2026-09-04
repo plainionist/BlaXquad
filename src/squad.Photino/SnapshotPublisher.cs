@@ -1,4 +1,4 @@
-using global::squad.Abstractions;
+using global::squad.Ui.Abstractions;
 using System.Diagnostics;
 using System.Threading.Channels;
 
