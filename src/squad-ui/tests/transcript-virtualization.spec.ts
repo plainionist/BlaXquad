@@ -566,7 +566,7 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
     element.scrollTop = element.scrollHeight
     element.dispatchEvent(new Event('scroll'))
   })
-  await expect(transcript.locator('[data-entry-index="1099"]'))
+  await expect(transcript.locator('[data-entry-index="1099"] .transcript-content'))
     .toHaveText('replacement-99-updated')
 })
 
