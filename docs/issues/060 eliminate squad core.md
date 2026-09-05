@@ -137,8 +137,8 @@ application model to headquarters or technology adapters.
 
 ## Coordination status
 
-Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is the only slice authorized for
-implementation. Slices 4-5 remain blocked until the reviewer accepts Slice 3.
+Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is complete (ae73524ae8). Slices 4-5
+remain blocked until the architect authorizes the next slice.
 
 ## Implementation plan
 
@@ -192,7 +192,7 @@ Slice 2 is accepted when:
 
 ### Slice 3: Rename handoffs
 
-**Status: authorized for implementation**
+**Status: complete (ae73524ae8)**
 
 1. Rename the `src/squad.Core.Handoffs` directory, project file, assembly, and root namespace to
    `src/squad.Handoffs`, `squad.Handoffs.csproj`, and `squad.Handoffs`.
