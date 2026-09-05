@@ -144,7 +144,10 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
             }
         }
 
-        if (myStopSucceeded && !myClientDisposed)
+        // Client disposal is not gated on stop succeeding: a faulted force-stop task is cached and would fault the
+        // same way on every retry, which must not leave the client owned forever with no remaining work that can
+        // succeed. Attempt client disposal regardless of the stop outcome, same as before this handle existed.
+        if (!myClientDisposed)
         {
             try
             {
