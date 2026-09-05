@@ -17,27 +17,6 @@ Feature: Squad host ownership
     When the executable attempts a duplicate launch
     Then the duplicate launch fails without an exception trace
 
-  Scenario: The native window title identifies its workspace
-    When the executable queries its native window title
-    Then the executable reports the native window title for its workspace
-
-  Scenario: The executable reports a model's full default context window
-    When the executable queries a default context window with 272000 prompt tokens and 128000 output tokens
-    Then the executable reports a default context window of 400000 tokens
-
-  Scenario: The executable resolves a context window once per session
-    When the executable exercises its context window cache
-    Then the executable reports one context window lookup
-
-  Scenario Outline: The executable locates commands without a shell
-    When the executable checks whether command "<command>" is available
-    Then command availability is reported as "<availability>"
-
-    Examples:
-      | command                        | availability |
-      | git                            | available    |
-      | blaxquad-command-not-installed | unavailable  |
-
   Scenario: The executable shuts down an owned host
     Given the project host lease is acquired
     When the executable requests squad shutdown

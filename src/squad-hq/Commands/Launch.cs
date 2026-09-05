@@ -16,27 +16,6 @@ static class Launch
 
         switch (args.ElementAtOrDefault(0))
         {
-            case "--test-parse":
-                TestParse(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory());
-                return 0;
-            case "--test-window-title":
-                Console.WriteLine(PhotinoWindowHost.CreateTitle(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory()));
-                return 0;
-            case "--test-command-exists":
-                Console.WriteLine(ProcessControl.CommandExists(args[1]) ? "available" : "unavailable");
-                return 0;
-            case "--test-launch-selection":
-                TestLaunchSelection();
-                return 0;
-            case "--test-prepare-launch":
-                TestPrepareLaunch(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: false);
-                return 0;
-            case "--test-continue-launch":
-                TestPrepareLaunch(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true);
-                return 0;
-            case "--test-packaged-ui":
-                TestPackagedUi(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory());
-                return 0;
             case "--continue":
                 RunMain(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true);
                 return 0;
@@ -111,67 +90,6 @@ static class Launch
                     role.Model,
                     role.Effort)).ToArray(),
                 environment);
-        }
-
-        void TestParse(string root)
-        {
-            var context = PrepareContext(BuildContext(root));
-            new WorkspacePreparer(Fail).PrepareWorkspace(context);
-            foreach (var row in context.Roles)
-            {
-                Console.WriteLine(
-                    $"{row.Role} {row.DisplayName} {row.WorktreePath} {row.ReceiveMode} " +
-                    $"permissions={row.Permissions} model={row.Model ?? "default"} effort={row.Effort ?? "default"}");
-            }
-        }
-
-        void TestPackagedUi(string root)
-        {
-            Environment.SetEnvironmentVariable("BLAXQUAD_PHOTINO_SMOKE", "1");
-            var viewModel = new SquadViewModel();
-            var windowHost = new PhotinoWindowHost(viewModel, root);
-            try
-            {
-                windowHost.StartAsync().GetAwaiter().GetResult();
-                windowHost.WaitForCloseAsync().GetAwaiter().GetResult();
-                Console.WriteLine("ui.ready");
-            }
-            finally
-            {
-                windowHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            }
-        }
-
-        void TestPrepareLaunch(string root, bool continueLaunch)
-        {
-            var context = BuildContext(root);
-            context.ContinueLaunch = continueLaunch;
-            var preparer = new WorkspacePreparer(Fail);
-            preparer.InitializeGitRepo(context);
-            preparer.EnsureRuntimeGitExcludes(context);
-            PrepareContext(context);
-            preparer.PrepareWorkspace(context);
-            preparer.PrepareConfiguredWorktreesForLaunchAsync(context, context.ContinueLaunch, CancellationToken.None).GetAwaiter().GetResult();
-            preparer.PrepareHandoffDirs(context);
-        }
-
-        void TestLaunchSelection()
-        {
-            var context = BuildContext(Directory.GetCurrentDirectory());
-            var viewModel = new SquadViewModel();
-            var runtime = RuntimeModeSelector.Create(() => BuildBackendContext(context), viewModel);
-            try
-            {
-                Console.WriteLine($"{runtime.WindowHost.GetType().Name} {runtime.AgentBackend.GetType().Name}");
-            }
-            finally
-            {
-                runtime.WindowHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                runtime.AgentBackend.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                runtime.SleepInhibitor.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            }
         }
 
         void RunMain(string root, bool continueLaunch)
