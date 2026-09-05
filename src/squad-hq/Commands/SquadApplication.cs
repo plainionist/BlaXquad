@@ -46,8 +46,43 @@ public sealed class SquadApplication : IAsyncDisposable
     {
     }
 
-    // Internal composition seam: lets headquarters and test support share one SessionRegistry instance between
-    // SquadApplication and SessionRoleNotifier without exposing the host-lifecycle type on the public constructor.
+    /// <summary>
+    /// The one production creation path for a squad whose handoff pump must route notifications through the same
+    /// session registry that admits and leases sessions. Owns pairing a fresh <see cref="SessionRegistry"/> with a
+    /// <see cref="SessionRoleNotifier"/> over it, then hands that notifier to <paramref name="handoffPumpFactory"/>
+    /// so the pump can be built around it - callers never see either implementation directly.
+    /// </summary>
+    public static SquadApplication Create(
+        SquadStartupPlan startupPlan,
+        IAgentBackend agentBackend,
+        Func<IRoleNotifier, IHandoffPump> handoffPumpFactory,
+        IWindowHost windowHost,
+        ISleepInhibitor sleepInhibitor,
+        Action<AgentEvent>? eventSink = null,
+        SquadViewModel? viewModel = null,
+        IHostLease? hostLease = null)
+    {
+        ArgumentNullException.ThrowIfNull(handoffPumpFactory);
+
+        viewModel ??= new SquadViewModel();
+        var sessionRegistry = new SessionRegistry();
+        var notifier = new SessionRoleNotifier(sessionRegistry, viewModel);
+        var handoffPump = handoffPumpFactory(notifier);
+        return new SquadApplication(
+            startupPlan,
+            agentBackend,
+            handoffPump,
+            windowHost,
+            sleepInhibitor,
+            sessionRegistry,
+            eventSink,
+            viewModel,
+            hostLease);
+    }
+
+    // Internal composition seam used exclusively by Create above: lets the production creation path share one
+    // SessionRegistry instance between SquadApplication and SessionRoleNotifier without exposing the
+    // registry-sharing constructor as public API.
     internal SquadApplication(
         SquadStartupPlan startupPlan,
         IAgentBackend agentBackend,

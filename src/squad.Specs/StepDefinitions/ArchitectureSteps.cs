@@ -399,6 +399,37 @@ public sealed class ArchitectureSteps
         AssertInternalApplicationType(assembly, "squad.Host.Control.CleanupLease");
     }
 
+    [Then("SquadApplication offers one production creation path that pairs the session registry with its notifier")]
+    public void ThenSquadApplicationOffersOneProductionCreationPathThatPairsTheSessionRegistryWithItsNotifier()
+    {
+        var createMethods = typeof(SquadApplication)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(method => method.Name == "Create" && method.ReturnType == typeof(SquadApplication))
+            .ToArray();
+
+        Assert.That(createMethods, Has.Length.EqualTo(1), "SquadApplication should expose exactly one public Create factory.");
+        var handoffPumpFactoryParameter = createMethods[0].GetParameters()
+            .SingleOrDefault(parameter => parameter.ParameterType == typeof(Func<IRoleNotifier, IHandoffPump>));
+        Assert.That(
+            handoffPumpFactoryParameter,
+            Is.Not.Null,
+            "SquadApplication.Create should accept a Func<IRoleNotifier, IHandoffPump> so the notifier and registry are wired together inside the runtime boundary.");
+
+        var publicConstructors = typeof(SquadApplication).GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+        Assert.That(
+            publicConstructors.SelectMany(constructor => constructor.GetParameters()),
+            Has.None.Matches<ParameterInfo>(parameter => parameter.ParameterType.Name == "SessionRegistry"),
+            "No public constructor should accept a SessionRegistry directly.");
+    }
+
+    [Then("SessionRegistry and SessionRoleNotifier remain internal")]
+    public void ThenSessionRegistryAndSessionRoleNotifierRemainInternal()
+    {
+        var assembly = typeof(SquadApplication).Assembly;
+        AssertInternalApplicationType(assembly, "squadHQ.Commands.SessionRegistry");
+        AssertInternalApplicationType(assembly, "squadHQ.Commands.SessionRoleNotifier");
+    }
+
     [Then("the agent provider and hosting abstractions do not depend on presentation or provider adapters")]
     public void ThenTheAgentProviderAndHostingAbstractionsRemainIndependentOfAdapters()
     {

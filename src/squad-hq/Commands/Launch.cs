@@ -120,11 +120,6 @@ static class Launch
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
                 var runtime = Create(() => BuildBackendContext(context), viewModel);
-                var sessionRegistry = new SessionRegistry();
-                var handoffPump = new InProcessHandoffPoller(
-                    () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
-                    new SessionRoleNotifier(sessionRegistry, viewModel),
-                    LogHandoff);
                 var startupPlan = SquadStartupPlan.ForWorkspace(
                     context,
                     preparer,
@@ -140,13 +135,15 @@ static class Launch
                         await runtime.PrepareAsync(cancellationToken);
                     });
 
-                application = new SquadApplication(
+                application = SquadApplication.Create(
                     startupPlan,
                     runtime.AgentBackend,
-                    handoffPump,
+                    handoffPumpFactory: notifier => new InProcessHandoffPoller(
+                        () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
+                        notifier,
+                        LogHandoff),
                     runtime.WindowHost,
                     runtime.SleepInhibitor,
-                    sessionRegistry,
                     _ => { },
                     viewModel,
                     hostLease: hostLease);

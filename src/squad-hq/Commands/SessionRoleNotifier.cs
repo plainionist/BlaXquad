@@ -3,7 +3,7 @@ using squad.Handoffs.Delivery;
 
 namespace squadHQ.Commands;
 
-public sealed class SessionRoleNotifier : IRoleNotifier
+internal sealed class SessionRoleNotifier : IRoleNotifier
 {
     private const string myWakeMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
     private readonly SessionRegistry mySessions;

@@ -215,7 +215,13 @@ public sealed class ViewModelSteps
         myRecordingWindow = new RecordingWindowHost();
         myRecordingPump = new RecordingHandoffPump();
         myRecordingSleep = new RecordingSleepInhibitor();
-        myApplication = new SquadApplication(SquadStartupPlan.ForWorkspace(ctx, new WorkspacePreparer(_ => { })), myBackend, myRecordingPump, myRecordingWindow, myRecordingSleep, viewModel: viewModel);
+        myApplication = SquadApplication.Create(
+            SquadStartupPlan.ForWorkspace(ctx, new WorkspacePreparer(_ => { })),
+            myBackend,
+            handoffPumpFactory: _ => myRecordingPump,
+            myRecordingWindow,
+            myRecordingSleep,
+            viewModel: viewModel);
     }
 
     [Given("a SquadApplication with a session that emits while shutting down")]
@@ -2363,26 +2369,23 @@ public sealed class ViewModelSteps
         else if (unavailableRecipient != null && unavailableRecipient is not ("stopped" or "failed"))
             throw new ArgumentOutOfRangeException(nameof(unavailableRecipient));
 
-        var registry = new SessionRegistry();
         myInProcessHandoffLog.Clear();
         var roles = myApplicationContext!.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray();
-        myInProcessHandoffPump = new InProcessHandoffPoller(
-            roles,
-            new SessionRoleNotifier(registry, myApplication!.ViewModel),
-            parts => myInProcessHandoffLog.Enqueue(string.Join(" ", parts)));
         if (unavailableRecipient == "stopped")
             myRecordingWindow!.OnSessionsStarted = () => myBackend.Sessions.Single(session => session.Role == "reviewer").DisposeAsync().GetAwaiter().GetResult();
         if (unavailableRecipient == "failed")
             myRecordingWindow!.OnSessionsStarted = () => myBackend.Sessions.Single(session => session.Role == "reviewer").Fail("recording session failed");
 
-        myApplication = new SquadApplication(
+        myApplication = SquadApplication.Create(
             SquadStartupPlan.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
             myBackend,
-            myInProcessHandoffPump,
+            handoffPumpFactory: notifier => myInProcessHandoffPump = new InProcessHandoffPoller(
+                roles,
+                notifier,
+                parts => myInProcessHandoffLog.Enqueue(string.Join(" ", parts))),
             myRecordingWindow!,
             myRecordingSleep!,
-            viewModel: myApplication.ViewModel,
-            sessionRegistry: registry);
+            viewModel: myApplication!.ViewModel);
     }
 
     private void WritePendingHandoff()
