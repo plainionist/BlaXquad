@@ -319,6 +319,8 @@ readiness and recipient notification, and no public lookup API exposes an unleas
 
 ### Slice 8: Extract host runtime lifecycle
 
+**Status: complete (e960bf6de1)**
+
 1. Create `squad.Host.Runtime` and move `SquadApplication`, `SessionRegistry`, `SessionRoleNotifier`, `RunResult`, and
    `ShutdownBeforeReadyException`.
 2. Keep process-wide lifecycle coordination in `SquadApplication`; do not perform the generation-lifecycle redesign
