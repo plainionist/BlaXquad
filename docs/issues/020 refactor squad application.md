@@ -27,23 +27,19 @@ generation-lifecycle owner that encapsulates:
 - relaunch replacement; and
 - ordered, failure-collecting generation teardown.
 
-Build on the backend runtime-generation handle and authoritative lifecycle transition introduced by the restart
-architecture rather than adding another parallel lifecycle state machine. Those contracts are not present on `main`;
-the abandoned `SessionGeneration` and `SquadLifecycleTransition` names are not assumed to exist. Startup, relaunch,
-failure rollback, and shutdown must use the accepted lifecycle aggregate as the authoritative phase and
+This issue is self-contained. Introduce the focused backend runtime-generation and lifecycle-transition contracts it
+needs rather than waiting on or modifying another issue. Those contracts must remain limited to separating
+`SquadApplication` responsibilities; do not add relaunch presentation or another parallel lifecycle state machine.
+Startup, future relaunch, failure rollback, and shutdown must use `SessionRegistry` as the authoritative phase and
 command-admission owner.
 
 ## Coordination status
 
-Slice 1 is complete (`853c6bc636`). Slices 2 and 3 remain blocked until:
+Slice 1 is complete (`853c6bc636`). Slice 2 is the only slice authorized for implementation. Slices 3 and 4 remain
+blocked until the reviewer accepts the preceding slice.
 
-- restart architecture Slice 2 provides a backend-owned runtime-generation handle with confirmed/uncertain retirement;
-  and
-- restart architecture Slice 3 provides the authoritative lifecycle aggregate, generation/session leases, command
-  retirement, and transition handle.
-
-Do not emulate either missing prerequisite inside this issue. In particular, do not add lifecycle flags or locks to
-`SquadApplication`, expose unleased sessions, or move session disposal into a new headquarters wrapper.
+Introduce the missing focused contracts within this issue. Do not add lifecycle flags or locks to `SquadApplication`,
+expose unleased sessions, or move session disposal into a headquarters wrapper that bypasses backend ownership.
 
 ## Implementation plan
 
@@ -117,56 +113,90 @@ Resolved by `853c6bc636`.
   session created for the partial start is disposed, including the unpublished one. Keep using the existing aggregate
   `the application lifecycle contains {string} and {string}` assertion.
 
-### Slice 2: Extract one generation runtime
+### Slice 2: Establish backend-owned generation resources
 
-**Status: blocked on the accepted backend runtime and lifecycle contracts**
+**Status: authorized for implementation**
 
-1. Introduce one `SquadRuntime` (or retain the accepted equivalent name) representing exactly one generation. It owns
-   the backend runtime handle, generation/session leases, event and completion observer cancellation sources and tasks,
-   and generation-scoped teardown state. Keep it in its own source file.
-2. Move session registration and observer creation out of `SquadApplication`. Every observer carries its session lease
-   through asynchronous work and relies on the lifecycle/ViewModel commit boundary to reject retired-generation
-   mutations; do not add a second currency check or role-only substitute.
-3. Give the runtime one idempotent teardown operation. It must execute every mandatory stage, collect failures, stop the
-   backend runtime before awaiting observers that depend on session completion, and retain an uncertain backend handle
-   when retirement is not confirmed.
-4. Remove direct session disposal and generation-scoped session/task/token collections from `SquadApplication`.
-   Sessions remain inspectable only through existing typed snapshots or narrowly scoped internal test support; do not
-   preserve `SquadApplication.Sessions` as an ownership API.
+1. Add an `IAgentRuntime` contract in the agent-provider abstraction assembly, in its own source file. An
+   `IAgentBackend` creates the runtime handle before fallible session startup; the runtime then starts and registers its
+   sessions. The runtime exclusively owns its provider client and every session it creates.
+2. Implement the runtime handle in the Copilot SDK adapter and recording acceptance support. Move all session disposal,
+   shared-client stop/disposal, and partial-start rollback behind that handle. A failed stop must retain enough owned
+   state for a later retry; cleanup attempted is not equivalent to ownership retired.
+3. Introduce `SessionGeneration` in headquarters as the owner of one runtime handle plus its registered-session
+   projection, event/completion observer tasks, and observer cancellation sources. Move registration and observer
+   creation out of `SquadApplication` without changing event ordering or failure reporting.
+4. Give `SessionGeneration` one idempotent, failure-collecting teardown operation. It cancels event observation, asks
+   the runtime owner to resolve session completion and retire its resources, then drains observers and disposes their
+   cancellation sources. It never calls `IAgentSession.DisposeAsync`.
+5. Keep `SquadApplication` responsible for invoking generation teardown in the existing handoff/command/process cleanup
+   order for this slice. Remove its direct session-disposal loop and its generation-scoped session, observer-task, and
+   cancellation-source collections. Do not introduce lifecycle phases, relaunch behavior, or UI/protocol changes yet.
 
 Slice 2 is accepted when:
 
-- one runtime owns all generation-scoped sessions and observers while the backend handle remains the sole disposer of
-  backend sessions;
+- `IAgentRuntime` is the sole disposer of backend sessions and provider-client resources, including partial startup;
+- `SessionGeneration` is the sole headquarters owner of registered-session projections and observer resources;
 - teardown is retry-safe, failure-collecting, and cannot drain completion observers before backend retirement resolves
   session completion;
-- partial registration failure leaves no unowned session, observer, cancellation source, or backend handle; and
+- partial registration failure leaves no unowned session, observer, cancellation source, client, or runtime handle;
+- `SquadApplication` contains no session-disposal loop or generation-scoped observer collections; and
 - the Slice 1 ordering scenarios plus existing session-event, partial-start, cleanup, and shutdown scenarios remain
   green.
 
-### Slice 3: Extract generation orchestration from the shell
+### Slice 3: Make SessionRegistry the lifecycle authority
 
 **Status: blocked until Slice 2 is accepted**
 
-1. Introduce `SquadRuntimeController` as the sole owner of the current `SquadRuntime`. It coordinates generation
-   construction, registration, handoff recovery/start, rollback, replacement, and teardown while consuming the
-   authoritative lifecycle transition; it owns no lifecycle phase, command-admission state, window lifetime, host
-   lease, workspace preparation, or sleep inhibition.
-2. Define one internal generation-construction path and one rollback path. Startup and later relaunch call those same
+1. Extend `SessionRegistry` into the single lifecycle aggregate for `Created`, `Starting`, `Running`, `Stopping`, and
+   `Stopped`. It owns generation identity, session leases, transition exclusion, and command admission; keep cohesive
+   catalog and command-tracking mechanics in private/internal collaborators rather than one undifferentiated class.
+2. Add `SquadLifecycleTransition` as an explicit handle returned by the registry. Every successful begin has exactly
+   one commit or fail and always releases transition ownership. No I/O resource is owned by the transition or registry.
+3. Replace unleased active-session lookup with generation-bound session and command leases. Route ViewModel commands
+   and handoff notification through a narrow injected admission contract so phase checks and session selection are
+   atomic. Do not create a reverse dependency from `squad.Application` to headquarters.
+4. Make startup and shutdown use the registry transition. Beginning shutdown closes command admission and requests
+   cancellation before generation teardown; admitted commands drain before the runtime owner retires sessions.
+5. Preserve current public protocol and observable startup/shutdown behavior. Do not add `Relaunching`, `Failed`, or
+   relaunch commands in this refactoring slice.
+
+Slice 3 is accepted when:
+
+- there is exactly one lifecycle phase, generation counter, transition exclusion mechanism, and command-admission
+  owner;
+- no production API returns an active session without a generation-bound lease;
+- rejected commands are side-effect free, admitted commands drain before generation teardown, and handoff lookup uses
+  the same current-generation authority;
+- transition completion and release are failure-safe without lifecycle state in `SquadApplication` or
+  `SquadViewModel`; and
+- focused startup, command, handoff, failure, and shutdown scenarios remain green.
+
+### Slice 4: Extract generation orchestration from the shell
+
+**Status: blocked until Slice 3 is accepted**
+
+1. Introduce `SquadRuntimeController` as the sole owner of the current `SessionGeneration`. It coordinates generation
+   construction, registration, handoff recovery/start, rollback, replacement-ready teardown, and lifecycle transitions;
+   it owns no lifecycle phase, command-admission state, window lifetime, host lease, workspace preparation, or sleep
+   inhibition.
+2. Define one internal generation-construction path and one rollback path. Startup and future relaunch call those same
    paths wherever their behavior is identical. A focused callback may bridge the window's sessions-started notification
    at the required boundary without transferring window ownership to the controller.
 3. Reduce `SquadApplication` to process preparation, process-wide resource startup/disposal, the outer terminal-signal
    run loop, and delegation to the controller. Keep primary-versus-cleanup exception aggregation at the owner whose
    resources are being unwound; do not add a pass-through lifecycle facade.
-4. Keep transition begin/commit/fail and capability publication in the accepted lifecycle aggregate. The controller
-   performs I/O under the transition contract but never duplicates phase or admission state.
+4. Keep transition begin/commit/fail and command admission in `SessionRegistry`. The controller performs I/O under the
+   transition contract but never duplicates phase or admission state.
 5. Update composition in `Launch` and black-box support without widening public construction solely for tests. Add an
-   architecture assertion that `SquadApplication` has no generation session, observer, or handoff lifecycle fields.
+   architecture assertion that `SquadApplication` has no generation session, observer, backend, or handoff lifecycle
+   fields.
 
-Slice 3 and this refactoring are accepted when:
+Slice 4 and this refactoring are accepted when:
 
 - `SquadApplication` owns only the outer run/termination loop and process-wide resources;
-- `SquadRuntimeController` owns current-generation orchestration and `SquadRuntime` owns one generation's resources;
+- `SquadRuntimeController` owns current-generation orchestration and `SessionGeneration` owns one generation's
+  resources;
 - startup, future relaunch, and their failure rollback share generation construction and teardown paths;
 - no session is disposed outside its backend runtime owner and no second lifecycle authority exists;
 - teardown ordering and aggregate-failure behavior satisfy the Slice 1 characterization; and
