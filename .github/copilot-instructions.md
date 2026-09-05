@@ -5,6 +5,7 @@
 - Keep one top-level C# type per source file. Extract a type when it has an independent responsibility or public/internal surface.
 - Do not put default implementations in interfaces. Every interface member must be explicitly implemented by each implementation.
 - Do not add unnecessary "" when using namespaces.
+- Always use curly braces for all control structures, even if they contain a single statement.
 
 ## Design
 
