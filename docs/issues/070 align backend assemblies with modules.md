@@ -164,6 +164,8 @@ contain every required dependency.
 
 ### Slice 0: Restore a trustworthy baseline
 
+**Status: complete (e11bb3529c)**
+
 1. Correct the two stale architecture assertions described above so they represent the current merged handoff
    assembly and pass before production changes.
 2. Add a black-box startup scenario proving that roles populated during pre-start preparation are observed by
