@@ -240,6 +240,8 @@ and `PhotinoWindowHost` contains no command validation, transcript synchronizati
 
 ### Slice 4: Extract `squad.Ui.Protocol`
 
+**Status: complete (386c76c32b)**
+
 1. Create `squad.Ui.Protocol` and move the facade plus its parser, command handler, delivery coordinator, journal,
    scheduler, synchronization records, and serialization helpers.
 2. Rename Photino-prefixed implementation types to technology-neutral names in a separate green commit after the move,
