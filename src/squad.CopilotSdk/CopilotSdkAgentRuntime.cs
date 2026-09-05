@@ -14,8 +14,11 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
     private readonly AgentBackendContext myContext;
     private readonly Action<Exception> myReportFatalFailure;
     private readonly List<CopilotSdkAgentSession> mySessions = [];
+    private readonly HashSet<CopilotSdkAgentSession> myRetiredSessions = [];
     private readonly object myLifecycleLock = new();
     private Task? myForceStop;
+    private bool myStopSucceeded;
+    private bool myClientDisposed;
     private bool myDisposed;
 
     public CopilotSdkAgentRuntime(CopilotSdkClient client, AgentBackendContext context, Action<Exception> reportFatalFailure)
@@ -66,11 +69,13 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
         }
     }
 
+    // Retry-safe: ownership of any sub-resource (a session, the shared client stop, the client itself) is retired
+    // only once its own step succeeds. A failed attempt collects failures but leaves the not-yet-retired state in
+    // place, so a later call resumes exactly the remaining work instead of treating the failed attempt as terminal.
     public async ValueTask DisposeAsync()
     {
         if (myDisposed)
             return;
-        myDisposed = true;
 
         var failures = new List<Exception>();
         CopilotSdkAgentSession[] sessions;
@@ -78,65 +83,89 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
             sessions = [.. mySessions];
         for (var index = sessions.Length - 1; index >= 0; index--)
         {
+            var session = sessions[index];
+            bool alreadyRetired;
+            lock (mySessions)
+                alreadyRetired = myRetiredSessions.Contains(session);
+            if (alreadyRetired)
+                continue;
             try
             {
-                await sessions[index].DisposeAsync();
+                await session.DisposeAsync();
+                lock (mySessions)
+                    myRetiredSessions.Add(session);
             }
             catch (Exception exception)
             {
                 failures.Add(exception);
             }
         }
-        lock (mySessions)
-            mySessions.Clear();
 
-        Task? forceStop;
-        lock (myLifecycleLock)
-            forceStop = myForceStop;
-        if (forceStop is not null)
+        if (!myStopSucceeded)
         {
-            try
-            {
-                await forceStop;
-            }
-            catch (Exception exception)
-            {
-                failures.Add(exception);
-            }
-        }
-        else
-        {
-            try
-            {
-                await myClient.StopAsync().WaitAsync(myGracefulStopTimeout);
-            }
-            catch (TimeoutException)
+            Task? forceStop;
+            lock (myLifecycleLock)
+                forceStop = myForceStop;
+            if (forceStop is not null)
             {
                 try
                 {
-                    await myClient.ForceStopAsync().WaitAsync(myGracefulStopTimeout);
+                    await forceStop;
+                    myStopSucceeded = true;
                 }
                 catch (Exception exception)
                 {
                     failures.Add(exception);
                 }
             }
+            else
+            {
+                try
+                {
+                    await myClient.StopAsync().WaitAsync(myGracefulStopTimeout);
+                    myStopSucceeded = true;
+                }
+                catch (TimeoutException)
+                {
+                    try
+                    {
+                        await myClient.ForceStopAsync().WaitAsync(myGracefulStopTimeout);
+                        myStopSucceeded = true;
+                    }
+                    catch (Exception exception)
+                    {
+                        failures.Add(exception);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    failures.Add(exception);
+                }
+            }
+        }
+
+        if (myStopSucceeded && !myClientDisposed)
+        {
+            try
+            {
+                await myClient.DisposeAsync().AsTask().WaitAsync(myGracefulStopTimeout);
+                myClientDisposed = true;
+            }
             catch (Exception exception)
             {
                 failures.Add(exception);
             }
         }
-        try
-        {
-            await myClient.DisposeAsync().AsTask().WaitAsync(myGracefulStopTimeout);
-        }
-        catch (Exception exception)
-        {
-            failures.Add(exception);
-        }
 
         if (failures.Count > 0)
             throw new AggregateException(failures);
+
+        lock (mySessions)
+        {
+            mySessions.Clear();
+            myRetiredSessions.Clear();
+        }
+        myDisposed = true;
     }
 
     private void RequestForceStop(Exception sessionFailure)

@@ -22,6 +22,7 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
     private readonly Task myRegistrationGate;
     private readonly Action myOnDisposeEntered;
     private readonly Task myDisposeGate;
+    private readonly HashSet<RecordingAgentSession> myRetiredSessions = [];
     private bool myDisposed;
 
     internal RecordingAgentRuntime(
@@ -77,20 +78,26 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
             throw new InvalidOperationException("recording backend start failed");
     }
 
+    // Retry-safe: a session is retired only once its own disposal succeeds. A failed attempt collects failures but
+    // leaves not-yet-retired sessions in place, so a later call resumes exactly the remaining work instead of
+    // treating the failed attempt as terminal.
     public async ValueTask DisposeAsync()
     {
         if (myDisposed)
             return;
-        myDisposed = true;
         myOnDisposeEntered();
         if (myBlockDispose)
             await myDisposeGate;
         var failures = new List<Exception>();
         for (var index = mySessions.Count - 1; index >= 0; index--)
         {
+            var session = mySessions[index];
+            if (myRetiredSessions.Contains(session))
+                continue;
             try
             {
-                await mySessions[index].DisposeAsync();
+                await session.DisposeAsync();
+                myRetiredSessions.Add(session);
             }
             catch (Exception exception)
             {
@@ -100,5 +107,6 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
         myTrace?.Record("backend.disposed");
         if (failures.Count > 0)
             throw new AggregateException(failures);
+        myDisposed = true;
     }
 }

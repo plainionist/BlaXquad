@@ -54,13 +54,25 @@ internal sealed class SessionGeneration
         myEventTasks.Add(ObserveSessionAsync(session, sessionCancellation, eventTask));
     }
 
-    // Idempotent, failure-collecting teardown: cancels event observation, asks the runtime owner to resolve
-    // session completion and retire its resources, then drains observers and disposes their cancellation sources.
-    public Task<IReadOnlyList<Exception>> TeardownAsync()
+    // Retry-safe, idempotent, failure-collecting teardown: cancels event observation, asks the runtime owner to
+    // resolve session completion and retire its resources, then drains observers and disposes their cancellation
+    // sources. A failed attempt is not treated as terminal - a later call resumes the remaining work - so owned
+    // observer resources are cleared only once the whole attempt succeeds.
+    public async Task<IReadOnlyList<Exception>> TeardownAsync()
     {
+        Task<IReadOnlyList<Exception>> current;
         lock (myTeardownLock)
-            myTeardown ??= TeardownCoreAsync();
-        return myTeardown;
+            current = myTeardown ??= TeardownCoreAsync();
+        var failures = await current;
+        if (failures.Count > 0)
+        {
+            lock (myTeardownLock)
+            {
+                if (myTeardown == current)
+                    myTeardown = null;
+            }
+        }
+        return failures;
     }
 
     private async Task<IReadOnlyList<Exception>> TeardownCoreAsync()
@@ -72,20 +84,26 @@ internal sealed class SessionGeneration
             try
             {
                 await myRuntime.DisposeAsync();
+                myRuntime = null;
             }
             catch (Exception exception)
             {
                 failures.Add(exception);
             }
         }
-        try
+        if (failures.Count == 0)
         {
-            await Task.WhenAll(myEventTasks);
+            try
+            {
+                await Task.WhenAll(myEventTasks);
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
         }
-        catch (Exception exception)
-        {
-            failures.Add(exception);
-        }
+        if (failures.Count > 0)
+            return failures;
         foreach (var sessionCancellation in mySessionCancellations)
             sessionCancellation.Dispose();
         mySessionCancellations.Clear();
