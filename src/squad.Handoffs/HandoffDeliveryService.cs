@@ -1,5 +1,5 @@
 using global::squad.Configuration;
-using global::squad.Handoff;
+
 namespace squad.Handoffs;
 
 sealed class HandoffDeliveryService

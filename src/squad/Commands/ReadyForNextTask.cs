@@ -1,6 +1,6 @@
 using global::squad.Process;
 using global::squad.Configuration;
-using global::squad.Handoff;
+using global::squad.Handoffs;
 
 namespace squad.Commands;
 

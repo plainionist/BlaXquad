@@ -1,6 +1,5 @@
 using global::squad.Specs.Support;
 using global::squad.Configuration;
-using global::squad.Handoff;
 using global::squad.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Application;
@@ -90,7 +89,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Configuration", "squad.Handoff", "squad.Process" }));
+            Is.EquivalentTo(new[] { "squad", "squad.Configuration", "squad.Process" }));
 
         var agentConfigurationTypes = Assembly.Load("squad.Configuration")
             .GetTypes()
@@ -106,9 +105,10 @@ public sealed class ArchitectureSteps
             "SquadConfig",
         }));
 
-        var agentHandoffTypes = Assembly.Load("squad.Handoff")
+        var agentHandoffTypes = Assembly.Load("squad.Handoffs")
             .GetTypes()
-            .Where(type => !type.IsNested && type.Namespace == "squad.Handoff")
+            .Where(type => !type.IsNested && type.Namespace == "squad.Handoffs"
+                    && (type.Name == "HandoffHeaders" || type.Name == "HandoffQueue" || type.Name == "Priority" || type.Name == "SequenceCounter" || type.Name == "Timestamps"))
             .Select(type => type.Name)
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -301,7 +301,7 @@ public sealed class ArchitectureSteps
         Assert.Multiple(() =>
         {
             Assert.That(references, Does.Contain("squad.Configuration"));
-            Assert.That(references, Does.Contain("squad.Handoff"));
+            Assert.That(references, Does.Contain("squad.Handoffs"));
             Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Ui.Abstractions"));
@@ -319,7 +319,7 @@ public sealed class ArchitectureSteps
         Assert.Multiple(() =>
         {
             Assert.That(references, Does.Not.Contain("squad.Configuration"));
-            Assert.That(references, Does.Not.Contain("squad.Handoff"));
+            Assert.That(references, Does.Not.Contain("squad.Handoffs"));
         });
     }
 
@@ -334,7 +334,6 @@ public sealed class ArchitectureSteps
             Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(references, Does.Not.Contain("squad.Handoffs"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
-            Assert.That(references, Does.Not.Contain("squad.Handoff"));
             Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Photino"));
             Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));

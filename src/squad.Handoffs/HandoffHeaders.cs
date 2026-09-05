@@ -1,4 +1,4 @@
-namespace squad.Handoff;
+namespace squad.Handoffs;
 
 /// <summary>Reads/writes the "field: value" header block that precedes the blank-line body separator in a handoff file.</summary>
 public static class HandoffHeaders

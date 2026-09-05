@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\squad.Configuration\squad.Configuration.csproj" />
-    <ProjectReference Include="..\squad.Handoff\squad.Handoff.csproj" />
   </ItemGroup>
 
 </Project>

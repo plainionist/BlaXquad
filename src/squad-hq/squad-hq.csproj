@@ -21,8 +21,6 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Configuration\squad.Configuration.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
-    <ProjectReference Include="..\squad.Handoff\squad.Handoff.csproj"
-                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.CopilotSdk\squad.CopilotSdk.csproj"

@@ -1,6 +1,6 @@
 using global::squad.Process;
 
-namespace squad.Handoff;
+namespace squad.Handoffs;
 
 /// <summary>Listing, sorting, and stdout rendering for handoff files and batch directories under an inbox.</summary>
 public static class HandoffQueue
