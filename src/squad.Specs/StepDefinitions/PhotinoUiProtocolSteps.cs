@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using global::squad.Photino;
-using global::squad.Specs.Support;
+using squad.Photino;
+using squad.Specs.Support;
 
 namespace squad.Specs.StepDefinitions;
 

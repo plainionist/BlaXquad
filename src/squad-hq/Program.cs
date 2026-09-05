@@ -1,5 +1,5 @@
-using global::squad.Process;
-using global::squadHQ.Commands;
+using squad.Process;
+using squadHQ.Commands;
 
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {
@@ -10,9 +10,6 @@ if (args.Length == 0 || args[0] is "-h" or "--help")
 
 try
 {
-    if (RuntimeModeSelector.TryRunPrivateCommand(args[0], args[1..], out var privateExitCode))
-        return privateExitCode;
-
     return args[0] switch
     {
         "shutdown" => Shutdown.Run(args[1..]),

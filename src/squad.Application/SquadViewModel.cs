@@ -1,10 +1,10 @@
-using global::squad.AgentProvider.Abstractions;
-using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Application.Events;
-using global::squad.Application.Interactions;
-using global::squad.Application.RoleOperations;
-using global::squad.Transcripts;
-using global::squad.Ui.Abstractions;
+using squad.AgentProvider.Abstractions;
+using squad.AgentProvider.Abstractions.Agents;
+using squad.Application.Events;
+using squad.Application.Interactions;
+using squad.Application.RoleOperations;
+using squad.Transcripts;
+using squad.Ui.Abstractions;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Text.Json;

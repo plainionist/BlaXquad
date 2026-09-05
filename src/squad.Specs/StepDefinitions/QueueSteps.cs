@@ -1,4 +1,4 @@
-using global::squad.Specs.Support;
+using squad.Specs.Support;
 
 namespace squad.Specs.StepDefinitions;
 

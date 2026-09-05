@@ -1,7 +1,7 @@
-using global::squad.AgentProvider.Abstractions;
-using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Application.Interactions;
-using global::squad.Ui.Abstractions;
+using squad.AgentProvider.Abstractions;
+using squad.AgentProvider.Abstractions.Agents;
+using squad.Application.Interactions;
+using squad.Ui.Abstractions;
 using System.Text.Json;
 
 namespace squad.Application.Events;

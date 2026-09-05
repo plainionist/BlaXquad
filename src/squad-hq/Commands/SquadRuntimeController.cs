@@ -1,7 +1,7 @@
-using global::squad.AgentProvider.Abstractions;
-using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Application;
-using global::squad.Handoffs.Delivery;
+using squad.AgentProvider.Abstractions;
+using squad.AgentProvider.Abstractions.Agents;
+using squad.Application;
+using squad.Handoffs.Delivery;
 
 namespace squadHQ.Commands;
 

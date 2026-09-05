@@ -1,10 +1,12 @@
-using global::squad.AgentProvider.Abstractions;
-using global::squad.Process;
-using global::squad.Configuration;
-using global::squad.Handoffs;
-using global::squad.Handoffs.Delivery;
-using global::squad.Application;
-using global::squad.Photino;
+using squad.AgentProvider.Abstractions;
+using squad.Process;
+using squad.Configuration;
+using squad.Handoffs;
+using squad.Handoffs.Delivery;
+using squad.Application;
+using squad.Photino;
+using squad.Ui.Abstractions;
+using squad.CopilotSdk;
 
 namespace squadHQ.Commands;
 
@@ -17,51 +19,15 @@ static class Launch
 
         switch (args.ElementAtOrDefault(0))
         {
-            case "--test-parse":
-                TestParse(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory());
-                return 0;
-            case "--test-window-title":
-                Console.WriteLine(RuntimeModeSelector.WindowTitle(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory()));
-                return 0;
-            case "--test-command-exists":
-                Console.WriteLine(ExecutableLocator.Exists(args[1]) ? "available" : "unavailable");
-                return 0;
-            case "--test-launch-selection":
-                TestLaunchSelection();
-                return 0;
-            case "--test-prepare-launch":
-                TestPrepareLaunch(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: false);
-                return 0;
-            case "--test-continue-launch":
-                TestPrepareLaunch(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true);
-                return 0;
-            case "--test-packaged-ui":
-                TestPackagedUi(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory());
-                return 0;
             case "--continue":
                 RunMain(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true);
                 return 0;
             default:
-                if (args.Length > 0 && RuntimeModeSelector.TryRunPrivateCommand(args[0].TrimStart('-'), args[1..], out var exitCode))
-                    return exitCode;
                 RunMain(args.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false);
                 return 0;
         }
 
         void Fail(string message) => throw new CliExitException(1, message);
-
-        IRuntimeModeFactory SelectFactory()
-        {
-            try
-            {
-                return RuntimeModeSelector.Select(Environment.GetEnvironmentVariable("BLAXQUAD_AGENT_BACKEND"));
-            }
-            catch (InvalidOperationException exception)
-            {
-                Fail(exception.Message);
-                throw;
-            }
-        }
 
         Ctx BuildContext(string workingDirArgument)
         {
@@ -127,71 +93,8 @@ static class Launch
                 environment);
         }
 
-        void TestParse(string root)
-        {
-            var context = PrepareContext(BuildContext(root));
-            new WorkspacePreparer(Fail).PrepareWorkspace(context);
-            foreach (var row in context.Roles)
-            {
-                Console.WriteLine(
-                    $"{row.Role} {row.DisplayName} {row.WorktreePath} {row.ReceiveMode} " +
-                    $"permissions={row.Permissions} model={row.Model ?? "default"} effort={row.Effort ?? "default"}");
-            }
-        }
-
-        void TestPackagedUi(string root)
-        {
-            Environment.SetEnvironmentVariable("BLAXQUAD_PHOTINO_SMOKE", "1");
-            var viewModel = new SquadViewModel();
-            var windowHost = new PhotinoWindowHost(viewModel, root);
-            try
-            {
-                windowHost.StartAsync().GetAwaiter().GetResult();
-                windowHost.WaitForCloseAsync().GetAwaiter().GetResult();
-                Console.WriteLine("ui.ready");
-            }
-            finally
-            {
-                windowHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            }
-        }
-
-        void TestPrepareLaunch(string root, bool continueLaunch)
-        {
-            var context = BuildContext(root);
-            context.ContinueLaunch = continueLaunch;
-            var preparer = new WorkspacePreparer(Fail);
-            preparer.InitializeGitRepo(context);
-            preparer.EnsureRuntimeGitExcludes(context);
-            PrepareContext(context);
-            preparer.PrepareWorkspace(context);
-            preparer.PrepareConfiguredWorktreesForLaunchAsync(context, context.ContinueLaunch, CancellationToken.None).GetAwaiter().GetResult();
-            preparer.PrepareHandoffDirs(context);
-        }
-
-        void TestLaunchSelection()
-        {
-            var factory = SelectFactory();
-            var context = BuildContext(Directory.GetCurrentDirectory());
-            var viewModel = new SquadViewModel();
-            var runtime = RuntimeModeSelector.Create(factory, () => BuildBackendContext(context), viewModel);
-            try
-            {
-                Console.WriteLine($"{factory.Name} {runtime.WindowHost.GetType().Name} {runtime.AgentBackend.GetType().Name}");
-            }
-            finally
-            {
-                runtime.WindowHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                runtime.AgentBackend.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                runtime.SleepInhibitor.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            }
-        }
-
         void RunMain(string root, bool continueLaunch)
         {
-            var factory = SelectFactory();
             var context = BuildContext(root);
             context.ContinueLaunch = continueLaunch;
             IHostLease? hostLease = HostLease.Acquire(context.WorkingDir);
@@ -214,7 +117,7 @@ static class Launch
             {
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var runtime = RuntimeModeSelector.Create(factory, () => BuildBackendContext(context), viewModel);
+                var runtime = Create(() => BuildBackendContext(context), viewModel);
                 var sessionRegistry = new SessionRegistry();
                 var handoffPump = new InProcessHandoffPoller(
                     () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
@@ -261,6 +164,16 @@ static class Launch
         }
     }
 
+    private static RuntimeMode Create(Func<AgentBackendContext> context, ISquadUi ui)
+    {
+        var factory = new CopilotSdkRuntimeModeFactory();
+        var backend = factory.CreateBackend(context);
+        return new RuntimeMode(
+            backend,
+            new PhotinoWindowHost(ui, context().WorkingDirectory),
+            new SleepInhibitor(),
+            cancellationToken => factory.PrepareAsync(context, cancellationToken));
+    }
 
 
     private static string InitialInstruction(string role) =>

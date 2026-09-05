@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="1180" viewBox="0 0 1840 1180" role="img" aria-labelledby="title desc">
+  <title id="title">BlaXquad handoff lifecycle and state ownership</title>
+  <desc id="desc">How durable handoff files move between role worktrees and where configuration, runtime, transcript, and presentation state live.</desc>
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#38bdf8"/></marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#34d399"/></marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#c084fc"/></marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#f59e0b"/></marker>
+    <style>
+      .title { font: 700 34px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .subtitle { font: 400 17px "Segoe UI", sans-serif; fill: #a8b3c7; }
+      .section { font: 800 14px "Segoe UI", sans-serif; letter-spacing: 1.4px; }
+      .node-title { font: 700 18px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .node-subtitle { font: 600 14px "Segoe UI", sans-serif; fill: #fde68a; }
+      .body { font: 400 13px "Segoe UI", sans-serif; fill: #cbd5e1; }
+      .path { font: 600 11px Consolas, monospace; fill: #7dd3fc; }
+      .path-orange { font: 600 11px Consolas, monospace; fill: #fbbf24; }
+      .edge { font: 600 12px "Segoe UI", sans-serif; fill: #e2e8f0; }
+      .step { font: 800 13px "Segoe UI", sans-serif; fill: #0b1020; }
+      .state-title { font: 700 17px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .state-body { font: 400 13px "Segoe UI", sans-serif; fill: #d6d3d1; }
+      .callout { font: 700 14px "Segoe UI", sans-serif; fill: #fef3c7; }
+    </style>
+  </defs>
+  <rect width="1840" height="1180" fill="#0b1020"/>
+  <text x="48" y="54" class="title">Where does work state live, and how does a handoff advance?</text>
+  <text x="48" y="84" class="subtitle">Handoff files are the authoritative task queue. Sessions, transcripts, and dashboard caches have different lifetimes.</text>
+
+  <rect x="36" y="122" width="1768" height="548" rx="22" fill="#0e1729" stroke="#334155"/>
+  <rect x="58" y="105" width="252" height="34" rx="17" fill="#3b2a16" stroke="#f59e0b"/>
+  <text x="184" y="127" text-anchor="middle" class="section" fill="#fbbf24">HANDOFF / TASK LIFECYCLE</text>
+
+  <!-- top row -->
+  <circle cx="82" cy="185" r="15" fill="#34d399"/><text x="82" y="190" text-anchor="middle" class="step">1</text>
+  <rect x="62" y="210" width="210" height="145" rx="16" fill="#123b36" stroke="#34d399" stroke-width="2"/>
+  <text x="84" y="241" class="node-title">Sending role</text>
+  <text x="84" y="267" class="body">Agent prepares a header-only</text>
+  <text x="84" y="287" class="body">git_handoff or note draft.</text>
+  <text x="84" y="320" class="path">role worktree cwd</text>
+
+  <circle cx="325" cy="185" r="15" fill="#94a3b8"/><text x="325" y="190" text-anchor="middle" class="step">2</text>
+  <rect x="305" y="210" width="240" height="145" rx="16" fill="#27272f" stroke="#94a3b8" stroke-width="2"/>
+  <text x="327" y="241" class="node-title">squad handoff</text>
+  <text x="327" y="267" class="body">Validates recipients/type/priority;</text>
+  <text x="327" y="287" class="body">canonicalizes commit; generates payload.</text>
+  <text x="327" y="320" class="path">src/squad/Commands/Handoff.cs</text>
+
+  <circle cx="598" cy="185" r="15" fill="#f59e0b"/><text x="598" y="190" text-anchor="middle" class="step">3</text>
+  <rect x="578" y="210" width="230" height="145" rx="16" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+  <text x="600" y="241" class="node-title">Sender outbox</text>
+  <text x="600" y="267" class="node-subtitle">outbox/*.handoff</text>
+  <text x="600" y="291" class="body">Atomic tmp -&gt; final move.</text>
+  <text x="600" y="320" class="path-orange">.blaxquad/handoffs/</text>
+
+  <circle cx="861" cy="185" r="15" fill="#f59e0b"/><text x="861" y="190" text-anchor="middle" class="step">4</text>
+  <rect x="841" y="210" width="250" height="145" rx="16" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+  <text x="863" y="241" class="node-title">Headquarters delivery</text>
+  <text x="863" y="267" class="body">Poll every second; validate fan-out;</text>
+  <text x="863" y="287" class="body">write each recipient before archiving sender.</text>
+  <text x="863" y="320" class="path-orange">squad.Handoffs/</text>
+
+  <circle cx="1144" cy="185" r="15" fill="#f59e0b"/><text x="1144" y="190" text-anchor="middle" class="step">5</text>
+  <rect x="1124" y="210" width="250" height="145" rx="16" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+  <text x="1146" y="241" class="node-title">Durable delivery result</text>
+  <text x="1146" y="267" class="node-subtitle">recipient inbox/new/</text>
+  <text x="1146" y="290" class="body">sender sent/ after all copies persist;</text>
+  <text x="1146" y="310" class="body">failure: .handoff -&gt; failed/</text>
+  <text x="1146" y="329" class="body">.error sidecar remains in sender outbox/</text>
+  <text x="1146" y="348" class="path-orange">HandoffDeliveryService.cs</text>
+
+  <circle cx="1427" cy="185" r="15" fill="#38bdf8"/><text x="1427" y="190" text-anchor="middle" class="step">6</text>
+  <rect x="1407" y="210" width="330" height="145" rx="16" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+  <text x="1429" y="241" class="node-title">Wake the recipient session</text>
+  <text x="1429" y="267" class="body">SessionRoleNotifier leases the live session</text>
+  <text x="1429" y="287" class="body">and sends a harness prompt through ViewModel.</text>
+  <text x="1429" y="320" class="path">SessionRoleNotifier.cs</text>
+
+  <path d="M272 282 H305" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M545 282 H578" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <path d="M808 282 H841" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <path d="M1091 282 H1124" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <path d="M1374 282 H1407" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+
+  <!-- lower task state row -->
+  <circle cx="1427" cy="425" r="15" fill="#94a3b8"/><text x="1427" y="430" text-anchor="middle" class="step">7</text>
+  <rect x="1407" y="450" width="330" height="142" rx="16" fill="#27272f" stroke="#94a3b8" stroke-width="2"/>
+  <text x="1429" y="481" class="node-title">squad ready-for-next</text>
+  <text x="1429" y="507" class="body">Resume current work, or move:</text>
+  <text x="1429" y="530" class="node-subtitle">inbox/new -&gt; inbox/in_process</text>
+  <text x="1429" y="555" class="body">task: one best-priority file</text>
+  <text x="1429" y="575" class="body">batch: all files at best priority</text>
+
+  <circle cx="1054" cy="425" r="15" fill="#34d399"/><text x="1054" y="430" text-anchor="middle" class="step">8</text>
+  <rect x="1034" y="450" width="302" height="142" rx="16" fill="#123b36" stroke="#34d399" stroke-width="2"/>
+  <text x="1056" y="481" class="node-title">Recipient processes work</text>
+  <text x="1056" y="507" class="body">git_handoff payload instructs:</text>
+  <text x="1056" y="530" class="node-subtitle">merge_and_process sender commit</text>
+  <text x="1056" y="555" class="body">note payload is the short message.</text>
+
+  <circle cx="701" cy="425" r="15" fill="#94a3b8"/><text x="701" y="430" text-anchor="middle" class="step">9</text>
+  <rect x="681" y="450" width="302" height="142" rx="16" fill="#27272f" stroke="#94a3b8" stroke-width="2"/>
+  <text x="703" y="481" class="node-title">squad done-with-current</text>
+  <text x="703" y="507" class="body">Stamps completed_at and moves:</text>
+  <text x="703" y="530" class="node-subtitle">inbox/in_process -&gt; inbox/completed</text>
+  <text x="703" y="555" class="body">Then immediately checks for next work.</text>
+  <text x="703" y="578" class="path">src/squad/Commands/*Current*.cs</text>
+
+  <rect x="120" y="450" width="470" height="142" rx="16" fill="#201c17" stroke="#78716c"/>
+  <text x="144" y="481" class="callout">Recovery and restart semantics</text>
+  <text x="144" y="507" class="body">inbox/new and inbox/in_process survive a process restart.</text>
+  <text x="144" y="530" class="body">Recovery wakes roles without mutating queue state.</text>
+  <text x="144" y="553" class="body">A normal launch clears handoffs; --continue preserves them.</text>
+  <text x="144" y="576" class="body">Recipient writes are idempotent when the target already exists.</text>
+
+  <path d="M1572 355 V450" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="1588" y="411" class="edge">agent invokes</text>
+  <path d="M1407 521 H1336" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M1034 521 H983" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M681 568 C620 620,1374 639,1548 593" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="8 6" marker-end="url(#arrowBlue)"/>
+  <text x="1088" y="636" class="edge">completion command calls ready-for-next again</text>
+
+  <!-- State ownership -->
+  <rect x="36" y="722" width="1768" height="398" rx="22" fill="#0e1729" stroke="#334155"/>
+  <rect x="58" y="705" width="232" height="34" rx="17" fill="#102a43" stroke="#38bdf8"/>
+  <text x="174" y="727" text-anchor="middle" class="section" fill="#7dd3fc">STATE OWNERSHIP + LIFETIME</text>
+  <rect x="1550" y="704" width="218" height="36" rx="18" fill="#3b2a16" stroke="#f59e0b"/>
+  <text x="1659" y="728" text-anchor="middle" class="callout">No database is used</text>
+
+  <rect x="68" y="768" width="390" height="306" rx="18" fill="#13253b" stroke="#38bdf8" stroke-width="2"/>
+  <text x="92" y="804" class="state-title">Checked-in configuration</text>
+  <text x="92" y="831" class="state-body">Owner: repository</text>
+  <text x="92" y="862" class="node-subtitle">blaxquad/squad.json</text>
+  <text x="92" y="884" class="state-body">roles, worktrees, receive mode, model, effort, permissions</text>
+  <text x="92" y="906" class="state-body">sharedWorktreePaths controls linked shared directories</text>
+  <text x="92" y="938" class="node-subtitle">blaxquad/constitution.prompt</text>
+  <text x="92" y="960" class="node-subtitle">blaxquad/roles/&lt;role&gt;.prompt</text>
+  <text x="92" y="988" class="state-body">Read recursively by each session's initial harness prompt.</text>
+  <text x="92" y="1024" class="path">src/squad.Configuration/</text>
+  <text x="92" y="1044" class="path">WorkspacePreparer.cs</text>
+
+  <rect x="488" y="768" width="390" height="306" rx="18" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+  <text x="512" y="804" class="state-title">Operational filesystem state</text>
+  <text x="512" y="831" class="state-body">Owner: headquarters + agent-side squad CLI</text>
+  <text x="512" y="862" class="node-subtitle">.worktrees/&lt;name&gt;</text>
+  <text x="512" y="884" class="state-body">isolated role checkout and role identity</text>
+  <text x="512" y="916" class="node-subtitle">&lt;role worktree&gt;/.blaxquad/handoffs/*</text>
+  <text x="512" y="938" class="state-body">authoritative durable queue transitions</text>
+  <text x="512" y="970" class="node-subtitle">&lt;project root&gt;/.blaxquad/host.lock + host.json</text>
+  <text x="512" y="992" class="state-body">exclusive lease + pipe metadata; host.json removed, lock released</text>
+  <text x="512" y="1024" class="state-body">handoff-delivery.log; optional SDK event trace</text>
+
+  <rect x="908" y="768" width="390" height="306" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+  <text x="932" y="804" class="state-title">Authoritative in-process state</text>
+  <text x="932" y="831" class="state-body">Owner: C# host process</text>
+  <text x="932" y="862" class="node-subtitle">SessionRegistry</text>
+  <text x="932" y="884" class="state-body">phase, generation, admission, role-to-session catalog</text>
+  <text x="932" y="916" class="node-subtitle">SquadViewModel + AgentRoleState</text>
+  <text x="932" y="938" class="state-body">role status, usage, pending interactions, command tracking</text>
+  <text x="932" y="970" class="node-subtitle">RoleTranscriptState</text>
+  <text x="932" y="992" class="state-body">sequence, retained entries, tool/stream correlation</text>
+  <text x="932" y="1024" class="state-body">All disappear when headquarters exits.</text>
+
+  <rect x="1328" y="768" width="444" height="306" rx="18" fill="#2b1f45" stroke="#c084fc" stroke-width="2"/>
+  <text x="1352" y="804" class="state-title">Transient history + presentation cache</text>
+  <text x="1352" y="831" class="state-body">Owners: C# TranscriptArchive and Vue dashboard</text>
+  <text x="1352" y="862" class="node-subtitle">%TEMP%/blaxquad-transcript-history-*</text>
+  <text x="1352" y="884" class="state-body">bounded paged history; deleted when ViewModel disposes</text>
+  <text x="1352" y="916" class="node-subtitle">Photino delivery state</text>
+  <text x="1352" y="938" class="state-body">delivered/synchronized sequences + announcement journal</text>
+  <text x="1352" y="970" class="node-subtitle">Vue composables</text>
+  <text x="1352" y="992" class="state-body">role projections, transcript/page caches, drafts, viewport</text>
+  <text x="1352" y="1024" class="state-body">Non-authoritative; rebuilt from host snapshots and sync.</text>
+
+  <text x="48" y="1152" class="path">Queue navigation: src/squad/Commands/{Handoff,ReadyForNext*,DoneWithCurrent*}.cs + src/squad.Handoffs/{HandoffDeliveryService,InProcessHandoffPoller}.cs</text>
+</svg>

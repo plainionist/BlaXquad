@@ -1,5 +1,5 @@
-using global::squad.Hosting.Abstractions;
-using global::squad.Ui.Abstractions;
+using squad.Hosting.Abstractions;
+using squad.Ui.Abstractions;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text.Json;

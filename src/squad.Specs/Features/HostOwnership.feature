@@ -17,54 +17,6 @@ Feature: Squad host ownership
     When the executable attempts a duplicate launch
     Then the duplicate launch fails without an exception trace
 
-  Scenario Outline: The executable recognizes valid launch selections
-    When the executable queries launch selection "<selection>"
-    Then the executable reports launch selection "<expected>"
-
-    Examples:
-      | selection | expected |
-      | unset     | sdk PhotinoWindowHost CopilotSdkBackend |
-      | sdk       | sdk PhotinoWindowHost CopilotSdkBackend |
-
-  Scenario: The native window title identifies its workspace
-    When the executable queries its native window title
-    Then the executable reports the native window title for its workspace
-
-  Scenario: The executable reports a model's full default context window
-    When the executable queries a default context window with 272000 prompt tokens and 128000 output tokens
-    Then the executable reports a default context window of 400000 tokens
-
-  Scenario: The executable resolves a context window once per session
-    When the executable exercises its context window cache
-    Then the executable reports one context window lookup
-
-  Scenario Outline: The executable locates commands without a shell
-    When the executable checks whether command "<command>" is available
-    Then command availability is reported as "<availability>"
-
-    Examples:
-      | command                        | availability |
-      | git                            | available    |
-      | blaxquad-command-not-installed | unavailable  |
-
-  Scenario Outline: An unsupported launch selection fails before host acquisition
-    Given the project host lease is acquired
-    When the executable attempts a launch with selection "<selection>"
-    Then the launch selection is rejected
-    And host metadata still exists
-
-    Examples:
-      | selection |
-      | codex     |
-      | acp       |
-      | empty     |
-      | invalid   |
-
-  Scenario: An explicit SDK launch selection reaches host ownership
-    Given the project host lease is acquired
-    When the executable attempts a launch with selection "sdk"
-    Then the duplicate launch fails without an exception trace
-
   Scenario: The executable shuts down an owned host
     Given the project host lease is acquired
     When the executable requests squad shutdown

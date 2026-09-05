@@ -1,4 +1,4 @@
-using global::squad.Process;
+using squad.Process;
 using System.Text.RegularExpressions;
 using squad.Configuration;
 

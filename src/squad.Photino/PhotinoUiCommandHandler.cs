@@ -1,5 +1,5 @@
 using System.Text.Json;
-using global::squad.Ui.Abstractions;
+using squad.Ui.Abstractions;
 
 namespace squad.Photino;
 

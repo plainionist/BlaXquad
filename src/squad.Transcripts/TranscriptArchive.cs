@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using global::squad.Ui.Abstractions;
+using squad.Ui.Abstractions;
 
 namespace squad.Transcripts;
 
