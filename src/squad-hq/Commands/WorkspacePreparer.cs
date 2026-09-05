@@ -1,5 +1,4 @@
 using global::squad.Process;
-using global::squad.Photino;
 using System.Text.RegularExpressions;
 using squad.Configuration;
 
@@ -48,7 +47,7 @@ public sealed class WorkspacePreparer
 
     public async Task EnsureRuntimeGitExcludesAsync(Ctx ctx, CancellationToken cancellationToken)
     {
-        var excludeFile = (await ProcessControl.RunCheckedAsync("git", ["-C", ctx.WorkingDir, "rev-parse", "--git-path", "info/exclude"], cancellationToken: cancellationToken)).StdOut.Trim();
+        var excludeFile = (await ProcessRunner.RunCheckedAsync("git", ["-C", ctx.WorkingDir, "rev-parse", "--git-path", "info/exclude"], cancellationToken: cancellationToken)).StdOut.Trim();
         cancellationToken.ThrowIfCancellationRequested();
         Directory.CreateDirectory(Path.GetDirectoryName(excludeFile)!);
         EnsureInFile(excludeFile, ".blaxquad/");
@@ -133,7 +132,7 @@ public sealed class WorkspacePreparer
         await PrepareWorktreesAsync(ctx, cancellationToken);
         if (!continueLaunch)
         {
-            var head = (await ProcessControl.RunCheckedAsync("git", ["-C", ctx.WorkingDir, "rev-parse", "HEAD"], cancellationToken: cancellationToken)).StdOut.Trim();
+            var head = (await ProcessRunner.RunCheckedAsync("git", ["-C", ctx.WorkingDir, "rev-parse", "HEAD"], cancellationToken: cancellationToken)).StdOut.Trim();
             foreach (var row in ctx.Roles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -281,7 +280,7 @@ public sealed class WorkspacePreparer
         ProcessRunner.RunChecked(file, args);
 
     private static Task<ProcessResult> RunAsync(string file, IEnumerable<string> args, CancellationToken cancellationToken) =>
-        ProcessControl.RunCheckedAsync(file, args, cancellationToken: cancellationToken);
+        ProcessRunner.RunCheckedAsync(file, args, cancellationToken: cancellationToken);
 
     private bool IsExecutable(string path)
     {

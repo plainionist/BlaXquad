@@ -139,6 +139,7 @@ public sealed class ArchitectureSteps
         Assert.That(agentProcessTypes, Is.EqualTo(new[]
         {
             "CliExitException",
+            "ExecutableLocator",
             "ProcessResult",
             "ProcessRunner",
         }));
@@ -151,7 +152,19 @@ public sealed class ArchitectureSteps
         Assert.That(processMethods, Is.EqualTo(new[]
         {
             "Run",
+            "RunAsync",
             "RunChecked",
+            "RunCheckedAsync",
+        }));
+
+        var executableLocatorMethods = typeof(ExecutableLocator)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Select(method => method.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.That(executableLocatorMethods, Is.EqualTo(new[]
+        {
+            "Exists",
         }));
 
         var projectRootMethods = typeof(ProjectRoot)
@@ -183,7 +196,6 @@ public sealed class ArchitectureSteps
             "IRuntimeModeFactory",
             "ISquadUi",
             "IWindowHost",
-            "ProcessControl",
             "RuntimeMode",
             "SessionRegistry",
             "SquadApplication",

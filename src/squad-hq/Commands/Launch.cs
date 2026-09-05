@@ -23,7 +23,7 @@ static class Launch
                 Console.WriteLine(RuntimeModeSelector.WindowTitle(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory()));
                 return 0;
             case "--test-command-exists":
-                Console.WriteLine(ProcessControl.CommandExists(args[1]) ? "available" : "unavailable");
+                Console.WriteLine(ExecutableLocator.Exists(args[1]) ? "available" : "unavailable");
                 return 0;
             case "--test-launch-selection":
                 TestLaunchSelection();
@@ -234,7 +234,7 @@ static class Launch
                     postLockPreparation: async cancellationToken =>
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        if (!ProcessControl.CommandExists("git"))
+                        if (!ExecutableLocator.Exists("git"))
                             Fail($"{Red}Error:{Reset} 'git' is required but not installed.");
                         await preparer.InitializeGitRepoAsync(context, cancellationToken);
                         await preparer.EnsureRuntimeGitExcludesAsync(context, cancellationToken);
