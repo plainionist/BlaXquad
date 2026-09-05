@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace squadHQ.Commands;
+namespace squad.Configuration;
 
 internal sealed class SquadConfigurationAgentDocument
 {
