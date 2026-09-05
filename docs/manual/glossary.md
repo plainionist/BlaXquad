@@ -238,12 +238,12 @@ single, non-cyclic dependency direction:
   streaming, protection, retention, truncation, paging, and archive storage.
   It depends only on `squad.Ui.Abstractions` and never calls back into
   `squad.Core`.
-- **`squad.Core.Handoffs`** owns filesystem-backed handoff polling, recovery,
+- **`squad.Handoffs`** owns filesystem-backed handoff polling, recovery,
   and delivery. It depends only on `squad.Configuration` and
   `squad.Handoff`, and never references `squad.Core`; it invokes an
   injected role-notification contract by recipient role name only.
 - **`squad-hq`** composes the process/runtime lifecycle: it references
-  `squad.Core` and `squad.Core.Handoffs` (and, transitively,
+  `squad.Core` and `squad.Handoffs` (and, transitively,
   `squad.Transcripts`), hosts the `SessionRoleNotifier` adapter between
   handoff delivery and `SessionRegistry`/`SquadViewModel`, and owns startup,
   relaunch, and shutdown. Neither Core module references `squad-hq`.

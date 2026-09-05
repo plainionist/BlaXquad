@@ -3,7 +3,7 @@ using global::squad.Process;
 using global::squad.Configuration;
 using global::squad.Handoff;
 using global::squad.Core;
-using global::squad.Core.Handoffs;
+using global::squad.Handoffs;
 using global::squad.Photino;
 
 namespace squadHQ.Commands;

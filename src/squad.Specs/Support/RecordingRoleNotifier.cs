@@ -1,4 +1,4 @@
-using global::squad.Core.Handoffs;
+using global::squad.Handoffs;
 
 namespace squad.Specs.Support;
 

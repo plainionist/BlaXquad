@@ -4,7 +4,7 @@ using global::squad.Handoff;
 using global::squad.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
-using global::squad.Core.Handoffs;
+using global::squad.Handoffs;
 using global::squad.Transcripts;
 using global::squad.CopilotSdk;
 using global::squad.Hosting.Abstractions;
@@ -345,7 +345,7 @@ public sealed class ArchitectureSteps
         {
             Assert.That(references, Does.Contain("squad.Ui.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Core"));
-            Assert.That(references, Does.Not.Contain("squad.Core.Handoffs"));
+            Assert.That(references, Does.Not.Contain("squad.Handoffs"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Agent.Configuration"));
             Assert.That(references, Does.Not.Contain("squad.Handoff"));
@@ -397,7 +397,7 @@ public sealed class ArchitectureSteps
         Assert.Multiple(() =>
         {
             Assert.That(headquartersReferences, Does.Contain("squad.Core"));
-            Assert.That(headquartersReferences, Does.Contain("squad.Core.Handoffs"));
+            Assert.That(headquartersReferences, Does.Contain("squad.Handoffs"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly), Does.Not.Contain("squad-hq"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(RoleTranscriptState).Assembly), Does.Not.Contain("squad-hq"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly), Does.Not.Contain("squad-hq"));
@@ -442,9 +442,9 @@ public sealed class ArchitectureSteps
             {
                 Assert.That(coreTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Core.");
                 Assert.That(
-                    handoffAssembly.GetType($"squad.Core.Handoffs.{typeName}"),
+                    handoffAssembly.GetType($"squad.Handoffs.{typeName}"),
                     Is.Not.Null,
-                    $"{typeName} should be defined in squad.Core.Handoffs.");
+                    $"{typeName} should be defined in squad.Handoffs.");
             }
         });
     }
