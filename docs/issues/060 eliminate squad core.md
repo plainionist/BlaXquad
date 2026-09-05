@@ -137,7 +137,8 @@ application model to headquarters or technology adapters.
 
 ## Coordination status
 
-Slice 1 is complete (aad01aec15). Slices 2-5 remain blocked until the architect authorizes the next slice.
+Slice 1 is complete (aad01aec15). Slice 2 is the only slice authorized for implementation. Slices 3-5 remain blocked
+until the reviewer accepts Slice 2.
 
 ## Implementation plan
 
@@ -168,10 +169,26 @@ Slice 1 is accepted when:
 
 ### Slice 2: Rename transcripts
 
-1. Rename the project, assembly, namespaces, and project references from `squad.Core.Transcripts` to
-   `squad.Transcripts`.
-2. Update solution membership, architecture tests, documentation, and test imports.
-3. Preserve the rule that transcripts do not reference the application model.
+**Status: authorized for implementation**
+
+1. Rename the `src/squad.Core.Transcripts` directory, project file, assembly, and root namespace to
+   `src/squad.Transcripts`, `squad.Transcripts.csproj`, and `squad.Transcripts`.
+2. Update solution membership and every production and test project reference. Update namespace imports in the
+   application model and specs without moving transcript behavior or types into either consumer.
+3. Update architecture assertions and supported architecture/glossary documentation to name `squad.Transcripts`.
+   Historical issue text may retain the old name where it describes the pre-change state.
+4. Preserve dependency direction: `squad.Transcripts` may depend on `squad.Ui.Abstractions`, but it must not reference
+   `squad.Core`, headquarters, handoff delivery, hosting/provider implementations, Photino, or the Copilot SDK.
+5. Do not rename `squad.Core`, `squad.Core.Handoffs`, or their namespaces in this slice.
+
+Slice 2 is accepted when:
+
+- the solution builds the transcript subsystem only as `squad.Transcripts`, with no stale
+  `squad.Core.Transcripts` project or assembly in the supported source/build graph;
+- transcript ordering, streaming, protected-entry, retention, truncation, and archive paging behavior is unchanged;
+- architecture coverage proves the transcript assembly cannot reference the application model or technology adapters;
+  and
+- focused transcript scenarios pass.
 
 ### Slice 3: Rename handoffs
 
