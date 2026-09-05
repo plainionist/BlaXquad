@@ -137,8 +137,8 @@ application model to headquarters or technology adapters.
 
 ## Coordination status
 
-Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is complete (ae73524ae8). Slice 4 is the
-only slice authorized for implementation. Slice 5 remains blocked until the reviewer accepts Slice 4.
+Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is complete (ae73524ae8). Slice 4 is
+complete (9a767e47a1). Slice 5 remains blocked until the architect authorizes the next slice.
 
 ## Implementation plan
 
@@ -219,7 +219,7 @@ Slice 3 is accepted when:
 
 ### Slice 4: Replace Core with Application
 
-**Status: authorized for implementation**
+**Status: complete (9a767e47a1)**
 
 1. Rename the `src/squad.Core` directory, project file, assembly, and root namespace to `src/squad.Application`,
    `squad.Application.csproj`, and `squad.Application`.
