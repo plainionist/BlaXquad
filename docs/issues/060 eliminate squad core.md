@@ -137,8 +137,8 @@ application model to headquarters or technology adapters.
 
 ## Coordination status
 
-Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is complete (ae73524ae8). Slices 4-5
-remain blocked until the architect authorizes the next slice.
+Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is complete (ae73524ae8). Slice 4 is the
+only slice authorized for implementation. Slice 5 remains blocked until the reviewer accepts Slice 4.
 
 ## Implementation plan
 
@@ -219,11 +219,39 @@ Slice 3 is accepted when:
 
 ### Slice 4: Replace Core with Application
 
-1. Rename `squad.Core` to `squad.Application` and update its root and internal namespaces.
-2. Keep `SquadViewModel`, role state, role operations, interactions, and event projection together.
-3. Update headquarters, Photino composition, acceptance tests, architecture rules, and documentation.
-4. Remove all `squad.Core*` projects, namespaces, assembly references, and stale published artifacts from the supported
-   source and build graph.
+**Status: authorized for implementation**
+
+1. Rename the `src/squad.Core` directory, project file, assembly, and root namespace to `src/squad.Application`,
+   `squad.Application.csproj`, and `squad.Application`.
+2. Rename the internal namespaces to `squad.Application.RoleOperations`, `squad.Application.Interactions`, and
+   `squad.Application.Events`. Keep `SquadViewModel`, `AgentRoleState`, `AgentRoleSnapshot`, and all three internal
+   modules together; do not extract, publish, or add pass-through APIs for those modules.
+3. Update solution membership, headquarters and specs project references, and all production/test imports.
+   Headquarters remains the composition root. Photino continues to depend only on UI and hosting abstractions and must
+   not gain an application reference.
+4. Rewrite architecture feature language and assertions around the explicit application-model boundary. Assert that
+   `squad.Application` depends on exactly `squad.AgentProvider.Abstractions`, `squad.Ui.Abstractions`, and
+   `squad.Transcripts`; transcripts and handoffs must not reference it; headquarters may reference it but it must not
+   reference headquarters.
+5. Update supported architecture/glossary documentation to assign application-model ownership to
+   `squad.Application` and host lifecycle ownership, including `SessionRegistry`, to `squad-hq`.
+6. Remove `squad.Core` project, namespace, assembly, solution, source-directory, and supported-documentation
+   references. Verify a clean headquarters build/publish emits `squad.Application.dll` and no `squad.Core*.dll`;
+   ignored historical local `bin`/`obj` files are not source or supported artifacts.
+7. Preserve UI command/query contracts, transcript and provider contracts, serialized mutation ordering, command
+   admission, interaction handling, provider-event projection, and shutdown coordination. Do not make behavioral
+   changes in this rename slice.
+
+Slice 4 is accepted when:
+
+- `squad.Application` is the sole application-model assembly and the supported source/build graph contains no
+  `squad.Core` or `squad.Core.*` project, assembly, namespace, or solution entry;
+- `RoleOperations`, `Interactions`, and `Events` remain internal in `squad.Application`, with one serialized mutation
+  boundary owned by `SquadViewModel`;
+- headquarters composes the application, transcript, and handoff assemblies without introducing a reverse
+  dependency, and Photino remains application-agnostic;
+- a clean headquarters build/publish contains no stale `squad.Core*.dll`; and
+- focused role-command, interaction, event-projection, startup, and shutdown scenarios pass.
 
 ### Slice 5: Verify boundaries
 
