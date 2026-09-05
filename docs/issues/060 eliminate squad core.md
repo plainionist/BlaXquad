@@ -137,12 +137,13 @@ application model to headquarters or technology adapters.
 
 ## Coordination status
 
-Slice 1 is the only slice authorized for implementation. Slices 2-5 remain blocked until the reviewer accepts the
-preceding slice.
+Slice 1 is complete (aad01aec15). Slices 2-5 remain blocked until the architect authorizes the next slice.
 
 ## Implementation plan
 
 ### Slice 1: Move host session lifecycle
+
+**Status: complete (aad01aec15)**
 
 1. Move `SessionRegistry` from `squad.Core` to `squad-hq/Commands` and change its namespace to `squadHQ.Commands`.
    Keep it as a separate `internal sealed` lifecycle collaborator; do not fold it into `SquadApplication`.
