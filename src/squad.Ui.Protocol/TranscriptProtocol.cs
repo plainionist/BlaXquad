@@ -2,7 +2,7 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
-internal static class PhotinoTranscriptProtocol
+internal static class TranscriptProtocol
 {
     internal static object CreateSynchronizationPayload(
         IReadOnlyList<RoleTranscriptSnapshot> transcriptSnapshot,

@@ -12,7 +12,8 @@ The dashboard is a Vue 3 client hosted by the Photino desktop application.
 | Transcript synchronization, history, and announcements | `src/composables/useTranscript*.ts` |
 | Transcript indexing, geometry, anchors, and classification | `src/transcript/` |
 | Authoritative session state and transcript persistence | C# projects under `../` |
-| Native window lifecycle, commands, and delivery | `../squad.Photino/PhotinoWindowHost.cs`, `PhotinoUiCommandHandler.cs`, and `PhotinoUiDeliveryCoordinator.cs` |
+| Native window lifecycle and raw message forwarding | `../squad.Photino/PhotinoWindowHost.cs` |
+| UI protocol session, command routing, and delivery | `../squad.Ui.Protocol/UiProtocolSession.cs`, `UiCommandHandler.cs`, and `UiDeliveryCoordinator.cs` |
 
 Dependencies point inward from components to composables, then to protocol
 contracts and transcript modules. The transport depends only on protocol

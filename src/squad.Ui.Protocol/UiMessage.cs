@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace squad.Ui.Protocol;
 
-internal readonly record struct PhotinoUiMessage(
+internal readonly record struct UiMessage(
     string? Type,
     string? RequestId,
     string? Role,

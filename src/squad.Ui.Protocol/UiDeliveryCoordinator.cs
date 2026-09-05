@@ -2,7 +2,7 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
-internal sealed class PhotinoUiDeliveryCoordinator : IAsyncDisposable
+internal sealed class UiDeliveryCoordinator : IAsyncDisposable
 {
     private const int myMaxTranscriptSynchronizationEntriesPerRole = 500;
     private const int myMaxPendingTranscriptUpdates = 1024;
@@ -31,7 +31,7 @@ internal sealed class PhotinoUiDeliveryCoordinator : IAsyncDisposable
     private bool myTranscriptSynchronizationRequested;
     private bool myInitialTranscriptSynchronizationRequested;
 
-    internal PhotinoUiDeliveryCoordinator(
+    internal UiDeliveryCoordinator(
         ISquadUi ui,
         ITranscriptUi transcriptUi,
         Action<string, object> send)
@@ -185,7 +185,7 @@ internal sealed class PhotinoUiDeliveryCoordinator : IAsyncDisposable
         {
             mySend(
                 "transcript.synchronize",
-                PhotinoTranscriptProtocol.CreateSynchronizationPayload(
+                TranscriptProtocol.CreateSynchronizationPayload(
                     transcriptSnapshot,
                     recoveryAnnouncements,
                     recovery));
@@ -213,7 +213,7 @@ internal sealed class PhotinoUiDeliveryCoordinator : IAsyncDisposable
                 continue;
             mySend(
                 "transcript.update",
-                PhotinoTranscriptProtocol.CreateUpdatePayload(update));
+                TranscriptProtocol.CreateUpdatePayload(update));
             lock (myTranscriptUpdatesLock)
                 myDeliveredTranscriptSequences[update.Role] = update.Sequence;
         }

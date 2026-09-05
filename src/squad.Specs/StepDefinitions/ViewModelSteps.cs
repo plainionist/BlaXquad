@@ -1523,7 +1523,7 @@ public sealed class ViewModelSteps
             myInitialTranscriptHighWaterMark,
             roleSnapshot.Sequence);
         var payload = JsonSerializer.SerializeToElement(
-            PhotinoTranscriptProtocol.CreateSynchronizationPayload(
+            TranscriptProtocol.CreateSynchronizationPayload(
                 snapshot,
                 new Dictionary<string, TranscriptRecoveryAnnouncement>(
                     StringComparer.Ordinal)
@@ -1587,7 +1587,7 @@ public sealed class ViewModelSteps
     {
         var update = myTranscriptUpdates.Single(item => item.Kind == TranscriptUpdateKind.AppendContent);
         var payload = JsonSerializer.SerializeToElement(
-            PhotinoTranscriptProtocol.CreateUpdatePayload(update));
+            TranscriptProtocol.CreateUpdatePayload(update));
         Assert.Multiple(() =>
         {
             Assert.That(payload.GetProperty("operation").GetString(), Is.EqualTo("append-content"));
@@ -1625,7 +1625,7 @@ public sealed class ViewModelSteps
             [role] = journal.Read(role, sequence, roleSnapshot.Sequence),
         };
         var payload = JsonSerializer.SerializeToElement(
-            PhotinoTranscriptProtocol.CreateSynchronizationPayload(
+            TranscriptProtocol.CreateSynchronizationPayload(
                 snapshot,
                 recovery,
                 recovery: true));
@@ -1665,7 +1665,7 @@ public sealed class ViewModelSteps
     public void ThenThePhotinoTranscriptSynchronizationPreservesCurrentHistory(string role)
     {
         var payload = JsonSerializer.SerializeToElement(
-            PhotinoTranscriptProtocol.CreateSynchronizationPayload(
+            TranscriptProtocol.CreateSynchronizationPayload(
                 myViewModel.CreateTranscriptSnapshot(500)));
         var roleSnapshot = payload.GetProperty("roles")
             .EnumerateArray()

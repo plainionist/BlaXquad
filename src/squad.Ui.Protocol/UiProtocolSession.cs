@@ -4,7 +4,7 @@ using global::squad.Ui.Abstractions;
 namespace squad.Ui.Protocol;
 
 /// <summary>
-/// Owns the versioned Photino UI protocol independent of the native window:
+/// Owns the versioned UI protocol independent of the native window:
 /// envelope parsing and serialization, protocol-error publication, command
 /// routing, UI event subscriptions, snapshot scheduling, transcript
 /// sequencing, and recovery coordination.
@@ -15,8 +15,8 @@ public sealed class UiProtocolSession : IAsyncDisposable
     private readonly ISquadUi myUi;
     private readonly ITranscriptUi myTranscriptUi;
     private readonly Action<string> mySendSerializedMessage;
-    private readonly PhotinoUiCommandHandler myCommandHandler;
-    private readonly PhotinoUiDeliveryCoordinator myDeliveryCoordinator;
+    private readonly UiCommandHandler myCommandHandler;
+    private readonly UiDeliveryCoordinator myDeliveryCoordinator;
 
     public UiProtocolSession(
         ISquadUi ui,
@@ -59,7 +59,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
     {
         try
         {
-            var message = PhotinoUiMessageReader.Read(
+            var message = UiMessageReader.Read(
                 serializedMessage,
                 myProtocolVersion);
             if (message.EnvelopeError is not null)

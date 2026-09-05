@@ -2,9 +2,9 @@ using System.Text.Json;
 
 namespace squad.Ui.Protocol;
 
-internal static class PhotinoUiMessageReader
+internal static class UiMessageReader
 {
-    internal static PhotinoUiMessage Read(
+    internal static UiMessage Read(
         string serializedMessage,
         int protocolVersion)
     {

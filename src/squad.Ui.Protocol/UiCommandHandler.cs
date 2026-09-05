@@ -3,7 +3,7 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
-internal sealed class PhotinoUiCommandHandler
+internal sealed class UiCommandHandler
 {
     private const int myMaxTranscriptPageEntries = 200;
     private readonly ISquadUi myUi;
@@ -17,7 +17,7 @@ internal sealed class PhotinoUiCommandHandler
     private readonly Action myRequestSmokeShutdown;
     private readonly Action<string> myOpenExternalUrl;
 
-    internal PhotinoUiCommandHandler(
+    internal UiCommandHandler(
         ISquadUi ui,
         ITranscriptUi transcriptUi,
         Action<string, object> send,
@@ -39,7 +39,7 @@ internal sealed class PhotinoUiCommandHandler
         myOpenExternalUrl = openExternalUrl ?? OpenExternalUrl;
     }
 
-    internal async Task HandleAsync(PhotinoUiMessage message)
+    internal async Task HandleAsync(UiMessage message)
     {
         switch (message.Type)
         {
@@ -74,7 +74,7 @@ internal sealed class PhotinoUiCommandHandler
                     myMaxTranscriptPageEntries);
                 mySend(
                     "transcript.page",
-                    PhotinoTranscriptProtocol.CreatePagePayload(page));
+                    TranscriptProtocol.CreatePagePayload(page));
                 break;
             case "transcript.entry":
                 var entryRole = Require(message.Role, "role");
@@ -87,7 +87,7 @@ internal sealed class PhotinoUiCommandHandler
                         entryIndex);
                 mySend(
                     "transcript.entry",
-                    PhotinoTranscriptProtocol.CreateArchivedEntryPayload(
+                    TranscriptProtocol.CreateArchivedEntryPayload(
                         archivedEntry));
                 break;
             case "prompt.send":
