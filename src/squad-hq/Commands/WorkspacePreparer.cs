@@ -1,6 +1,7 @@
 using global::squad.Process;
 using global::squad.Photino;
 using System.Text.RegularExpressions;
+using squad.Configuration;
 
 namespace squadHQ.Commands;
 
