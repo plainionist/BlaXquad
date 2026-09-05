@@ -1,6 +1,6 @@
-namespace squadHQ.Commands;
+namespace squad.Workspaces;
 
-record ProjectLayout(
+public record ProjectLayout(
     string WorkingDir,
     string ScriptDir,
     string PackDir,

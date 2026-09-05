@@ -33,6 +33,8 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Handoffs.Delivery\squad.Handoffs.Delivery.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
+    <ProjectReference Include="..\squad.Workspaces\squad.Workspaces.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
   </ItemGroup>
 
   <Target Name="BuildCopilotSdkRuntimeForPublish"

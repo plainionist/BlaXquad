@@ -1,4 +1,4 @@
-namespace squadHQ.Commands;
+namespace squad.Workspaces;
 
 /// <summary>Resolves a sibling tool binary in the published bin/ folder.</summary>
 public static class SiblingTool

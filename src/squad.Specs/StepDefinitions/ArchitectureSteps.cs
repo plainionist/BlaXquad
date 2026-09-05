@@ -12,6 +12,7 @@ using squad.Photino;
 using squad.Ui.Abstractions;
 using squad.Ui.Protocol;
 using squadHQ.Commands;
+using squad.Workspaces;
 using System.Reflection;
 
 namespace squad.Specs.StepDefinitions;
@@ -351,6 +352,33 @@ public sealed class ArchitectureSteps
             Assert.That(
                 sourceFiles,
                 Is.EquivalentTo(new[] { "PhotinoWindowHost.cs", "SleepInhibitor.cs" }));
+        });
+    }
+
+    [Then("the workspace assembly depends only on configuration and process")]
+    public void ThenTheWorkspaceAssemblyDependsOnlyOnConfigurationAndProcess()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(WorkspacePreparer).Assembly);
+
+        Assert.That(references, Is.EquivalentTo(new[] { "squad.Configuration", "squad.Process" }));
+    }
+
+    [Then("SquadApplication depends on the startup plan instead of the workspace context and preparer")]
+    public void ThenSquadApplicationDependsOnTheStartupPlanInsteadOfTheWorkspaceContextAndPreparer()
+    {
+        var fields = typeof(SquadApplication).GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        var forbiddenFieldTypeNames = new[] { nameof(Ctx), nameof(WorkspacePreparer) };
+
+        Assert.Multiple(() =>
+        {
+            foreach (var field in fields)
+            {
+                Assert.That(
+                    forbiddenFieldTypeNames,
+                    Does.Not.Contain(field.FieldType.Name),
+                    $"SquadApplication field '{field.Name}' has forbidden workspace-dependency type '{field.FieldType.Name}'.");
+            }
+            Assert.That(fields.Select(field => field.FieldType.Name), Does.Contain(nameof(SquadStartupPlan)));
         });
     }
 

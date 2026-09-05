@@ -1,4 +1,4 @@
-namespace squadHQ.Commands;
+namespace squad.Workspaces;
 
 public class Ctx
 {

@@ -10,15 +10,13 @@ namespace squadHQ.Commands;
 public sealed class SquadApplication : IAsyncDisposable
 {
     private static readonly Task myNever = Task.Delay(Timeout.InfiniteTimeSpan);
-    private readonly Ctx myCtx;
-    private readonly WorkspacePreparer myWorkspacePreparer;
+    private readonly SquadStartupPlan myStartupPlan;
     private readonly IAgentBackend myAgentBackend;
     private readonly IHandoffPump myHandoffPump;
     private readonly IWindowHost myWindowHost;
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
     private readonly IHostLease? myHostLease;
-    private readonly Func<CancellationToken, Task>? myPostLockPreparation;
     private readonly SquadRuntimeController myRuntimeController;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
@@ -26,19 +24,16 @@ public sealed class SquadApplication : IAsyncDisposable
     private bool myWindowStarted;
 
     public SquadApplication(
-        Ctx ctx,
-        WorkspacePreparer workspacePreparer,
+        SquadStartupPlan startupPlan,
         IAgentBackend agentBackend,
         IHandoffPump handoffPump,
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         Action<AgentEvent>? eventSink = null,
         SquadViewModel? viewModel = null,
-        IHostLease? hostLease = null,
-        Func<CancellationToken, Task>? postLockPreparation = null)
+        IHostLease? hostLease = null)
         : this(
-            ctx,
-            workspacePreparer,
+            startupPlan,
             agentBackend,
             handoffPump,
             windowHost,
@@ -46,16 +41,14 @@ public sealed class SquadApplication : IAsyncDisposable
             new SessionRegistry(),
             eventSink,
             viewModel,
-            hostLease,
-            postLockPreparation)
+            hostLease)
     {
     }
 
     // Internal composition seam: lets headquarters and test support share one SessionRegistry instance between
     // SquadApplication and SessionRoleNotifier without exposing the host-lifecycle type on the public constructor.
     internal SquadApplication(
-        Ctx ctx,
-        WorkspacePreparer workspacePreparer,
+        SquadStartupPlan startupPlan,
         IAgentBackend agentBackend,
         IHandoffPump handoffPump,
         IWindowHost windowHost,
@@ -63,18 +56,15 @@ public sealed class SquadApplication : IAsyncDisposable
         SessionRegistry sessionRegistry,
         Action<AgentEvent>? eventSink = null,
         SquadViewModel? viewModel = null,
-        IHostLease? hostLease = null,
-        Func<CancellationToken, Task>? postLockPreparation = null)
+        IHostLease? hostLease = null)
     {
-        myCtx = ctx;
-        myWorkspacePreparer = workspacePreparer;
+        myStartupPlan = startupPlan;
         myAgentBackend = agentBackend;
         myHandoffPump = handoffPump;
         myWindowHost = windowHost;
         mySleepInhibitor = sleepInhibitor;
         myViewModel = viewModel ?? new SquadViewModel();
         myHostLease = hostLease;
-        myPostLockPreparation = postLockPreparation;
         myViewModel.UseAdmission(sessionRegistry);
         myRuntimeController = new SquadRuntimeController(
             sessionRegistry, myAgentBackend, eventSink ?? (_ => { }), myViewModel, myHandoffPump, myStopping.Token);
@@ -168,18 +158,17 @@ public sealed class SquadApplication : IAsyncDisposable
     {
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
-        if (myPostLockPreparation is not null)
-            await myPostLockPreparation(cancellationToken);
+        await myStartupPlan.PrepareContextAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await mySleepInhibitor.StartAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        myViewModel.InitializeRoles(myCtx.Roles.Select(role => role.Role));
+        myViewModel.InitializeRoles(myStartupPlan.DiscoverRoles());
         myHostLease?.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
-        myWorkspacePreparer.PrepareWorkspace(myCtx);
+        myStartupPlan.PrepareWorkspace();
         cancellationToken.ThrowIfCancellationRequested();
-        await myWorkspacePreparer.PrepareConfiguredWorktreesForLaunchAsync(myCtx, myCtx.ContinueLaunch, cancellationToken);
+        await myStartupPlan.PrepareConfiguredWorktreesForLaunchAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        myWorkspacePreparer.PrepareHandoffDirs(myCtx);
+        myStartupPlan.PrepareHandoffDirs();
         cancellationToken.ThrowIfCancellationRequested();
         await myWindowHost.StartAsync(cancellationToken);
         myWindowStarted = true;

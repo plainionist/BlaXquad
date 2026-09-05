@@ -261,6 +261,8 @@ without frontend changes.
 
 ### Slice 5: Narrow host startup before extracting workspaces
 
+**Status: complete (eddb51905c)**
+
 1. Replace `SquadApplication` dependencies on concrete `Ctx` and `WorkspacePreparer` with one explicitly named startup
    plan that distinguishes context preparation, lazy role lookup, and workspace preparation phases.
 2. Evaluate the role provider only after context preparation; do not capture the initially empty production role list

@@ -1,6 +1,7 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squadHQ.Commands;
+using squad.Workspaces;
 
 namespace squad.Specs.Support;
 
