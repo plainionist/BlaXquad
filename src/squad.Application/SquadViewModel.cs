@@ -26,7 +26,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private readonly Task myEventLoop;
     private readonly object myAdmissionLock = new();
     private readonly HashSet<Task> myAcceptedCommands = [];
-    private bool myAccepting = true;
+    private readonly StandaloneSessionAdmission myStandaloneAdmission;
+    private ISessionAdmission myAdmission;
 
     public SquadViewModel()
         : this(new TranscriptRetentionOptions())
@@ -39,6 +40,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         myTranscriptRetentionOptions = transcriptRetentionOptions;
         myTranscriptArchive = new TranscriptArchive(transcriptRetentionOptions);
         myEventProjector = new AgentEventProjector(myInteractions);
+        myStandaloneAdmission = new StandaloneSessionAdmission(this);
+        myAdmission = myStandaloneAdmission;
         myEventLoop = RunEventLoopAsync();
     }
 
@@ -136,15 +139,12 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         if (!myRoles.TryGetValue(role, out var state))
             return null;
-        lock (myAdmissionLock)
-        {
-            if (!myAccepting)
-                return false;
-            if (myRoleOperations.IsInvalidated(role))
-                return false;
-            lock (state.SyncRoot)
-                return state.Status == "idle" && !state.IsWorking;
-        }
+        if (!myAdmission.IsAccepting)
+            return false;
+        if (myRoleOperations.IsInvalidated(role))
+            return false;
+        lock (state.SyncRoot)
+            return state.Status == "idle" && !state.IsWorking;
     }
 
     public async Task<bool?> GetRoleReadinessAsync(
@@ -153,11 +153,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         if (!myRoles.TryGetValue(role, out var state))
             return null;
-        lock (myAdmissionLock)
-        {
-            if (!myAccepting)
-                return false;
-        }
+        if (!myAdmission.IsAccepting)
+            return false;
         if (myRoleOperations.IsInvalidated(role))
             return false;
         lock (state.SyncRoot)
@@ -187,6 +184,20 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     public void RegisterSession(IAgentSession session) => mySessions[session.Role] = session;
 
+    /// <summary>
+    /// Internal composition seam: lets <c>SquadApplication</c> wire this ViewModel to the shared lifecycle
+    /// authority (<c>SessionRegistry</c>) so phase checks and session selection are atomic with the rest of the
+    /// process, instead of this ViewModel tracking its own independent accepting flag. Safe to call more than once
+    /// - a ViewModel reused across a fresh application simply adopts the new authority. Without a call to this
+    /// method, the ViewModel falls back to a standalone admission decision so bare "ViewModel only" usage (as in
+    /// unit-level specs) keeps working unchanged.
+    /// </summary>
+    public void UseAdmission(ISessionAdmission admission)
+    {
+        ArgumentNullException.ThrowIfNull(admission);
+        myAdmission = admission;
+    }
+
     public Task MarkRoleFailedAsync(string role, Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -210,14 +221,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     public void BeginStopping()
     {
-        lock (myAdmissionLock)
-        {
-            if (!myAccepting)
-                return;
-            myAccepting = false;
-            myCommands.Writer.TryComplete();
-            myShutdown.Cancel();
-        }
+        myStandaloneAdmission.BeginStopping();
+        myCommands.Writer.TryComplete();
+        myShutdown.Cancel();
     }
 
     public Task SendAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
@@ -324,7 +330,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (myAdmissionLock)
         {
-            if (!myAccepting)
+            if (!myAdmission.IsAccepting)
                 return Task.FromException(new InvalidOperationException("Squad is shutting down"));
             myAcceptedCommands.Add(completion.Task);
         }
@@ -420,13 +426,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         EnsureAccepting();
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdown.Token);
-        if (!mySessions.TryGetValue(role, out var session))
+        if (!myAdmission.TryLeaseSession(role, out var lease))
             throw new InvalidOperationException($"Unknown role: {role}");
         using var operationLease = await myRoleOperations.AcquireOperationLeaseAsync(role, lifetimeCancellation.Token);
         EnsureAccepting();
         EnsureRoleAvailable(role);
         operationLease.Register(lifetimeCancellation);
-        await operation(session, lifetimeCancellation.Token);
+        await operation(lease.Session, lifetimeCancellation.Token);
     }
 
     private void EnsureRoleAvailable(string role)
@@ -605,11 +611,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private void EnsureAccepting()
     {
-        lock (myAdmissionLock)
-        {
-            if (!myAccepting)
-                throw new InvalidOperationException("Squad is shutting down");
-        }
+        if (!myAdmission.IsAccepting)
+            throw new InvalidOperationException("Squad is shutting down");
     }
 
     private void NotifyStateChanged(bool immediate = true)
@@ -639,6 +642,46 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private static bool IsImmediateUiEvent(AgentEvent agentEvent) =>
         agentEvent is AgentErrorEvent or AgentEventError or AgentReadinessEvent or AgentIdleEvent or AgentStoppedEvent
             or AgentPermissionRequest or AgentInputRequest or AgentElicitationRequest;
+
+    /// <summary>
+    /// The default <see cref="ISessionAdmission"/> used until <see cref="UseAdmission"/> injects an external
+    /// lifecycle authority (e.g. headquarters' SessionRegistry). Replicates the ViewModel's own former
+    /// "accepting" flag against its own session dictionary, so tests that construct a bare <see cref="SquadViewModel"/>
+    /// with no owning application - calling <see cref="RegisterSession"/> / <see cref="BeginStopping"/> directly -
+    /// keep their current admission and lease semantics unchanged.
+    /// </summary>
+    private sealed class StandaloneSessionAdmission(SquadViewModel owner) : ISessionAdmission
+    {
+        private readonly object myLock = new();
+        private bool myAccepting = true;
+
+        public bool IsAccepting
+        {
+            get { lock (myLock) return myAccepting; }
+        }
+
+        public void BeginStopping()
+        {
+            lock (myLock)
+                myAccepting = false;
+        }
+
+        public bool TryLeaseSession(string role, out SessionLease lease)
+        {
+            lock (myLock)
+            {
+                if (myAccepting
+                    && owner.mySessions.TryGetValue(role, out var session)
+                    && !session.Completion.IsCompleted)
+                {
+                    lease = new SessionLease(0, session);
+                    return true;
+                }
+            }
+            lease = default;
+            return false;
+        }
+    }
 }
 
 

@@ -78,6 +78,7 @@ public sealed class SquadApplication : IAsyncDisposable
         myHostLease = hostLease;
         myPostLockPreparation = postLockPreparation;
         mySessionRegistry = sessionRegistry;
+        myViewModel.UseAdmission(mySessionRegistry);
         mySessionGeneration = new SessionGeneration(myAgentBackend, eventSink ?? (_ => { }), myViewModel, myStopping.Token);
     }
 
@@ -167,6 +168,7 @@ public sealed class SquadApplication : IAsyncDisposable
 
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
+        using var transition = mySessionRegistry.BeginStarting();
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
         if (myPostLockPreparation is not null)
@@ -193,6 +195,7 @@ public sealed class SquadApplication : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
         await myHandoffPump.StartAsync(cancellationToken);
         myHandoffStarted = true;
+        transition.Commit();
     }
 
     private Task RegisterSessionAsync(IAgentSession session)
@@ -213,7 +216,7 @@ public sealed class SquadApplication : IAsyncDisposable
     {
         var failures = new List<Exception>();
         myStopping.Cancel();
-        mySessionRegistry.BeginStopping();
+        using var transition = mySessionRegistry.BeginStopping();
         await AttemptCleanupAsync("ViewModel commands", myViewModel.StopAsync, failures);
         if (myHandoffStarted)
             await AttemptCleanupAsync("handoff pump stop", () => myHandoffPump.StopAsync(), failures);
@@ -229,6 +232,7 @@ public sealed class SquadApplication : IAsyncDisposable
         if (myHostLease is not null)
             await AttemptCleanupAsync("host lease", () => myHostLease.DisposeAsync().AsTask(), failures);
         myStopping.Dispose();
+        transition.Commit();
         return failures;
     }
 

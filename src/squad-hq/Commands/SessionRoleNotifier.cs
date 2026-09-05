@@ -17,7 +17,11 @@ public sealed class SessionRoleNotifier : IRoleNotifier
 
     public async Task NotifyAsync(string role, CancellationToken cancellationToken = default)
     {
-        _ = mySessions.GetActive(role);
+        // Handoff routing uses the same current-generation authority as command dispatch: a role with no leaseable
+        // session (unregistered, completed, or the registry no longer accepting work) must not even attempt a
+        // wake-up send.
+        if (!mySessions.TryLeaseSession(role, out _))
+            throw new InvalidOperationException($"No active session for role '{role}'.");
         await myViewModel.SendHarnessAsync(role, myWakeMessage, cancellationToken);
     }
 }
