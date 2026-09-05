@@ -23,9 +23,6 @@ public static class RuntimeModeSelector
     {
         return myFactory.TryRunPrivateCommand(command, arguments, out exitCode);
     }
-
-    public static string WindowTitle(string workspaceDirectory) =>
-        PhotinoWindowHost.CreateTitle(workspaceDirectory);
 }
 
 

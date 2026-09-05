@@ -20,7 +20,7 @@ static class Launch
                 TestParse(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory());
                 return 0;
             case "--test-window-title":
-                Console.WriteLine(RuntimeModeSelector.WindowTitle(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory()));
+                Console.WriteLine(PhotinoWindowHost.CreateTitle(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory()));
                 return 0;
             case "--test-command-exists":
                 Console.WriteLine(ProcessControl.CommandExists(args[1]) ? "available" : "unavailable");
