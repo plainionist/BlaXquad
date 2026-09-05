@@ -283,6 +283,8 @@ configuration and startup scenarios pass.
 
 ### Slice 6: Extract host ownership and control
 
+**Status: complete (d150802af3)**
+
 1. Create `squad.Host.Control` and move `HostLease`, `IHostLease`, `CleanupLease`, `HostControlClient`,
    `HostControlRequest`, and `HostProjectRoot`.
 2. Keep console command handlers `Shutdown` and `WaitForAgent` in `squad-hq`; they call the extracted control API and
