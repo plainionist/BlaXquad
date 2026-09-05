@@ -1,5 +1,4 @@
 using global::squad.Specs.Support;
-using global::squad.Agent.Cli;
 using global::squad.Configuration;
 using global::squad.Handoff;
 using global::squad.Process;
@@ -91,18 +90,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Agent.Cli", "squad.Configuration", "squad.Handoff", "squad.Process" }));
-
-        var agentCliTypes = Assembly.Load("squad.Agent.Cli")
-            .GetTypes()
-            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Cli")
-            .Select(type => type.Name)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-        Assert.That(agentCliTypes, Is.EqualTo(new[]
-        {
-            "CliExitException",
-        }));
+            Is.EquivalentTo(new[] { "squad", "squad.Configuration", "squad.Handoff", "squad.Process" }));
 
         var agentConfigurationTypes = Assembly.Load("squad.Configuration")
             .GetTypes()
@@ -141,6 +129,7 @@ public sealed class ArchitectureSteps
             .ToArray();
         Assert.That(agentProcessTypes, Is.EqualTo(new[]
         {
+            "CliExitException",
             "ProcessResult",
             "ProcessRunner",
         }));

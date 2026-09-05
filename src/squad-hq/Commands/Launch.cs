@@ -1,5 +1,5 @@
 using global::squad.AgentProvider.Abstractions;
-using global::squad.Agent.Cli;
+using global::squad.Process;
 using global::squad.Configuration;
 using global::squad.Handoff;
 using global::squad.Core;
