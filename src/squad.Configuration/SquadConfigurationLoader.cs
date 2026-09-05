@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace squadHQ.Commands;
+namespace squad.Configuration;
 
-internal static class SquadConfigurationLoader
+public static class SquadConfigurationLoader
 {
     private static readonly JsonSerializerOptions myJsonOptions = new()
     {
