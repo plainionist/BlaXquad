@@ -1,5 +1,5 @@
-using global::squad.Process;
-using global::squad.Hosting.Abstractions;
+using squad.Process;
+using squad.Hosting.Abstractions;
 using System.Diagnostics;
 
 namespace squad.Photino;

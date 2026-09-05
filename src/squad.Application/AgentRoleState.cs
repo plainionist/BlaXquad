@@ -1,5 +1,5 @@
-using global::squad.Transcripts;
-using global::squad.Ui.Abstractions;
+using squad.Transcripts;
+using squad.Ui.Abstractions;
 
 namespace squad.Application;
 

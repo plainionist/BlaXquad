@@ -1,9 +1,9 @@
-using global::squad.AgentProvider.Abstractions;
-using global::squad.Process;
-using global::squad.Configuration;
-using global::squad.Handoffs;
-using global::squad.Application;
-using global::squad.Photino;
+using squad.AgentProvider.Abstractions;
+using squad.Process;
+using squad.Configuration;
+using squad.Handoffs;
+using squad.Application;
+using squad.Photino;
 using squad.Ui.Abstractions;
 using squad.CopilotSdk;
 

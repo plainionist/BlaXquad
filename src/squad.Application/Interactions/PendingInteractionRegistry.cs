@@ -1,4 +1,4 @@
-using global::squad.AgentProvider.Abstractions.Agents;
+using squad.AgentProvider.Abstractions.Agents;
 
 namespace squad.Application.Interactions;
 

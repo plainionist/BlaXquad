@@ -1,4 +1,4 @@
-using global::squad.AgentProvider.Abstractions;
+using squad.AgentProvider.Abstractions;
 
 namespace squadHQ.Commands;
 

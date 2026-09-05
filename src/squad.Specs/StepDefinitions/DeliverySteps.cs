@@ -1,7 +1,7 @@
-using global::squad.Specs.Support;
-using global::squad.Configuration;
-using global::squad.Application;
-using global::squad.Handoffs;
+using squad.Specs.Support;
+using squad.Configuration;
+using squad.Application;
+using squad.Handoffs;
 using System.Collections.Concurrent;
 
 namespace squad.Specs.StepDefinitions;

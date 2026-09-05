@@ -1,5 +1,5 @@
-using global::squad.Process;
-using global::squad.Photino;
+using squad.Process;
+using squad.Photino;
 using System.Text.RegularExpressions;
 using squad.Configuration;
 

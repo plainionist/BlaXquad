@@ -1,5 +1,5 @@
-using global::squad.Process;
-using global::squadHQ.Commands;
+using squad.Process;
+using squadHQ.Commands;
 
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {

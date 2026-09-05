@@ -1,5 +1,5 @@
-using global::squad.Application;
-using global::squad.Handoffs;
+using squad.Application;
+using squad.Handoffs;
 
 namespace squadHQ.Commands;
 

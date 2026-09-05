@@ -1,5 +1,5 @@
-using global::squad.Specs.Support;
-using global::squad.Configuration;
+using squad.Specs.Support;
+using squad.Configuration;
 
 namespace squad.Specs.StepDefinitions;
 

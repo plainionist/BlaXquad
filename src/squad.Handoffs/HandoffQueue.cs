@@ -1,4 +1,4 @@
-using global::squad.Process;
+using squad.Process;
 
 namespace squad.Handoffs;
 
