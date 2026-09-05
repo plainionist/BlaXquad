@@ -27,9 +27,114 @@ generation-lifecycle owner that encapsulates:
 - relaunch replacement; and
 - ordered, failure-collecting generation teardown.
 
-Build on the existing `SessionGeneration` and `SquadLifecycleTransition` contracts rather than adding another parallel
-lifecycle state machine. Startup, relaunch, failure rollback, and shutdown must continue to use `SessionRegistry` as the
-authoritative phase and command-admission owner.
+Build on the backend runtime-generation handle and authoritative lifecycle transition introduced by the restart
+architecture rather than adding another parallel lifecycle state machine. Those contracts are not present on `main`;
+the abandoned `SessionGeneration` and `SquadLifecycleTransition` names are not assumed to exist. Startup, relaunch,
+failure rollback, and shutdown must use the accepted lifecycle aggregate as the authoritative phase and
+command-admission owner.
+
+## Coordination status
+
+Slice 1 is the only slice authorized for implementation. It characterizes the observable ordering that the extraction
+must preserve without changing production behavior.
+
+Slices 2 and 3 remain blocked until:
+
+- the reviewer accepts Slice 1;
+- restart architecture Slice 2 provides a backend-owned runtime-generation handle with confirmed/uncertain retirement;
+  and
+- restart architecture Slice 3 provides the authoritative lifecycle aggregate, generation/session leases, command
+  retirement, and transition handle.
+
+Do not emulate either missing prerequisite inside this issue. In particular, do not add lifecycle flags or locks to
+`SquadApplication`, expose unleased sessions, or move session disposal into a new headquarters wrapper.
+
+## Implementation plan
+
+### Slice 1: Characterize generation lifecycle ordering
+
+**Status: authorized for implementation**
+
+1. Extend the existing black-box `SquadApplication` acceptance support with one shared lifecycle trace used by the
+   recording window, backend, sessions, handoff pump, and process-wide resources. Keep the trace in test support; add no
+   production instrumentation or lifecycle API.
+2. Add a healthy startup/shutdown scenario that asserts only ownership-significant boundaries:
+   - the process-wide window is started before backend generation startup;
+   - session registration completes before the window is told that sessions started;
+   - handoff recovery and production begin only after sessions are available;
+   - shutdown stops handoff production before retiring the backend generation;
+   - backend-owned session completion is resolved before observer retirement completes; and
+   - generation teardown finishes before the window and remaining process-wide resources are released.
+3. Add a partial-start failure scenario that records a registered session and a later startup failure, then proves that
+   rollback continues through generation and process-wide cleanup and reports both the primary and cleanup failures.
+   Reuse the existing aggregate-failure assertions rather than introducing an implementation-specific exception shape.
+4. Do not freeze incidental ordering among independent process-wide disposals, private method names, collection shapes,
+   or current direct session-disposal mechanics. The characterization must remain valid when session disposal moves
+   behind the backend runtime owner.
+
+Slice 1 is accepted when:
+
+- the Gherkin scenarios fail if handoff, backend generation, observers, and process-wide resources cross the required
+  ownership order;
+- partial startup rollback proves that one cleanup failure cannot skip later mandatory cleanup;
+- the scenarios exercise `SquadApplication` through its public lifecycle rather than testing a proposed extracted type;
+  and
+- all existing startup, handoff, failure, and shutdown scenarios remain unchanged and green.
+
+### Slice 2: Extract one generation runtime
+
+**Status: blocked on the accepted backend runtime and lifecycle contracts**
+
+1. Introduce one `SquadRuntime` (or retain the accepted equivalent name) representing exactly one generation. It owns
+   the backend runtime handle, generation/session leases, event and completion observer cancellation sources and tasks,
+   and generation-scoped teardown state. Keep it in its own source file.
+2. Move session registration and observer creation out of `SquadApplication`. Every observer carries its session lease
+   through asynchronous work and relies on the lifecycle/ViewModel commit boundary to reject retired-generation
+   mutations; do not add a second currency check or role-only substitute.
+3. Give the runtime one idempotent teardown operation. It must execute every mandatory stage, collect failures, stop the
+   backend runtime before awaiting observers that depend on session completion, and retain an uncertain backend handle
+   when retirement is not confirmed.
+4. Remove direct session disposal and generation-scoped session/task/token collections from `SquadApplication`.
+   Sessions remain inspectable only through existing typed snapshots or narrowly scoped internal test support; do not
+   preserve `SquadApplication.Sessions` as an ownership API.
+
+Slice 2 is accepted when:
+
+- one runtime owns all generation-scoped sessions and observers while the backend handle remains the sole disposer of
+  backend sessions;
+- teardown is retry-safe, failure-collecting, and cannot drain completion observers before backend retirement resolves
+  session completion;
+- partial registration failure leaves no unowned session, observer, cancellation source, or backend handle; and
+- the Slice 1 ordering scenarios plus existing session-event, partial-start, cleanup, and shutdown scenarios remain
+  green.
+
+### Slice 3: Extract generation orchestration from the shell
+
+**Status: blocked until Slice 2 is accepted**
+
+1. Introduce `SquadRuntimeController` as the sole owner of the current `SquadRuntime`. It coordinates generation
+   construction, registration, handoff recovery/start, rollback, replacement, and teardown while consuming the
+   authoritative lifecycle transition; it owns no lifecycle phase, command-admission state, window lifetime, host
+   lease, workspace preparation, or sleep inhibition.
+2. Define one internal generation-construction path and one rollback path. Startup and later relaunch call those same
+   paths wherever their behavior is identical. A focused callback may bridge the window's sessions-started notification
+   at the required boundary without transferring window ownership to the controller.
+3. Reduce `SquadApplication` to process preparation, process-wide resource startup/disposal, the outer terminal-signal
+   run loop, and delegation to the controller. Keep primary-versus-cleanup exception aggregation at the owner whose
+   resources are being unwound; do not add a pass-through lifecycle facade.
+4. Keep transition begin/commit/fail and capability publication in the accepted lifecycle aggregate. The controller
+   performs I/O under the transition contract but never duplicates phase or admission state.
+5. Update composition in `Launch` and black-box support without widening public construction solely for tests. Add an
+   architecture assertion that `SquadApplication` has no generation session, observer, or handoff lifecycle fields.
+
+Slice 3 and this refactoring are accepted when:
+
+- `SquadApplication` owns only the outer run/termination loop and process-wide resources;
+- `SquadRuntimeController` owns current-generation orchestration and `SquadRuntime` owns one generation's resources;
+- startup, future relaunch, and their failure rollback share generation construction and teardown paths;
+- no session is disposed outside its backend runtime owner and no second lifecycle authority exists;
+- teardown ordering and aggregate-failure behavior satisfy the Slice 1 characterization; and
+- focused startup, handoff, event, failure, command-drain, and shutdown scenarios plus the full acceptance suite pass.
 
 ## Acceptance criteria
 
