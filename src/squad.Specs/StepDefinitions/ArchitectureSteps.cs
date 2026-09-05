@@ -155,25 +155,12 @@ public sealed class ArchitectureSteps
             "ResolveProjectRoot",
             "ResolveViaGit",
         }));
-
-        // squad.Agent.Tooling is only reachable from squad-hq, not from squad, but it is still one of the
-        // extracted agent-safe assemblies and must keep its single-responsibility type list.
-        var agentToolingTypes = Assembly.Load("squad.Agent.Tooling")
-            .GetTypes()
-            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Tooling")
-            .Select(type => type.Name)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-        Assert.That(agentToolingTypes, Is.EqualTo(new[]
-        {
-            "SiblingTool",
-        }));
     }
 
     [Then("no headquarters-only helper is reachable from squad")]
     public void ThenNoHeadquartersOnlyHelperIsReachableFromSquad()
     {
-        AssertNoReachableTypes("Crc32", "HostProjectRoot", "ProjectLayout");
+        AssertNoReachableTypes("Crc32", "HostProjectRoot", "ProjectLayout", "SiblingTool");
     }
 
     [Then("no host lifecycle, backend runtime, or UI contract is reachable from squad")]
@@ -347,7 +334,6 @@ public sealed class ArchitectureSteps
             Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(references, Does.Not.Contain("squad.Handoffs"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
-            Assert.That(references, Does.Not.Contain("squad.Agent.Configuration"));
             Assert.That(references, Does.Not.Contain("squad.Handoff"));
             Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Photino"));
@@ -446,6 +432,32 @@ public sealed class ArchitectureSteps
                     Is.Not.Null,
                     $"{typeName} should be defined in squad.Handoffs.");
             }
+        });
+    }
+
+    [Then("no squad.Core project identity remains in the supported solution and project graph")]
+    public void ThenNoSquadCoreProjectIdentityRemainsInTheSupportedSolutionAndProjectGraph()
+    {
+        var solution = File.ReadAllText(Path.Combine(myWorkspace.RepositoryRootPath, "squad.slnx"));
+        var srcDirectory = Path.Combine(myWorkspace.RepositoryRootPath, "src");
+        var projectNames = Directory.EnumerateFiles(srcDirectory, "*.csproj", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Select(path => Path.GetFileNameWithoutExtension(path))
+            .ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(solution, Does.Not.Contain("squad.Core"));
+            Assert.That(
+                projectNames,
+                Has.None.Matches<string>(name => name == "squad.Core" || name.StartsWith("squad.Core.", StringComparison.Ordinal)));
+            Assert.That(projectNames, Does.Contain("squad.Application"));
+            Assert.That(projectNames, Does.Contain("squad.Transcripts"));
+            Assert.That(projectNames, Does.Contain("squad.Handoffs"));
+            Assert.That(solution, Does.Contain("squad.Application"));
+            Assert.That(solution, Does.Contain("squad.Transcripts"));
+            Assert.That(solution, Does.Contain("squad.Handoffs"));
         });
     }
 

@@ -35,6 +35,7 @@ Feature: Runtime assembly boundaries
     And headquarters composes the application assembly, transcript assembly, and handoff assembly without a reverse dependency
     And role-operation, interaction, and event-projection coordinators are internal modules owned by the application assembly
     And transcript and handoff implementation types are owned only by their extracted assemblies
+    And no squad.Core project identity remains in the supported solution and project graph
 
   Scenario: Installers declare supported package targets
     Then the installers declare every supported runtime identifier
