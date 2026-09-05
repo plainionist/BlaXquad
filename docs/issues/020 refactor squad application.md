@@ -35,8 +35,8 @@ command-admission owner.
 
 ## Coordination status
 
-Slice 1 is complete (`853c6bc636`). Slice 2 is complete (`3f0feed336`). Slice 3 is complete (`736de31e22`). Slice 4
-remains blocked until the architect authorizes the next slice.
+Slice 1 is complete (`853c6bc636`). Slice 2 is complete (`3f0feed336`). Slice 3 is complete (`736de31e22`). Slice 4 is
+the only slice authorized for implementation.
 
 Introduce the missing focused contracts within this issue. Do not add lifecycle flags or locks to `SquadApplication`,
 expose unleased sessions, or move session disposal into a headquarters wrapper that bypasses backend ownership.
@@ -216,7 +216,7 @@ Slice 3 is accepted when:
 
 ### Slice 4: Extract generation orchestration from the shell
 
-**Status: blocked until Slice 3 is accepted**
+**Status: authorized for implementation**
 
 1. Introduce `SquadRuntimeController` as the sole owner of the current `SessionGeneration`. It coordinates generation
    construction, registration, handoff recovery/start, rollback, replacement-ready teardown, and lifecycle transitions;
