@@ -21,6 +21,11 @@ Feature: Runtime assembly boundaries
     And the photino adapter depends on the UI and hosting abstractions but not directly on the agent provider or copilot sdk adapter
     And the agent provider and hosting abstractions do not depend on presentation or provider adapters
 
+  Scenario: The UI protocol is isolated in its own assembly
+    Then the UI protocol assembly depends only on UI abstractions
+    And the UI protocol assembly does not reference the Photino package
+    And the photino adapter retains only the window host, sleep inhibitor, and the UI protocol dependency
+
   Scenario: Handoff delivery is isolated in its own assembly
     Then the handoff queue assembly depends only on process
     And the handoff delivery assembly depends only on the handoff queue and agent configuration

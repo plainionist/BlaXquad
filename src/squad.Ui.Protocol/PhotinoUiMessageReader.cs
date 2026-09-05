@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
 internal static class PhotinoUiMessageReader
 {

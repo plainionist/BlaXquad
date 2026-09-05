@@ -10,6 +10,7 @@ using squad.CopilotSdk;
 using squad.Hosting.Abstractions;
 using squad.Photino;
 using squad.Ui.Abstractions;
+using squad.Ui.Protocol;
 using squadHQ.Commands;
 using System.Reflection;
 
@@ -299,6 +300,57 @@ public sealed class ArchitectureSteps
             Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
             Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(photinoProject, Does.Not.Contain("squad.AgentProvider.Abstractions"));
+        });
+    }
+
+    [Then("the UI protocol assembly depends only on UI abstractions")]
+    public void ThenTheUiProtocolAssemblyDependsOnlyOnUiAbstractions()
+    {
+        var protocolProject = File.ReadAllText(Path.Combine(
+            myWorkspace.RepositoryRootPath, "src", "squad.Ui.Protocol", "squad.Ui.Protocol.csproj"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                protocolProject,
+                Does.Contain("squad.Ui.Abstractions\\squad.Ui.Abstractions.csproj"));
+            Assert.That(
+                protocolProject,
+                Does.Not.Contain("squad.AgentProvider.Abstractions"));
+            Assert.That(
+                protocolProject,
+                Does.Not.Contain("squad.Hosting.Abstractions"));
+            Assert.That(protocolProject, Does.Not.Contain("Photino.NET"));
+        });
+    }
+
+    [Then("the UI protocol assembly does not reference the Photino package")]
+    public void ThenTheUiProtocolAssemblyDoesNotReferenceThePhotinoPackage()
+    {
+        var references = typeof(UiProtocolSession).Assembly
+            .GetReferencedAssemblies()
+            .Select(reference => reference.Name)
+            .ToArray();
+
+        Assert.That(references, Does.Not.Contain("Photino.NET"));
+    }
+
+    [Then("the photino adapter retains only the window host, sleep inhibitor, and the UI protocol dependency")]
+    public void ThenThePhotinoAdapterRetainsOnlyTheWindowHostSleepInhibitorAndTheUiProtocolDependency()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(SleepInhibitor).Assembly);
+        var photinoDirectory = Path.Combine(
+            myWorkspace.RepositoryRootPath, "src", "squad.Photino");
+        var sourceFiles = Directory.GetFiles(photinoDirectory, "*.cs", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileName)
+            .ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(references, Does.Contain("squad.Ui.Protocol"));
+            Assert.That(
+                sourceFiles,
+                Is.EquivalentTo(new[] { "PhotinoWindowHost.cs", "SleepInhibitor.cs" }));
         });
     }
 

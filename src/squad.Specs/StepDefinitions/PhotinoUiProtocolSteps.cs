@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using squad.Photino;
+using squad.Ui.Protocol;
 using squad.Specs.Support;
 
 namespace squad.Specs.StepDefinitions;

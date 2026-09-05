@@ -1,7 +1,7 @@
 using System.Text.Json;
 using squad.Ui.Abstractions;
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
 internal sealed class PhotinoUiCommandHandler
 {

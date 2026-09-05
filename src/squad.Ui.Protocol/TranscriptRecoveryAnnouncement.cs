@@ -1,7 +1,7 @@
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
-public sealed record TranscriptRecoveryAnnouncement(
+internal sealed record TranscriptRecoveryAnnouncement(
     long AfterSequence,
     long ThroughSequence,
     IReadOnlyList<SequencedTranscriptAnnouncement> Fragments,

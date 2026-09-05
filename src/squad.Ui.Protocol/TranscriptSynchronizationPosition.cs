@@ -1,4 +1,4 @@
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
 internal sealed record TranscriptSynchronizationPosition(
     long VisualSequence,

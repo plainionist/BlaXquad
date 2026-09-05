@@ -4,6 +4,7 @@
     <PackageReference Include="Photino.NET" Version="4.0.16" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
     <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.Ui.Protocol\squad.Ui.Protocol.csproj" />
     <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj" />
     <Content Include="Assets\BlaXquad.ico" />
   </ItemGroup>

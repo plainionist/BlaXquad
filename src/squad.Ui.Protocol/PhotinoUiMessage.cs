@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
 internal readonly record struct PhotinoUiMessage(
     string? Type,

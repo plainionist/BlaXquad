@@ -1,8 +1,8 @@
 using squad.Ui.Abstractions;
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
-public sealed record SequencedTranscriptAnnouncement(
+internal sealed record SequencedTranscriptAnnouncement(
     long Sequence,
     TranscriptAnnouncement Announcement);
 

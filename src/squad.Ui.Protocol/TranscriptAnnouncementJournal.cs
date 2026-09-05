@@ -1,15 +1,15 @@
 using squad.Ui.Abstractions;
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
-public sealed class TranscriptAnnouncementJournal
+internal sealed class TranscriptAnnouncementJournal
 {
     private readonly int myMaxEntriesPerRole;
     private readonly int myMaxCharactersPerRole;
     private readonly Dictionary<string, RoleJournal> myRoles = new(StringComparer.Ordinal);
     private readonly object myStateLock = new();
 
-    public TranscriptAnnouncementJournal(
+    internal TranscriptAnnouncementJournal(
         int maxEntriesPerRole,
         int maxCharactersPerRole)
     {
@@ -17,7 +17,7 @@ public sealed class TranscriptAnnouncementJournal
         myMaxCharactersPerRole = maxCharactersPerRole;
     }
 
-    public void Add(TranscriptUpdate update)
+    internal void Add(TranscriptUpdate update)
     {
         lock (myStateLock)
         {
@@ -40,7 +40,7 @@ public sealed class TranscriptAnnouncementJournal
         }
     }
 
-    public TranscriptRecoveryAnnouncement Read(
+    internal TranscriptRecoveryAnnouncement Read(
         string role,
         long afterSequence,
         long throughSequence)

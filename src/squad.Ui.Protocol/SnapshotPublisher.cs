@@ -2,9 +2,9 @@ using squad.Ui.Abstractions;
 using System.Diagnostics;
 using System.Threading.Channels;
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
-public sealed class SnapshotPublisher : IAsyncDisposable
+internal sealed class SnapshotPublisher : IAsyncDisposable
 {
     private const int myNoRequest = 0;
     private const int myDeferredRequest = 1;
@@ -25,14 +25,14 @@ public sealed class SnapshotPublisher : IAsyncDisposable
     private int myPendingPriority;
     private int myDisposed;
 
-    public SnapshotPublisher(Func<Task> publish, TimeSpan interval)
+    internal SnapshotPublisher(Func<Task> publish, TimeSpan interval)
     {
         myPublish = publish;
         myInterval = interval;
         myWorker = RunAsync();
     }
 
-    public void Request(UiRefreshPriority priority)
+    internal void Request(UiRefreshPriority priority)
     {
         if (Volatile.Read(ref myDisposed) != 0)
             return;

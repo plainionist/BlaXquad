@@ -1,5 +1,6 @@
 using squad.Hosting.Abstractions;
 using squad.Ui.Abstractions;
+using squad.Ui.Protocol;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Photino.NET;

@@ -7,7 +7,7 @@ using squad.CopilotSdk;
 using squad.Application;
 using squad.Handoffs.Delivery;
 using squad.Transcripts;
-using squad.Photino;
+using squad.Ui.Protocol;
 using squad.Ui.Abstractions;
 using squadHQ.Commands;
 using System.Collections.Concurrent;

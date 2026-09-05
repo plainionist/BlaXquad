@@ -1,7 +1,7 @@
 using System.Text.Json;
 using global::squad.Ui.Abstractions;
 
-namespace squad.Photino;
+namespace squad.Ui.Protocol;
 
 /// <summary>
 /// Owns the versioned Photino UI protocol independent of the native window:
