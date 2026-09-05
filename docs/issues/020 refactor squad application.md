@@ -35,8 +35,8 @@ command-admission owner.
 
 ## Coordination status
 
-Slice 1 is complete (`853c6bc636`). Slice 2 is complete (`3f0feed336`). Slice 3 is the only slice authorized for
-implementation. Slice 4 remains blocked until the reviewer accepts Slice 3.
+Slice 1 is complete (`853c6bc636`). Slice 2 is complete (`3f0feed336`). Slice 3 is complete (`736de31e22`). Slice 4
+remains blocked until the architect authorizes the next slice.
 
 Introduce the missing focused contracts within this issue. Do not add lifecycle flags or locks to `SquadApplication`,
 expose unleased sessions, or move session disposal into a headquarters wrapper that bypasses backend ownership.
@@ -188,7 +188,7 @@ Resolved by `3f0feed336`.
 
 ### Slice 3: Make SessionRegistry the lifecycle authority
 
-**Status: authorized for implementation**
+**Status: complete (736de31e22)**
 
 1. Extend `SessionRegistry` into the single lifecycle aggregate for `Created`, `Starting`, `Running`, `Stopping`, and
    `Stopped`. It owns generation identity, session leases, transition exclusion, and command admission; keep cohesive
