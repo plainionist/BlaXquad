@@ -1,4 +1,4 @@
-using global::squad.Specs.Support;
+using squad.Specs.Support;
 using System.Text.Json;
 
 namespace squad.Specs.StepDefinitions;

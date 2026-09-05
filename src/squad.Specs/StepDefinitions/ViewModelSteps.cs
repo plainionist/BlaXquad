@@ -1,15 +1,15 @@
-using global::squad.Specs.Support;
-using global::squad.AgentProvider.Abstractions;
-using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Process;
-using global::squad.Configuration;
-using global::squad.CopilotSdk;
-using global::squad.Application;
-using global::squad.Handoffs;
-using global::squad.Transcripts;
-using global::squad.Photino;
-using global::squad.Ui.Abstractions;
-using global::squadHQ.Commands;
+using squad.Specs.Support;
+using squad.AgentProvider.Abstractions;
+using squad.AgentProvider.Abstractions.Agents;
+using squad.Process;
+using squad.Configuration;
+using squad.CopilotSdk;
+using squad.Application;
+using squad.Handoffs;
+using squad.Transcripts;
+using squad.Photino;
+using squad.Ui.Abstractions;
+using squadHQ.Commands;
 using System.Collections.Concurrent;
 using System.Text.Json;
 

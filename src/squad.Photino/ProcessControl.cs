@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using global::squad.Process;
+using squad.Process;
 
 namespace squad.Photino;
 
