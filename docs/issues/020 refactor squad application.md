@@ -35,12 +35,8 @@ command-admission owner.
 
 ## Coordination status
 
-Slice 1 is the only slice authorized for implementation. The reviewer requested changes on coder commit `9b0883b395`
-before Slice 1 can be accepted.
+Slice 1 is complete (`853c6bc636`). Slices 2 and 3 remain blocked until:
 
-Slices 2 and 3 remain blocked until:
-
-- the reviewer accepts Slice 1;
 - restart architecture Slice 2 provides a backend-owned runtime-generation handle with confirmed/uncertain retirement;
   and
 - restart architecture Slice 3 provides the authoritative lifecycle aggregate, generation/session leases, command
@@ -53,7 +49,7 @@ Do not emulate either missing prerequisite inside this issue. In particular, do 
 
 ### Slice 1: Characterize generation lifecycle ordering
 
-**Status: changes requested (9b0883b395)**
+**Status: complete (853c6bc636)**
 
 1. Extend the existing black-box `SquadApplication` acceptance support with one shared lifecycle trace used by the
    recording window, backend, sessions, handoff pump, and process-wide resources. Keep the trace in test support; add no
@@ -82,6 +78,8 @@ Slice 1 is accepted when:
 - all existing startup, handoff, failure, and shutdown scenarios remain unchanged and green.
 
 #### Review findings on 9b0883b395
+
+Resolved by `853c6bc636`.
 
 **Finding 1 — high**
 
