@@ -4,6 +4,8 @@ using global::squad.Configuration;
 using global::squad.Handoffs;
 using global::squad.Application;
 using global::squad.Photino;
+using squad.Ui.Abstractions;
+using squad.CopilotSdk;
 
 namespace squadHQ.Commands;
 
@@ -114,7 +116,7 @@ static class Launch
             {
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var runtime = RuntimeModeSelector.Create(() => BuildBackendContext(context), viewModel);
+                var runtime = Create(() => BuildBackendContext(context), viewModel);
                 var sessionRegistry = new SessionRegistry();
                 var handoffPump = new InProcessHandoffPoller(
                     () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
@@ -161,6 +163,16 @@ static class Launch
         }
     }
 
+    private static RuntimeMode Create(Func<AgentBackendContext> context, ISquadUi ui)
+    {
+        var factory = new CopilotSdkRuntimeModeFactory();
+        var backend = factory.CreateBackend(context);
+        return new RuntimeMode(
+            backend,
+            new PhotinoWindowHost(ui, context().WorkingDirectory),
+            new SleepInhibitor(),
+            cancellationToken => factory.PrepareAsync(context, cancellationToken));
+    }
 
 
     private static string InitialInstruction(string role) =>
