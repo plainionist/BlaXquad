@@ -138,7 +138,7 @@ application model to headquarters or technology adapters.
 ## Coordination status
 
 Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is complete (ae73524ae8). Slice 4 is
-complete (9a767e47a1). Slice 5 is the only slice authorized for implementation.
+complete (9a767e47a1). Slice 5 is complete (3a9011de4d). This issue is complete.
 
 ## Implementation plan
 
@@ -255,7 +255,7 @@ Slice 4 is accepted when:
 
 ### Slice 5: Verify boundaries
 
-**Status: authorized for implementation**
+**Status: complete (3a9011de4d)**
 
 1. Add one black-box architecture assertion that scans the supported solution/project graph and rejects every
    `squad.Core` or `squad.Core.*` project identity while requiring `squad.Application`, `squad.Transcripts`, and
