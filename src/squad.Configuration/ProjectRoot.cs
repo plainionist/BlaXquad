@@ -1,7 +1,6 @@
-using global::squad.Agent.Cli;
-using global::squad.Agent.Process;
+using global::squad.Process;
 
-namespace squad.Agent.Configuration;
+namespace squad.Configuration;
 
 /// <summary>Locates the squad project root and current worktree root.</summary>
 public static class ProjectRoot

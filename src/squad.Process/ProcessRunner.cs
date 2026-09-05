@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace squad.Agent.Process;
+namespace squad.Process;
 
 /// <summary>Thin wrapper over Process for capturing output from external commands.</summary>
 public static class ProcessRunner

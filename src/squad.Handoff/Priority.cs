@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace squad.Agent.Handoff;
+namespace squad.Handoff;
 
 public static class Priority
 {

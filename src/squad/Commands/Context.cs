@@ -1,4 +1,4 @@
-using global::squad.Agent.Configuration;
+using global::squad.Configuration;
 
 using System.Text.Json;
 

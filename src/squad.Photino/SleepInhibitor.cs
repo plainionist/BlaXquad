@@ -1,4 +1,4 @@
-using global::squad.Agent.Process;
+using global::squad.Process;
 using global::squad.Hosting.Abstractions;
 using System.Diagnostics;
 
@@ -15,7 +15,7 @@ public sealed class SleepInhibitor : ISleepInhibitor
     private TaskCompletionSource? myWindowsReady;
     private TaskCompletionSource? myWindowsStopped;
     private Exception? myWindowsFailure;
-    private Process? myUnixInhibitor;
+    private System.Diagnostics.Process? myUnixInhibitor;
 
     public IReadOnlyList<string> CommandPrefix => myCommandPrefix.Value;
 

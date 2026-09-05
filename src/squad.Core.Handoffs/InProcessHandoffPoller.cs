@@ -1,4 +1,4 @@
-using global::squad.Agent.Configuration;
+using global::squad.Configuration;
 namespace squad.Core.Handoffs;
 
 public sealed class InProcessHandoffPoller : IHandoffPump

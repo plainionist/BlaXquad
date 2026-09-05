@@ -1,4 +1,4 @@
-namespace squad.Agent.Handoff;
+namespace squad.Handoff;
 
 /// <summary>Per-worktree monotonically increasing counter used to break ties in handoff filenames.</summary>
 public static class SequenceCounter

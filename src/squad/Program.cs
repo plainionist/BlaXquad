@@ -1,4 +1,4 @@
-using global::squad.Agent.Cli;
+using global::squad.Process;
 using global::squad.Commands;
 
 if (args.Length == 0 || args[0] is "-h" or "--help")

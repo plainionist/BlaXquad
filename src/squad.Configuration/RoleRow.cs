@@ -1,4 +1,4 @@
-namespace squad.Agent.Configuration;
+namespace squad.Configuration;
 
 public sealed record RoleRow(
     string Role,

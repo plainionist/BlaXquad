@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using global::squad.Agent.Process;
+using global::squad.Process;
 
 namespace squad.Photino;
 
@@ -46,7 +46,7 @@ public static class ProcessControl
             foreach (var (key, value) in environment)
                 psi.Environment[key] = value;
 
-        using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{fileName}'.");
+        using var process = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{fileName}'.");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         try
@@ -80,7 +80,7 @@ public static class ProcessControl
         return result;
     }
 
-    public static Process StartDetached(IReadOnlyList<string> command, string? stdOutErrFile = null)
+    public static System.Diagnostics.Process StartDetached(IReadOnlyList<string> command, string? stdOutErrFile = null)
     {
         if (command.Count == 0)
             throw new ArgumentException("Command must not be empty.", nameof(command));
@@ -95,20 +95,20 @@ public static class ProcessControl
         foreach (var argument in command.Skip(1))
             psi.ArgumentList.Add(argument);
 
-        var process = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{command[0]}'.");
+        var process = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{command[0]}'.");
         if (stdOutErrFile is not null)
             _ = CaptureOutputAsync(process, stdOutErrFile);
         return process;
     }
 
-    public static async Task TerminateAsync(Process process)
+    public static async Task TerminateAsync(System.Diagnostics.Process process)
     {
         if (!process.HasExited)
             process.Kill(entireProcessTree: true);
         await process.WaitForExitAsync();
     }
 
-    private static async Task CaptureOutputAsync(Process process, string outputFile)
+    private static async Task CaptureOutputAsync(System.Diagnostics.Process process, string outputFile)
     {
         try
         {
