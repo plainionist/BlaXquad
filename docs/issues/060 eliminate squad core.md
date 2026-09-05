@@ -126,7 +126,7 @@ squad.Application -------------> squad.Transcripts
 squad.Transcripts -------------> squad.Ui.Abstractions
 
 squad.Handoffs ----------------> squad.Handoff
-   +---------------------------> squad.Agent.Configuration
+   +---------------------------> squad.Configuration
 
 squad.Photino -----------------> squad.Ui.Abstractions
 squad.CopilotSdk --------------> squad.AgentProvider.Abstractions
@@ -137,8 +137,8 @@ application model to headquarters or technology adapters.
 
 ## Coordination status
 
-Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slices 3-5 remain blocked until the architect
-authorizes the next slice.
+Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is the only slice authorized for
+implementation. Slices 4-5 remain blocked until the reviewer accepts Slice 3.
 
 ## Implementation plan
 
@@ -192,9 +192,30 @@ Slice 2 is accepted when:
 
 ### Slice 3: Rename handoffs
 
-1. Rename the project, assembly, namespaces, and project references from `squad.Core.Handoffs` to `squad.Handoffs`.
-2. Update headquarters composition, acceptance support, architecture tests, and documentation.
-3. Preserve the rule that handoff delivery communicates with the application only through the notifier contract.
+**Status: authorized for implementation**
+
+1. Rename the `src/squad.Core.Handoffs` directory, project file, assembly, and root namespace to
+   `src/squad.Handoffs`, `squad.Handoffs.csproj`, and `squad.Handoffs`.
+2. Update solution membership, the headquarters project reference and imports, and every specs project reference and
+   import. Do not move delivery, polling, recovery, notifier, or pump responsibilities into headquarters.
+3. Update architecture assertions and supported architecture/glossary documentation to name `squad.Handoffs`.
+   Historical issue text may retain the old name where it describes the pre-change state.
+4. Preserve dependency direction: `squad.Handoffs` may depend on `squad.Handoff` and `squad.Configuration`, but it must
+   not reference `squad.Core`, `squad.Transcripts`, headquarters, hosting/provider implementations, Photino, or the
+   Copilot SDK.
+5. Keep `IRoleNotifier` as the narrow inward notification contract owned by `squad.Handoffs`.
+   `SessionRoleNotifier` remains the headquarters adapter that reaches `SquadViewModel`; do not introduce a direct
+   handoff-to-application reference.
+6. Do not rename `squad.Core` or its namespaces in this slice.
+
+Slice 3 is accepted when:
+
+- the solution builds the handoff-delivery subsystem only as `squad.Handoffs`, with no stale
+  `squad.Core.Handoffs` project or assembly in the supported source/build graph;
+- filesystem delivery, polling, recovery, failure reporting, and role notification behavior is unchanged;
+- architecture coverage proves handoff delivery reaches application behavior only through `IRoleNotifier` and cannot
+  reference the application model or technology adapters; and
+- focused handoff delivery, recovery, and notification scenarios pass.
 
 ### Slice 4: Replace Core with Application
 
