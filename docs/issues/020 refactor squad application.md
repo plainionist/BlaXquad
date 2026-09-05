@@ -36,7 +36,7 @@ command-admission owner.
 ## Coordination status
 
 Slice 1 is complete (`853c6bc636`). Slice 2 is the only slice authorized for implementation. The reviewer requested
-changes on coder commit `adcc41b011` before Slice 2 can be accepted. Slices 3 and 4 remain blocked until the reviewer
+changes on coder commit `3bc12c16c4` before Slice 2 can be accepted. Slices 3 and 4 remain blocked until the reviewer
 accepts the preceding slice.
 
 Introduce the missing focused contracts within this issue. Do not add lifecycle flags or locks to `SquadApplication`,
@@ -116,7 +116,7 @@ Resolved by `853c6bc636`.
 
 ### Slice 2: Establish backend-owned generation resources
 
-**Status: changes requested (adcc41b011)**
+**Status: changes requested (3bc12c16c4)**
 
 1. Add an `IAgentRuntime` contract in the agent-provider abstraction assembly, in its own source file. An
    `IAgentBackend` creates the runtime handle before fallible session startup; the runtime then starts and registers its
@@ -147,6 +147,8 @@ Slice 2 is accepted when:
 
 #### Review findings on adcc41b011
 
+Resolved by `3bc12c16c4` except as restated below.
+
 **Finding 1 — high**
 
 - **Location:** `src/squad.CopilotSdk/CopilotSdkAgentRuntime.cs` (`DisposeAsync`),
@@ -164,6 +166,24 @@ Slice 2 is accepted when:
   terminal. Do not clear owned sessions or observer resources, and do not set a disposed/teardown-complete flag, until
   retirement is confirmed. Preserve failure collection and the order that drains completion observers only after the
   runtime has resolved session completion.
+
+#### Review findings on 3bc12c16c4
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.CopilotSdk/CopilotSdkAgentRuntime.cs` (`DisposeAsync`, `myForceStop` / `myStopSucceeded` /
+  `myClientDisposed`).
+- **Violated behavior:** The runtime must remain owner until provider-client retirement succeeds. A later
+  `DisposeAsync` must resume remaining stop/dispose work instead of leaving the client owned with no succeeding retry
+  path.
+- **Root cause:** Client disposal now runs only when `myStopSucceeded` is true. If session teardown already started
+  `myForceStop` and that task faults, `DisposeAsync` awaits the same cached task, records the failure, and skips
+  `myClient.DisposeAsync`. A retry awaits the same faulted task again, so stop never succeeds and the client is never
+  disposed. The previous backend always attempted client disposal after stop failures.
+- **Required outcome:** A failed shared-client stop, including a failed `myForceStop` task, must still leave retryable
+  remaining work. Re-attempt stop and then dispose the client, or dispose the client even when stop failed, but do not
+  leave the provider client owned after `DisposeAsync` has no remaining work that can succeed. Keep session-level
+  retry, `SessionGeneration` failed-teardown reset, and observer drain only after confirmed runtime retirement.
 
 ### Slice 3: Make SessionRegistry the lifecycle authority
 
