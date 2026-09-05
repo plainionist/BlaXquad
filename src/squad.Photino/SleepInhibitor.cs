@@ -50,7 +50,7 @@ public sealed class SleepInhibitor : ISleepInhibitor
             var command = CommandPrefix[0] == "caffeinate"
                 ? CommandPrefix
                 : CommandPrefix.Concat(["sleep", "infinity"]).ToArray();
-            myUnixInhibitor = ProcessControl.StartDetached(command);
+            myUnixInhibitor = StartDetached(command);
             if (myUnixInhibitor.HasExited)
             {
                 var exitCode = myUnixInhibitor.ExitCode;
@@ -83,7 +83,7 @@ public sealed class SleepInhibitor : ISleepInhibitor
             if (!inhibitor.HasExited)
             {
                 terminatedByOwner = true;
-                await ProcessControl.TerminateAsync(inhibitor);
+                await TerminateAsync(inhibitor);
             }
             if (!terminatedByOwner && inhibitor.ExitCode != 0)
                 throw new InvalidOperationException($"Sleep inhibitor exited with code {inhibitor.ExitCode}.");
@@ -140,11 +140,11 @@ public sealed class SleepInhibitor : ISleepInhibitor
         if (Environment.GetEnvironmentVariable("BLAXQUAD_PREVENT_SLEEP") == "0")
             return [];
 
-        if (OperatingSystem.IsMacOS() && ProcessControl.CommandExists("caffeinate"))
+        if (OperatingSystem.IsMacOS() && ExecutableLocator.Exists("caffeinate"))
             return ["caffeinate", "-dims"];
         if (OperatingSystem.IsLinux() &&
-            ProcessControl.CommandExists("systemd-inhibit") &&
-            ProcessControl.CommandExists("systemctl") &&
+            ExecutableLocator.Exists("systemd-inhibit") &&
+            ExecutableLocator.Exists("systemctl") &&
             LinuxSystemdRunning())
             return ["systemd-inhibit", "--what=sleep:idle", "--who=squad", "--why=squad is active"];
         return [];
@@ -154,6 +154,58 @@ public sealed class SleepInhibitor : ISleepInhibitor
     {
         var state = ProcessRunner.Run("systemctl", ["is-system-running"]).StdOut.Trim();
         return state is "running" or "degraded";
+    }
+
+    /// <summary>Starts a detached child process owned and terminated only by this sleep inhibitor.</summary>
+    private static System.Diagnostics.Process StartDetached(IReadOnlyList<string> command, string? stdOutErrFile = null)
+    {
+        if (command.Count == 0)
+            throw new ArgumentException("Command must not be empty.", nameof(command));
+
+        var psi = new ProcessStartInfo(command[0])
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = stdOutErrFile is not null,
+            RedirectStandardError = stdOutErrFile is not null,
+        };
+        foreach (var argument in command.Skip(1))
+            psi.ArgumentList.Add(argument);
+
+        var process = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{command[0]}'.");
+        if (stdOutErrFile is not null)
+            _ = CaptureOutputAsync(process, stdOutErrFile);
+        return process;
+    }
+
+    private static async Task TerminateAsync(System.Diagnostics.Process process)
+    {
+        if (!process.HasExited)
+            process.Kill(entireProcessTree: true);
+        await process.WaitForExitAsync();
+    }
+
+    private static async Task CaptureOutputAsync(System.Diagnostics.Process process, string outputFile)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+            await using var writer = new StreamWriter(new FileStream(outputFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
+            var synchronizedWriter = TextWriter.Synchronized(writer);
+            await Task.WhenAll(
+                PumpOutputAsync(process.StandardOutput, synchronizedWriter),
+                PumpOutputAsync(process.StandardError, synchronizedWriter));
+        }
+        catch
+        {
+            // Detached process output capture must not terminate its owner.
+        }
+    }
+
+    private static async Task PumpOutputAsync(StreamReader reader, TextWriter writer)
+    {
+        while (await reader.ReadLineAsync() is { } line)
+            await writer.WriteLineAsync(line);
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]

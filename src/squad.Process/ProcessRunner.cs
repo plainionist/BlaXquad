@@ -43,4 +43,61 @@ public static class ProcessRunner
         }
         return result;
     }
+
+    /// <summary>Asynchronous, cancellable counterpart of <see cref="Run"/>.</summary>
+    public static async Task<ProcessResult> RunAsync(
+        string fileName,
+        IEnumerable<string> args,
+        string? workingDirectory = null,
+        IReadOnlyDictionary<string, string>? environment = null,
+        CancellationToken cancellationToken = default)
+    {
+        var psi = new ProcessStartInfo(fileName)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (var argument in args)
+            psi.ArgumentList.Add(argument);
+        if (workingDirectory is not null)
+            psi.WorkingDirectory = workingDirectory;
+        if (environment is not null)
+            foreach (var (key, value) in environment)
+                psi.Environment[key] = value;
+
+        using var process = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{fileName}'.");
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+            throw;
+        }
+        return new ProcessResult(process.ExitCode, await stdout, await stderr);
+    }
+
+    /// <summary>Asynchronous, cancellable counterpart of <see cref="RunChecked"/>.</summary>
+    public static async Task<ProcessResult> RunCheckedAsync(
+        string fileName,
+        IEnumerable<string> args,
+        string? workingDirectory = null,
+        IReadOnlyDictionary<string, string>? environment = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(fileName, args, workingDirectory, environment, cancellationToken);
+        if (result.ExitCode != 0)
+        {
+            var rendered = string.Join(" ", new[] { fileName }.Concat(args));
+            var detail = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
+            throw new InvalidOperationException($"Command failed ({result.ExitCode}): {rendered}\n{detail}".TrimEnd());
+        }
+        return result;
+    }
 }
