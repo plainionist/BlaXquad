@@ -1,7 +1,7 @@
 using global::squad.AgentProvider.Abstractions;
-namespace squad.Core;
+namespace squadHQ.Commands;
 
-public sealed class SessionRegistry
+internal sealed class SessionRegistry
 {
     private readonly Dictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
     private bool myStopping;

@@ -41,8 +41,36 @@ public sealed class SquadApplication : IAsyncDisposable
         Action<AgentEvent>? eventSink = null,
         SquadViewModel? viewModel = null,
         IHostLease? hostLease = null,
-        Func<CancellationToken, Task>? postLockPreparation = null,
-        SessionRegistry? sessionRegistry = null)
+        Func<CancellationToken, Task>? postLockPreparation = null)
+        : this(
+            ctx,
+            workspacePreparer,
+            agentBackend,
+            handoffPump,
+            windowHost,
+            sleepInhibitor,
+            new SessionRegistry(),
+            eventSink,
+            viewModel,
+            hostLease,
+            postLockPreparation)
+    {
+    }
+
+    // Internal composition seam: lets headquarters and test support share one SessionRegistry instance between
+    // SquadApplication and SessionRoleNotifier without exposing the host-lifecycle type on the public constructor.
+    internal SquadApplication(
+        Ctx ctx,
+        WorkspacePreparer workspacePreparer,
+        IAgentBackend agentBackend,
+        IHandoffPump handoffPump,
+        IWindowHost windowHost,
+        ISleepInhibitor sleepInhibitor,
+        SessionRegistry sessionRegistry,
+        Action<AgentEvent>? eventSink = null,
+        SquadViewModel? viewModel = null,
+        IHostLease? hostLease = null,
+        Func<CancellationToken, Task>? postLockPreparation = null)
     {
         myCtx = ctx;
         myWorkspacePreparer = workspacePreparer;
@@ -54,7 +82,7 @@ public sealed class SquadApplication : IAsyncDisposable
         myHostLease = hostLease;
         myEventSink = eventSink ?? (_ => { });
         myPostLockPreparation = postLockPreparation;
-        mySessionRegistry = sessionRegistry ?? new SessionRegistry();
+        mySessionRegistry = sessionRegistry;
     }
 
     public IReadOnlyDictionary<string, IAgentSession> Sessions => mySessions;

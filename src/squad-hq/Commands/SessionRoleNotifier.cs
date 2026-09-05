@@ -9,7 +9,7 @@ public sealed class SessionRoleNotifier : IRoleNotifier
     private readonly SessionRegistry mySessions;
     private readonly SquadViewModel myViewModel;
 
-    public SessionRoleNotifier(SessionRegistry sessions, SquadViewModel viewModel)
+    internal SessionRoleNotifier(SessionRegistry sessions, SquadViewModel viewModel)
     {
         mySessions = sessions;
         myViewModel = viewModel;

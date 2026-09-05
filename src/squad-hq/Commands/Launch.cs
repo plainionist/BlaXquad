@@ -228,6 +228,7 @@ static class Launch
                     handoffPump,
                     runtime.WindowHost,
                     runtime.SleepInhibitor,
+                    sessionRegistry,
                     _ => { },
                     viewModel,
                     hostLease: hostLease,
@@ -241,8 +242,7 @@ static class Launch
                         cancellationToken.ThrowIfCancellationRequested();
                         PrepareContext(context);
                         await runtime.PrepareAsync(cancellationToken);
-                    },
-                    sessionRegistry);
+                    });
                 hostLease = null;
                 try
                 {

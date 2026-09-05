@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="squad.Specs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj"
