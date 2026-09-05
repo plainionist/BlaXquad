@@ -336,6 +336,13 @@ cleanup-failure scenarios pass without altered ordering or exception semantics.
 
 ### Slice 9: Reduce headquarters to composition and enforce the graph
 
+**Reviewer findings on cb99b692c3 (changes requested)**
+
+- **Medium** — `docs/manual/glossary.md`
+  - **Violated behavior:** Slice 9 item 8 requires updating the architecture feature, glossary, and supported architecture documentation to describe the final ownership model.
+  - **Root cause:** The slice updated `Architecture.feature` and the architecture SVG paths, but `glossary.md` is unchanged. The UI protocol entry still describes the boundary as Photino-host/Vue, which no longer matches `squad.Ui.Protocol` versus `squad.Photino` ownership.
+  - **Required outcome:** Update the glossary so it describes the final ownership model (at least that the versioned UI protocol is owned by `squad.Ui.Protocol` and Photino is only the native window adapter). Do not change production behavior.
+
 1. Leave `Program`, `Launch`, runtime-mode selection, backend-context construction, `Shutdown`, and `WaitForAgent` in
    `squad-hq`.
 2. Remove stale source files, project references, namespace imports, publish artifacts, and friend declarations from
