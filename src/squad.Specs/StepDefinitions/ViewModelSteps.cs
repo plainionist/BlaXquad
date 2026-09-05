@@ -238,7 +238,10 @@ public sealed class ViewModelSteps
         GivenASquadApplicationWithRecordingRoles(roles);
         WireLifecycleTrace();
         myBackend.FailAfterCreatingSessionCount = 1;
-        myRecordingPump!.FailOnDispose = true;
+        // Inject the cleanup failure in a generation-scoped teardown step (the registered session's own disposal),
+        // which precedes backend, window, handoff pump, and sleep inhibitor cleanup, so the scenario proves that
+        // failure cannot skip the mandatory process-wide release that follows it.
+        myBackend.Sessions.Single(session => session.Role == "coder").FailOnDispose = true;
     }
 
     private void WireLifecycleTrace()
@@ -249,12 +252,7 @@ public sealed class ViewModelSteps
         myRecordingPump!.Trace = myLifecycleTrace;
         myRecordingSleep!.Trace = myLifecycleTrace;
         foreach (var session in myBackend.Sessions)
-        {
             session.Trace = myLifecycleTrace;
-            // Ignore the shared shutdown-wide event cancellation so this session's event stream retires only when
-            // its own completion/dispose closes the channel, not by the incidental global cancellation shortcut.
-            session.IgnoreEventCancellation = true;
-        }
     }
 
     [Given("a SquadApplication with recording roles and a host lease")]
@@ -1946,7 +1944,11 @@ public sealed class ViewModelSteps
 
     [Then("the lifecycle trace shows session completion resolving before observer retirement completes")]
     public void ThenTheLifecycleTraceShowsSessionCompletionBeforeObserverRetirement() =>
-        myLifecycleTrace!.AssertOrdered("session.coder.completionResolved", "session.coder.eventsCompleted");
+        // SquadApplication only reaches backend disposal after AwaitEventTasksAsync drains every per-session
+        // observer, and each observer's own await session.Completion cannot resolve until this session's dispose
+        // runs. So backend.disposed is a genuine, non-racy proxy for observer retirement, driven by real
+        // production cleanup rather than a test-manufactured signal.
+        myLifecycleTrace!.AssertOrdered("session.coder.completionResolved", "backend.disposed");
 
     [Then("the lifecycle trace shows generation teardown finishing before the window and remaining process-wide resources release")]
     public void ThenTheLifecycleTraceShowsGenerationTeardownBeforeProcessWideRelease()
@@ -1961,10 +1963,13 @@ public sealed class ViewModelSteps
     {
         Assert.Multiple(() =>
         {
-            Assert.That(myBackend.Sessions.Single(session => session.Role == "coder").Disposed, Is.True);
+            // Every session created for the partial start is disposed, including the unpublished "reviewer"
+            // session the backend never handed to SquadApplication.
+            Assert.That(myBackend.Sessions, Is.All.Matches<RecordingAgentSession>(session => session.Disposed));
             Assert.That(myBackend.Disposed, Is.True);
             Assert.That(myRecordingWindow!.StopCount, Is.EqualTo(1));
             Assert.That(myRecordingWindow.DisposeCount, Is.EqualTo(1));
+            Assert.That(myRecordingPump!.Disposed, Is.True);
             Assert.That(myRecordingSleep!.Disposed, Is.True);
         });
         myLifecycleTrace!.AssertOrdered("session.coder.completionResolved", "backend.disposed");

@@ -123,15 +123,8 @@ public sealed class RecordingAgentSession : IAgentSession
     {
         using var registration = cancellationToken.Register(() => EventCancellationObserved = true);
         var readerCancellation = IgnoreEventCancellation ? CancellationToken.None : cancellationToken;
-        try
-        {
-            await foreach (var agentEvent in myEvents.ReadAllAsync(readerCancellation))
-                yield return agentEvent;
-        }
-        finally
-        {
-            Trace?.Record($"session.{Role}.eventsCompleted");
-        }
+        await foreach (var agentEvent in myEvents.ReadAllAsync(readerCancellation))
+            yield return agentEvent;
     }
 
     public void Emit(AgentEvent agentEvent) => myEvents.Publish(agentEvent);

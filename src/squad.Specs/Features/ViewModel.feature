@@ -334,7 +334,7 @@ Feature: Squad ViewModel
   Scenario: Partial-start failure rolls back through generation and process-wide cleanup
     Given a SquadApplication with recording roles "coder,reviewer" and a lifecycle trace whose backend fails during startup
     When the application lifecycle runs
-    Then the application lifecycle contains "recording backend failed after creating sessions" and "recording handoff pump disposal failed"
+    Then the application lifecycle contains "recording backend failed after creating sessions" and "recording session disposal failed"
     And the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup failure
 
   Scenario: Shutdown already requested prevents startup work
