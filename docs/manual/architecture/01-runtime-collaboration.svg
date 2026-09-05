@@ -59,7 +59,7 @@
   <text x="58" y="696" class="node-subtitle">short-lived squad-hq processes</text>
   <text x="58" y="720" class="body">CLI: shutdown | wait-for-agent</text>
   <text x="58" y="741" class="body">wire: shutdown | agent-status | ping</text>
-  <text x="58" y="767" class="path">src/squad-hq/Commands/HostControlClient.cs</text>
+  <text x="58" y="767" class="path">src/squad.Host.Control/HostControlClient.cs</text>
 
   <rect x="448" y="162" width="308" height="176" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
   <text x="472" y="196" class="node-title">Composition + outer lifecycle</text>
@@ -67,7 +67,7 @@
   <text x="472" y="250" class="body">Acquires exclusive project ownership, wires</text>
   <text x="472" y="271" class="body">all components, orders startup and cleanup,</text>
   <text x="472" y="292" class="body">and races close, shutdown, and failures.</text>
-  <text x="472" y="320" class="path">src/squad-hq/Commands/</text>
+  <text x="472" y="320" class="path">src/squad-hq/Commands/Launch.cs; src/squad.Host.Runtime/SquadApplication.cs; src/squad.Host.Control/HostLease.cs</text>
 
   <rect x="786" y="162" width="310" height="176" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
   <text x="810" y="196" class="node-title">Lifecycle + session generation</text>
@@ -75,7 +75,7 @@
   <text x="810" y="250" class="body">Owns phase, admission, generation identity,</text>
   <text x="810" y="271" class="body">role-to-session catalog, and one event observer</text>
   <text x="810" y="292" class="body">per live session.</text>
-  <text x="810" y="320" class="path">src/squad-hq/Commands/</text>
+  <text x="810" y="320" class="path">src/squad.Host.Runtime/</text>
 
   <rect x="1126" y="162" width="234" height="176" rx="18" fill="#123b36" stroke="#34d399" stroke-width="2"/>
   <text x="1150" y="196" class="node-title">Copilot adapter</text>
@@ -116,7 +116,7 @@
   <text x="472" y="776" class="body">Validates topology; creates/resets worktrees;</text>
   <text x="472" y="797" class="body">links shared paths; prepares handoff folders.</text>
   <text x="472" y="830" class="path">src/squad.Configuration/</text>
-  <text x="472" y="848" class="path">src/squad-hq/Commands/WorkspacePreparer.cs</text>
+  <text x="472" y="848" class="path">src/squad.Workspaces/WorkspacePreparer.cs</text>
 
   <rect x="786" y="688" width="310" height="166" rx="18" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
   <text x="810" y="723" class="node-title">Per-role transcript state</text>

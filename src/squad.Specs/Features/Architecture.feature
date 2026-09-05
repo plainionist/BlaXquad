@@ -63,3 +63,9 @@ Feature: Runtime assembly boundaries
 
   Scenario: Installers declare supported package targets
     Then the installers declare every supported runtime identifier
+
+  Scenario: The complete project graph enforces the target architecture
+    Then no library references squad or squad-hq
+    And only headquarters references the copilot sdk and photino adapters
+    And GitHub.Copilot.SDK is referenced only by the copilot sdk adapter and Photino.NET only by the photino adapter
+    And the complete project reference graph is acyclic

@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
-using squadHQ.Commands;
 using squad.Host.Control;
 using squad.Specs.Support;
 

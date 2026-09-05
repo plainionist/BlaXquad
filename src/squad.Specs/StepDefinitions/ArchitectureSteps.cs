@@ -16,6 +16,7 @@ using squad.Workspaces;
 using squad.Host.Control;
 using squad.Host.Runtime;
 using System.Reflection;
+using System.Xml.Linq;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -730,4 +731,106 @@ public sealed class ArchitectureSteps
             .Where(name => name?.StartsWith("squad", StringComparison.Ordinal) == true)
             .Select(name => name!)
             .ToArray();
+
+    [Then("no library references squad or squad-hq")]
+    public void ThenNoLibraryReferencesSquadOrSquadHq()
+    {
+        var graph = LoadProjectReferenceGraph();
+        var libraries = graph.Keys.Where(name => name is not ("squad" or "squad-hq" or "squad.Specs"));
+
+        Assert.Multiple(() =>
+        {
+            foreach (var library in libraries)
+            {
+                Assert.That(graph[library], Does.Not.Contain("squad"), $"{library} must not reference the squad executable.");
+                Assert.That(graph[library], Does.Not.Contain("squad-hq"), $"{library} must not reference the squad-hq executable.");
+            }
+        });
+    }
+
+    [Then("only headquarters references the copilot sdk and photino adapters")]
+    public void ThenOnlyHeadquartersReferencesTheCopilotSdkAndPhotinoAdapters()
+    {
+        var graph = LoadProjectReferenceGraph();
+        var unexpectedReferrers = graph
+            .Where(entry => entry.Key != "squad-hq")
+            .Where(entry => entry.Value.Contains("squad.CopilotSdk") || entry.Value.Contains("squad.Photino"))
+            .Select(entry => entry.Key)
+            .ToArray();
+
+        Assert.That(unexpectedReferrers, Is.Empty,
+            $"Only squad-hq should reference the concrete provider and window adapters, but found: {string.Join(", ", unexpectedReferrers)}.");
+    }
+
+    [Then("GitHub.Copilot.SDK is referenced only by the copilot sdk adapter and Photino.NET only by the photino adapter")]
+    public void ThenTechnologyPackagesAreScopedToTheirAdapters()
+    {
+        var copilotSdkReferrers = new List<string>();
+        var photinoReferrers = new List<string>();
+
+        foreach (var path in ProjectFilePaths())
+        {
+            var content = File.ReadAllText(path);
+            var projectName = Path.GetFileNameWithoutExtension(path);
+            if (content.Contains("PackageReference Include=\"GitHub.Copilot.SDK\"", StringComparison.Ordinal))
+                copilotSdkReferrers.Add(projectName);
+            if (content.Contains("PackageReference Include=\"Photino.NET\"", StringComparison.Ordinal))
+                photinoReferrers.Add(projectName);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(copilotSdkReferrers, Is.EqualTo(new[] { "squad.CopilotSdk" }));
+            Assert.That(photinoReferrers, Is.EqualTo(new[] { "squad.Photino" }));
+        });
+    }
+
+    [Then("the complete project reference graph is acyclic")]
+    public void ThenTheCompleteProjectReferenceGraphIsAcyclic()
+    {
+        var graph = LoadProjectReferenceGraph();
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        void Visit(string project, List<string> path)
+        {
+            if (visited.Contains(project))
+                return;
+            if (!visiting.Add(project))
+                Assert.Fail($"Cycle detected in project reference graph: {string.Join(" -> ", path)} -> {project}");
+
+            path.Add(project);
+            foreach (var reference in graph.GetValueOrDefault(project, []))
+                Visit(reference, path);
+            path.RemoveAt(path.Count - 1);
+
+            visiting.Remove(project);
+            visited.Add(project);
+        }
+
+        foreach (var project in graph.Keys)
+            Visit(project, []);
+    }
+
+    private IEnumerable<string> ProjectFilePaths() =>
+        Directory.EnumerateFiles(Path.Combine(myWorkspace.RepositoryRootPath, "src"), "*.csproj", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
+
+    private Dictionary<string, string[]> LoadProjectReferenceGraph()
+    {
+        var graph = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        foreach (var path in ProjectFilePaths())
+        {
+            var projectName = Path.GetFileNameWithoutExtension(path);
+            var references = XDocument.Load(path)
+                .Descendants("ProjectReference")
+                .Select(element => element.Attribute("Include")?.Value)
+                .Where(include => include is not null)
+                .Select(include => Path.GetFileNameWithoutExtension(include!))
+                .ToArray();
+            graph[projectName] = references;
+        }
+        return graph;
+    }
 }

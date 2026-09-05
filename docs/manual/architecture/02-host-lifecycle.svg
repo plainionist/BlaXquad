@@ -170,5 +170,5 @@
   <text x="1432" y="1101" class="note">Primary and cleanup failures are aggregated;</text>
   <text x="1432" y="1122" class="note">a partial startup still unwinds in this order.</text>
 
-  <text x="110" y="1172" class="lane-path">Primary navigation: src/squad-hq/Commands/SquadApplication.cs, SquadRuntimeController.cs, SessionRegistry.cs, SessionGeneration.cs; src/squad.CopilotSdk/CopilotSdkAgentRuntime.cs</text>
+  <text x="110" y="1172" class="lane-path">Primary navigation: src/squad.Host.Runtime/SquadApplication.cs, SquadRuntimeController.cs, SessionRegistry.cs, SessionGeneration.cs; src/squad.CopilotSdk/CopilotSdkAgentRuntime.cs</text>
 </svg>
