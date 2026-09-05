@@ -21,8 +21,9 @@ Feature: Runtime assembly boundaries
     And the photino adapter depends on the UI and hosting abstractions but not directly on the agent provider or copilot sdk adapter
     And the agent provider and hosting abstractions do not depend on presentation or provider adapters
 
-  Scenario: The current merged handoff assembly dependency is characterized
-    Then the current handoff assembly depends on exactly agent configuration and process
+  Scenario: Handoff delivery is isolated in its own assembly
+    Then the handoff queue assembly depends only on process
+    And the handoff delivery assembly depends only on the handoff queue and agent configuration
     And the application assembly no longer depends on agent configuration or handoff contracts
 
   Scenario: Transcript state is isolated in its own assembly

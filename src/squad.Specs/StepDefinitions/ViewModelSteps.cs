@@ -5,7 +5,7 @@ using global::squad.Process;
 using global::squad.Configuration;
 using global::squad.CopilotSdk;
 using global::squad.Application;
-using global::squad.Handoffs;
+using global::squad.Handoffs.Delivery;
 using global::squad.Transcripts;
 using global::squad.Photino;
 using global::squad.Ui.Abstractions;

@@ -4,6 +4,7 @@ using global::squad.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Application;
 using global::squad.Handoffs;
+using global::squad.Handoffs.Delivery;
 using global::squad.Transcripts;
 using global::squad.CopilotSdk;
 using global::squad.Hosting.Abstractions;
@@ -314,8 +315,16 @@ public sealed class ArchitectureSteps
         });
     }
 
-    [Then("the current handoff assembly depends on exactly agent configuration and process")]
-    public void ThenTheCurrentHandoffAssemblyDependsOnExactlyAgentConfigurationAndProcess()
+    [Then("the handoff queue assembly depends only on process")]
+    public void ThenTheHandoffQueueAssemblyDependsOnlyOnProcess()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(HandoffQueue).Assembly);
+
+        Assert.That(references, Is.EquivalentTo(new[] { "squad.Process" }));
+    }
+
+    [Then("the handoff delivery assembly depends only on the handoff queue and agent configuration")]
+    public void ThenTheHandoffDeliveryAssemblyDependsOnlyOnTheHandoffQueueAndAgentConfiguration()
     {
         var references = ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly);
 
@@ -324,7 +333,7 @@ public sealed class ArchitectureSteps
             Is.EquivalentTo(new[]
             {
                 "squad.Configuration",
-                "squad.Process",
+                "squad.Handoffs",
             }));
     }
 
@@ -400,6 +409,7 @@ public sealed class ArchitectureSteps
         {
             Assert.That(headquartersReferences, Does.Contain("squad.Application"));
             Assert.That(headquartersReferences, Does.Contain("squad.Handoffs"));
+            Assert.That(headquartersReferences, Does.Contain("squad.Handoffs.Delivery"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly), Does.Not.Contain("squad-hq"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(RoleTranscriptState).Assembly), Does.Not.Contain("squad-hq"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly), Does.Not.Contain("squad-hq"));
@@ -444,9 +454,9 @@ public sealed class ArchitectureSteps
             {
                 Assert.That(applicationTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Application.");
                 Assert.That(
-                    handoffAssembly.GetType($"squad.Handoffs.{typeName}"),
+                    handoffAssembly.GetType($"squad.Handoffs.Delivery.{typeName}"),
                     Is.Not.Null,
-                    $"{typeName} should be defined in squad.Handoffs.");
+                    $"{typeName} should be defined in squad.Handoffs.Delivery.");
             }
         });
     }
