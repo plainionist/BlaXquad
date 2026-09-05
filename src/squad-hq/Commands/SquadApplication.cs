@@ -1,7 +1,7 @@
 using global::squad.Hosting.Abstractions;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Core;
+using global::squad.Application;
 using global::squad.Handoffs;
 using System.Runtime.ExceptionServices;
 

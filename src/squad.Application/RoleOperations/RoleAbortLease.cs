@@ -1,4 +1,4 @@
-namespace squad.Core.RoleOperations;
+namespace squad.Application.RoleOperations;
 
 /// <summary>
 /// Held by the caller that begins a role abort (the "leader"). Concurrent callers observe an in-flight abort

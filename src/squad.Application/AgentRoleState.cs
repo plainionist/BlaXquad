@@ -1,7 +1,7 @@
 using global::squad.Transcripts;
 using global::squad.Ui.Abstractions;
 
-namespace squad.Core;
+namespace squad.Application;
 
 public sealed class AgentRoleState
 {

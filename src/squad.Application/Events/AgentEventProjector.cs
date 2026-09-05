@@ -1,10 +1,10 @@
 using global::squad.AgentProvider.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Core.Interactions;
+using global::squad.Application.Interactions;
 using global::squad.Ui.Abstractions;
 using System.Text.Json;
 
-namespace squad.Core.Events;
+namespace squad.Application.Events;
 
 /// <summary>
 /// Projects a provider <see cref="AgentEvent"/> onto an <see cref="AgentRoleState"/> and its transcript.

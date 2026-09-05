@@ -3,7 +3,7 @@
   <Project Path="src/squad.Configuration/squad.Configuration.csproj" />
   <Project Path="src/squad.Handoff/squad.Handoff.csproj" />
   <Project Path="src/squad.Process/squad.Process.csproj" />
-  <Project Path="src/squad.Core/squad.Core.csproj" />
+  <Project Path="src/squad.Application/squad.Application.csproj" />
   <Project Path="src/squad.Handoffs/squad.Handoffs.csproj" />
   <Project Path="src/squad.Transcripts/squad.Transcripts.csproj" />
   <Project Path="src/squad.Photino/squad.Photino.csproj" />

@@ -1,4 +1,4 @@
-namespace squad.Core;
+namespace squad.Application;
 
 internal sealed record AgentRoleSnapshot(
     string Role,

@@ -1,6 +1,6 @@
 using global::squad.Specs.Support;
 using global::squad.Configuration;
-using global::squad.Core;
+using global::squad.Application;
 using global::squad.Handoffs;
 using System.Collections.Concurrent;
 

@@ -4,7 +4,7 @@ using global::squad.AgentProvider.Abstractions.Agents;
 using global::squad.Process;
 using global::squad.Configuration;
 using global::squad.CopilotSdk;
-using global::squad.Core;
+using global::squad.Application;
 using global::squad.Handoffs;
 using global::squad.Transcripts;
 using global::squad.Photino;

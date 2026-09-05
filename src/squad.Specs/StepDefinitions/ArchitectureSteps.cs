@@ -3,7 +3,7 @@ using global::squad.Configuration;
 using global::squad.Handoff;
 using global::squad.Process;
 using global::squad.AgentProvider.Abstractions;
-using global::squad.Core;
+using global::squad.Application;
 using global::squad.Handoffs;
 using global::squad.Transcripts;
 using global::squad.CopilotSdk;
@@ -24,8 +24,8 @@ public sealed class ArchitectureSteps
         myWorkspace = workspace;
     }
 
-    [Then("the shared core assembly has no technology package references")]
-    public void ThenTheSharedCoreAssemblyHasNoTechnologyPackageReferences()
+    [Then("the application assembly has no technology package references")]
+    public void ThenTheApplicationAssemblyHasNoTechnologyPackageReferences()
     {
         var references = typeof(SquadViewModel).Assembly
             .GetReferencedAssemblies()
@@ -36,10 +36,10 @@ public sealed class ArchitectureSteps
         Assert.That(references, Does.Not.Contain("Photino.NET"));
     }
 
-    [Then("technology implementation files are outside the core project")]
-    public void ThenTechnologyImplementationFilesAreOutsideTheCoreProject()
+    [Then("technology implementation files are outside the application project")]
+    public void ThenTechnologyImplementationFilesAreOutsideTheApplicationProject()
     {
-        var coreDirectory = Path.Combine(myWorkspace.RepositoryRootPath, "src", "squad.Core");
+        var applicationDirectory = Path.Combine(myWorkspace.RepositoryRootPath, "src", "squad.Application");
         var forbiddenFiles = new[]
         {
             "CopilotSdkBackend.cs",
@@ -53,7 +53,7 @@ public sealed class ArchitectureSteps
         };
 
         var present = forbiddenFiles
-            .Where(file => File.Exists(Path.Combine(coreDirectory, file)))
+            .Where(file => File.Exists(Path.Combine(applicationDirectory, file)))
             .ToArray();
         Assert.That(present, Is.Empty);
     }
@@ -246,8 +246,8 @@ public sealed class ArchitectureSteps
         });
     }
 
-    [Then("the application core depends on the agent provider and UI abstractions but not on hosting or presentation adapters")]
-    public void ThenTheApplicationCoreDependsOnlyOnAllowedContracts()
+    [Then("the application assembly depends on the agent provider and UI abstractions but not on hosting or presentation adapters")]
+    public void ThenTheApplicationAssemblyDependsOnlyOnAllowedContracts()
     {
         var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
 
@@ -271,7 +271,7 @@ public sealed class ArchitectureSteps
             Assert.That(references, Does.Contain("squad.AgentProvider.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Ui.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
-            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(references, Does.Not.Contain("squad.Photino"));
         });
     }
@@ -288,7 +288,7 @@ public sealed class ArchitectureSteps
             Assert.That(references, Does.Contain("squad.Ui.Abstractions"));
             Assert.That(references, Does.Contain("squad.Hosting.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
-            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(photinoProject, Does.Not.Contain("squad.AgentProvider.Abstractions"));
         });
     }
@@ -315,7 +315,7 @@ public sealed class ArchitectureSteps
         {
             Assert.That(references, Does.Contain("squad.Configuration"));
             Assert.That(references, Does.Contain("squad.Handoff"));
-            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Ui.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
@@ -324,8 +324,8 @@ public sealed class ArchitectureSteps
         });
     }
 
-    [Then("the application core no longer depends on agent configuration or handoff contracts")]
-    public void ThenTheApplicationCoreNoLongerDependsOnAgentConfigurationOrHandoffContracts()
+    [Then("the application assembly no longer depends on agent configuration or handoff contracts")]
+    public void ThenTheApplicationAssemblyNoLongerDependsOnAgentConfigurationOrHandoffContracts()
     {
         var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
 
@@ -344,7 +344,7 @@ public sealed class ArchitectureSteps
         Assert.Multiple(() =>
         {
             Assert.That(references, Does.Contain("squad.Ui.Abstractions"));
-            Assert.That(references, Does.Not.Contain("squad.Core"));
+            Assert.That(references, Does.Not.Contain("squad.Application"));
             Assert.That(references, Does.Not.Contain("squad.Handoffs"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Agent.Configuration"));
@@ -355,16 +355,16 @@ public sealed class ArchitectureSteps
         });
     }
 
-    [Then("the application core depends on the transcript assembly")]
-    public void ThenTheApplicationCoreDependsOnTheTranscriptAssembly()
+    [Then("the application assembly depends on the transcript assembly")]
+    public void ThenTheApplicationAssemblyDependsOnTheTranscriptAssembly()
     {
         var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
 
         Assert.That(references, Does.Contain("squad.Transcripts"));
     }
 
-    [Then("the application core depends on exactly the agent provider abstraction, the UI abstraction, and the transcript assembly")]
-    public void ThenTheApplicationCoreDependsOnExactlyTheAllowedAssemblies()
+    [Then("the application assembly depends on exactly the agent provider abstraction, the UI abstraction, and the transcript assembly")]
+    public void ThenTheApplicationAssemblyDependsOnExactlyTheAllowedAssemblies()
     {
         var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
 
@@ -376,27 +376,27 @@ public sealed class ArchitectureSteps
         }));
     }
 
-    [Then("the transcript and handoff assemblies do not depend on the application core")]
-    public void ThenTheTranscriptAndHandoffAssembliesDoNotDependOnTheApplicationCore()
+    [Then("the transcript and handoff assemblies do not depend on the application assembly")]
+    public void ThenTheTranscriptAndHandoffAssembliesDoNotDependOnTheApplicationAssembly()
     {
         var transcriptReferences = ReferencedSquadAssemblyNames(typeof(RoleTranscriptState).Assembly);
         var handoffReferences = ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly);
 
         Assert.Multiple(() =>
         {
-            Assert.That(transcriptReferences, Does.Not.Contain("squad.Core"));
-            Assert.That(handoffReferences, Does.Not.Contain("squad.Core"));
+            Assert.That(transcriptReferences, Does.Not.Contain("squad.Application"));
+            Assert.That(handoffReferences, Does.Not.Contain("squad.Application"));
         });
     }
 
-    [Then("headquarters composes the application core, transcript assembly, and handoff assembly without a reverse dependency")]
-    public void ThenHeadquartersComposesCoreModulesWithoutAReverseDependency()
+    [Then("headquarters composes the application assembly, transcript assembly, and handoff assembly without a reverse dependency")]
+    public void ThenHeadquartersComposesApplicationModulesWithoutAReverseDependency()
     {
         var headquartersReferences = ReferencedSquadAssemblyNames(Assembly.Load("squad-hq"));
 
         Assert.Multiple(() =>
         {
-            Assert.That(headquartersReferences, Does.Contain("squad.Core"));
+            Assert.That(headquartersReferences, Does.Contain("squad.Application"));
             Assert.That(headquartersReferences, Does.Contain("squad.Handoffs"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly), Does.Not.Contain("squad-hq"));
             Assert.That(ReferencedSquadAssemblyNames(typeof(RoleTranscriptState).Assembly), Does.Not.Contain("squad-hq"));
@@ -404,21 +404,21 @@ public sealed class ArchitectureSteps
         });
     }
 
-    [Then("role-operation, interaction, and event-projection coordinators are internal modules owned by the application core")]
-    public void ThenCoordinatorTypesAreInternalCoreModules()
+    [Then("role-operation, interaction, and event-projection coordinators are internal modules owned by the application assembly")]
+    public void ThenCoordinatorTypesAreInternalApplicationModules()
     {
-        var coreAssembly = typeof(SquadViewModel).Assembly;
+        var applicationAssembly = typeof(SquadViewModel).Assembly;
 
-        AssertInternalCoreType(coreAssembly, "squad.Core.RoleOperations.RoleOperationCoordinator");
-        AssertInternalCoreType(coreAssembly, "squad.Core.Interactions.PendingInteractionRegistry");
-        AssertInternalCoreType(coreAssembly, "squad.Core.Events.AgentEventProjector");
+        AssertInternalApplicationType(applicationAssembly, "squad.Application.RoleOperations.RoleOperationCoordinator");
+        AssertInternalApplicationType(applicationAssembly, "squad.Application.Interactions.PendingInteractionRegistry");
+        AssertInternalApplicationType(applicationAssembly, "squad.Application.Events.AgentEventProjector");
     }
 
     [Then("transcript and handoff implementation types are owned only by their extracted assemblies")]
     public void ThenTranscriptAndHandoffImplementationTypesAreOwnedOnlyByTheirExtractedAssemblies()
     {
-        var coreAssembly = typeof(SquadViewModel).Assembly;
-        var coreTypeNames = coreAssembly.GetTypes().Select(type => type.Name).ToHashSet(StringComparer.Ordinal);
+        var applicationAssembly = typeof(SquadViewModel).Assembly;
+        var applicationTypeNames = applicationAssembly.GetTypes().Select(type => type.Name).ToHashSet(StringComparer.Ordinal);
         var transcriptAssembly = typeof(RoleTranscriptState).Assembly;
         var handoffAssembly = typeof(InProcessHandoffPoller).Assembly;
 
@@ -432,7 +432,7 @@ public sealed class ArchitectureSteps
         {
             foreach (var typeName in transcriptImplementationTypes)
             {
-                Assert.That(coreTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Core.");
+                Assert.That(applicationTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Application.");
                 Assert.That(
                     transcriptAssembly.GetType($"squad.Transcripts.{typeName}"),
                     Is.Not.Null,
@@ -440,7 +440,7 @@ public sealed class ArchitectureSteps
             }
             foreach (var typeName in handoffImplementationTypes)
             {
-                Assert.That(coreTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Core.");
+                Assert.That(applicationTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Application.");
                 Assert.That(
                     handoffAssembly.GetType($"squad.Handoffs.{typeName}"),
                     Is.Not.Null,
@@ -449,10 +449,10 @@ public sealed class ArchitectureSteps
         });
     }
 
-    private static void AssertInternalCoreType(Assembly coreAssembly, string fullName)
+    private static void AssertInternalApplicationType(Assembly applicationAssembly, string fullName)
     {
-        var type = coreAssembly.GetType(fullName, throwOnError: false);
-        Assert.That(type, Is.Not.Null, $"{fullName} should be defined in {coreAssembly.GetName().Name}.");
+        var type = applicationAssembly.GetType(fullName, throwOnError: false);
+        Assert.That(type, Is.Not.Null, $"{fullName} should be defined in {applicationAssembly.GetName().Name}.");
         Assert.That(type!.IsPublic, Is.False, $"{fullName} should not be public.");
     }
 

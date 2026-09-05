@@ -1,8 +1,8 @@
 using global::squad.AgentProvider.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.Core.Events;
-using global::squad.Core.Interactions;
-using global::squad.Core.RoleOperations;
+using global::squad.Application.Events;
+using global::squad.Application.Interactions;
+using global::squad.Application.RoleOperations;
 using global::squad.Transcripts;
 using global::squad.Ui.Abstractions;
 using System.Collections.Concurrent;
@@ -10,7 +10,7 @@ using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading.Channels;
 
-namespace squad.Core;
+namespace squad.Application;
 
 public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 {

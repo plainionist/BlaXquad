@@ -29,7 +29,7 @@
               AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Photino\squad.Photino.csproj"
               AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
-    <ProjectReference Include="..\squad.Core\squad.Core.csproj"
+    <ProjectReference Include="..\squad.Application\squad.Application.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />

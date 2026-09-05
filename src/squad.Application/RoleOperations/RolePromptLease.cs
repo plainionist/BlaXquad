@@ -1,4 +1,4 @@
-namespace squad.Core.RoleOperations;
+namespace squad.Application.RoleOperations;
 
 /// <summary>
 /// Holds a role's prompt serialization slot until disposed. Prompts for the same role wait for one another in

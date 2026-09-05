@@ -1,6 +1,6 @@
 using global::squad.AgentProvider.Abstractions.Agents;
 
-namespace squad.Core.Interactions;
+namespace squad.Application.Interactions;
 
 /// <summary>
 /// Owns pending permission, input, and elicitation requests plus the protected transcript entry each one holds

@@ -1,4 +1,4 @@
-namespace squad.Core.RoleOperations;
+namespace squad.Application.RoleOperations;
 
 /// <summary>
 /// Owns per-role prompt and operation serialization, active-operation cancellation, invalidation, failed-role

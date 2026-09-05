@@ -1,4 +1,4 @@
-namespace squad.Core.RoleOperations;
+namespace squad.Application.RoleOperations;
 
 /// <summary>
 /// Holds a role's operation serialization slot until disposed. Callers register the active operation's cancellation

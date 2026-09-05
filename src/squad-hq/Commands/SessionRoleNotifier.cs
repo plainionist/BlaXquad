@@ -1,4 +1,4 @@
-using global::squad.Core;
+using global::squad.Application;
 using global::squad.Handoffs;
 
 namespace squadHQ.Commands;
