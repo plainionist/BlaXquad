@@ -35,6 +35,7 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     {
         cancellationToken.ThrowIfCancellationRequested();
         RuntimeCreated = true;
+        Trace?.Record("backend.runtimeCreated");
         IAgentRuntime runtime = new RecordingAgentRuntime(
             mySessions,
             myEarlyEvents,
