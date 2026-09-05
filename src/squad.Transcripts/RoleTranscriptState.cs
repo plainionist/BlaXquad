@@ -1,6 +1,6 @@
 using global::squad.Ui.Abstractions;
 
-namespace squad.Core.Transcripts;
+namespace squad.Transcripts;
 
 /// <summary>
 /// Owns the retained transcript, streaming buffers, tool-call correlation, archive access, and retention policy for

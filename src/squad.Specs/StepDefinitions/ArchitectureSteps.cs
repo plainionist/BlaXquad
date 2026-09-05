@@ -5,7 +5,7 @@ using global::squad.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
 using global::squad.Core.Handoffs;
-using global::squad.Core.Transcripts;
+using global::squad.Transcripts;
 using global::squad.CopilotSdk;
 using global::squad.Hosting.Abstractions;
 using global::squad.Photino;
@@ -360,7 +360,7 @@ public sealed class ArchitectureSteps
     {
         var references = ReferencedSquadAssemblyNames(typeof(SquadViewModel).Assembly);
 
-        Assert.That(references, Does.Contain("squad.Core.Transcripts"));
+        Assert.That(references, Does.Contain("squad.Transcripts"));
     }
 
     [Then("the application core depends on exactly the agent provider abstraction, the UI abstraction, and the transcript assembly")]
@@ -372,7 +372,7 @@ public sealed class ArchitectureSteps
         {
             "squad.AgentProvider.Abstractions",
             "squad.Ui.Abstractions",
-            "squad.Core.Transcripts",
+            "squad.Transcripts",
         }));
     }
 
@@ -434,9 +434,9 @@ public sealed class ArchitectureSteps
             {
                 Assert.That(coreTypeNames, Does.Not.Contain(typeName), $"{typeName} should not be defined in squad.Core.");
                 Assert.That(
-                    transcriptAssembly.GetType($"squad.Core.Transcripts.{typeName}"),
+                    transcriptAssembly.GetType($"squad.Transcripts.{typeName}"),
                     Is.Not.Null,
-                    $"{typeName} should be defined in squad.Core.Transcripts.");
+                    $"{typeName} should be defined in squad.Transcripts.");
             }
             foreach (var typeName in handoffImplementationTypes)
             {

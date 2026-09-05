@@ -223,6 +223,31 @@ current role state.
 it is not yet the authoritative generation lifecycle described above. That
 lifecycle aggregate is deferred to `restart button.md`.
 
+## Assembly boundaries
+
+The application-domain state is split across a small set of assemblies with a
+single, non-cyclic dependency direction:
+
+- **`squad.Core`** owns the serialized application coordinator
+  (`SquadViewModel`), role/session status (`AgentRoleState`), session lookup
+  (`SessionRegistry`), and the internal `RoleOperations`, `Interactions`, and
+  `Events` modules that project provider events and admit commands at one
+  event-loop commit boundary. It depends only on the agent provider and UI
+  abstractions and on `squad.Transcripts`.
+- **`squad.Transcripts`** owns the transcript aggregate: ordering,
+  streaming, protection, retention, truncation, paging, and archive storage.
+  It depends only on `squad.Ui.Abstractions` and never calls back into
+  `squad.Core`.
+- **`squad.Core.Handoffs`** owns filesystem-backed handoff polling, recovery,
+  and delivery. It depends only on `squad.Configuration` and
+  `squad.Handoff`, and never references `squad.Core`; it invokes an
+  injected role-notification contract by recipient role name only.
+- **`squad-hq`** composes the process/runtime lifecycle: it references
+  `squad.Core` and `squad.Core.Handoffs` (and, transitively,
+  `squad.Transcripts`), hosts the `SessionRoleNotifier` adapter between
+  handoff delivery and `SessionRegistry`/`SquadViewModel`, and owns startup,
+  relaunch, and shutdown. Neither Core module references `squad-hq`.
+
 ## UI protocol
 
 The versioned JSON message boundary between the Photino host and Vue dashboard.
