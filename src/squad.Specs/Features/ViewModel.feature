@@ -243,6 +243,18 @@ Feature: Squad ViewModel
     And the application waits for window closure
     Then the recording application sessions are drained
 
+  Scenario: Healthy startup and shutdown follow generation lifecycle ownership order
+    Given a SquadApplication with recording roles "coder" and a lifecycle trace
+    When the application lifecycle reaches readiness
+    And the application window closes
+    And the application waits for window closure
+    Then the lifecycle trace shows the process-wide window starting before backend generation startup
+    And the lifecycle trace shows session registration completing before the window is told sessions started
+    And the lifecycle trace shows handoff recovery and production starting only after sessions are available
+    And the lifecycle trace shows shutdown stopping handoff production before retiring the backend generation
+    And the lifecycle trace shows session completion resolving before observer retirement completes
+    And the lifecycle trace shows generation teardown finishing before the window and remaining process-wide resources release
+
   Scenario: Late session events do not fail window shutdown
     Given a SquadApplication with a session that emits while shutting down
     When the application lifecycle reaches readiness
@@ -318,6 +330,12 @@ Feature: Squad ViewModel
     And the partial startup observer observed cancellation
     And the window host was stopped
     And the recording backend was disposed
+
+  Scenario: Partial-start failure rolls back through generation and process-wide cleanup
+    Given a SquadApplication with recording roles "coder,reviewer" and a lifecycle trace whose backend fails during startup
+    When the application lifecycle runs
+    Then the application lifecycle contains "recording backend failed after creating sessions" and "recording handoff pump disposal failed"
+    And the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup failure
 
   Scenario: Shutdown already requested prevents startup work
     Given a controllable SquadApplication with shutdown already requested

@@ -64,6 +64,7 @@ public sealed class ViewModelSteps
     private TranscriptAnnouncementJournal? myPausedTranscriptJournal;
     private long myInitialTranscriptHighWaterMark;
     private string? myArchivedReconstructionContent;
+    private LifecycleTrace? myLifecycleTrace;
 
     public ViewModelSteps(ScenarioWorkspace workspace)
     {
@@ -222,6 +223,38 @@ public sealed class ViewModelSteps
         var session = myBackend.Sessions.Single();
         session.IgnoreEventCancellation = true;
         session.OnDispose = () => session.Emit(new AgentStartedEvent(DateTimeOffset.UtcNow));
+    }
+
+    [Given("a SquadApplication with recording roles {string} and a lifecycle trace")]
+    public void GivenASquadApplicationWithRecordingRolesAndALifecycleTrace(string roles)
+    {
+        GivenASquadApplicationWithRecordingRoles(roles);
+        WireLifecycleTrace();
+    }
+
+    [Given("a SquadApplication with recording roles {string} and a lifecycle trace whose backend fails during startup")]
+    public void GivenASquadApplicationWithRecordingRolesAndALifecycleTraceWhoseBackendFailsDuringStartup(string roles)
+    {
+        GivenASquadApplicationWithRecordingRoles(roles);
+        WireLifecycleTrace();
+        myBackend.FailAfterCreatingSessionCount = 1;
+        myRecordingPump!.FailOnDispose = true;
+    }
+
+    private void WireLifecycleTrace()
+    {
+        myLifecycleTrace = new LifecycleTrace();
+        myRecordingWindow!.Trace = myLifecycleTrace;
+        myBackend.Trace = myLifecycleTrace;
+        myRecordingPump!.Trace = myLifecycleTrace;
+        myRecordingSleep!.Trace = myLifecycleTrace;
+        foreach (var session in myBackend.Sessions)
+        {
+            session.Trace = myLifecycleTrace;
+            // Ignore the shared shutdown-wide event cancellation so this session's event stream retires only when
+            // its own completion/dispose closes the channel, not by the incidental global cancellation shortcut.
+            session.IgnoreEventCancellation = true;
+        }
     }
 
     [Given("a SquadApplication with recording roles and a host lease")]
@@ -1891,6 +1924,52 @@ public sealed class ViewModelSteps
 
     [Then("the recording application sessions are drained")]
     public void ThenTheRecordingApplicationSessionsAreDrained() => Assert.That(myApplication!.Sessions, Is.Empty);
+
+    [Then("the lifecycle trace shows the process-wide window starting before backend generation startup")]
+    public void ThenTheLifecycleTraceShowsWindowBeforeBackendGenerationStartup() =>
+        myLifecycleTrace!.AssertOrdered("window.started", "backend.sessionRegistered:coder");
+
+    [Then("the lifecycle trace shows session registration completing before the window is told sessions started")]
+    public void ThenTheLifecycleTraceShowsSessionRegistrationBeforeSessionsStarted() =>
+        myLifecycleTrace!.AssertOrdered("backend.sessionRegistered:coder", "window.sessionsStarted");
+
+    [Then("the lifecycle trace shows handoff recovery and production starting only after sessions are available")]
+    public void ThenTheLifecycleTraceShowsHandoffAfterSessionsAvailable()
+    {
+        myLifecycleTrace!.AssertOrdered("window.sessionsStarted", "handoff.recovered");
+        myLifecycleTrace.AssertOrdered("handoff.recovered", "handoff.started");
+    }
+
+    [Then("the lifecycle trace shows shutdown stopping handoff production before retiring the backend generation")]
+    public void ThenTheLifecycleTraceShowsHandoffStopBeforeBackendRetirement() =>
+        myLifecycleTrace!.AssertOrdered("handoff.stopped", "backend.disposed");
+
+    [Then("the lifecycle trace shows session completion resolving before observer retirement completes")]
+    public void ThenTheLifecycleTraceShowsSessionCompletionBeforeObserverRetirement() =>
+        myLifecycleTrace!.AssertOrdered("session.coder.completionResolved", "session.coder.eventsCompleted");
+
+    [Then("the lifecycle trace shows generation teardown finishing before the window and remaining process-wide resources release")]
+    public void ThenTheLifecycleTraceShowsGenerationTeardownBeforeProcessWideRelease()
+    {
+        myLifecycleTrace!.AssertOrdered("backend.disposed", "window.stopped");
+        myLifecycleTrace.AssertOrdered("backend.disposed", "window.disposed");
+        myLifecycleTrace.AssertOrdered("backend.disposed", "sleepInhibitor.disposed");
+    }
+
+    [Then("the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup failure")]
+    public void ThenTheLifecycleTraceShowsCleanupCompletedDespiteFailure()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(myBackend.Sessions.Single(session => session.Role == "coder").Disposed, Is.True);
+            Assert.That(myBackend.Disposed, Is.True);
+            Assert.That(myRecordingWindow!.StopCount, Is.EqualTo(1));
+            Assert.That(myRecordingWindow.DisposeCount, Is.EqualTo(1));
+            Assert.That(myRecordingSleep!.Disposed, Is.True);
+        });
+        myLifecycleTrace!.AssertOrdered("session.coder.completionResolved", "backend.disposed");
+        myLifecycleTrace.AssertOrdered("backend.disposed", "window.stopped");
+    }
 
     [Then("the pending handoff wakes the registered recipient after terminal sessions start")]
     public void ThenThePendingHandoffWakesTheRegisteredRecipientAfterTerminalSessionsStart()

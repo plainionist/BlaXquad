@@ -13,10 +13,12 @@ public sealed class RecordingSleepInhibitor : ISleepInhibitor
     public bool Started { get; private set; }
     public bool Disposed { get; private set; }
     public Task StartEntered => myStartEntered.Task;
+    public LifecycleTrace? Trace { get; set; }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         Started = true;
+        Trace?.Record("sleepInhibitor.started");
         myStartEntered.TrySetResult();
         if (BlockStart)
         {
@@ -36,6 +38,7 @@ public sealed class RecordingSleepInhibitor : ISleepInhibitor
     public ValueTask DisposeAsync()
     {
         Disposed = true;
+        Trace?.Record("sleepInhibitor.disposed");
         return ValueTask.CompletedTask;
     }
 }

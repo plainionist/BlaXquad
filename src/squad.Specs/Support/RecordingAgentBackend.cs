@@ -29,6 +29,7 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     public int BlockBeforeSessionIndex { get; set; } = -1;
     public Task RegistrationBlocked => myRegistrationBlocked.Task;
     public Task Failure => myFailure.Task;
+    public LifecycleTrace? Trace { get; set; }
 
     public Task PrepareAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -47,6 +48,7 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
             if (myEarlyEvents.TryGetValue(session.Role, out var earlyEvent))
                 session.Emit(earlyEvent);
             await sessionStarted(session);
+            Trace?.Record($"backend.sessionRegistered:{session.Role}");
             myPublishedSessions.Add(session);
             if (myInitialInstructions.TryGetValue(session.Role, out var initialInstruction))
                 await session.SendAsync(initialInstruction, cancellationToken);
@@ -94,6 +96,7 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
                 failures.Add(exception);
             }
         }
+        Trace?.Record("backend.disposed");
         if (failures.Count > 0)
             throw new AggregateException(failures);
     }
