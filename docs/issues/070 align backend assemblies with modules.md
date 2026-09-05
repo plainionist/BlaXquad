@@ -300,6 +300,8 @@ readiness waits, timeouts, malformed requests, and idempotent shutdown remain un
 
 ### Slice 7: Establish a production host-runtime facade
 
+**Status: complete (50f69d454e)**
+
 1. Before moving files, introduce one public creation path that owns the shared `SessionRegistry` and
    `SessionRoleNotifier` rather than exposing either implementation.
 2. Let that creation path accept a handoff-pump factory shaped like
