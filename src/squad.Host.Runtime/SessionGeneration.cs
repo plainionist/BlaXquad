@@ -3,7 +3,7 @@ using squad.AgentProvider.Abstractions.Agents;
 using squad.Application;
 using System.Runtime.ExceptionServices;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 /// <summary>
 /// The sole owner of one backend generation's runtime handle, registered-session projection, event/completion

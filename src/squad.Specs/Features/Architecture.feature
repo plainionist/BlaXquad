@@ -38,6 +38,9 @@ Feature: Runtime assembly boundaries
     Then SquadApplication offers one production creation path that pairs the session registry with its notifier
     And SessionRegistry and SessionRoleNotifier remain internal
 
+  Scenario: Host runtime lifecycle is isolated in its own assembly
+    Then the host runtime assembly depends only on the agent provider abstraction, application, handoff delivery, hosting abstractions, and host control assemblies
+
   Scenario: Handoff delivery is isolated in its own assembly
     Then the handoff queue assembly depends only on process
     And the handoff delivery assembly depends only on the handoff queue and agent configuration

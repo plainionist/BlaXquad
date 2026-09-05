@@ -14,6 +14,7 @@ using squad.Ui.Protocol;
 using squadHQ.Commands;
 using squad.Workspaces;
 using squad.Host.Control;
+using squad.Host.Runtime;
 using System.Reflection;
 
 namespace squad.Specs.StepDefinitions;
@@ -426,8 +427,23 @@ public sealed class ArchitectureSteps
     public void ThenSessionRegistryAndSessionRoleNotifierRemainInternal()
     {
         var assembly = typeof(SquadApplication).Assembly;
-        AssertInternalApplicationType(assembly, "squadHQ.Commands.SessionRegistry");
-        AssertInternalApplicationType(assembly, "squadHQ.Commands.SessionRoleNotifier");
+        AssertInternalApplicationType(assembly, "squad.Host.Runtime.SessionRegistry");
+        AssertInternalApplicationType(assembly, "squad.Host.Runtime.SessionRoleNotifier");
+    }
+
+    [Then("the host runtime assembly depends only on the agent provider abstraction, application, handoff delivery, hosting abstractions, and host control assemblies")]
+    public void ThenTheHostRuntimeAssemblyDependsOnlyOnTheAllowedAssemblies()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(SquadApplication).Assembly);
+
+        Assert.That(references, Is.EquivalentTo(new[]
+        {
+            "squad.AgentProvider.Abstractions",
+            "squad.Application",
+            "squad.Handoffs.Delivery",
+            "squad.Hosting.Abstractions",
+            "squad.Host.Control",
+        }));
     }
 
     [Then("the agent provider and hosting abstractions do not depend on presentation or provider adapters")]

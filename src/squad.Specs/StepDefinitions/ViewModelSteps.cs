@@ -12,6 +12,7 @@ using squad.Ui.Abstractions;
 using squadHQ.Commands;
 using squad.Workspaces;
 using squad.Host.Control;
+using squad.Host.Runtime;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -216,7 +217,7 @@ public sealed class ViewModelSteps
         myRecordingPump = new RecordingHandoffPump();
         myRecordingSleep = new RecordingSleepInhibitor();
         myApplication = SquadApplication.Create(
-            SquadStartupPlan.ForWorkspace(ctx, new WorkspacePreparer(_ => { })),
+            SquadStartupPlanFactory.ForWorkspace(ctx, new WorkspacePreparer(_ => { })),
             myBackend,
             handoffPumpFactory: _ => myRecordingPump,
             myRecordingWindow,
@@ -303,7 +304,7 @@ public sealed class ViewModelSteps
         };
 
         myApplication = new SquadApplication(
-            SquadStartupPlan.ForWorkspace(
+            SquadStartupPlanFactory.ForWorkspace(
                 context,
                 new WorkspacePreparer(_ => { }),
                 prepareContextAsync: cancellationToken =>
@@ -329,7 +330,7 @@ public sealed class ViewModelSteps
     {
         GivenASquadApplicationWithRecordingRoles("coder");
         myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        myApplication = new SquadApplication(SquadStartupPlan.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), myBackend, myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
+        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), myBackend, myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
     }
 
     [When("the leased SquadApplication starts")]
@@ -367,7 +368,7 @@ public sealed class ViewModelSteps
         myPreparationGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         myPreparationCanceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         myApplication = new SquadApplication(
-            SquadStartupPlan.ForWorkspace(
+            SquadStartupPlanFactory.ForWorkspace(
                 myApplicationContext!,
                 new WorkspacePreparer(_ => { }),
                 prepareContextAsync: async cancellationToken =>
@@ -433,7 +434,7 @@ public sealed class ViewModelSteps
         GivenASquadApplicationWithRecordingRoles("coder");
         AttachHostLease();
         myApplication = new SquadApplication(
-            SquadStartupPlan.ForWorkspace(
+            SquadStartupPlanFactory.ForWorkspace(
                 myApplicationContext!,
                 new WorkspacePreparer(_ => { }),
                 prepareContextAsync: _ => throw new CliExitException(1, "recording CLI startup failure")),
@@ -489,7 +490,7 @@ public sealed class ViewModelSteps
 
         var viewModel = myApplication!.ViewModel;
         myApplication = new SquadApplication(
-            SquadStartupPlan.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
+            SquadStartupPlanFactory.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
             myBackend,
             myRecordingPump!,
             myRecordingWindow!,
@@ -2333,7 +2334,7 @@ public sealed class ViewModelSteps
     private void AttachHostLease()
     {
         myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        myApplication = new SquadApplication(SquadStartupPlan.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), myBackend, myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
+        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), myBackend, myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
     }
 
     private void ConfigureControllableApplication(bool blockStartup = false, bool useRealLease = false, bool faultServer = false)
@@ -2352,7 +2353,7 @@ public sealed class ViewModelSteps
             myFaultingHostLease = new FaultingHostLease(myApplicationLease);
         }
         myApplication = new SquadApplication(
-            SquadStartupPlan.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })),
+            SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })),
             myBackend,
             myRecordingPump,
             myRecordingWindow!,
@@ -2377,7 +2378,7 @@ public sealed class ViewModelSteps
             myRecordingWindow!.OnSessionsStarted = () => myBackend.Sessions.Single(session => session.Role == "reviewer").Fail("recording session failed");
 
         myApplication = SquadApplication.Create(
-            SquadStartupPlan.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
+            SquadStartupPlanFactory.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
             myBackend,
             handoffPumpFactory: notifier => myInProcessHandoffPump = new InProcessHandoffPoller(
                 roles,

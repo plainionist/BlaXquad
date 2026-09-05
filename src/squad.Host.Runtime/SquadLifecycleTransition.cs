@@ -1,4 +1,4 @@
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 /// <summary>
 /// An explicit handle for one phase transition owned by <see cref="SessionRegistry"/>. A successful <c>Begin*</c>

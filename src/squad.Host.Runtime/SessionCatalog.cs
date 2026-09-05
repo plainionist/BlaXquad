@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 /// <summary>
 /// The session-by-role catalog for one <see cref="SessionRegistry"/> generation. Not itself thread-safe - every

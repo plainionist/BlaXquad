@@ -6,7 +6,7 @@ using squad.Handoffs.Delivery;
 using squad.Host.Control;
 using System.Runtime.ExceptionServices;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 public sealed class SquadApplication : IAsyncDisposable
 {

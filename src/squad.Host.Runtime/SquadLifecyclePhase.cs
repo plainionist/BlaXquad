@@ -1,4 +1,4 @@
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 /// <summary>
 /// The lifecycle phases owned by <see cref="SessionRegistry"/>. There is exactly one phase for the whole squad

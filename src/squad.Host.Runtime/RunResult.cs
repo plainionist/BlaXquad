@@ -1,4 +1,4 @@
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 public enum RunResult
 {

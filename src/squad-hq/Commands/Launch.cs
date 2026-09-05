@@ -9,6 +9,7 @@ using squad.Ui.Abstractions;
 using squad.CopilotSdk;
 using squad.Workspaces;
 using squad.Host.Control;
+using squad.Host.Runtime;
 
 namespace squadHQ.Commands;
 
@@ -120,7 +121,7 @@ static class Launch
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
                 var runtime = Create(() => BuildBackendContext(context), viewModel);
-                var startupPlan = SquadStartupPlan.ForWorkspace(
+                var startupPlan = SquadStartupPlanFactory.ForWorkspace(
                     context,
                     preparer,
                     prepareContextAsync: async cancellationToken =>

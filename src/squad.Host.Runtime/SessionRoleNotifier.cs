@@ -1,7 +1,7 @@
 using squad.Application;
 using squad.Handoffs.Delivery;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 internal sealed class SessionRoleNotifier : IRoleNotifier
 {

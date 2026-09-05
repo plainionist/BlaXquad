@@ -3,7 +3,7 @@ using squad.AgentProvider.Abstractions.Agents;
 using squad.Application;
 using squad.Handoffs.Delivery;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 /// <summary>
 /// The sole owner of the current backend generation. It coordinates constructing and registering a

@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Runtime;
 
 /// <summary>
 /// The single lifecycle authority for one squad process. It owns the current phase (Created, Starting, Running,
