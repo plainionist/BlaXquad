@@ -31,6 +31,7 @@
     <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
     <ProjectReference Include="..\squad.Application\squad.Application.csproj" />
     <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj" />
+    <ProjectReference Include="..\squad.Handoffs.Delivery\squad.Handoffs.Delivery.csproj" />
     <ProjectReference Include="..\squad.Transcripts\squad.Transcripts.csproj" />
     <ProjectReference Include="..\squad-hq\squad-hq.csproj" />
     <ProjectReference Include="..\squad\squad.csproj" />

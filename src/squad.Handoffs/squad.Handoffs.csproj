@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\squad.Configuration\squad.Configuration.csproj" />
+    <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
   </ItemGroup>
 
 </Project>

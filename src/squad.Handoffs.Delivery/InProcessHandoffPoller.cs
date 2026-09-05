@@ -1,5 +1,5 @@
 using global::squad.Configuration;
-namespace squad.Handoffs;
+namespace squad.Handoffs.Delivery;
 
 public sealed class InProcessHandoffPoller : IHandoffPump
 {

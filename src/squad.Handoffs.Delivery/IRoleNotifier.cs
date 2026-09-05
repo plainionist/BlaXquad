@@ -1,4 +1,4 @@
-namespace squad.Handoffs;
+namespace squad.Handoffs.Delivery;
 
 public interface IRoleNotifier
 {
