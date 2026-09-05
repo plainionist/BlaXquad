@@ -2,24 +2,19 @@ using global::squad.Hosting.Abstractions;
 using global::squad.Ui.Abstractions;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using Photino.NET;
 
 namespace squad.Photino;
 
 public sealed class PhotinoWindowHost : IWindowHost
 {
-    private const int myProtocolVersion = 3;
     private const int mySilentLogVerbosity = 0;
     private const int myUseImmersiveDarkMode = 20;
     private const int myUseImmersiveDarkModeBeforeWindows10_2004 = 19;
     private const int myCaptionColor = 35;
     private const int myWindowBackgroundColor = 0x1F1F1F;
     private static readonly TimeSpan myUiReadyTimeout = TimeSpan.FromSeconds(30);
-    private readonly ISquadUi myUi;
-    private readonly ITranscriptUi myTranscriptUi;
-    private readonly PhotinoUiCommandHandler myCommandHandler;
-    private readonly PhotinoUiDeliveryCoordinator myDeliveryCoordinator;
+    private readonly UiProtocolSession mySession;
     private readonly string myUiDirectory;
     private readonly string myTitle;
     private readonly Action<string>? mySerializedMessageSink;
@@ -53,18 +48,12 @@ public sealed class PhotinoWindowHost : IWindowHost
         Action<string>? openExternalUrl,
         Action<string>? serializedMessageSink)
     {
-        myUi = ui;
-        myTranscriptUi = ui as ITranscriptUi
-            ?? throw new ArgumentException("The Photino UI must support incremental transcripts.", nameof(ui));
         myUiDirectory = uiDirectory ?? Path.Combine(AppContext.BaseDirectory, "ui");
         myTitle = CreateTitle(workspaceDirectory);
         mySerializedMessageSink = serializedMessageSink;
-        myDeliveryCoordinator = new(myUi, myTranscriptUi, Send);
-        myCommandHandler = new(
-            myUi,
-            myTranscriptUi,
-            Send,
-            myDeliveryCoordinator.RequestTranscriptSynchronization,
+        mySession = new(
+            ui,
+            SendSerializedMessage,
             () => myUiReady.TrySetResult(),
             () => _ = StopAsync(),
             openExternalUrl);
@@ -100,7 +89,7 @@ public sealed class PhotinoWindowHost : IWindowHost
 
     public Task SessionsStartedAsync(
         CancellationToken cancellationToken = default) =>
-        myDeliveryCoordinator.SessionsStartedAsync(cancellationToken);
+        mySession.SessionsStartedAsync(cancellationToken);
 
     private void RunWindow(string index)
     {
@@ -121,10 +110,7 @@ public sealed class PhotinoWindowHost : IWindowHost
                 .Load(index);
             myWindow = window;
             myWindowCreated.TrySetResult();
-            myUi.SnapshotRequested +=
-                myDeliveryCoordinator.RequestStateRefresh;
-            myTranscriptUi.TranscriptChanged +=
-                myDeliveryCoordinator.QueueTranscriptUpdate;
+            mySession.AttachUiEventSources();
             myWindow.WaitForClose();
             myClosed.TrySetResult();
         }
@@ -136,10 +122,7 @@ public sealed class PhotinoWindowHost : IWindowHost
         }
         finally
         {
-            myUi.SnapshotRequested -=
-                myDeliveryCoordinator.RequestStateRefresh;
-            myTranscriptUi.TranscriptChanged -=
-                myDeliveryCoordinator.QueueTranscriptUpdate;
+            mySession.DetachUiEventSources();
         }
     }
 
@@ -160,22 +143,16 @@ public sealed class PhotinoWindowHost : IWindowHost
     public async ValueTask DisposeAsync()
     {
         await StopAsync();
-        myUi.SnapshotRequested -=
-            myDeliveryCoordinator.RequestStateRefresh;
-        myTranscriptUi.TranscriptChanged -=
-            myDeliveryCoordinator.QueueTranscriptUpdate;
+        mySession.DetachUiEventSources();
         myWindow = null;
     }
 
     private async Task StopCoreAsync()
     {
-        myUi.SnapshotRequested -=
-            myDeliveryCoordinator.RequestStateRefresh;
-        myTranscriptUi.TranscriptChanged -=
-            myDeliveryCoordinator.QueueTranscriptUpdate;
+        mySession.DetachUiEventSources();
         try
         {
-            await myDeliveryCoordinator.DisposeAsync();
+            await mySession.DisposeAsync();
         }
         finally
         {
@@ -233,42 +210,16 @@ public sealed class PhotinoWindowHost : IWindowHost
     private static extern int DwmSetWindowAttribute(IntPtr windowHandle, int attribute, ref int value, int valueSize);
 
     public Task ReceiveMessageAsync(string message) =>
-        HandleMessageAsync(message);
+        mySession.ReceiveMessageAsync(message);
 
-    private async Task HandleMessageAsync(string serializedMessage)
-    {
-        try
-        {
-            var message = PhotinoUiMessageReader.Read(
-                serializedMessage,
-                myProtocolVersion);
-            if (message.EnvelopeError is not null)
-            {
-                PublishError(message.EnvelopeError);
-                return;
-            }
-            await myCommandHandler.HandleAsync(message);
-        }
-        catch (Exception exception)
-        {
-            PublishError(exception.Message);
-        }
-    }
-
-    private void PublishError(string message) => Send("protocol.error", new { message });
-
-    private void Send(string type, object payload)
+    private void SendSerializedMessage(string message)
     {
         if (mySerializedMessageSink is not null)
         {
-            mySerializedMessageSink(
-                JsonSerializer.Serialize(
-                    new { version = myProtocolVersion, type, payload }));
+            mySerializedMessageSink(message);
             return;
         }
-        myWindow?.SendWebMessage(
-            JsonSerializer.Serialize(
-                new { version = myProtocolVersion, type, payload }));
+        myWindow?.SendWebMessage(message);
     }
 }
 
