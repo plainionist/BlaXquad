@@ -220,6 +220,8 @@ testable, and all handoff, delivery, and recovery scenarios pass.
 
 ### Slice 3: Introduce one UI protocol facade in place
 
+**Status: complete (c01751ace8)**
+
 1. Introduce a `UiProtocolSession` or equivalently named facade inside the current Photino project before moving any
    files.
 2. Move protocol-version ownership, envelope parsing, envelope serialization, protocol-error publication, command
