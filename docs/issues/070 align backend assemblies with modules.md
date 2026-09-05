@@ -181,6 +181,8 @@ characterization fails if role identities are captured before preparation.
 
 ### Slice 1: Remove generic process behavior from the Photino boundary
 
+**Status: complete (2fba0199df)**
+
 1. Add asynchronous `RunAsync` and `RunCheckedAsync` behavior to the process module without changing command
    construction, cancellation, output capture, or error text.
 2. Add a narrow agent-safe executable locator for `PATH` and `PATHEXT` lookup.
