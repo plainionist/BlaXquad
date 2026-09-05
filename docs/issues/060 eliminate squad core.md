@@ -125,7 +125,7 @@ squad.Application -------------> squad.Transcripts
 
 squad.Transcripts -------------> squad.Ui.Abstractions
 
-squad.Handoffs ----------------> squad.Agent.Handoff
+squad.Handoffs ----------------> squad.Handoff
    +---------------------------> squad.Agent.Configuration
 
 squad.Photino -----------------> squad.Ui.Abstractions

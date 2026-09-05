@@ -1,7 +1,7 @@
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Agent.Cli;
 using global::squad.Configuration;
-using global::squad.Agent.Handoff;
+using global::squad.Handoff;
 using global::squad.Core;
 using global::squad.Core.Handoffs;
 using global::squad.Photino;

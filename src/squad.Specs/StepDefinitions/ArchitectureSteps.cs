@@ -1,7 +1,7 @@
 using global::squad.Specs.Support;
 using global::squad.Agent.Cli;
 using global::squad.Configuration;
-using global::squad.Agent.Handoff;
+using global::squad.Handoff;
 using global::squad.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
@@ -91,7 +91,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Agent.Cli", "squad.Configuration", "squad.Agent.Handoff", "squad.Process" }));
+            Is.EquivalentTo(new[] { "squad", "squad.Agent.Cli", "squad.Configuration", "squad.Handoff", "squad.Process" }));
 
         var agentCliTypes = Assembly.Load("squad.Agent.Cli")
             .GetTypes()
@@ -118,9 +118,9 @@ public sealed class ArchitectureSteps
             "SquadConfig",
         }));
 
-        var agentHandoffTypes = Assembly.Load("squad.Agent.Handoff")
+        var agentHandoffTypes = Assembly.Load("squad.Handoff")
             .GetTypes()
-            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Handoff")
+            .Where(type => !type.IsNested && type.Namespace == "squad.Handoff")
             .Select(type => type.Name)
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -325,7 +325,7 @@ public sealed class ArchitectureSteps
         Assert.Multiple(() =>
         {
             Assert.That(references, Does.Contain("squad.Configuration"));
-            Assert.That(references, Does.Contain("squad.Agent.Handoff"));
+            Assert.That(references, Does.Contain("squad.Handoff"));
             Assert.That(references, Does.Not.Contain("squad.Core"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Ui.Abstractions"));
@@ -343,7 +343,7 @@ public sealed class ArchitectureSteps
         Assert.Multiple(() =>
         {
             Assert.That(references, Does.Not.Contain("squad.Configuration"));
-            Assert.That(references, Does.Not.Contain("squad.Agent.Handoff"));
+            Assert.That(references, Does.Not.Contain("squad.Handoff"));
         });
     }
 
@@ -359,7 +359,7 @@ public sealed class ArchitectureSteps
             Assert.That(references, Does.Not.Contain("squad.Core.Handoffs"));
             Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Agent.Configuration"));
-            Assert.That(references, Does.Not.Contain("squad.Agent.Handoff"));
+            Assert.That(references, Does.Not.Contain("squad.Handoff"));
             Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
             Assert.That(references, Does.Not.Contain("squad.Photino"));
             Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
