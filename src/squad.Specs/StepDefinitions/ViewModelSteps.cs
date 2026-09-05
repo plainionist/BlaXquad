@@ -9,7 +9,7 @@ using global::squad.Core.Handoffs;
 using global::squad.Core.Transcripts;
 using global::squad.Photino;
 using global::squad.Ui.Abstractions;
-using global::squad_hq.Commands;
+using global::squadHQ.Commands;
 using System.Collections.Concurrent;
 using System.Text.Json;
 

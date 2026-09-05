@@ -1,5 +1,5 @@
 using global::squad.Agent.Cli;
-using global::squad_hq.Commands;
+using global::squadHQ.Commands;
 
 if (args.Length == 0 || args[0] is "-h" or "--help")
 {

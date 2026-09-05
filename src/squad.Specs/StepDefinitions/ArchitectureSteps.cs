@@ -229,11 +229,11 @@ public sealed class ArchitectureSteps
     }
 
     [Then("squad-hq retains launch, shutdown, and wait-for-agent behavior")]
-    public void ThenSquadHqRetainsItsLifecycleBehavior()
+    public void ThensquadHQRetainsItsLifecycleBehavior()
     {
         var lifecycleTypes = Assembly.Load("squad-hq")
             .GetTypes()
-            .Where(type => type.Namespace == "squad_hq.Commands")
+            .Where(type => type.Namespace == "squadHQ.Commands")
             .Select(type => type.Name)
             .ToArray();
 

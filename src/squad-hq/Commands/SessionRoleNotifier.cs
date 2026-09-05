@@ -1,7 +1,7 @@
 using global::squad.Core;
 using global::squad.Core.Handoffs;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 public sealed class SessionRoleNotifier : IRoleNotifier
 {

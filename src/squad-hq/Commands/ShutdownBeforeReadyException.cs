@@ -1,4 +1,4 @@
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 internal sealed class ShutdownBeforeReadyException : Exception;
 

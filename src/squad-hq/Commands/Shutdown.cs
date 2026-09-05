@@ -1,4 +1,4 @@
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 static class Shutdown
 {

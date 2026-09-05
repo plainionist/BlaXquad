@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 internal static class WaitForAgent
 {

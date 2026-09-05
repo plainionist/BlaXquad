@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 public sealed class HostLease : IHostLease
 {

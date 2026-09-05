@@ -1,7 +1,7 @@
 using squad.AgentProvider.Abstractions;
 using squad.Hosting.Abstractions;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 internal sealed record RuntimeMode(
     IAgentBackend AgentBackend,

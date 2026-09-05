@@ -5,7 +5,7 @@ using global::squad.Core;
 using global::squad.Core.Handoffs;
 using System.Runtime.ExceptionServices;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 public sealed class SquadApplication : IAsyncDisposable
 {

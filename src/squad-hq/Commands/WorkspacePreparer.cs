@@ -1,9 +1,8 @@
 using global::squad.Agent.Process;
-using global::squad.Agent.Tooling;
 using global::squad.Photino;
 using System.Text.RegularExpressions;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 public sealed class WorkspacePreparer
 {

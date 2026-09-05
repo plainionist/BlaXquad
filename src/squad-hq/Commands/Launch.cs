@@ -6,7 +6,7 @@ using global::squad.Core;
 using global::squad.Core.Handoffs;
 using global::squad.Photino;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 static class Launch
 {

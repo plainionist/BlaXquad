@@ -3,7 +3,7 @@ using global::squad.CopilotSdk;
 using global::squad.Photino;
 using global::squad.Ui.Abstractions;
 
-namespace squad_hq.Commands;
+namespace squadHQ.Commands;
 
 public static class RuntimeModeSelector
 {

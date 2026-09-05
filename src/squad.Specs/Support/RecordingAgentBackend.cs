@@ -1,6 +1,6 @@
 using global::squad.AgentProvider.Abstractions;
 using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad_hq.Commands;
+using global::squadHQ.Commands;
 
 namespace squad.Specs.Support;
 

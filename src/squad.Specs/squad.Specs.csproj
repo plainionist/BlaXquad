@@ -8,7 +8,7 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <ReqnrollDeleteObsoleteCodeBehindFilesOnClean>true</ReqnrollDeleteObsoleteCodeBehindFilesOnClean>
     <SquadProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad\squad.csproj'))</SquadProject>
-    <SquadHqProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad-hq\squad-hq.csproj'))</SquadHqProject>
+    <squadHQProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad-hq\squad-hq.csproj'))</squadHQProject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -45,7 +45,7 @@
     </PropertyGroup>
     <RemoveDir Directories="$(SquadToolsDir)" />
     <Exec Command="dotnet publish &quot;$(SquadProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
-    <Exec Command="dotnet publish &quot;$(SquadHqProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
+    <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
   </Target>
 
 </Project>
