@@ -35,9 +35,8 @@ command-admission owner.
 
 ## Coordination status
 
-Slice 1 is complete (`853c6bc636`). Slice 2 is the only slice authorized for implementation. The reviewer requested
-changes on coder commit `3bc12c16c4` before Slice 2 can be accepted. Slices 3 and 4 remain blocked until the reviewer
-accepts the preceding slice.
+Slice 1 is complete (`853c6bc636`). Slice 2 is complete (`3f0feed336`). Slices 3 and 4 remain blocked until the
+architect authorizes the next slice.
 
 Introduce the missing focused contracts within this issue. Do not add lifecycle flags or locks to `SquadApplication`,
 expose unleased sessions, or move session disposal into a headquarters wrapper that bypasses backend ownership.
@@ -116,7 +115,7 @@ Resolved by `853c6bc636`.
 
 ### Slice 2: Establish backend-owned generation resources
 
-**Status: changes requested (3bc12c16c4)**
+**Status: complete (3f0feed336)**
 
 1. Add an `IAgentRuntime` contract in the agent-provider abstraction assembly, in its own source file. An
    `IAgentBackend` creates the runtime handle before fallible session startup; the runtime then starts and registers its
@@ -168,6 +167,8 @@ Resolved by `3bc12c16c4` except as restated below.
   runtime has resolved session completion.
 
 #### Review findings on 3bc12c16c4
+
+Resolved by `3f0feed336`.
 
 **Finding 1 — high**
 
