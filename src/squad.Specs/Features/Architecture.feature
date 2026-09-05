@@ -26,6 +26,10 @@ Feature: Runtime assembly boundaries
     And the UI protocol assembly does not reference the Photino package
     And the photino adapter retains only the window host, sleep inhibitor, and the UI protocol dependency
 
+  Scenario: Workspace preparation is isolated in its own assembly
+    Then the workspace assembly depends only on configuration and process
+    And SquadApplication depends on the startup plan instead of the workspace context and preparer
+
   Scenario: Handoff delivery is isolated in its own assembly
     Then the handoff queue assembly depends only on process
     And the handoff delivery assembly depends only on the handoff queue and agent configuration

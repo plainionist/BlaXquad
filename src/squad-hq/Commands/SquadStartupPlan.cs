@@ -1,3 +1,5 @@
+using squad.Workspaces;
+
 namespace squadHQ.Commands;
 
 /// <summary>

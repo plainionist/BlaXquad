@@ -10,6 +10,7 @@ using squad.Transcripts;
 using squad.Ui.Protocol;
 using squad.Ui.Abstractions;
 using squadHQ.Commands;
+using squad.Workspaces;
 using System.Collections.Concurrent;
 using System.Text.Json;
 

@@ -2,7 +2,7 @@ using squad.Process;
 using System.Text.RegularExpressions;
 using squad.Configuration;
 
-namespace squadHQ.Commands;
+namespace squad.Workspaces;
 
 public sealed class WorkspacePreparer
 {

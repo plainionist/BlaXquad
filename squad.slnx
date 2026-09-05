@@ -10,6 +10,7 @@
   <Project Path="src/squad.Hosting.Abstractions/squad.Hosting.Abstractions.csproj" />
   <Project Path="src/squad.Ui.Abstractions/squad.Ui.Abstractions.csproj" />
   <Project Path="src/squad.Ui.Protocol/squad.Ui.Protocol.csproj" />
+  <Project Path="src/squad.Workspaces/squad.Workspaces.csproj" />
   <Folder Name="/src/">
     <Project Path="src/squad.CopilotSdk/squad.CopilotSdk.csproj" />
   </Folder>
