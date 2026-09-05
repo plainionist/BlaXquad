@@ -19,13 +19,11 @@ public sealed class SquadApplication : IAsyncDisposable
     private readonly SquadViewModel myViewModel;
     private readonly IHostLease? myHostLease;
     private readonly Func<CancellationToken, Task>? myPostLockPreparation;
-    private readonly SessionRegistry mySessionRegistry;
-    private readonly SessionGeneration mySessionGeneration;
+    private readonly SquadRuntimeController myRuntimeController;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
     private Task<IReadOnlyList<Exception>>? myCleanup;
     private bool myWindowStarted;
-    private bool myHandoffStarted;
 
     public SquadApplication(
         Ctx ctx,
@@ -77,12 +75,12 @@ public sealed class SquadApplication : IAsyncDisposable
         myViewModel = viewModel ?? new SquadViewModel();
         myHostLease = hostLease;
         myPostLockPreparation = postLockPreparation;
-        mySessionRegistry = sessionRegistry;
-        myViewModel.UseAdmission(mySessionRegistry);
-        mySessionGeneration = new SessionGeneration(myAgentBackend, eventSink ?? (_ => { }), myViewModel, myStopping.Token);
+        myViewModel.UseAdmission(sessionRegistry);
+        myRuntimeController = new SquadRuntimeController(
+            sessionRegistry, myAgentBackend, eventSink ?? (_ => { }), myViewModel, myHandoffPump, myStopping.Token);
     }
 
-    public IReadOnlyDictionary<string, IAgentSession> Sessions => mySessionGeneration.Sessions;
+    public IReadOnlyDictionary<string, IAgentSession> Sessions => myRuntimeController.Sessions;
     public SquadViewModel ViewModel => myViewModel;
 
     public async Task<RunResult> RunAsync(Func<Task> onReady, CancellationToken cancellationToken = default)
@@ -168,7 +166,6 @@ public sealed class SquadApplication : IAsyncDisposable
 
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
-        using var transition = mySessionRegistry.BeginStarting();
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
         if (myPostLockPreparation is not null)
@@ -187,22 +184,7 @@ public sealed class SquadApplication : IAsyncDisposable
         await myWindowHost.StartAsync(cancellationToken);
         myWindowStarted = true;
         cancellationToken.ThrowIfCancellationRequested();
-        await mySessionGeneration.StartAsync(RegisterSessionAsync, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        await myWindowHost.SessionsStartedAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        await myHandoffPump.RecoverAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        await myHandoffPump.StartAsync(cancellationToken);
-        myHandoffStarted = true;
-        transition.Commit();
-    }
-
-    private Task RegisterSessionAsync(IAgentSession session)
-    {
-        mySessionRegistry.Register(session);
-        myViewModel.RegisterSession(session);
-        return Task.CompletedTask;
+        await myRuntimeController.StartAsync(myWindowHost.SessionsStartedAsync, cancellationToken);
     }
 
     private async Task<IReadOnlyList<Exception>> CleanupAsync()
@@ -216,12 +198,7 @@ public sealed class SquadApplication : IAsyncDisposable
     {
         var failures = new List<Exception>();
         myStopping.Cancel();
-        using var transition = mySessionRegistry.BeginStopping();
-        await AttemptCleanupAsync("ViewModel commands", myViewModel.StopAsync, failures);
-        if (myHandoffStarted)
-            await AttemptCleanupAsync("handoff pump stop", () => myHandoffPump.StopAsync(), failures);
-
-        failures.AddRange(await mySessionGeneration.TeardownAsync());
+        failures.AddRange(await myRuntimeController.StopAsync());
 
         if (myWindowStarted)
             await AttemptCleanupAsync("window host stop", () => myWindowHost.StopAsync(), failures);
@@ -232,7 +209,6 @@ public sealed class SquadApplication : IAsyncDisposable
         if (myHostLease is not null)
             await AttemptCleanupAsync("host lease", () => myHostLease.DisposeAsync().AsTask(), failures);
         myStopping.Dispose();
-        transition.Commit();
         return failures;
     }
 

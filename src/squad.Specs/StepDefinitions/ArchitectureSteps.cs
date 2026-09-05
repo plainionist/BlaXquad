@@ -9,6 +9,7 @@ using global::squad.CopilotSdk;
 using global::squad.Hosting.Abstractions;
 using global::squad.Photino;
 using global::squad.Ui.Abstractions;
+using global::squadHQ.Commands;
 using System.Reflection;
 
 namespace squad.Specs.StepDefinitions;
@@ -465,6 +466,35 @@ public sealed class ArchitectureSteps
         var type = applicationAssembly.GetType(fullName, throwOnError: false);
         Assert.That(type, Is.Not.Null, $"{fullName} should be defined in {applicationAssembly.GetName().Name}.");
         Assert.That(type!.IsPublic, Is.False, $"{fullName} should not be public.");
+    }
+
+    [Then("SquadApplication has no generation session, observer, backend runtime, or handoff production lifecycle fields")]
+    public void ThenSquadApplicationHasNoGenerationLifecycleFields()
+    {
+        var fields = typeof(SquadApplication).GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        var forbiddenFieldNames = new[]
+        {
+            "mySessionGeneration", "myHandoffStarted", "mySessions", "myEventTasks", "mySessionCancellations", "myRuntime",
+        };
+        var forbiddenFieldTypeNames = new[] { nameof(SessionGeneration), nameof(IAgentRuntime) };
+
+        Assert.Multiple(() =>
+        {
+            foreach (var forbiddenName in forbiddenFieldNames)
+            {
+                Assert.That(
+                    fields.Select(field => field.Name),
+                    Does.Not.Contain(forbiddenName),
+                    $"SquadApplication should not declare a '{forbiddenName}' field.");
+            }
+            foreach (var field in fields)
+            {
+                Assert.That(
+                    forbiddenFieldTypeNames,
+                    Does.Not.Contain(field.FieldType.Name),
+                    $"SquadApplication field '{field.Name}' has forbidden generation-lifecycle type '{field.FieldType.Name}'.");
+            }
+        });
     }
 
     [Then("production source does not use the legacy backend selector")]

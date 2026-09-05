@@ -37,5 +37,8 @@ Feature: Runtime assembly boundaries
     And transcript and handoff implementation types are owned only by their extracted assemblies
     And no squad.Core project identity remains in the supported solution and project graph
 
+  Scenario: SquadApplication owns only the outer run loop and process-wide resources
+    Then SquadApplication has no generation session, observer, backend runtime, or handoff production lifecycle fields
+
   Scenario: Installers declare supported package targets
     Then the installers declare every supported runtime identifier
