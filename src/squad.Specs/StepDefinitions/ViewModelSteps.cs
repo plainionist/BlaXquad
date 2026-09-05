@@ -337,7 +337,9 @@ public sealed class ViewModelSteps
             Assert.That(myApplicationRun!.IsCompletedSuccessfully, Is.True);
             Assert.That(File.Exists(Path.Combine(myApplicationRoot, ".blaxquad", "host.json")), Is.False);
             Assert.That(HostLease.TryAcquireProbe(myApplicationRoot), Is.True);
-            Assert.That(myBackend.Disposed, Is.True);
+            // The backend runtime is only created once startup reaches session generation; if the
+            // application stopped before then, no runtime exists and nothing was ever owned/disposed.
+            Assert.That(myBackend.Disposed, Is.EqualTo(myBackend.RuntimeCreated));
             Assert.That(myRecordingWindow!.DisposeCount, Is.EqualTo(1));
             Assert.That(myRecordingPump!.Disposed, Is.True);
             Assert.That(myRecordingSleep!.Disposed, Is.True);
@@ -537,7 +539,10 @@ public sealed class ViewModelSteps
             Assert.That(myApplication!.Sessions, Is.Empty);
             Assert.That(myRecordingWindow!.StopCount, Is.LessThanOrEqualTo(1));
             Assert.That(myApplicationLease is null || HostLease.TryAcquireProbe(myApplicationRoot), Is.True);
-            Assert.That(myBackend.Sessions, Is.All.Matches<RecordingAgentSession>(session => session.Disposed));
+            // The backend runtime is only ever created once startup reaches session generation; if the
+            // failure happened earlier, no runtime was created and no sessions were ever owned/disposed.
+            var expectDisposed = myBackend.RuntimeCreated;
+            Assert.That(myBackend.Sessions, Is.All.Matches<RecordingAgentSession>(session => session.Disposed == expectDisposed));
         });
     }
 
@@ -810,11 +815,13 @@ public sealed class ViewModelSteps
     {
         Assert.Multiple(() =>
         {
-            Assert.That(myBackend.Disposed, Is.True);
+            // The backend runtime is only created once startup reaches session generation; if the
+            // application stopped before then, no runtime exists and no sessions were ever owned/disposed.
+            Assert.That(myBackend.Disposed, Is.EqualTo(myBackend.RuntimeCreated));
             Assert.That(myRecordingWindow!.DisposeCount, Is.EqualTo(1));
             Assert.That(myRecordingPump!.Disposed, Is.True);
             Assert.That(myRecordingSleep!.Disposed, Is.True);
-            Assert.That(myBackend.Sessions.All(session => session.DisposeCount > 0), Is.True);
+            Assert.That(myBackend.Sessions.All(session => (session.DisposeCount > 0) == myBackend.RuntimeCreated), Is.True);
         });
         if (myRecordingHostLease is not null)
             Assert.That(myRecordingHostLease.Disposed, Is.True);

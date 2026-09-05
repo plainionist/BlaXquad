@@ -18,13 +18,9 @@ public sealed class SquadApplication : IAsyncDisposable
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
     private readonly IHostLease? myHostLease;
-    private readonly Action<AgentEvent> myEventSink;
     private readonly Func<CancellationToken, Task>? myPostLockPreparation;
     private readonly SessionRegistry mySessionRegistry;
-    private readonly Dictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
-    private readonly List<Task> myEventTasks = [];
-    private readonly List<CancellationTokenSource> mySessionCancellations = [];
-    private readonly CancellationTokenSource myEventCancellation = new();
+    private readonly SessionGeneration mySessionGeneration;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
     private Task<IReadOnlyList<Exception>>? myCleanup;
@@ -80,12 +76,12 @@ public sealed class SquadApplication : IAsyncDisposable
         mySleepInhibitor = sleepInhibitor;
         myViewModel = viewModel ?? new SquadViewModel();
         myHostLease = hostLease;
-        myEventSink = eventSink ?? (_ => { });
         myPostLockPreparation = postLockPreparation;
         mySessionRegistry = sessionRegistry;
+        mySessionGeneration = new SessionGeneration(myAgentBackend, eventSink ?? (_ => { }), myViewModel, myStopping.Token);
     }
 
-    public IReadOnlyDictionary<string, IAgentSession> Sessions => mySessions;
+    public IReadOnlyDictionary<string, IAgentSession> Sessions => mySessionGeneration.Sessions;
     public SquadViewModel ViewModel => myViewModel;
 
     public async Task<RunResult> RunAsync(Func<Task> onReady, CancellationToken cancellationToken = default)
@@ -189,9 +185,7 @@ public sealed class SquadApplication : IAsyncDisposable
         await myWindowHost.StartAsync(cancellationToken);
         myWindowStarted = true;
         cancellationToken.ThrowIfCancellationRequested();
-        await myAgentBackend.PrepareAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        await myAgentBackend.StartAsync(RegisterSessionAsync, cancellationToken);
+        await mySessionGeneration.StartAsync(RegisterSessionAsync, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await myWindowHost.SessionsStartedAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -204,12 +198,7 @@ public sealed class SquadApplication : IAsyncDisposable
     private Task RegisterSessionAsync(IAgentSession session)
     {
         mySessionRegistry.Register(session);
-        mySessions.Add(session.Role, session);
         myViewModel.RegisterSession(session);
-        var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(myEventCancellation.Token);
-        mySessionCancellations.Add(sessionCancellation);
-        var eventTask = ObserveEventsAsync(session, sessionCancellation.Token);
-        myEventTasks.Add(ObserveSessionAsync(session, sessionCancellation, eventTask));
         return Task.CompletedTask;
     }
 
@@ -226,20 +215,11 @@ public sealed class SquadApplication : IAsyncDisposable
         myStopping.Cancel();
         mySessionRegistry.BeginStopping();
         await AttemptCleanupAsync("ViewModel commands", myViewModel.StopAsync, failures);
-        myEventCancellation.Cancel();
         if (myHandoffStarted)
             await AttemptCleanupAsync("handoff pump stop", () => myHandoffPump.StopAsync(), failures);
 
-        foreach (var session in mySessions.Values.Reverse())
-            await AttemptCleanupAsync($"session {session.Role}", () => session.DisposeAsync().AsTask(), failures);
-        await AttemptCleanupAsync("event observers", AwaitEventTasksAsync, failures);
-        foreach (var sessionCancellation in mySessionCancellations)
-            sessionCancellation.Dispose();
-        mySessionCancellations.Clear();
-        myEventTasks.Clear();
-        mySessions.Clear();
+        failures.AddRange(await mySessionGeneration.TeardownAsync());
 
-        await AttemptCleanupAsync("agent backend", () => myAgentBackend.DisposeAsync().AsTask(), failures);
         if (myWindowStarted)
             await AttemptCleanupAsync("window host stop", () => myWindowHost.StopAsync(), failures);
         await AttemptCleanupAsync("window host disposal", () => myWindowHost.DisposeAsync().AsTask(), failures);
@@ -248,7 +228,6 @@ public sealed class SquadApplication : IAsyncDisposable
         await AttemptCleanupAsync("view model", () => myViewModel.DisposeAsync().AsTask(), failures);
         if (myHostLease is not null)
             await AttemptCleanupAsync("host lease", () => myHostLease.DisposeAsync().AsTask(), failures);
-        myEventCancellation.Dispose();
         myStopping.Dispose();
         return failures;
     }
@@ -272,83 +251,6 @@ public sealed class SquadApplication : IAsyncDisposable
             throw new ShutdownBeforeReadyException();
         }
         cancellationToken.ThrowIfCancellationRequested();
-    }
-
-    private async Task ObserveEventsAsync(IAgentSession session, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await foreach (var agentEvent in session.Events(cancellationToken))
-            {
-                myEventSink(agentEvent);
-                await myViewModel.EnqueueEventAsync(session.Role, agentEvent);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (InvalidOperationException exception) when (exception.Message == "Squad is shutting down")
-        {
-        }
-        catch (Exception eventFailure)
-        {
-            try
-            {
-                await session.Completion;
-            }
-            catch
-            {
-                return;
-            }
-            ExceptionDispatchInfo.Capture(eventFailure).Throw();
-        }
-    }
-
-    private async Task ObserveSessionAsync(
-        IAgentSession session,
-        CancellationTokenSource sessionCancellation,
-        Task eventTask)
-    {
-        Exception? failure = null;
-        try
-        {
-            await session.Completion;
-        }
-        catch (OperationCanceledException)
-        {
-            failure = new OperationCanceledException($"Session '{session.Role}' was canceled.");
-        }
-        catch (Exception exception)
-        {
-            failure = exception;
-        }
-
-        sessionCancellation.Cancel();
-        try
-        {
-            await eventTask;
-        }
-        catch when (failure is not null)
-        {
-        }
-
-        if (failure is not null && !myStopping.IsCancellationRequested)
-        {
-            try
-            {
-                await myViewModel.MarkRoleFailedAsync(session.Role, failure);
-            }
-            catch (Exception exception) when (
-                myStopping.IsCancellationRequested &&
-                exception is OperationCanceledException or InvalidOperationException)
-            {
-            }
-        }
-    }
-
-    private async Task AwaitEventTasksAsync()
-    {
-        await Task.WhenAll(myEventTasks);
     }
 
     private static async Task<Exception?> ObserveStartupAsync(Task startup, CancellationToken expectedCancellation)

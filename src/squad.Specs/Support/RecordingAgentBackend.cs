@@ -7,7 +7,6 @@ namespace squad.Specs.Support;
 public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureSource
 {
     private readonly List<RecordingAgentSession> mySessions = [];
-    private readonly HashSet<RecordingAgentSession> myPublishedSessions = [];
     private readonly Dictionary<string, AgentEvent> myEarlyEvents = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> myInitialInstructions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> myRoleWorktrees = new(StringComparer.Ordinal);
@@ -19,6 +18,7 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     private readonly TaskCompletionSource myFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public IReadOnlyList<RecordingAgentSession> Sessions => mySessions;
+    public bool RuntimeCreated { get; private set; }
     public bool FailDuringStart { get; set; }
     public int FailAfterCreatingSessionCount { get; set; }
     public bool Disposed { get; private set; }
@@ -31,32 +31,28 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     public Task Failure => myFailure.Task;
     public LifecycleTrace? Trace { get; set; }
 
-    public Task PrepareAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-    public async Task StartAsync(Func<IAgentSession, Task> sessionStarted, CancellationToken cancellationToken = default)
+    public Task<IAgentRuntime> CreateRuntimeAsync(CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(sessionStarted);
-        for (var index = 0; index < mySessions.Count; index++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var session = mySessions[index];
-            if (index == BlockBeforeSessionIndex)
+        cancellationToken.ThrowIfCancellationRequested();
+        RuntimeCreated = true;
+        IAgentRuntime runtime = new RecordingAgentRuntime(
+            mySessions,
+            myEarlyEvents,
+            myInitialInstructions,
+            FailAfterCreatingSessionCount,
+            FailDuringStart,
+            BlockBeforeSessionIndex,
+            BlockDispose,
+            Trace,
+            onRegistrationBlocked: () => myRegistrationBlocked.TrySetResult(),
+            registrationGate: myRegistrationGate.Task,
+            onDisposeEntered: () =>
             {
-                myRegistrationBlocked.TrySetResult();
-                await myRegistrationGate.Task.WaitAsync(cancellationToken);
-            }
-            if (myEarlyEvents.TryGetValue(session.Role, out var earlyEvent))
-                session.Emit(earlyEvent);
-            await sessionStarted(session);
-            Trace?.Record($"backend.sessionRegistered:{session.Role}");
-            myPublishedSessions.Add(session);
-            if (myInitialInstructions.TryGetValue(session.Role, out var initialInstruction))
-                await session.SendAsync(initialInstruction, cancellationToken);
-            if (FailAfterCreatingSessionCount > 0 && index + 1 >= FailAfterCreatingSessionCount)
-                throw new InvalidOperationException("recording backend failed after creating sessions");
-        }
-        if (FailDuringStart)
-            throw new InvalidOperationException("recording backend start failed");
+                Disposed = true;
+                myDisposeEntered.TrySetResult();
+            },
+            disposeGate: myDisposeGate.Task);
+        return Task.FromResult(runtime);
     }
 
     public void AddRole(string role)
@@ -78,34 +74,10 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
 
     public void RemoveRole(string role) => mySessions.RemoveAll(session => session.Role == role);
 
-    public async ValueTask DisposeAsync()
-    {
-        Disposed = true;
-        myDisposeEntered.TrySetResult();
-        if (BlockDispose)
-            await myDisposeGate.Task;
-        var failures = new List<Exception>();
-        foreach (var session in mySessions.Where(session => !myPublishedSessions.Contains(session)))
-        {
-            try
-            {
-                session.DisposeAsync().GetAwaiter().GetResult();
-            }
-            catch (Exception exception)
-            {
-                failures.Add(exception);
-            }
-        }
-        Trace?.Record("backend.disposed");
-        if (failures.Count > 0)
-            throw new AggregateException(failures);
-    }
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     public void ReleaseDispose() => myDisposeGate.TrySetResult();
     public void ReleaseRegistration() => myRegistrationGate.TrySetResult();
     public void FailBackend(string message) =>
         myFailure.TrySetException(new InvalidOperationException(message));
 }
-
-
-
