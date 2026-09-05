@@ -123,19 +123,10 @@ static class Launch
                     () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
                     new SessionRoleNotifier(sessionRegistry, viewModel),
                     LogHandoff);
-
-                application = new SquadApplication(
+                var startupPlan = SquadStartupPlan.ForWorkspace(
                     context,
                     preparer,
-                    runtime.AgentBackend,
-                    handoffPump,
-                    runtime.WindowHost,
-                    runtime.SleepInhibitor,
-                    sessionRegistry,
-                    _ => { },
-                    viewModel,
-                    hostLease: hostLease,
-                    postLockPreparation: async cancellationToken =>
+                    prepareContextAsync: async cancellationToken =>
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         if (!ExecutableLocator.Exists("git"))
@@ -146,6 +137,17 @@ static class Launch
                         PrepareContext(context);
                         await runtime.PrepareAsync(cancellationToken);
                     });
+
+                application = new SquadApplication(
+                    startupPlan,
+                    runtime.AgentBackend,
+                    handoffPump,
+                    runtime.WindowHost,
+                    runtime.SleepInhibitor,
+                    sessionRegistry,
+                    _ => { },
+                    viewModel,
+                    hostLease: hostLease);
                 hostLease = null;
                 try
                 {
