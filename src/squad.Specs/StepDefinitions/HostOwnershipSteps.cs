@@ -17,7 +17,7 @@ public sealed class HostOwnershipSteps
     private string? myInvalidResponse;
     private string? myPingResponse;
     private string? myMalformedResponse;
-    private Process? myWaitProcess;
+    private System.Diagnostics.Process? myWaitProcess;
     private Task<string>? myWaitOutput;
     private Task<string>? myWaitError;
     private int myReadinessQueries;

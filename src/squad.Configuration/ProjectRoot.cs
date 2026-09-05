@@ -1,5 +1,5 @@
 using global::squad.Agent.Cli;
-using global::squad.Agent.Process;
+using global::squad.Process;
 
 namespace squad.Configuration;
 

@@ -7,7 +7,7 @@ public sealed class ScenarioWorkspace : IDisposable
 {
     private static readonly Regex AnsiEscape = new(@"\x1B\[[0-?]*[ -/]*[@-~]", RegexOptions.Compiled);
     private readonly Dictionary<string, object> myValues = new(StringComparer.Ordinal);
-    private readonly List<Process> myRunningProcesses = [];
+    private readonly List<System.Diagnostics.Process> myRunningProcesses = [];
 
     public ScenarioWorkspace()
     {
@@ -44,7 +44,7 @@ public sealed class ScenarioWorkspace : IDisposable
         return Run(executable, arguments ?? [], environment, workingDirectory);
     }
 
-    public Process StartTool(
+    public System.Diagnostics.Process StartTool(
         string toolName,
         IReadOnlyList<string>? arguments = null,
         IReadOnlyDictionary<string, string?>? environment = null,
@@ -53,7 +53,7 @@ public sealed class ScenarioWorkspace : IDisposable
         return StartProcess(ResolveTool(toolName), arguments, environment, workingDirectory);
     }
 
-    public Process StartProcess(
+    public System.Diagnostics.Process StartProcess(
         string executable,
         IReadOnlyList<string>? arguments = null,
         IReadOnlyDictionary<string, string?>? environment = null,
@@ -66,7 +66,7 @@ public sealed class ScenarioWorkspace : IDisposable
                 startInfo.ArgumentList.Add(argument);
         }
 
-        var process = Process.Start(startInfo)
+        var process = System.Diagnostics.Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{executable}'.");
         myRunningProcesses.Add(process);
         return process;
@@ -108,7 +108,7 @@ public sealed class ScenarioWorkspace : IDisposable
         foreach (var argument in arguments)
             startInfo.ArgumentList.Add(argument);
 
-        using var process = Process.Start(startInfo)
+        using var process = System.Diagnostics.Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{executable}'.");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();

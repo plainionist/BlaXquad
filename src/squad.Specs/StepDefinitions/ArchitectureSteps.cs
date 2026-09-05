@@ -2,7 +2,7 @@ using global::squad.Specs.Support;
 using global::squad.Agent.Cli;
 using global::squad.Configuration;
 using global::squad.Agent.Handoff;
-using global::squad.Agent.Process;
+using global::squad.Process;
 using global::squad.AgentProvider.Abstractions;
 using global::squad.Core;
 using global::squad.Core.Handoffs;
@@ -91,7 +91,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Agent.Cli", "squad.Configuration", "squad.Agent.Handoff", "squad.Agent.Process" }));
+            Is.EquivalentTo(new[] { "squad", "squad.Agent.Cli", "squad.Configuration", "squad.Agent.Handoff", "squad.Process" }));
 
         var agentCliTypes = Assembly.Load("squad.Agent.Cli")
             .GetTypes()
@@ -133,9 +133,9 @@ public sealed class ArchitectureSteps
             "Timestamps",
         }));
 
-        var agentProcessTypes = Assembly.Load("squad.Agent.Process")
+        var agentProcessTypes = Assembly.Load("squad.Process")
             .GetTypes()
-            .Where(type => !type.IsNested && type.Namespace == "squad.Agent.Process")
+            .Where(type => !type.IsNested && type.Namespace == "squad.Process")
             .Select(type => type.Name)
             .Order(StringComparer.Ordinal)
             .ToArray();

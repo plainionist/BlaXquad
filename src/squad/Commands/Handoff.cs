@@ -1,7 +1,7 @@
 using global::squad.Agent.Cli;
 using global::squad.Configuration;
 using global::squad.Agent.Handoff;
-using global::squad.Agent.Process;
+using global::squad.Process;
 
 namespace squad.Commands;
 
