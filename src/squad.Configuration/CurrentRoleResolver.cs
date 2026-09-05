@@ -1,6 +1,6 @@
 using global::squad.Agent.Cli;
 
-namespace squad.Agent.Configuration;
+namespace squad.Configuration;
 
 public static class CurrentRoleResolver
 {

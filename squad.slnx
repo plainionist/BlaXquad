@@ -1,7 +1,7 @@
 <Solution>
   <Project Path="src/squad.AgentProvider.Abstractions/squad.AgentProvider.Abstractions.csproj" />
   <Project Path="src/squad.Agent.Cli/squad.Agent.Cli.csproj" />
-  <Project Path="src/squad.Agent.Configuration/squad.Agent.Configuration.csproj" />
+  <Project Path="src/squad.Configuration/squad.Configuration.csproj" />
   <Project Path="src/squad.Agent.Handoff/squad.Agent.Handoff.csproj" />
   <Project Path="src/squad.Agent.Process/squad.Agent.Process.csproj" />
   <Project Path="src/squad.Core/squad.Core.csproj" />

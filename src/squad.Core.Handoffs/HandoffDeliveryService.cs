@@ -1,4 +1,4 @@
-using global::squad.Agent.Configuration;
+using global::squad.Configuration;
 using global::squad.Agent.Handoff;
 namespace squad.Core.Handoffs;
 
