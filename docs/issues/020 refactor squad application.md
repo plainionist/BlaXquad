@@ -35,8 +35,9 @@ command-admission owner.
 
 ## Coordination status
 
-Slice 1 is complete (`853c6bc636`). Slice 2 is the only slice authorized for implementation. Slices 3 and 4 remain
-blocked until the reviewer accepts the preceding slice.
+Slice 1 is complete (`853c6bc636`). Slice 2 is the only slice authorized for implementation. The reviewer requested
+changes on coder commit `adcc41b011` before Slice 2 can be accepted. Slices 3 and 4 remain blocked until the reviewer
+accepts the preceding slice.
 
 Introduce the missing focused contracts within this issue. Do not add lifecycle flags or locks to `SquadApplication`,
 expose unleased sessions, or move session disposal into a headquarters wrapper that bypasses backend ownership.
@@ -115,7 +116,7 @@ Resolved by `853c6bc636`.
 
 ### Slice 2: Establish backend-owned generation resources
 
-**Status: authorized for implementation**
+**Status: changes requested (adcc41b011)**
 
 1. Add an `IAgentRuntime` contract in the agent-provider abstraction assembly, in its own source file. An
    `IAgentBackend` creates the runtime handle before fallible session startup; the runtime then starts and registers its
@@ -143,6 +144,26 @@ Slice 2 is accepted when:
 - `SquadApplication` contains no session-disposal loop or generation-scoped observer collections; and
 - the Slice 1 ordering scenarios plus existing session-event, partial-start, cleanup, and shutdown scenarios remain
   green.
+
+#### Review findings on adcc41b011
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.CopilotSdk/CopilotSdkAgentRuntime.cs` (`DisposeAsync`),
+  `src/squad.Specs/Support/RecordingAgentRuntime.cs` (`DisposeAsync`), and
+  `src/squad-hq/Commands/SessionGeneration.cs` (`TeardownAsync` / `TeardownCoreAsync`).
+- **Violated behavior:** Slice 2 requires a failed stop to retain owned state for a later retry. Cleanup attempted is
+  not ownership retired. Teardown must be retry-safe and failure-collecting.
+- **Root cause:** Both runtime implementations set `myDisposed = true` before stop/disposal finishes, then clear the
+  session list and return immediately on a later `DisposeAsync`. `CopilotSdkAgentRuntime` still attempts client
+  stop/dispose after that flag, but a retry is skipped entirely. `SessionGeneration.TeardownAsync` caches the first
+  teardown task with `myTeardown ??=`, so a failed runtime dispose is never retried, and `TeardownCoreAsync` still
+  clears observer collections and disposes cancellation sources after that failure.
+- **Required outcome:** Keep the runtime as owner until session and provider-client retirement actually succeed. A
+  later `DisposeAsync` or `TeardownAsync` must resume remaining work instead of treating the failed attempt as
+  terminal. Do not clear owned sessions or observer resources, and do not set a disposed/teardown-complete flag, until
+  retirement is confirmed. Preserve failure collection and the order that drains completion observers only after the
+  runtime has resolved session completion.
 
 ### Slice 3: Make SessionRegistry the lifecycle authority
 
