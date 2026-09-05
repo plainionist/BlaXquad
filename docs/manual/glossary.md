@@ -225,10 +225,15 @@ lifecycle aggregate is deferred to `restart button.md`.
 
 ## UI protocol
 
-The versioned JSON message boundary between the Photino host and Vue dashboard.
-The host publishes snapshots, transcript synchronization, updates, pages,
-archived entries, and protocol errors. The dashboard sends readiness, prompt,
-abort, relaunch, interaction response, and transcript retrieval commands.
+The versioned JSON message boundary between the host and Vue dashboard. Message
+envelope parsing, serialization, command routing, snapshot scheduling,
+transcript delivery, journaling, and recovery are owned by `squad.Ui.Protocol`.
+`squad.Photino` is only the native window and sleep-inhibition adapter that
+carries this protocol over the OS window; it has no envelope, delivery, or
+recovery logic of its own. The host publishes snapshots, transcript
+synchronization, updates, pages, archived entries, and protocol errors. The
+dashboard sends readiness, prompt, abort, relaunch, interaction response, and
+transcript retrieval commands.
 
 ## Snapshot
 
