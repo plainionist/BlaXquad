@@ -199,6 +199,8 @@ closure remains explicitly agent-safe.
 
 ### Slice 2: Separate durable handoffs from host delivery
 
+**Status: complete (55131f72c9)**
+
 1. Keep `HandoffHeaders`, `HandoffQueue`, `Priority`, `SequenceCounter`, and `Timestamps` in `squad.Handoffs`.
 2. Create `squad.Handoffs.Delivery` and move `HandoffDeliveryService`, `InProcessHandoffPoller`, `IHandoffPump`, and
    `IRoleNotifier` into it.
