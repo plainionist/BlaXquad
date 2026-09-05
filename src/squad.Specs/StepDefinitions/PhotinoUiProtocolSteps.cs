@@ -12,7 +12,8 @@ public sealed class PhotinoUiProtocolSteps : IAsyncDisposable
     private readonly QueuedSynchronizationContext myPublisherContext = new();
     private readonly ConcurrentQueue<string> mySerializedMessages = new();
     private readonly ConcurrentQueue<string> mySerializedMessageAttempts = new();
-    private PhotinoWindowHost? myHost;
+    private readonly TaskCompletionSource myUiReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private UiProtocolSession? mySession;
     private JsonElement myLastSerializedMessage;
     private string? myExpectedProtocolError;
     private Task? myPendingReceive;
@@ -26,12 +27,12 @@ public sealed class PhotinoUiProtocolSteps : IAsyncDisposable
         SynchronizationContext.SetSynchronizationContext(myPublisherContext);
         try
         {
-            myHost = new(
+            mySession = new(
                 myUi,
-                Environment.CurrentDirectory,
-                uiDirectory: null,
-                myUi.RecordOpenedUrl,
-                RecordSerializedMessage);
+                RecordSerializedMessage,
+                () => myUiReady.TrySetResult(),
+                requestSmokeShutdown: () => { },
+                myUi.RecordOpenedUrl);
         }
         finally
         {
@@ -51,7 +52,7 @@ public sealed class PhotinoUiProtocolSteps : IAsyncDisposable
 
     [Then("UI readiness is signaled")]
     public void ThenUiReadinessIsSignaled() =>
-        Assert.That(Host.UiReady.IsCompletedSuccessfully, Is.True);
+        Assert.That(myUiReady.Task.IsCompletedSuccessfully, Is.True);
 
     [Then("the initial transcript high-water mark is requested")]
     public void ThenTheInitialTranscriptHighWaterMarkIsRequested() =>
@@ -358,21 +359,21 @@ public sealed class PhotinoUiProtocolSteps : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         myUi.ReleaseUrlCompletion();
-        if (myHost is not null)
+        if (mySession is not null)
         {
-            var disposal = myHost.DisposeAsync().AsTask();
+            var disposal = mySession.DisposeAsync().AsTask();
             myPublisherContext.Drain();
             await disposal;
         }
     }
 
-    private PhotinoWindowHost Host =>
-        myHost
+    private UiProtocolSession Session =>
+        mySession
         ?? throw new InvalidOperationException(
             "The recording Photino host was not configured.");
 
     private Task ReceiveAsync(string message) =>
-        Host.ReceiveMessageAsync(message);
+        Session.ReceiveMessageAsync(message);
 
     private void ResetRecordings()
     {
