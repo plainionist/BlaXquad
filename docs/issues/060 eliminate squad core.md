@@ -135,14 +135,35 @@ squad.CopilotSdk --------------> squad.AgentProvider.Abstractions
 There must be no reference from transcripts or handoffs back to the application model, and no reference from the
 application model to headquarters or technology adapters.
 
+## Coordination status
+
+Slice 1 is the only slice authorized for implementation. Slices 2-5 remain blocked until the reviewer accepts the
+preceding slice.
+
 ## Implementation plan
 
 ### Slice 1: Move host session lifecycle
 
-1. Move `SessionRegistry` from `squad.Core` to `squad-hq/Commands`.
-2. Update `SquadApplication`, `SessionRoleNotifier`, composition, and test support.
-3. Preserve active-session checks, shutdown admission, and notification behavior.
-4. Make the type internal unless a genuine cross-assembly production consumer is found.
+1. Move `SessionRegistry` from `squad.Core` to `squad-hq/Commands` and change its namespace to `squadHQ.Commands`.
+   Keep it as a separate `internal sealed` lifecycle collaborator; do not fold it into `SquadApplication`.
+2. Update `SquadApplication`, `SessionRoleNotifier`, and `Launch` so headquarters remains the only production assembly
+   that creates or consumes the registry. Remove the registry from the public `SquadApplication` constructor surface;
+   use an internal injection overload or equivalent internal composition seam when the shared instance is required.
+3. Grant `squad.Specs` narrowly scoped internal access to `squad-hq` so the existing black-box fixture can compose the
+   same registry into `SquadApplication` and `SessionRoleNotifier`. Do not make the registry public solely for tests.
+4. Remove `SessionRegistry` and its namespace imports from `squad.Core`, while retaining the `squad.Core` project and
+   all other application-model types for Slice 4.
+5. Preserve registration, missing-session and completed-session rejection, shutdown admission, and handoff
+   notification behavior. Keep `SessionRegistry` as the only host-side session lookup authority; the
+   `SquadApplication.Sessions` projection is not a replacement lookup API.
+
+Slice 1 is accepted when:
+
+- `SessionRegistry` is internal to `squad-hq` and `squad.Core` no longer defines or owns host lifecycle state;
+- production composition shares one registry between `SquadApplication` and `SessionRoleNotifier`;
+- the agent CLI architecture boundary still excludes `SessionRegistry` and all headquarters types; and
+- focused startup, shutdown, and in-process handoff notification scenarios pass without changing their observable
+  behavior.
 
 ### Slice 2: Rename transcripts
 
