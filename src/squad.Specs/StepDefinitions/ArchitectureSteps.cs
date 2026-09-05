@@ -90,7 +90,7 @@ public sealed class ArchitectureSteps
         var assemblies = ReachableSquadAssemblies(Assembly.Load("squad"));
         Assert.That(
             assemblies.Select(assembly => assembly.GetName().Name),
-            Is.EquivalentTo(new[] { "squad", "squad.Configuration", "squad.Process" }));
+            Is.EquivalentTo(new[] { "squad", "squad.Configuration", "squad.Handoffs", "squad.Process" }));
 
         var agentConfigurationTypes = Assembly.Load("squad.Configuration")
             .GetTypes()
@@ -103,7 +103,15 @@ public sealed class ArchitectureSteps
             "CurrentRoleResolver",
             "ProjectRoot",
             "RoleRow",
+            "SquadAgentConfiguration",
             "SquadConfig",
+            "SquadConfiguration",
+            "SquadConfigurationAgentDocument",
+            "SquadConfigurationDocument",
+            "SquadConfigurationException",
+            "SquadConfigurationLoader",
+            "SquadConfigurationRoleDocument",
+            "SquadRoleConfiguration",
         }));
 
         var agentHandoffTypes = Assembly.Load("squad.Handoffs")
@@ -294,22 +302,18 @@ public sealed class ArchitectureSteps
         });
     }
 
-    [Then("the handoff delivery assembly depends only on agent configuration and handoff contracts")]
-    public void ThenTheHandoffDeliveryAssemblyDependsOnlyOnAgentConfigurationAndHandoffContracts()
+    [Then("the current handoff assembly depends on exactly agent configuration and process")]
+    public void ThenTheCurrentHandoffAssemblyDependsOnExactlyAgentConfigurationAndProcess()
     {
         var references = ReferencedSquadAssemblyNames(typeof(InProcessHandoffPoller).Assembly);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(references, Does.Contain("squad.Configuration"));
-            Assert.That(references, Does.Contain("squad.Handoffs"));
-            Assert.That(references, Does.Not.Contain("squad.Application"));
-            Assert.That(references, Does.Not.Contain("squad.AgentProvider.Abstractions"));
-            Assert.That(references, Does.Not.Contain("squad.Ui.Abstractions"));
-            Assert.That(references, Does.Not.Contain("squad.Hosting.Abstractions"));
-            Assert.That(references, Does.Not.Contain("squad.Photino"));
-            Assert.That(references, Does.Not.Contain("squad.CopilotSdk"));
-        });
+        Assert.That(
+            references,
+            Is.EquivalentTo(new[]
+            {
+                "squad.Configuration",
+                "squad.Process",
+            }));
     }
 
     [Then("the application assembly no longer depends on agent configuration or handoff contracts")]
@@ -561,6 +565,3 @@ public sealed class ArchitectureSteps
             .Select(name => name!)
             .ToArray();
 }
-
-
-

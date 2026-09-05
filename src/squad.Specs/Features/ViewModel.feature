@@ -208,6 +208,14 @@ Feature: Squad ViewModel
     And the application waits for window closure
     Then SDK-shaped sessions were disposed in reverse registration order
 
+  Scenario: Roles prepared after construction initialize in the current startup order
+    Given a SquadApplication constructed with empty roles and a startup lifecycle trace
+    When the application lifecycle reaches readiness
+    Then prepared role "coder" is initialized before readiness publication
+    And the lifecycle trace records the current startup order
+    When the application window closes
+    And the application waits for window closure
+
   Scenario: Healthy startup with host ownership completes
     Given a SquadApplication with recording roles and a host lease
     When the leased SquadApplication starts

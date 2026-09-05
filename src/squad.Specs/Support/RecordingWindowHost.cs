@@ -13,6 +13,7 @@ public sealed class RecordingWindowHost : IWindowHost
     public bool FailOnSessionsStarted { get; set; }
     public bool FailOnClose { get; set; }
     public bool CancelOnClose { get; set; }
+    public Action? OnStart { get; set; }
     public Action? OnSessionsStarted { get; set; }
     public Action? OnStop { get; set; }
     public LifecycleTrace? Trace { get; set; }
@@ -20,6 +21,7 @@ public sealed class RecordingWindowHost : IWindowHost
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         StartCount++;
+        OnStart?.Invoke();
         Trace?.Record("window.started");
         if (FailOnStart)
             throw new InvalidOperationException("recording window start failed");
@@ -60,6 +62,5 @@ public sealed class RecordingWindowHost : IWindowHost
         return ValueTask.CompletedTask;
     }
 }
-
 
 

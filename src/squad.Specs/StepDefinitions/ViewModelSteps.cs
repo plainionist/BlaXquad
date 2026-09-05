@@ -255,6 +255,66 @@ public sealed class ViewModelSteps
             session.Trace = myLifecycleTrace;
     }
 
+    [Given("a SquadApplication constructed with empty roles and a startup lifecycle trace")]
+    public void GivenASquadApplicationConstructedWithEmptyRolesAndAStartupLifecycleTrace()
+    {
+        GivenASquadApplicationWithRecordingRoles("coder");
+        var context = myApplicationContext!;
+        var preparedRoles = context.Roles.ToList();
+        context.Roles = [];
+        WireLifecycleTrace();
+
+        var viewModel = myApplication!.ViewModel;
+        var roleInitializationRecorded = false;
+        viewModel.StateChanged += () =>
+        {
+            if (roleInitializationRecorded || !viewModel.Roles.ContainsKey("coder"))
+                return;
+
+            Assert.That(
+                Directory.Exists(context.StateDir),
+                Is.False,
+                "Role initialization must precede workspace preparation.");
+            roleInitializationRecorded = true;
+            myLifecycleTrace!.Record("roles.initialized");
+        };
+
+        myRecordingHostLease = new RecordingHostLease { Trace = myLifecycleTrace };
+        myRecordingWindow!.OnStart = () =>
+        {
+            Assert.That(Directory.Exists(context.StateDir), Is.True);
+            Assert.That(
+                Directory.Exists(Path.Combine(
+                    context.WorkingDir,
+                    ".blaxquad",
+                    "handoffs",
+                    "inbox",
+                    "new")),
+                Is.True);
+            myLifecycleTrace!.Record("workspace.prepared");
+        };
+
+        myApplication = new SquadApplication(
+            context,
+            new WorkspacePreparer(_ => { }),
+            myBackend,
+            myRecordingPump!,
+            myRecordingWindow,
+            myRecordingSleep!,
+            viewModel: viewModel,
+            hostLease: myRecordingHostLease,
+            postLockPreparation: cancellationToken =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                myLifecycleTrace!.Record("postLockPreparation.started");
+                context.Roles = preparedRoles;
+                myLifecycleTrace.Record("roles.populated");
+                myLifecycleTrace.Record("backend.prepared");
+                myLifecycleTrace.Record("postLockPreparation.completed");
+                return Task.CompletedTask;
+            });
+    }
+
     [Given("a SquadApplication with recording roles and a host lease")]
     public void GivenASquadApplicationWithRecordingRolesAndAHostLease()
     {
@@ -1930,6 +1990,48 @@ public sealed class ViewModelSteps
     [Then("the recording application sessions are drained")]
     public void ThenTheRecordingApplicationSessionsAreDrained() => Assert.That(myApplication!.Sessions, Is.Empty);
 
+    [Then("prepared role {string} is initialized before readiness publication")]
+    public async Task ThenPreparedRoleIsInitializedBeforeReadinessPublication(string role)
+    {
+        var readinessProvider = myRecordingHostLease!.AgentReadinessProvider;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(myApplication!.ViewModel.Roles.Keys, Does.Contain(role));
+            Assert.That(readinessProvider, Is.Not.Null);
+        });
+        Assert.That(await readinessProvider!(role, CancellationToken.None), Is.Not.Null);
+        myLifecycleTrace!.AssertOrdered("roles.populated", "roles.initialized");
+        myLifecycleTrace.AssertOrdered("roles.initialized", "readinessProvider.installed");
+        myLifecycleTrace.AssertOrdered("readinessProvider.installed", "application.ready");
+    }
+
+    [Then("the lifecycle trace records the current startup order")]
+    public void ThenTheLifecycleTraceRecordsTheCurrentStartupOrder()
+    {
+        var milestones = new[]
+        {
+            "postLockPreparation.started",
+            "roles.populated",
+            "backend.prepared",
+            "postLockPreparation.completed",
+            "sleepInhibitor.started",
+            "roles.initialized",
+            "readinessProvider.installed",
+            "workspace.prepared",
+            "window.started",
+            "backend.runtimeCreated",
+            "backend.sessionRegistered:coder",
+            "window.sessionsStarted",
+            "handoff.recovered",
+            "handoff.started",
+            "application.ready",
+        };
+
+        foreach (var pair in milestones.Zip(milestones.Skip(1)))
+            myLifecycleTrace!.AssertOrdered(pair.First, pair.Second);
+    }
+
     [Then("the lifecycle trace shows the process-wide window starting before backend generation startup")]
     public void ThenTheLifecycleTraceShowsWindowBeforeBackendGenerationStartup() =>
         myLifecycleTrace!.AssertOrdered("window.started", "backend.sessionRegistered:coder");
@@ -2324,6 +2426,7 @@ public sealed class ViewModelSteps
 
     private Task AnnounceReadinessAsync()
     {
+        myLifecycleTrace?.Record("application.ready");
         myApplicationReadyCount++;
         return Task.CompletedTask;
     }
@@ -2355,6 +2458,3 @@ public sealed class ViewModelSteps
         _ => exception.Message,
     };
 }
-
-
-
