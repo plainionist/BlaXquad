@@ -1,5 +1,5 @@
-using global::squad.Configuration;
-using global::squad.Handoffs;
+using squad.Configuration;
+using squad.Handoffs;
 
 namespace squad.Handoffs.Delivery;
 

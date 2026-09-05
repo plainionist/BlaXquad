@@ -1,4 +1,4 @@
-using global::squad.AgentProvider.Abstractions.Agents;
+using squad.AgentProvider.Abstractions.Agents;
 using GitHub.Copilot;
 using System.Text.Json;
 

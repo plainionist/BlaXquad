@@ -1,0 +1,236 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100" role="img" aria-labelledby="title desc">
+  <title id="title">BlaXquad runtime collaboration</title>
+  <desc id="desc">The main BlaXquad runtime participants, process boundaries, responsibilities, and collaborations.</desc>
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#34d399"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#c084fc"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#f59e0b"/>
+    </marker>
+    <style>
+      .title { font: 700 34px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .subtitle { font: 400 17px "Segoe UI", sans-serif; fill: #a8b3c7; }
+      .group-title { font: 700 16px "Segoe UI", sans-serif; fill: #d7e2f0; letter-spacing: 1px; }
+      .node-title { font: 700 20px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .node-subtitle { font: 600 15px "Segoe UI", sans-serif; fill: #dbeafe; }
+      .body { font: 400 14px "Segoe UI", sans-serif; fill: #cbd5e1; }
+      .path { font: 600 12px Consolas, "SFMono-Regular", monospace; fill: #7dd3fc; }
+      .path-purple { font: 600 12px Consolas, "SFMono-Regular", monospace; fill: #d8b4fe; }
+      .path-green { font: 600 12px Consolas, "SFMono-Regular", monospace; fill: #6ee7b7; }
+      .path-orange { font: 600 12px Consolas, "SFMono-Regular", monospace; fill: #fbbf24; }
+      .edge { font: 600 13px "Segoe UI", sans-serif; fill: #dbe7f5; }
+      .small { font: 400 12px "Segoe UI", sans-serif; fill: #94a3b8; }
+      .badge { font: 700 12px "Segoe UI", sans-serif; fill: #e2e8f0; letter-spacing: .4px; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1100" fill="#0b1020"/>
+  <text x="48" y="54" class="title">What are the main pieces of BlaXquad and how do they collaborate?</text>
+  <text x="48" y="84" class="subtitle">Current runtime topology. Boxes name the implementation entry points to use when navigating the code.</text>
+
+  <rect x="414" y="118" width="982" height="844" rx="24" fill="#0e1729" stroke="#475569" stroke-width="2" stroke-dasharray="10 8"/>
+  <rect x="438" y="101" width="246" height="34" rx="17" fill="#334155"/>
+  <text x="561" y="123" text-anchor="middle" class="group-title">SQUAD-HQ HOST PROCESS</text>
+
+  <rect x="34" y="138" width="326" height="112" rx="16" fill="#27272f" stroke="#94a3b8" stroke-width="2"/>
+  <text x="58" y="170" class="node-title">Developer / shell</text>
+  <text x="58" y="197" class="body">Starts headquarters; supplies prompts,</text>
+  <text x="58" y="218" class="body">interaction answers, aborts, and window close.</text>
+
+  <rect x="34" y="310" width="326" height="238" rx="18" fill="#2b1f45" stroke="#c084fc" stroke-width="2"/>
+  <text x="58" y="345" class="node-title">Dashboard</text>
+  <text x="58" y="369" class="node-subtitle">Vue app inside the Photino WebView</text>
+  <text x="58" y="397" class="body">One role panel per configured role.</text>
+  <text x="58" y="419" class="body">Renders snapshots and sequenced transcripts;</text>
+  <text x="58" y="441" class="body">holds only presentation state and caches.</text>
+  <text x="58" y="475" class="path-purple">src/squad-ui/src/App.vue</text>
+  <text x="58" y="494" class="path-purple">composables/useDashboardSession.ts</text>
+  <text x="58" y="513" class="path-purple">composables/useTranscriptFeed.ts</text>
+
+  <rect x="34" y="636" width="326" height="150" rx="18" fill="#27272f" stroke="#94a3b8" stroke-width="2"/>
+  <text x="58" y="670" class="node-title">Control clients</text>
+  <text x="58" y="696" class="node-subtitle">short-lived squad-hq processes</text>
+  <text x="58" y="720" class="body">CLI: shutdown | wait-for-agent</text>
+  <text x="58" y="741" class="body">wire: shutdown | agent-status | ping</text>
+  <text x="58" y="767" class="path">src/squad-hq/Commands/HostControlClient.cs</text>
+
+  <rect x="448" y="162" width="308" height="176" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+  <text x="472" y="196" class="node-title">Composition + outer lifecycle</text>
+  <text x="472" y="221" class="node-subtitle">Launch / SquadApplication / HostLease</text>
+  <text x="472" y="250" class="body">Acquires exclusive project ownership, wires</text>
+  <text x="472" y="271" class="body">all components, orders startup and cleanup,</text>
+  <text x="472" y="292" class="body">and races close, shutdown, and failures.</text>
+  <text x="472" y="320" class="path">src/squad-hq/Commands/</text>
+
+  <rect x="786" y="162" width="310" height="176" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+  <text x="810" y="196" class="node-title">Lifecycle + session generation</text>
+  <text x="810" y="221" class="node-subtitle">SessionRegistry / SessionGeneration</text>
+  <text x="810" y="250" class="body">Owns phase, admission, generation identity,</text>
+  <text x="810" y="271" class="body">role-to-session catalog, and one event observer</text>
+  <text x="810" y="292" class="body">per live session.</text>
+  <text x="810" y="320" class="path">src/squad-hq/Commands/</text>
+
+  <rect x="1126" y="162" width="234" height="176" rx="18" fill="#123b36" stroke="#34d399" stroke-width="2"/>
+  <text x="1150" y="196" class="node-title">Copilot adapter</text>
+  <text x="1150" y="221" class="node-subtitle">CopilotSdkBackend</text>
+  <text x="1150" y="244" class="node-subtitle">CopilotSdkAgentRuntime</text>
+  <text x="1150" y="272" class="body">One shared SDK client;</text>
+  <text x="1150" y="293" class="body">one session wrapper per role.</text>
+  <text x="1150" y="320" class="path-green">src/squad.CopilotSdk/</text>
+
+  <rect x="448" y="412" width="266" height="190" rx="18" fill="#2b1f45" stroke="#c084fc" stroke-width="2"/>
+  <text x="472" y="447" class="node-title">Desktop bridge</text>
+  <text x="472" y="472" class="node-subtitle">PhotinoWindowHost</text>
+  <text x="472" y="500" class="body">Owns native window and UI thread.</text>
+  <text x="472" y="521" class="body">Routes versioned JSON commands and</text>
+  <text x="472" y="542" class="body">publishes snapshots/transcript updates.</text>
+  <text x="472" y="578" class="path-purple">src/squad.Photino/</text>
+
+  <rect x="744" y="392" width="382" height="230" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+  <text x="768" y="428" class="node-title">Application state + command surface</text>
+  <text x="768" y="453" class="node-subtitle">SquadViewModel</text>
+  <text x="768" y="481" class="body">Tracks roles and live sessions; serializes state</text>
+  <text x="768" y="502" class="body">mutations; coordinates per-role prompts/aborts;</text>
+  <text x="768" y="523" class="body">owns pending interactions and projects events.</text>
+  <text x="768" y="554" class="body">Implements ISquadUi + ITranscriptUi.</text>
+  <text x="768" y="588" class="path">src/squad.Application/SquadViewModel.cs</text>
+
+  <rect x="1156" y="412" width="204" height="190" rx="18" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+  <text x="1180" y="447" class="node-title">Handoff pump</text>
+  <text x="1180" y="472" class="node-subtitle">InProcessHandoffPoller</text>
+  <text x="1180" y="500" class="body">Polls every second, fans out</text>
+  <text x="1180" y="521" class="body">handoff files, archives sender</text>
+  <text x="1180" y="542" class="body">copy, then wakes recipients.</text>
+  <text x="1180" y="578" class="path-orange">src/squad.Handoffs/</text>
+
+  <rect x="448" y="688" width="308" height="166" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+  <text x="472" y="723" class="node-title">Workspace + configuration</text>
+  <text x="472" y="748" class="node-subtitle">WorkspacePreparer / SquadConfiguration</text>
+  <text x="472" y="776" class="body">Validates topology; creates/resets worktrees;</text>
+  <text x="472" y="797" class="body">links shared paths; prepares handoff folders.</text>
+  <text x="472" y="830" class="path">src/squad.Configuration/</text>
+  <text x="472" y="848" class="path">src/squad-hq/Commands/WorkspacePreparer.cs</text>
+
+  <rect x="786" y="688" width="310" height="166" rx="18" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+  <text x="810" y="723" class="node-title">Per-role transcript state</text>
+  <text x="810" y="748" class="node-subtitle">RoleTranscriptState / TranscriptArchive</text>
+  <text x="810" y="776" class="body">Retains live entries, streaming buffers and</text>
+  <text x="810" y="797" class="body">tool correlation; spills bounded history to temp.</text>
+  <text x="810" y="830" class="path-orange">src/squad.Transcripts/</text>
+
+  <rect x="1126" y="688" width="234" height="166" rx="18" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+  <text x="1150" y="723" class="node-title">Narrow contracts</text>
+  <text x="1150" y="749" class="body">Agent provider, UI and hosting</text>
+  <text x="1150" y="770" class="body">interfaces keep adapters out of</text>
+  <text x="1150" y="791" class="body">the application assembly.</text>
+  <text x="1150" y="824" class="path">src/squad.*.Abstractions/</text>
+
+  <rect x="1440" y="150" width="326" height="196" rx="18" fill="#123b36" stroke="#34d399" stroke-width="2"/>
+  <text x="1464" y="184" class="node-title">GitHub Copilot CLI runtime</text>
+  <text x="1464" y="209" class="node-subtitle">SDK-managed child process over stdio</text>
+  <text x="1464" y="237" class="body">Hosts the provider conversation sessions,</text>
+  <text x="1464" y="258" class="body">models, tool execution, and callbacks.</text>
+  <text x="1464" y="287" class="body">Configured once per role and worktree.</text>
+  <text x="1464" y="321" class="path-green">GitHub.Copilot.SDK</text>
+
+  <rect x="1440" y="420" width="326" height="250" rx="18" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+  <text x="1464" y="455" class="node-title">Repository + role worktrees</text>
+  <text x="1464" y="480" class="node-subtitle">main checkout / .worktrees/&lt;name&gt;</text>
+  <text x="1464" y="509" class="body">Each role session runs with one worktree cwd.</text>
+  <text x="1464" y="530" class="body">Worktrees isolate code changes and identify roles.</text>
+  <text x="1464" y="560" class="body">Durable queue state in every role worktree:</text>
+  <text x="1482" y="582" class="body">&lt;worktree&gt;/.blaxquad/handoffs/*</text>
+  <text x="1464" y="612" class="body">Checked-in topology and prompts:</text>
+  <text x="1482" y="634" class="body">blaxquad/squad.json + *.prompt</text>
+
+  <rect x="1440" y="748" width="326" height="170" rx="18" fill="#27272f" stroke="#94a3b8" stroke-width="2"/>
+  <text x="1464" y="783" class="node-title">Agent-side squad CLI</text>
+  <text x="1464" y="808" class="node-subtitle">short-lived tool process in a role worktree</text>
+  <text x="1464" y="836" class="body">handoff | ready-for-next | done-with-current</text>
+  <text x="1464" y="857" class="body">context</text>
+  <text x="1464" y="890" class="path">src/squad/Commands/</text>
+
+  <!-- Ownership and collaboration -->
+  <path d="M360 194 H430" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="371" y="183" class="edge">launch</text>
+
+  <path d="M197 250 V294" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#arrowPurple)"/>
+  <text x="211" y="278" class="edge">uses</text>
+
+  <path d="M360 429 H433" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#arrowPurple)"/>
+  <path d="M433 464 H360" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#arrowPurple)"/>
+  <text x="372" y="413" class="edge">JSON v3 web messages</text>
+
+  <path d="M360 704 H414 V250 H448" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="369" y="687" class="edge">named pipe</text>
+
+  <path d="M756 245 H786" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="760" y="230" class="edge">owns</text>
+
+  <path d="M1096 245 H1126" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <text x="1097" y="230" class="edge">creates</text>
+
+  <path d="M1360 245 H1440" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M1440 282 H1360" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <text x="1373" y="230" class="edge">SDK / stdio</text>
+
+  <path d="M941 338 V392" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <path d="M906 392 V338" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="953" y="367" class="edge">events / leases</text>
+
+  <path d="M714 492 H744" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#arrowPurple)"/>
+  <path d="M744 535 H714" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#arrowPurple)"/>
+  <text x="731" y="553" text-anchor="middle" class="edge" transform="rotate(-90 731 553)">ISquadUi / ITranscriptUi</text>
+
+  <path d="M1156 500 H1126" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <text x="1137" y="386" text-anchor="middle" class="edge">wake prompt</text>
+
+  <path d="M602 338 V412" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrowBlue)"/>
+  <path d="M730 338 V664 H602 V688" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrowBlue)"/>
+  <path d="M705 338 V384 H1240 V412" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrowBlue)"/>
+  <text x="632" y="365" class="small">wires / owns lifetime</text>
+
+  <path d="M935 622 V688" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <text x="948" y="660" class="edge">stores</text>
+
+  <path d="M1360 505 H1440" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <path d="M1440 545 H1360" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <text x="1371" y="490" class="edge">poll / deliver</text>
+
+  <path d="M602 854 V878 H1412 V634 H1440" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <text x="852" y="871" class="edge">create / reset / link worktrees</text>
+
+  <path d="M1602 346 V404" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+  <text x="1617" y="379" class="edge">tools run in cwd</text>
+
+  <path d="M1766 286 H1783 V833 H1766" fill="none" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="1672" y="729" class="edge">agent invokes</text>
+
+  <path d="M1565 748 V688 H1510 V670" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <text x="1455" y="715" class="edge">queue / claim / complete</text>
+
+  <rect x="448" y="900" width="912" height="42" rx="12" fill="#162033" stroke="#334155"/>
+  <text x="468" y="926" class="small">Truthful coupling: squad-hq is both composition root and lifecycle governor; SquadViewModel combines command coordination, role state, interactions, and transcript projection.</text>
+
+  <g transform="translate(42,1010)">
+    <rect width="18" height="18" rx="4" fill="#102a43" stroke="#38bdf8"/>
+    <text x="28" y="14" class="small">BlaXquad C#</text>
+    <rect x="150" width="18" height="18" rx="4" fill="#2b1f45" stroke="#c084fc"/>
+    <text x="178" y="14" class="small">UI / protocol</text>
+    <rect x="302" width="18" height="18" rx="4" fill="#123b36" stroke="#34d399"/>
+    <text x="330" y="14" class="small">Agent provider</text>
+    <rect x="474" width="18" height="18" rx="4" fill="#3b2a16" stroke="#f59e0b"/>
+    <text x="502" y="14" class="small">State / filesystem</text>
+    <rect x="658" width="18" height="18" rx="4" fill="#27272f" stroke="#94a3b8"/>
+    <text x="686" y="14" class="small">External process / actor</text>
+    <text x="986" y="14" class="small">Dashed enclosure = OS process; arrows are labeled by the exchanged control or data.</text>
+  </g>
+  <text x="42" y="1068" class="small">Squad = configured roles. Role = responsibility + worktree + receive mode + agent settings. Agent session = transient live execution for one role.</text>
+</svg>

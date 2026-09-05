@@ -1,4 +1,4 @@
-using global::squad.Process;
+using squad.Process;
 namespace squadHQ.Commands;
 
 /// <summary>Resolves the main checkout that owns the live squad host.</summary>

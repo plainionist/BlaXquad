@@ -1,5 +1,5 @@
-using global::squad.Specs.Support;
-using global::squad.Configuration;
+using squad.Specs.Support;
+using squad.Configuration;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -32,53 +32,6 @@ public sealed class ConfigurationSteps
             myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
     }
 
-    [When("the squad configuration is parsed")]
-    public void WhenTheSquadConfigurationIsParsed()
-    {
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-parse", myWorkspace.Root]);
-    }
-
-    [When("startup state is prepared")]
-    public void WhenStartupStateIsPrepared() =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-prepare-launch", myWorkspace.Root]);
-
-    [Given("the configured {string} worktree has local changes and queued handoffs")]
-    public void GivenTheConfiguredWorktreeHasLocalChangesAndQueuedHandoffs(string role)
-    {
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-prepare-launch", myWorkspace.Root]);
-        var worktree = myWorkspace.PathInWorkspace(".worktrees", role);
-        File.WriteAllText(Path.Combine(worktree, "blaxquad", "roles", role + ".prompt"), "Uncommitted worktree change\n");
-        foreach (var directory in new[] { "outbox", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed" })
-        {
-            var handoff = Path.Combine(worktree, ".blaxquad", "handoffs", directory, "pending.handoff");
-            Directory.CreateDirectory(Path.GetDirectoryName(handoff)!);
-            File.WriteAllText(handoff, "pending\n");
-        }
-        var batch = Path.Combine(worktree, ".blaxquad", "handoffs", "inbox", "new", "batch_pending");
-        Directory.CreateDirectory(batch);
-        File.WriteAllText(Path.Combine(batch, "pending.handoff"), "pending\n");
-    }
-
-    [Given("the configured {string} worktree has an empty replacement for shared path {string}")]
-    public void GivenTheConfiguredWorktreeHasAnEmptyReplacementForSharedPath(string role, string sharedPath)
-    {
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-prepare-launch", myWorkspace.Root]);
-        var replacement = myWorkspace.PathInWorkspace(".worktrees", role, sharedPath);
-        if (Path.Exists(replacement))
-            Directory.Delete(replacement);
-        Directory.CreateDirectory(replacement);
-    }
-
-    [When("launch preparation runs")]
-    public void WhenLaunchPreparationRuns()
-    {
-        var result = myWorkspace.RunTool("squad-hq", ["launch", "--test-prepare-launch", myWorkspace.Root]);
-        Assert.That(result.ExitCode, Is.Zero, result.StdErr);
-    }
-
-    [When("launch preparation continues")]
-    public void WhenLaunchPreparationContinues() =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-continue-launch", myWorkspace.Root]);
 
     [Then("runtime role {string} uses worktree {string} and receive mode {string}")]
     public void ThenRuntimeRoleUsesWorktreeAndReceiveMode(string role, string worktree, string receiveMode)

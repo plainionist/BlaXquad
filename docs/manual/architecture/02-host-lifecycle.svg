@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200" role="img" aria-labelledby="title desc">
+  <title id="title">BlaXquad host and session lifecycle</title>
+  <desc id="desc">The ordered startup, running, and shutdown lifecycle of headquarters, role sessions, the dashboard, and handoff delivery.</desc>
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#38bdf8"/></marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#34d399"/></marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#c084fc"/></marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#f59e0b"/></marker>
+    <style>
+      .title { font: 700 34px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .subtitle { font: 400 17px "Segoe UI", sans-serif; fill: #a8b3c7; }
+      .lane-title { font: 700 17px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .lane-path { font: 600 11px Consolas, monospace; fill: #94a3b8; }
+      .phase { font: 800 13px "Segoe UI", sans-serif; letter-spacing: 1.5px; }
+      .step { font: 700 15px "Segoe UI", sans-serif; fill: #f8fafc; }
+      .detail { font: 400 13px "Segoe UI", sans-serif; fill: #cbd5e1; }
+      .edge { font: 600 13px "Segoe UI", sans-serif; fill: #e2e8f0; }
+      .note-title { font: 700 15px "Segoe UI", sans-serif; fill: #fde68a; }
+      .note { font: 400 13px "Segoe UI", sans-serif; fill: #d6d3d1; }
+      .number { font: 800 13px "Segoe UI", sans-serif; fill: #0b1020; }
+    </style>
+  </defs>
+  <rect width="1800" height="1200" fill="#0b1020"/>
+  <text x="48" y="54" class="title">What happens from launch to shutdown?</text>
+  <text x="48" y="84" class="subtitle">The ordering below is enforced by SquadApplication, SquadRuntimeController, SessionRegistry, and the adapter lifetimes.</text>
+
+  <!-- Phase bands -->
+  <rect x="30" y="155" width="48" height="650" rx="14" fill="#102a43" stroke="#38bdf8"/>
+  <text x="54" y="490" text-anchor="middle" class="phase" fill="#7dd3fc" transform="rotate(-90 54 490)">STARTUP</text>
+  <rect x="30" y="818" width="48" height="105" rx="14" fill="#123b36" stroke="#34d399"/>
+  <text x="54" y="875" text-anchor="middle" class="phase" fill="#6ee7b7" transform="rotate(-90 54 875)">RUNNING</text>
+  <rect x="30" y="936" width="48" height="205" rx="14" fill="#3b2a16" stroke="#f59e0b"/>
+  <text x="54" y="1042" text-anchor="middle" class="phase" fill="#fbbf24" transform="rotate(-90 54 1042)">STOPPING</text>
+
+  <!-- Lanes -->
+  <g>
+    <rect x="110" y="112" width="286" height="72" rx="14" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+    <text x="253" y="140" text-anchor="middle" class="lane-title">Launch + process resources</text>
+    <text x="253" y="163" text-anchor="middle" class="lane-path">Launch / SquadApplication / HostLease</text>
+    <line x1="253" y1="184" x2="253" y2="1140" stroke="#334155" stroke-width="2" stroke-dasharray="7 7"/>
+
+    <rect x="435" y="112" width="286" height="72" rx="14" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+    <text x="578" y="140" text-anchor="middle" class="lane-title">Workspace + dashboard</text>
+    <text x="578" y="163" text-anchor="middle" class="lane-path">WorkspacePreparer / PhotinoWindowHost</text>
+    <line x1="578" y1="184" x2="578" y2="1140" stroke="#334155" stroke-width="2" stroke-dasharray="7 7"/>
+
+    <rect x="760" y="112" width="286" height="72" rx="14" fill="#102a43" stroke="#38bdf8" stroke-width="2"/>
+    <text x="903" y="140" text-anchor="middle" class="lane-title">Lifecycle authority</text>
+    <text x="903" y="163" text-anchor="middle" class="lane-path">SessionRegistry / SquadRuntimeController</text>
+    <line x1="903" y1="184" x2="903" y2="1140" stroke="#334155" stroke-width="2" stroke-dasharray="7 7"/>
+
+    <rect x="1085" y="112" width="286" height="72" rx="14" fill="#123b36" stroke="#34d399" stroke-width="2"/>
+    <text x="1228" y="140" text-anchor="middle" class="lane-title">Backend generation</text>
+    <text x="1228" y="163" text-anchor="middle" class="lane-path">SessionGeneration / Copilot runtime</text>
+    <line x1="1228" y1="184" x2="1228" y2="1140" stroke="#334155" stroke-width="2" stroke-dasharray="7 7"/>
+
+    <rect x="1410" y="112" width="286" height="72" rx="14" fill="#3b2a16" stroke="#f59e0b" stroke-width="2"/>
+    <text x="1553" y="140" text-anchor="middle" class="lane-title">Handoff production</text>
+    <text x="1553" y="163" text-anchor="middle" class="lane-path">InProcessHandoffPoller</text>
+    <line x1="1553" y1="184" x2="1553" y2="1140" stroke="#334155" stroke-width="2" stroke-dasharray="7 7"/>
+  </g>
+
+  <!-- Startup steps -->
+  <g>
+    <circle cx="106" cy="222" r="15" fill="#38bdf8"/><text x="106" y="227" text-anchor="middle" class="number">1</text>
+    <rect x="126" y="200" width="254" height="63" rx="12" fill="#13253b" stroke="#38bdf8"/>
+    <text x="144" y="224" class="step">Acquire host lease</text>
+    <text x="144" y="245" class="detail">lock + metadata + named-pipe server</text>
+
+    <circle cx="106" cy="298" r="15" fill="#38bdf8"/><text x="106" y="303" text-anchor="middle" class="number">2</text>
+    <rect x="126" y="276" width="254" height="74" rx="12" fill="#13253b" stroke="#38bdf8"/>
+    <text x="144" y="300" class="step">Post-lock preparation</text>
+    <text x="144" y="321" class="detail">check/init Git, excludes, parse config,</text>
+    <text x="144" y="339" class="detail">prepare selected runtime mode</text>
+
+    <path d="M380 314 H560" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+    <text x="414" y="301" class="edge">validated Ctx</text>
+
+    <circle cx="431" cy="386" r="15" fill="#38bdf8"/><text x="431" y="391" text-anchor="middle" class="number">3</text>
+    <rect x="451" y="360" width="254" height="86" rx="12" fill="#13253b" stroke="#38bdf8"/>
+    <text x="469" y="384" class="step">Prepare process state</text>
+    <text x="469" y="405" class="detail">start sleep inhibitor; initialize roles;</text>
+    <text x="469" y="424" class="detail">bind HostLease readiness provider</text>
+
+    <path d="M705 403 H885" fill="none" stroke="#38bdf8" stroke-width="3" marker-end="url(#arrowBlue)"/>
+    <text x="742" y="390" class="edge">role names</text>
+
+    <circle cx="431" cy="486" r="15" fill="#38bdf8"/><text x="431" y="491" text-anchor="middle" class="number">4</text>
+    <rect x="451" y="458" width="254" height="92" rx="12" fill="#13253b" stroke="#38bdf8"/>
+    <text x="469" y="482" class="step">Prepare worktrees + queues</text>
+    <text x="469" y="503" class="detail">fresh launch resets dedicated worktrees</text>
+    <text x="469" y="522" class="detail">and handoffs; --continue preserves them</text>
+    <text x="469" y="541" class="detail">shared paths become links</text>
+
+    <circle cx="431" cy="590" r="15" fill="#c084fc"/><text x="431" y="595" text-anchor="middle" class="number">5</text>
+    <rect x="451" y="562" width="254" height="92" rx="12" fill="#2b1f45" stroke="#c084fc"/>
+    <text x="469" y="586" class="step">Start desktop window</text>
+    <text x="469" y="607" class="detail">dedicated UI thread; wait for ui.ready</text>
+    <text x="469" y="626" class="detail">request initial transcript synchronization</text>
+    <text x="469" y="645" class="detail">(sessions do not exist yet)</text>
+
+    <path d="M705 607 H885" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#arrowPurple)"/>
+    <text x="737" y="594" class="edge">UI ready</text>
+
+    <circle cx="756" cy="686" r="15" fill="#38bdf8"/><text x="756" y="691" text-anchor="middle" class="number">6</text>
+    <rect x="776" y="661" width="254" height="72" rx="12" fill="#13253b" stroke="#38bdf8"/>
+    <text x="794" y="685" class="step">BeginStarting()</text>
+    <text x="794" y="706" class="detail">Created -&gt; Starting; generation++; </text>
+    <text x="794" y="724" class="detail">admission remains open</text>
+
+    <path d="M1030 697 H1210" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+    <text x="1078" y="684" class="edge">create runtime</text>
+
+    <circle cx="1081" cy="747" r="15" fill="#34d399"/><text x="1081" y="752" text-anchor="middle" class="number">7</text>
+    <rect x="1101" y="718" width="254" height="88" rx="12" fill="#123b36" stroke="#34d399"/>
+    <text x="1119" y="742" class="step">Start all role sessions</text>
+    <text x="1119" y="763" class="detail">create in parallel; attach; publish config;</text>
+    <text x="1119" y="782" class="detail">register + observe; send initial prompts</text>
+    <path d="M1101 774 H1030" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+    <text x="1000" y="797" text-anchor="end" class="edge">register each session</text>
+
+    <path d="M1101 804 C980 830,760 822,705 670" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#arrowPurple)"/>
+    <text x="754" y="812" class="edge">SessionsStartedAsync - publish immediate snapshot</text>
+
+    <path d="M1355 771 H1535" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+    <text x="1375" y="758" class="edge">recover inboxes, then start poller</text>
+
+    <circle cx="756" cy="858" r="15" fill="#34d399"/><text x="756" y="863" text-anchor="middle" class="number">8</text>
+    <rect x="776" y="832" width="254" height="66" rx="12" fill="#123b36" stroke="#34d399"/>
+    <text x="794" y="856" class="step">Commit Running</text>
+    <text x="794" y="878" class="detail">all sessions registered; handoff pump active</text>
+  </g>
+
+  <!-- Running and terminal signals -->
+  <rect x="110" y="826" width="596" height="84" rx="14" fill="#13251f" stroke="#34d399"/>
+  <text x="132" y="851" class="step">RunAsync waits for a terminal signal</text>
+  <text x="132" y="874" class="detail">window close | named-pipe shutdown | host-server failure | handoff failure</text>
+  <text x="132" y="895" class="detail">backend fatal failure | caller cancellation</text>
+  <path d="M706 868 H758" fill="none" stroke="#34d399" stroke-width="3" marker-end="url(#arrowGreen)"/>
+
+  <!-- Shutdown -->
+  <circle cx="756" cy="969" r="15" fill="#f59e0b"/><text x="756" y="974" text-anchor="middle" class="number">9</text>
+  <rect x="776" y="944" width="254" height="78" rx="12" fill="#3b2a16" stroke="#f59e0b"/>
+  <text x="794" y="968" class="step">BeginStopping()</text>
+  <text x="794" y="989" class="detail">close admission immediately; stop ViewModel;</text>
+  <text x="794" y="1008" class="detail">cancel interactions; drain accepted commands</text>
+
+  <path d="M1030 983 H1535" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+  <text x="1190" y="970" class="edge">stop handoff polling</text>
+
+  <circle cx="1081" cy="1057" r="15" fill="#f59e0b"/><text x="1081" y="1062" text-anchor="middle" class="number">10</text>
+  <rect x="1101" y="1031" width="254" height="86" rx="12" fill="#3b2a16" stroke="#f59e0b"/>
+  <text x="1119" y="1055" class="step">Tear down generation</text>
+  <text x="1119" y="1076" class="detail">cancel event observation; dispose sessions</text>
+  <text x="1119" y="1095" class="detail">in reverse; stop/force-stop client; drain</text>
+  <text x="1119" y="1114" class="detail">observers; commit Stopped</text>
+
+  <path d="M1101 1086 H1030" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+
+  <circle cx="106" cy="1080" r="15" fill="#f59e0b"/><text x="106" y="1085" text-anchor="middle" class="number">11</text>
+  <rect x="126" y="1041" width="580" height="92" rx="12" fill="#3b2a16" stroke="#f59e0b"/>
+  <text x="144" y="1065" class="step">Release process resources after generation teardown</text>
+  <text x="144" y="1087" class="detail">stop/dispose window; dispose pump, sleep inhibitor, ViewModel + temp archive;</text>
+  <text x="144" y="1108" class="detail">dispose HostLease last (remove host.json and release host.lock)</text>
+  <path d="M776 1080 H706" fill="none" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+
+  <rect x="1410" y="1031" width="286" height="102" rx="14" fill="#201c17" stroke="#78716c"/>
+  <text x="1432" y="1057" class="note-title">Failure behavior</text>
+  <text x="1432" y="1080" class="note">Cleanup attempts all owned resources.</text>
+  <text x="1432" y="1101" class="note">Primary and cleanup failures are aggregated;</text>
+  <text x="1432" y="1122" class="note">a partial startup still unwinds in this order.</text>
+
+  <text x="110" y="1172" class="lane-path">Primary navigation: src/squad-hq/Commands/SquadApplication.cs, SquadRuntimeController.cs, SessionRegistry.cs, SessionGeneration.cs; src/squad.CopilotSdk/CopilotSdkAgentRuntime.cs</text>
+</svg>

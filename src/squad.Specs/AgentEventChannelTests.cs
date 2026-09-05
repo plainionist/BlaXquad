@@ -1,6 +1,6 @@
-using global::squad.AgentProvider.Abstractions;
-using global::squad.AgentProvider.Abstractions.Agents;
-using global::squad.CopilotSdk;
+using squad.AgentProvider.Abstractions;
+using squad.AgentProvider.Abstractions.Agents;
+using squad.CopilotSdk;
 
 namespace squad.Specs;
 

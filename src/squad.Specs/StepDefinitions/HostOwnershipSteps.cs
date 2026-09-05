@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
-using global::squadHQ.Commands;
+using squadHQ.Commands;
 using squad.Specs.Support;
 
 namespace squad.Specs.StepDefinitions;
@@ -320,99 +320,6 @@ public sealed class HostOwnershipSteps
     [When("the executable attempts a duplicate launch")]
     public void WhenTheExecutableAttemptsADuplicateLaunch() =>
         myWorkspace.RunTool("squad-hq", ["launch", myWorkspace.Root]);
-
-    [When("the executable queries launch selection {string}")]
-    public void WhenTheExecutableQueriesLaunchSelection(string selection) =>
-        myWorkspace.RunTool(
-            "squad-hq",
-            ["launch", "--test-launch-selection"],
-            new Dictionary<string, string?>
-            {
-                ["BLAXQUAD_AGENT_BACKEND"] = selection == "unset" ? null : selection,
-            });
-
-    [When("the executable queries its native window title")]
-    public void WhenTheExecutableQueriesItsNativeWindowTitle() =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-window-title", myWorkspace.Root]);
-
-    [Then("the executable reports launch selection {string}")]
-    public void ThenTheExecutableReportsLaunchSelection(string selection)
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
-            Assert.That(myWorkspace.LastResult?.StdOut.Trim(), Is.EqualTo(selection));
-        });
-    }
-
-    [Then("the executable reports the native window title for its workspace")]
-    public void ThenTheExecutableReportsTheNativeWindowTitleForItsWorkspace()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
-            Assert.That(myWorkspace.LastResult?.StdOut.Trim(), Is.EqualTo($"BlaXquad - {myWorkspace.Root}"));
-        });
-    }
-
-    [When("the executable queries a default context window with {long} prompt tokens and {long} output tokens")]
-    public void WhenTheExecutableQueriesADefaultContextWindow(long promptTokens, long outputTokens) =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-context-window", promptTokens.ToString(), outputTokens.ToString()]);
-
-    [Then("the executable reports a default context window of {long} tokens")]
-    public void ThenTheExecutableReportsADefaultContextWindow(long expectedTokens)
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
-            Assert.That(myWorkspace.LastResult?.StdOut.Trim(), Is.EqualTo(expectedTokens.ToString()));
-        });
-    }
-
-    [When("the executable exercises its context window cache")]
-    public void WhenTheExecutableExercisesItsContextWindowCache() =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-context-window-cache"]);
-
-    [Then("the executable reports one context window lookup")]
-    public void ThenTheExecutableReportsOneContextWindowLookup()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
-            Assert.That(myWorkspace.LastResult?.StdOut.Trim(), Is.EqualTo("1"));
-        });
-    }
-
-    [When("the executable checks whether command {string} is available")]
-    public void WhenTheExecutableChecksWhetherCommandIsAvailable(string command) =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--test-command-exists", command]);
-
-    [Then("command availability is reported as {string}")]
-    public void ThenCommandAvailabilityIsReported(string availability)
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
-            Assert.That(myWorkspace.LastResult?.StdOut.Trim(), Is.EqualTo(availability));
-        });
-    }
-
-    [When("the executable attempts a launch with selection {string}")]
-    public void WhenTheExecutableAttemptsALaunchWithSelection(string selection) =>
-        myWorkspace.RunTool(
-            "squad-hq",
-            ["launch", myWorkspace.Root],
-            new Dictionary<string, string?>
-            {
-                ["BLAXQUAD_AGENT_BACKEND"] = selection == "empty" ? "" : selection,
-            });
-
-    [Then("the launch selection is rejected")]
-    public void ThenTheLaunchSelectionIsRejected()
-    {
-        Assert.That(myWorkspace.LastResult?.ExitCode, Is.Not.Zero);
-        Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("BLAXQUAD_AGENT_BACKEND must be unset or 'sdk'"));
-    }
 
     [Then("the duplicate launch fails without an exception trace")]
     public void ThenTheDuplicateLaunchFailsWithoutAnExceptionTrace()

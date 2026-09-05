@@ -1,4 +1,4 @@
-using global::squad.Process;
+using squad.Process;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
