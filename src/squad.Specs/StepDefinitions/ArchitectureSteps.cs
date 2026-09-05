@@ -13,6 +13,7 @@ using squad.Ui.Abstractions;
 using squad.Ui.Protocol;
 using squadHQ.Commands;
 using squad.Workspaces;
+using squad.Host.Control;
 using System.Reflection;
 
 namespace squad.Specs.StepDefinitions;
@@ -380,6 +381,22 @@ public sealed class ArchitectureSteps
             }
             Assert.That(fields.Select(field => field.FieldType.Name), Does.Contain(nameof(SquadStartupPlan)));
         });
+    }
+
+    [Then("the host control assembly depends only on process")]
+    public void ThenTheHostControlAssemblyDependsOnlyOnProcess()
+    {
+        var references = ReferencedSquadAssemblyNames(typeof(HostLease).Assembly);
+
+        Assert.That(references, Is.EquivalentTo(new[] { "squad.Process" }));
+    }
+
+    [Then("host control request parsing and cleanup mechanics remain internal")]
+    public void ThenHostControlRequestParsingAndCleanupMechanicsRemainInternal()
+    {
+        var assembly = typeof(HostLease).Assembly;
+        AssertInternalApplicationType(assembly, "squad.Host.Control.HostControlRequest");
+        AssertInternalApplicationType(assembly, "squad.Host.Control.CleanupLease");
     }
 
     [Then("the agent provider and hosting abstractions do not depend on presentation or provider adapters")]

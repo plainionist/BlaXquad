@@ -1,3 +1,5 @@
+using squad.Host.Control;
+
 namespace squadHQ.Commands;
 
 static class Shutdown

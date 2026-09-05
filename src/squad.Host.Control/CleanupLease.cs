@@ -1,6 +1,6 @@
-namespace squadHQ.Commands;
+namespace squad.Host.Control;
 
-public sealed class CleanupLease : IDisposable
+internal sealed class CleanupLease : IDisposable
 {
     private readonly string myStateDir;
     private readonly FileStream myLockFile;

@@ -1,5 +1,5 @@
 using squad.Process;
-namespace squadHQ.Commands;
+namespace squad.Host.Control;
 
 /// <summary>Resolves the main checkout that owns the live squad host.</summary>
 public static class HostProjectRoot

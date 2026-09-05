@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="squad.Specs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
+  </ItemGroup>
+
+</Project>

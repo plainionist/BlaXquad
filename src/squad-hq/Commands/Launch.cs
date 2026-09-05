@@ -8,6 +8,7 @@ using squad.Photino;
 using squad.Ui.Abstractions;
 using squad.CopilotSdk;
 using squad.Workspaces;
+using squad.Host.Control;
 
 namespace squadHQ.Commands;
 

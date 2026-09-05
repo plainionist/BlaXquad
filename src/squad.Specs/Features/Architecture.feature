@@ -30,6 +30,10 @@ Feature: Runtime assembly boundaries
     Then the workspace assembly depends only on configuration and process
     And SquadApplication depends on the startup plan instead of the workspace context and preparer
 
+  Scenario: Host ownership and control is isolated in its own assembly
+    Then the host control assembly depends only on process
+    And host control request parsing and cleanup mechanics remain internal
+
   Scenario: Handoff delivery is isolated in its own assembly
     Then the handoff queue assembly depends only on process
     And the handoff delivery assembly depends only on the handoff queue and agent configuration

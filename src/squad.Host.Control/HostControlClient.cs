@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Control;
 
 public static class HostControlClient
 {

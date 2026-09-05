@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squadHQ.Commands;
+namespace squad.Host.Control;
 
 public sealed class HostLease : IHostLease
 {
@@ -101,7 +101,7 @@ public sealed class HostLease : IHostLease
         return true;
     }
 
-    public static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
+    internal static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
