@@ -6,7 +6,7 @@ using global::squad.Agent.Configuration;
 using global::squad.CopilotSdk;
 using global::squad.Core;
 using global::squad.Core.Handoffs;
-using global::squad.Core.Transcripts;
+using global::squad.Transcripts;
 using global::squad.Photino;
 using global::squad.Ui.Abstractions;
 using global::squadHQ.Commands;

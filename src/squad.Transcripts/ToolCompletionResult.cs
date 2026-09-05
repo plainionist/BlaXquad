@@ -1,6 +1,6 @@
 using global::squad.Ui.Abstractions;
 
-namespace squad.Core.Transcripts;
+namespace squad.Transcripts;
 
 /// <summary>
 /// Reports the transcript update (if any) produced by completing a tool call, along with the active tool name that

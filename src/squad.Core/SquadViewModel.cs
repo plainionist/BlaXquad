@@ -3,7 +3,7 @@ using global::squad.AgentProvider.Abstractions.Agents;
 using global::squad.Core.Events;
 using global::squad.Core.Interactions;
 using global::squad.Core.RoleOperations;
-using global::squad.Core.Transcripts;
+using global::squad.Transcripts;
 using global::squad.Ui.Abstractions;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
