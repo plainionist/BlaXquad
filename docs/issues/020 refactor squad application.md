@@ -35,8 +35,8 @@ command-admission owner.
 
 ## Coordination status
 
-Slice 1 is the only slice authorized for implementation. It characterizes the observable ordering that the extraction
-must preserve without changing production behavior.
+Slice 1 is the only slice authorized for implementation. The reviewer requested changes on coder commit `9b0883b395`
+before Slice 1 can be accepted.
 
 Slices 2 and 3 remain blocked until:
 
@@ -53,7 +53,7 @@ Do not emulate either missing prerequisite inside this issue. In particular, do 
 
 ### Slice 1: Characterize generation lifecycle ordering
 
-**Status: authorized for implementation**
+**Status: changes requested (9b0883b395)**
 
 1. Extend the existing black-box `SquadApplication` acceptance support with one shared lifecycle trace used by the
    recording window, backend, sessions, handoff pump, and process-wide resources. Keep the trace in test support; add no
@@ -80,6 +80,44 @@ Slice 1 is accepted when:
 - the scenarios exercise `SquadApplication` through its public lifecycle rather than testing a proposed extracted type;
   and
 - all existing startup, handoff, failure, and shutdown scenarios remain unchanged and green.
+
+#### Review findings on 9b0883b395
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Specs/StepDefinitions/ViewModelSteps.cs` (`WireLifecycleTrace`),
+  `src/squad.Specs/Support/RecordingAgentSession.cs` (`Events` finally / `DisposeAsync`), and
+  `Then the lifecycle trace shows session completion resolving before observer retirement completes`.
+- **Violated behavior:** Slice 1 is accepted only when the Gherkin fails if observers cross the required ownership
+  order: backend-owned session completion resolves before observer retirement completes.
+- **Root cause:** `WireLifecycleTrace` sets `IgnoreEventCancellation = true` so `Events()` ignores
+  `SquadApplication`'s shutdown-wide `myEventCancellation.Cancel()`, which runs before session disposal. The scenario
+  then treats `session.coder.eventsCompleted` (the `Events()` enumerator finishing) as observer retirement. With
+  cancellation ignored, that milestone is recorded only after `DisposeAsync` resolves completion and closes the channel,
+  so the assertion characterizes the recording session's internal dispose sequence rather than production cleanup. The
+  scenario would still pass if production continued to drain event observers before session completion.
+- **Required outcome:** Do not suppress session event cancellation to manufacture the order. Use a collaborator-visible
+  milestone that current public `SquadApplication` cleanup actually performs and that still holds when session disposal
+  moves behind the backend owner. The scenario must fail if observer tasks are drained before session completion
+  resolves.
+
+**Finding 2 — high**
+
+- **Location:** `Given a SquadApplication with recording roles {string} and a lifecycle trace whose backend fails
+  during startup` and `Then the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup
+  failure`.
+- **Violated behavior:** Partial-start rollback must prove that one cleanup failure cannot skip later mandatory
+  cleanup, including generation teardown and process-wide release after a registered session and a later startup
+  failure.
+- **Root cause:** The injected cleanup failure is `RecordingHandoffPump.FailOnDispose`. Handoff-pump disposal runs after
+  session disposal, backend disposal, window stop, and window disposal. The Then step still asserts those earlier
+  steps as evidence they survived the cleanup failure. Only sleep-inhibitor disposal is actually later. The Then also
+  asserts only the registered `coder` session was disposed, so the unpublished `reviewer` session from the same
+  partial start is not locked in.
+- **Required outcome:** Inject the cleanup failure in a generation-scoped teardown step that precedes process-wide
+  release (registered session disposal or backend disposal). Assert the later mandatory steps still run, and that every
+  session created for the partial start is disposed, including the unpublished one. Keep using the existing aggregate
+  `the application lifecycle contains {string} and {string}` assertion.
 
 ### Slice 2: Extract one generation runtime
 
