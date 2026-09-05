@@ -20,8 +20,6 @@ static class Launch
                 RunMain(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true);
                 return 0;
             default:
-                if (args.Length > 0 && RuntimeModeSelector.TryRunPrivateCommand(args[0].TrimStart('-'), args[1..], out var exitCode))
-                    return exitCode;
                 RunMain(args.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false);
                 return 0;
         }

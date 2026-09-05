@@ -18,11 +18,6 @@ public static class RuntimeModeSelector
             new SleepInhibitor(),
             cancellationToken => myFactory.PrepareAsync(context, cancellationToken));
     }
-
-    public static bool TryRunPrivateCommand(string command, string[] arguments, out int exitCode)
-    {
-        return myFactory.TryRunPrivateCommand(command, arguments, out exitCode);
-    }
 }
 
 
