@@ -138,7 +138,7 @@ application model to headquarters or technology adapters.
 ## Coordination status
 
 Slice 1 is complete (aad01aec15). Slice 2 is complete (9a0dad4ae6). Slice 3 is complete (ae73524ae8). Slice 4 is
-complete (9a767e47a1). Slice 5 remains blocked until the architect authorizes the next slice.
+complete (9a767e47a1). Slice 5 is the only slice authorized for implementation.
 
 ## Implementation plan
 
@@ -255,11 +255,32 @@ Slice 4 is accepted when:
 
 ### Slice 5: Verify boundaries
 
-1. Add architecture assertions for the target assembly graph and the absence of `squad.Core*` projects.
-2. Verify that the `squad` agent CLI still cannot reach application, transcript, handoff-delivery, host, provider
-   runtime, or UI assemblies.
-3. Run focused role command, interaction, transcript, handoff, startup, relaunch, and shutdown scenarios, then the full
-   build and acceptance suite.
+**Status: authorized for implementation**
+
+1. Add one black-box architecture assertion that scans the supported solution/project graph and rejects every
+   `squad.Core` or `squad.Core.*` project identity while requiring `squad.Application`, `squad.Transcripts`, and
+   `squad.Handoffs`. Inspect project and solution entries rather than ignored historical `bin`/`obj` directories.
+2. Retain the existing exact assembly-reference assertions for application, transcripts, handoffs, headquarters, and
+   Photino. Remove obsolete architecture-test references to assemblies that no longer exist, including
+   `squad.Agent.Tooling` and `squad.Agent.Configuration`, so the assertions describe the supported graph rather than
+   passing or failing for stale names.
+3. Keep the agent CLI transitive closure assertion exact: only `squad`, `squad.Configuration`, `squad.Handoff`, and
+   `squad.Process` may be reachable. Headquarters types such as `SessionRegistry`, `SquadApplication`, and
+   `SiblingTool`, plus application, transcript, handoff-delivery, provider-runtime, hosting, and UI assemblies, must
+   remain unreachable.
+4. Add no new production abstraction or behavior unless an architecture assertion exposes a real boundary violation.
+   Do not create `squad.Common` or `squad.Foundation`.
+5. Run the architecture scenario plus focused role-command, interaction, transcript, handoff delivery/recovery,
+   startup, relaunch, and shutdown scenarios. Then run the full solution build and acceptance suite and perform a clean
+   headquarters publish, confirming that no `squad.Core*.dll` is emitted.
+
+Slice 5 and this issue are accepted when:
+
+- the architecture suite enforces the complete target graph and absence of all legacy Core project identities;
+- the agent CLI dependency closure contains exactly its four agent-safe assemblies and no host/application/UI runtime
+  surface;
+- a clean build, complete acceptance suite, and clean headquarters publish pass with no stale Core artifact; and
+- all issue-level acceptance criteria below are satisfied without introducing a replacement common bucket.
 
 ## Acceptance criteria
 
