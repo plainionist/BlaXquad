@@ -49,19 +49,6 @@ static class Launch
 
         void Fail(string message) => throw new CliExitException(1, message);
 
-        IRuntimeModeFactory SelectFactory()
-        {
-            try
-            {
-                return RuntimeModeSelector.Select(Environment.GetEnvironmentVariable("BLAXQUAD_AGENT_BACKEND"));
-            }
-            catch (InvalidOperationException exception)
-            {
-                Fail(exception.Message);
-                throw;
-            }
-        }
-
         Ctx BuildContext(string workingDirArgument)
         {
             var layout = ProjectLayout.Create(workingDirArgument);
@@ -171,13 +158,12 @@ static class Launch
 
         void TestLaunchSelection()
         {
-            var factory = SelectFactory();
             var context = BuildContext(Directory.GetCurrentDirectory());
             var viewModel = new SquadViewModel();
-            var runtime = RuntimeModeSelector.Create(factory, () => BuildBackendContext(context), viewModel);
+            var runtime = RuntimeModeSelector.Create(() => BuildBackendContext(context), viewModel);
             try
             {
-                Console.WriteLine($"{factory.Name} {runtime.WindowHost.GetType().Name} {runtime.AgentBackend.GetType().Name}");
+                Console.WriteLine($"{runtime.WindowHost.GetType().Name} {runtime.AgentBackend.GetType().Name}");
             }
             finally
             {
@@ -190,7 +176,6 @@ static class Launch
 
         void RunMain(string root, bool continueLaunch)
         {
-            var factory = SelectFactory();
             var context = BuildContext(root);
             context.ContinueLaunch = continueLaunch;
             IHostLease? hostLease = HostLease.Acquire(context.WorkingDir);
@@ -213,7 +198,7 @@ static class Launch
             {
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var runtime = RuntimeModeSelector.Create(factory, () => BuildBackendContext(context), viewModel);
+                var runtime = RuntimeModeSelector.Create(() => BuildBackendContext(context), viewModel);
                 var sessionRegistry = new SessionRegistry();
                 var handoffPump = new InProcessHandoffPoller(
                     () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
