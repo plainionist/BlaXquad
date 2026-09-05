@@ -15,12 +15,6 @@ public sealed class CopilotSdkRuntimeModeFactory : IRuntimeModeFactory
         cancellationToken.ThrowIfCancellationRequested();
         return Task.CompletedTask;
     }
-
-    public bool TryRunPrivateCommand(string command, string[] arguments, out int exitCode)
-    {
-        exitCode = 0;
-        return false;
-    }
 }
 
 
