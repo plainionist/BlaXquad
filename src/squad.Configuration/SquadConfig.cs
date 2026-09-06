@@ -2,9 +2,13 @@ using System.Text.Json;
 
 namespace squad.Configuration;
 
-/// <summary>Reads role configurations from blaxquad/squad.json.</summary>
+/// <summary>
+/// Provides lenient command-side role lookup from <c>blaxquad/squad.json</c>. Missing or malformed configuration is
+/// represented as an empty role list so individual commands can report context-specific errors.
+/// </summary>
 public static class SquadConfig
 {
+    /// <summary>Reads resolved role rows, returning an empty list when the configuration cannot be consumed.</summary>
     public static IReadOnlyList<RoleRow> ReadRoles(string projectRoot)
     {
         var configFile = Path.Combine(projectRoot, "blaxquad", "squad.json");
@@ -46,6 +50,5 @@ public static class SquadConfig
     public static RoleRow? Find(IEnumerable<RoleRow> rows, string role) =>
         rows.FirstOrDefault(r => r.Role == role);
 }
-
 
 

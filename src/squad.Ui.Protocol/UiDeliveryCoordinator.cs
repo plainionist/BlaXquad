@@ -2,6 +2,10 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
+/// <summary>
+/// Orders state snapshots, incremental transcript updates, and transcript recovery for one UI connection. Pending
+/// updates that exceed the bounded queue are replaced by a synchronization snapshot.
+/// </summary>
 internal sealed class UiDeliveryCoordinator : IAsyncDisposable
 {
     private const int myMaxTranscriptSynchronizationEntriesPerRole = 500;
@@ -219,7 +223,6 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
         }
     }
 }
-
 
 
 

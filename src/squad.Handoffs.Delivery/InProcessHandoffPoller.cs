@@ -1,6 +1,10 @@
 using squad.Configuration;
 namespace squad.Handoffs.Delivery;
 
+/// <summary>
+/// Polls role outboxes in-process and exposes unexpected loop termination separately from controlled stopping.
+/// Start and stop are idempotent, and a stopped poller may be started again before disposal.
+/// </summary>
 public sealed class InProcessHandoffPoller : IHandoffPump
 {
     private static readonly TimeSpan myPollInterval = TimeSpan.FromSeconds(1);
@@ -95,6 +99,5 @@ public sealed class InProcessHandoffPoller : IHandoffPump
         }
     }
 }
-
 
 

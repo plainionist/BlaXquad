@@ -2,9 +2,10 @@ using System.Diagnostics;
 
 namespace squad.Process;
 
-/// <summary>Thin wrapper over Process for capturing output from external commands.</summary>
+/// <summary>Runs external commands with captured output through synchronous, checked, and cancellable paths.</summary>
 public static class ProcessRunner
 {
+    /// <summary>Returns the child result without treating a non-zero exit code as an exception.</summary>
     public static ProcessResult Run(string fileName, IEnumerable<string> args, string? workingDirectory = null, IReadOnlyDictionary<string, string>? environment = null)
     {
         var psi = new ProcessStartInfo(fileName)
@@ -44,7 +45,7 @@ public static class ProcessRunner
         return result;
     }
 
-    /// <summary>Asynchronous, cancellable counterpart of <see cref="Run"/>.</summary>
+    /// <summary>Runs asynchronously and kills the entire child process tree when cancellation is requested.</summary>
     public static async Task<ProcessResult> RunAsync(
         string fileName,
         IEnumerable<string> args,
@@ -83,7 +84,9 @@ public static class ProcessRunner
         return new ProcessResult(process.ExitCode, await stdout, await stderr);
     }
 
-    /// <summary>Asynchronous, cancellable counterpart of <see cref="RunChecked"/>.</summary>
+    /// <summary>
+    /// Runs asynchronously, kills the child process tree on cancellation, and throws when the child exits non-zero.
+    /// </summary>
     public static async Task<ProcessResult> RunCheckedAsync(
         string fileName,
         IEnumerable<string> args,

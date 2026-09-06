@@ -3,6 +3,10 @@ using squad.Ui.Abstractions;
 
 namespace squad.Transcripts;
 
+/// <summary>
+/// Accumulates one streaming transcript entry while retaining only a bounded tail and tracking its original content
+/// offset.
+/// </summary>
 internal sealed class TranscriptEntryBuffer
 {
     private const string myTruncationMarker = "[Earlier content is available in transcript history.]\n";
@@ -106,6 +110,5 @@ internal sealed class TranscriptEntryBuffer
         return hash;
     }
 }
-
 
 

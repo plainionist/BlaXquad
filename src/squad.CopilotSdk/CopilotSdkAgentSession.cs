@@ -4,6 +4,10 @@ using System.Text.Json;
 
 namespace squad.CopilotSdk;
 
+/// <summary>
+/// Adapts one Copilot SDK session to the provider-neutral event and interaction contract. It owns pending
+/// interaction completion, event backpressure, usage refreshes, and teardown of the attached SDK session.
+/// </summary>
 public sealed class CopilotSdkAgentSession : IAgentSession
 {
     private static readonly TimeSpan myDefaultFailureTeardownTimeout = TimeSpan.FromSeconds(5);
@@ -93,6 +97,10 @@ public sealed class CopilotSdkAgentSession : IAgentSession
         _ = RefreshUsageAsync();
     }
 
+    /// <summary>
+    /// Aborts the provider operation and cancels all pending interactions. Successful abort does not terminate the
+    /// session, which remains available for later prompts.
+    /// </summary>
     public Task AbortAsync(CancellationToken cancellationToken = default) =>
         AbortCoreAsync(cancellationToken);
 
@@ -382,6 +390,5 @@ public sealed class CopilotSdkAgentSession : IAgentSession
         _ => throw new ArgumentException("Expected an interaction request.", nameof(request)),
     };
 }
-
 
 

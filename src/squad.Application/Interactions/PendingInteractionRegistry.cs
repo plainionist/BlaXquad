@@ -5,8 +5,7 @@ namespace squad.Application.Interactions;
 /// <summary>
 /// Owns pending permission, input, and elicitation requests plus the protected transcript entry each one holds
 /// open. Requests are keyed by role and request ID, so the same request ID can be pending independently for
-/// multiple roles at once. Every member takes and releases its own lock; callers must never hold this lock while
-/// awaiting a session operation or acquiring a role lock.
+/// multiple roles at once. Callers never hold its internal lock while awaiting provider or role operations.
 /// </summary>
 internal sealed class PendingInteractionRegistry
 {

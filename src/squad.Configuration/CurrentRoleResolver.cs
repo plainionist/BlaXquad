@@ -2,8 +2,10 @@ using squad.Process;
 
 namespace squad.Configuration;
 
+/// <summary>Matches a normalized worktree path to exactly one configured role.</summary>
 public static class CurrentRoleResolver
 {
+    /// <summary>Fails with a controlled CLI error when no role or multiple roles match the supplied path.</summary>
     public static RoleRow Resolve(IReadOnlyList<RoleRow> roles, string projectRoot)
     {
         var currentRoot = Normalize(projectRoot);
@@ -23,6 +25,5 @@ public static class CurrentRoleResolver
         return OperatingSystem.IsWindows() ? fullPath.ToUpperInvariant() : fullPath;
     }
 }
-
 
 

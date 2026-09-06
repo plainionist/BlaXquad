@@ -2,6 +2,7 @@ using System.Text.Json;
 
 namespace squad.Ui.Protocol;
 
+/// <summary>Parses a UI envelope while preserving version and shape errors as protocol data for the caller to publish.</summary>
 internal static class UiMessageReader
 {
     internal static UiMessage Read(
@@ -46,7 +47,6 @@ internal static class UiMessageReader
             ? element.GetString()
             : null;
 }
-
 
 
 

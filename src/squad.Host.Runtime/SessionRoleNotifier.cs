@@ -3,6 +3,10 @@ using squad.Handoffs.Delivery;
 
 namespace squad.Host.Runtime;
 
+/// <summary>
+/// Routes handoff wake-ups through the same lifecycle admission authority used by interactive commands, rejecting
+/// notifications for completed or retired sessions.
+/// </summary>
 internal sealed class SessionRoleNotifier : IRoleNotifier
 {
     private const string myWakeMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
@@ -25,6 +29,5 @@ internal sealed class SessionRoleNotifier : IRoleNotifier
         await myViewModel.SendHarnessAsync(role, myWakeMessage, cancellationToken);
     }
 }
-
 
 

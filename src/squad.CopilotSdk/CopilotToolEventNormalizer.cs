@@ -6,6 +6,9 @@ using System.Text.Json;
 
 namespace squad.CopilotSdk;
 
+/// <summary>
+/// Correlates SDK tool lifecycle events and emits provider-neutral tool events with normalized output semantics.
+/// </summary>
 internal sealed class CopilotToolEventNormalizer
 {
     private readonly CopilotSdkAgentSession myAgentSession;
@@ -96,6 +99,5 @@ internal sealed class CopilotToolEventNormalizer
         }
     }
 }
-
 
 

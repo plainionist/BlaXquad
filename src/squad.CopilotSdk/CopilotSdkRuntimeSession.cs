@@ -3,6 +3,7 @@ using GitHub.Copilot;
 
 namespace squad.CopilotSdk;
 
+/// <summary>Wraps an SDK session and caches its model-derived context-window limit for usage reporting.</summary>
 internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
 {
     private readonly CopilotSession mySession;
@@ -106,6 +107,5 @@ internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
     private static long? TryGetInt64(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var property) && property.TryGetInt64(out var value) ? value : null;
 }
-
 
 

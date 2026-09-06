@@ -4,6 +4,10 @@ using System.Threading.Channels;
 
 namespace squad.Ui.Protocol;
 
+/// <summary>
+/// Coalesces concurrent state-refresh requests onto one publisher loop. Deferred requests are throttled while an
+/// immediate request upgrades and releases the pending publication.
+/// </summary>
 public sealed class SnapshotPublisher : IAsyncDisposable
 {
     private const int myNoRequest = 0;
@@ -32,6 +36,10 @@ public sealed class SnapshotPublisher : IAsyncDisposable
         myWorker = RunAsync();
     }
 
+    /// <summary>
+    /// Queues a publication without blocking the caller. Multiple requests coalesce, and immediate priority
+    /// upgrades any deferred publication already waiting.
+    /// </summary>
     public void Request(UiRefreshPriority priority)
     {
         if (Volatile.Read(ref myDisposed) != 0)
@@ -134,6 +142,4 @@ public sealed class SnapshotPublisher : IAsyncDisposable
         myShutdown.Dispose();
     }
 }
-
-
 

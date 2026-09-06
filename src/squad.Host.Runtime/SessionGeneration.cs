@@ -7,8 +7,8 @@ namespace squad.Host.Runtime;
 
 /// <summary>
 /// The sole owner of one backend generation's runtime handle, registered-session projection, event/completion
-/// observer tasks, and observer cancellation sources. It never calls <see cref="IAgentSession.DisposeAsync"/>
-/// directly; session disposal is entirely the runtime owner's responsibility.
+/// observer tasks, and observer cancellation sources. It never disposes sessions directly; session disposal is
+/// entirely the runtime owner's responsibility.
 /// </summary>
 internal sealed class SessionGeneration
 {
@@ -54,10 +54,10 @@ internal sealed class SessionGeneration
         myEventTasks.Add(ObserveSessionAsync(session, sessionCancellation, eventTask));
     }
 
-    // Retry-safe, idempotent, failure-collecting teardown: cancels event observation, asks the runtime owner to
-    // resolve session completion and retire its resources, then drains observers and disposes their cancellation
-    // sources. A failed attempt is not treated as terminal - a later call resumes the remaining work - so owned
-    // observer resources are cleared only once the whole attempt succeeds.
+    /// <summary>
+    /// Cancels event observation, retires the runtime, and drains observers while collecting failures. A failed
+    /// teardown remains retryable and retains resources whose retirement did not complete.
+    /// </summary>
     public async Task<IReadOnlyList<Exception>> TeardownAsync()
     {
         Task<IReadOnlyList<Exception>> current;

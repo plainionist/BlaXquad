@@ -69,9 +69,10 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
         }
     }
 
-    // Retry-safe: ownership of any sub-resource (a session, the shared client stop, the client itself) is retired
-    // only once its own step succeeds. A failed attempt collects failures but leaves the not-yet-retired state in
-    // place, so a later call resumes exactly the remaining work instead of treating the failed attempt as terminal.
+    /// <summary>
+    /// Retires sessions, stops the shared provider client, and disposes it while collecting failures. A failed
+    /// attempt remains retryable for resources whose retirement did not complete.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (myDisposed)

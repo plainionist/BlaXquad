@@ -4,9 +4,8 @@ using squad.Workspaces;
 namespace squadHQ.Commands;
 
 /// <summary>
-/// Builds a <see cref="SquadStartupPlan"/> backed by the concrete workspace context and preparer used in
-/// production and tests. Lives in headquarters (not squad.Host.Runtime) because it depends on the workspace
-/// assembly, which squad.Host.Runtime must not reference.
+/// Composes a <see cref="SquadStartupPlan"/> from the concrete workspace context while keeping workspace
+/// dependencies outside the runtime lifecycle assembly.
 /// </summary>
 public static class SquadStartupPlanFactory
 {

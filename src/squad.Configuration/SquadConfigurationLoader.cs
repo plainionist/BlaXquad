@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace squad.Configuration;
 
+/// <summary>Loads and validates the complete launch configuration, including role prompts and safe worktree paths.</summary>
 public static class SquadConfigurationLoader
 {
     private static readonly JsonSerializerOptions myJsonOptions = new()
@@ -136,6 +137,5 @@ public static class SquadConfigurationLoader
     private static SquadConfigurationException Error(string message) => new(message);
 
 }
-
 
 

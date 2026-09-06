@@ -1,12 +1,15 @@
 namespace squad.AgentProvider.Abstractions;
 
 /// <summary>
-/// One backend generation's runtime handle, created before the fallible per-role session startup begins. The
-/// runtime exclusively owns its provider client connection and every <see cref="IAgentSession"/> it creates;
-/// nothing outside the runtime disposes those sessions or the client directly, including after a partial startup
-/// failure.
+/// Owns one backend generation's provider connection and every <see cref="IAgentSession"/> it creates, including
+/// sessions created during a partially failed startup. Callers dispose only the runtime, never its sessions or
+/// provider connection directly.
 /// </summary>
 public interface IAgentRuntime : IAsyncDisposable
 {
+    /// <summary>
+    /// Starts all configured sessions and reports each usable session through <paramref name="sessionStarted"/>.
+    /// Startup failure must retire every resource already created by this runtime.
+    /// </summary>
     Task StartAsync(Func<IAgentSession, Task> sessionStarted, CancellationToken cancellationToken = default);
 }

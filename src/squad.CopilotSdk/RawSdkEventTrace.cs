@@ -5,6 +5,10 @@ using System.Text.Json;
 
 namespace squad.CopilotSdk;
 
+/// <summary>
+/// Optionally records normalized diagnostics for raw tool events when <c>BLAXQUAD_SDK_EVENT_TRACE</c> names an
+/// output file. Trace failures never affect the provider session.
+/// </summary>
 internal static class RawSdkEventTrace
 {
     private const string TracePathVariable = "BLAXQUAD_SDK_EVENT_TRACE";
@@ -148,6 +152,5 @@ internal static class RawSdkEventTrace
 
     private sealed record Payload(string Field, string Content);
 }
-
 
 

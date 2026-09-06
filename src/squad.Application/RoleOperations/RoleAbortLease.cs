@@ -1,10 +1,9 @@
 namespace squad.Application.RoleOperations;
 
 /// <summary>
-/// Held by the caller that begins a role abort (the "leader"). Concurrent callers observe an in-flight abort
-/// instead of receiving a lease and await its completion. The leader must call exactly one of
-/// <see cref="Complete"/> or <see cref="Fail"/> before disposing the lease; disposing always removes the role's
-/// in-flight abort entry so a later abort can begin.
+/// Identifies the caller responsible for completing a role abort while concurrent callers await the same operation.
+/// The leader must call exactly one of <see cref="Complete"/> or <see cref="Fail"/> before disposal, which removes
+/// the in-flight entry so a later abort can begin.
 /// </summary>
 internal sealed class RoleAbortLease : IDisposable
 {

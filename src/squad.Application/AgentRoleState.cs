@@ -3,6 +3,10 @@ using squad.Ui.Abstractions;
 
 namespace squad.Application;
 
+/// <summary>
+/// Holds the synchronized, mutable projection of one role's agent state and transcript. State and transcript
+/// mutations share one lock so snapshots cannot observe partial event application.
+/// </summary>
 public sealed class AgentRoleState
 {
     private readonly object myStateLock = new();

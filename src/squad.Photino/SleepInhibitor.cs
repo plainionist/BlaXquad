@@ -4,6 +4,10 @@ using System.Diagnostics;
 
 namespace squad.Photino;
 
+/// <summary>
+/// Owns the platform-specific sleep-inhibition resource for the application lifetime. Starting is idempotent and
+/// can be disabled with <c>BLAXQUAD_PREVENT_SLEEP=0</c>.
+/// </summary>
 public sealed class SleepInhibitor : ISleepInhibitor
 {
     private const uint myEsContinuous = 0x80000000;
@@ -211,6 +215,5 @@ public sealed class SleepInhibitor : ISleepInhibitor
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     private static extern uint SetThreadExecutionState(uint executionState);
 }
-
 
 

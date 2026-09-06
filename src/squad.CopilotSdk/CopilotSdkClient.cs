@@ -9,6 +9,7 @@ using System.Text.Json;
 
 namespace squad.CopilotSdk;
 
+/// <summary>Owns the SDK client process and translates its callbacks into provider-neutral session behavior.</summary>
 internal sealed class CopilotSdkClient : IAsyncDisposable
 {
     private readonly CopilotClient myClient;
@@ -204,6 +205,5 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     private static object? GetProperty(object? value, string name) => value?.GetType().GetProperty(name)?.GetValue(value);
 
 }
-
 
 

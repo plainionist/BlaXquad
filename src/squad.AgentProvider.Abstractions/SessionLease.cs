@@ -1,10 +1,8 @@
 namespace squad.AgentProvider.Abstractions;
 
 /// <summary>
-/// A generation-bound handle to an active session. A lease proves the session was obtained atomically together
-/// with a lifecycle-phase check and the current generation identity, rather than through an unleased lookup that
-/// could hand out a session whose generation has since been retired. Disposing a lease releases no resource - it
-/// is a plain value, not an owner.
+/// Proves that a session was obtained atomically with an accepting lifecycle phase and the current generation
+/// identity. This value does not own or extend the lifetime of the session.
 /// </summary>
 public readonly struct SessionLease
 {

@@ -1,5 +1,6 @@
 namespace squad.Ui.Abstractions;
 
+/// <summary>Reports an archived entry together with metadata needed to reconstruct truncated retained content.</summary>
 public sealed record RoleArchivedTranscriptEntry(
     string Role,
     long Sequence,
@@ -8,6 +9,5 @@ public sealed record RoleArchivedTranscriptEntry(
     bool ContentTruncated,
     long TotalContentCharacters,
     int ArchivedPrefixCharacters);
-
 
 

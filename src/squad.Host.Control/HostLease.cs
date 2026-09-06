@@ -5,6 +5,10 @@ using System.Text.Json;
 
 namespace squad.Host.Control;
 
+/// <summary>
+/// Holds the cross-process project lock, publishes host metadata, and serves the local control pipe until disposal.
+/// Acquisition fails when another live host owns the same normalized project root.
+/// </summary>
 public sealed class HostLease : IHostLease
 {
     private readonly string myProjectRoot;
@@ -38,6 +42,7 @@ public sealed class HostLease : IHostLease
         Volatile.Write(ref myAgentReadinessProvider, provider);
     }
 
+    /// <summary>Acquires exclusive host ownership and starts the control endpoint before returning.</summary>
     public static HostLease Acquire(string projectRoot)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
@@ -83,6 +88,7 @@ public sealed class HostLease : IHostLease
         }
     }
 
+    /// <summary>Removes host metadata only after acquiring the project lock, proving that the record is stale.</summary>
     public static bool RemoveStaleMetadata(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
@@ -93,6 +99,7 @@ public sealed class HostLease : IHostLease
         return true;
     }
 
+    /// <summary>Returns whether the project lock can be acquired momentarily, indicating that no live host owns it.</summary>
     public static bool TryAcquireProbe(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
@@ -101,6 +108,10 @@ public sealed class HostLease : IHostLease
         return true;
     }
 
+    /// <summary>
+    /// Acquires cleanup ownership only when no live host holds the project lock. The returned lease must remain
+    /// alive while stale metadata is inspected or removed.
+    /// </summary>
     public static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
@@ -309,6 +320,3 @@ public sealed class HostLease : IHostLease
     private static extern int flock(int fileDescriptor, int operation);
 
 }
-
-
-

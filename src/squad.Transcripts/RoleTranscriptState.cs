@@ -4,8 +4,7 @@ namespace squad.Transcripts;
 
 /// <summary>
 /// Owns the retained transcript, streaming buffers, tool-call correlation, archive access, and retention policy for
-/// one role. Read methods (snapshot/page/archive/entries) lock the shared role synchronization root themselves;
-/// mutation methods rely on the caller (the event projector) already holding that same lock so status and transcript
+/// one role. Reads acquire the shared role lock; mutations require the caller to hold it so role and transcript
 /// changes commit atomically.
 /// </summary>
 public sealed class RoleTranscriptState
@@ -50,6 +49,10 @@ public sealed class RoleTranscriptState
         }
     }
 
+    /// <summary>
+    /// Returns the newest retained entries and the sequence through which they are current, with flags indicating
+    /// whether older or truncated archive history exists.
+    /// </summary>
     public RoleTranscriptSnapshot CreateTranscriptSnapshot(int maxEntries)
     {
         lock (mySyncRoot)
@@ -90,6 +93,7 @@ public sealed class RoleTranscriptState
             return myTranscriptArchive.ReadEntry(myRole, entryIndex, myTranscriptSequence);
     }
 
+    /// <summary>Adds an entry to both archive and live retention; protected entries are not evicted until unprotected.</summary>
     public TranscriptUpdate AddTranscriptEntry(TranscriptEntry entry, bool protect = false)
     {
         var entryIndex = myNextTranscriptEntryIndex++;
@@ -124,6 +128,7 @@ public sealed class RoleTranscriptState
         };
     }
 
+    /// <summary>Starts a correlated tool entry and protects it from retention until the matching completion arrives.</summary>
     public TranscriptUpdate StartTool(
         string toolCallId,
         string toolName,
@@ -169,6 +174,10 @@ public sealed class RoleTranscriptState
         return ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
     }
 
+    /// <summary>
+    /// Completes a correlated tool entry, releases its retention protection, and reports any final transcript
+    /// replacement plus the next active tool. Unknown call IDs return <see langword="null"/>.
+    /// </summary>
     public ToolCompletionResult? CompleteTool(
         string toolCallId,
         string? displayOutputFallback,

@@ -8,6 +8,10 @@ using System.Runtime.ExceptionServices;
 
 namespace squad.Host.Runtime;
 
+/// <summary>
+/// Owns the process-wide startup, running, and cleanup lifecycle, including the window, backend generation,
+/// handoff pump, sleep inhibitor, and optional host lease.
+/// </summary>
 public sealed class SquadApplication : IAsyncDisposable
 {
     private static readonly Task myNever = Task.Delay(Timeout.InfiniteTimeSpan);
@@ -47,10 +51,8 @@ public sealed class SquadApplication : IAsyncDisposable
     }
 
     /// <summary>
-    /// The one production creation path for a squad whose handoff pump must route notifications through the same
-    /// session registry that admits and leases sessions. Owns pairing a fresh <see cref="SessionRegistry"/> with a
-    /// <see cref="SessionRoleNotifier"/> over it, then hands that notifier to <paramref name="handoffPumpFactory"/>
-    /// so the pump can be built around it - callers never see either implementation directly.
+    /// Creates an application whose handoff notifier and command dispatch share one session registry, keeping
+    /// notification routing atomic with lifecycle admission.
     /// </summary>
     public static SquadApplication Create(
         SquadStartupPlan startupPlan,
@@ -109,6 +111,10 @@ public sealed class SquadApplication : IAsyncDisposable
     public IReadOnlyDictionary<string, IAgentSession> Sessions => myRuntimeController.Sessions;
     public SquadViewModel ViewModel => myViewModel;
 
+    /// <summary>
+    /// Runs startup through readiness, then waits for shutdown, window closure, cancellation, or an owned-resource
+    /// failure. Cleanup always runs; cleanup failures are preserved alongside the primary failure.
+    /// </summary>
     public async Task<RunResult> RunAsync(Func<Task> onReady, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(onReady);
@@ -300,6 +306,5 @@ public sealed class SquadApplication : IAsyncDisposable
             throw new AggregateException("One or more squad resources failed during cleanup.", failures);
     }
 }
-
 
 

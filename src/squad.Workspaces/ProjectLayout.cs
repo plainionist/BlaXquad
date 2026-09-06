@@ -1,5 +1,6 @@
 namespace squad.Workspaces;
 
+/// <summary>Defines the canonical project and runtime paths derived for a headquarters launch.</summary>
 public record ProjectLayout(
     string WorkingDir,
     string ScriptDir,
@@ -11,6 +12,7 @@ public record ProjectLayout(
     string StateDir,
     string HandoffLog)
 {
+    /// <summary>Resolves workspace paths from the requested directory and tool paths from the installed application.</summary>
     public static ProjectLayout Create(string workingDirArg)
     {
         var workingDir = Path.GetFullPath(workingDirArg);
@@ -30,6 +32,5 @@ public record ProjectLayout(
             Path.Combine(stateDir, "handoff-delivery.log"));
     }
 }
-
 
 

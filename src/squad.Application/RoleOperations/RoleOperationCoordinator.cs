@@ -2,10 +2,8 @@ namespace squad.Application.RoleOperations;
 
 /// <summary>
 /// Owns per-role prompt and operation serialization, active-operation cancellation, invalidation, failed-role
-/// state, and abort leader/follower coordination. This is the single synchronization authority for role operation
-/// admission; it holds no session, does not invoke provider APIs, does not enqueue commands, and does not mutate
-/// role status or transcript state. Callers remain responsible for session lookup/invocation, command admission,
-/// and role status/transcript mutation at the existing serialized commit boundary.
+/// state, and abort leader/follower coordination. It does not own sessions, invoke providers, admit commands, or
+/// mutate role and transcript state.
 /// </summary>
 internal sealed class RoleOperationCoordinator : IDisposable
 {

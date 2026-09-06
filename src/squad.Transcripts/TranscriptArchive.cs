@@ -5,6 +5,10 @@ using squad.Ui.Abstractions;
 
 namespace squad.Transcripts;
 
+/// <summary>
+/// Maintains a private, size-bounded on-disk transcript archive that can outlive entries evicted from live role
+/// state. Disposing the archive removes its temporary directory and all retained history.
+/// </summary>
 public sealed class TranscriptArchive : IDisposable
 {
     private const string myTruncationMarker = "\n[Transcript content truncated at the configured storage limit.]";
@@ -312,6 +316,4 @@ public sealed class TranscriptArchive : IDisposable
         writer.Write(content);
     }
 }
-
-
 

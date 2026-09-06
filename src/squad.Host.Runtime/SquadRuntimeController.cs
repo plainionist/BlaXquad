@@ -6,13 +6,9 @@ using squad.Handoffs.Delivery;
 namespace squad.Host.Runtime;
 
 /// <summary>
-/// The sole owner of the current backend generation. It coordinates constructing and registering a
-/// <see cref="SessionGeneration"/>, recovering and starting handoff production for it, and its ordered,
-/// failure-collecting teardown, all under one <see cref="SessionRegistry"/> lifecycle transition. It owns no
-/// lifecycle phase or command-admission state of its own - those stay exclusively in <see cref="SessionRegistry"/> -
-/// and no window, host-lease, workspace-preparation, or sleep-inhibition lifetime, which stay with
-/// <c>SquadApplication</c>. A focused callback lets the window host be notified at the point it needs, between
-/// session registration and handoff recovery, without transferring window ownership here.
+/// Owns the current backend generation and coordinates session registration, handoff recovery, handoff polling,
+/// and failure-collecting teardown under <see cref="SessionRegistry"/> lifecycle transitions. Process resources
+/// such as the window, host lease, workspace, and sleep inhibitor remain owned by <see cref="SquadApplication"/>.
 /// </summary>
 internal sealed class SquadRuntimeController
 {

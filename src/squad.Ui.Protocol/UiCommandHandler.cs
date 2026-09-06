@@ -3,6 +3,10 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
+/// <summary>
+/// Validates UI command payloads and routes them to authoritative application or transcript operations. Protocol
+/// framing and error publication remain the responsibility of <see cref="UiProtocolSession"/>.
+/// </summary>
 internal sealed class UiCommandHandler
 {
     private const int myMaxTranscriptPageEntries = 200;
@@ -278,7 +282,6 @@ internal sealed class UiCommandHandler
             });
     }
 }
-
 
 
 

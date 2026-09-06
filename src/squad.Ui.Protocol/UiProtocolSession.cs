@@ -4,10 +4,8 @@ using squad.Ui.Abstractions;
 namespace squad.Ui.Protocol;
 
 /// <summary>
-/// Owns the versioned UI protocol independent of the native window:
-/// envelope parsing and serialization, protocol-error publication, command
-/// routing, UI event subscriptions, snapshot scheduling, transcript
-/// sequencing, and recovery coordination.
+/// Owns versioned UI message framing, command routing, event subscriptions, snapshot scheduling, and transcript
+/// recovery independently of the native window.
 /// </summary>
 public sealed class UiProtocolSession : IAsyncDisposable
 {
@@ -55,6 +53,10 @@ public sealed class UiProtocolSession : IAsyncDisposable
     public Task SessionsStartedAsync(CancellationToken cancellationToken = default) =>
         myDeliveryCoordinator.SessionsStartedAsync(cancellationToken);
 
+    /// <summary>
+    /// Parses and dispatches one serialized message. Invalid envelopes, payloads, and command failures are returned
+    /// to the UI as protocol errors rather than escaping to the native message callback.
+    /// </summary>
     public async Task ReceiveMessageAsync(string serializedMessage)
     {
         try

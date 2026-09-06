@@ -2,6 +2,10 @@ using squad.AgentProvider.Abstractions;
 
 namespace squad.CopilotSdk;
 
+/// <summary>
+/// Creates independent Copilot SDK runtime generations and surfaces failures that require the shared provider
+/// process to be abandoned.
+/// </summary>
 public sealed class CopilotSdkBackend : IAgentBackend, IAgentBackendFailureSource
 {
     private readonly Func<AgentBackendContext> myContext;

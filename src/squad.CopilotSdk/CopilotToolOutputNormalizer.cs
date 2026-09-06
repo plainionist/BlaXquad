@@ -1,5 +1,9 @@
 namespace squad.CopilotSdk;
 
+/// <summary>
+/// Normalizes SDK tool output that may arrive as cumulative snapshots or independent deltas into cumulative
+/// content for each tool call.
+/// </summary>
 public sealed class CopilotToolOutputNormalizer
 {
     private readonly Dictionary<string, ToolOutputState> myOutputs = new(StringComparer.Ordinal);
@@ -11,6 +15,10 @@ public sealed class CopilotToolOutputNormalizer
             myOutputs[toolCallId] = new(null, StreamingMode.Unknown);
     }
 
+    /// <summary>
+    /// Applies one partial output and returns the changed cumulative value, or <see langword="null"/> for a
+    /// duplicate snapshot.
+    /// </summary>
     public string? Apply(string toolCallId, string partialOutput)
     {
         lock (myStateLock)
@@ -53,6 +61,5 @@ public sealed class CopilotToolOutputNormalizer
 
     private sealed record ToolOutputState(string? Output, StreamingMode Mode);
 }
-
 
 

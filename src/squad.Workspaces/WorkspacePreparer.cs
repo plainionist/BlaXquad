@@ -4,6 +4,10 @@ using squad.Configuration;
 
 namespace squad.Workspaces;
 
+/// <summary>
+/// Materializes and validates the repository, role worktrees, shared paths, and handoff directories required by a
+/// squad launch.
+/// </summary>
 public sealed class WorkspacePreparer
 {
     private readonly Action<string> myFail;
@@ -127,6 +131,10 @@ public sealed class WorkspacePreparer
         }
     }
 
+    /// <summary>
+    /// Creates missing worktrees and shared links. Unless <paramref name="continueLaunch"/> is set, configured
+    /// worktrees are reset to the main checkout's HEAD and existing handoff queues are cleared.
+    /// </summary>
     public async Task PrepareConfiguredWorktreesForLaunchAsync(Ctx ctx, bool continueLaunch, CancellationToken cancellationToken)
     {
         await PrepareWorktreesAsync(ctx, cancellationToken);
@@ -299,6 +307,4 @@ public sealed class WorkspacePreparer
     private const string myRed = "\u001b[0;31m";
     private const string myReset = "\u001b[0m";
 }
-
-
 

@@ -2,6 +2,10 @@ using squad.Configuration;
 
 namespace squad.Handoffs.Delivery;
 
+/// <summary>
+/// Moves outbound handoff files atomically into recipient inboxes, archives sender artifacts, and wakes recipients.
+/// Per-file delivery failures are archived without stopping the scan.
+/// </summary>
 sealed class HandoffDeliveryService
 {
     private static readonly string[] myPreferredHeaderOrder =
@@ -208,6 +212,5 @@ sealed class HandoffDeliveryService
         MoveWithCollision(path, failedDir);
     }
 }
-
 
 

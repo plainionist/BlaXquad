@@ -1,10 +1,7 @@
 namespace squad.Host.Runtime;
 
 /// <summary>
-/// Coordinates the phases SquadApplication must complete before starting its runtime controller: preparing
-/// external context (the git repository, parsed configuration, and backend preparation), discovering the
-/// configured roles only after that preparation completes, and preparing the on-disk workspace (worktrees and
-/// handoff directories) for the discovered roles.
+/// Defines the ordered external-context and workspace preparation phases that must complete before runtime startup.
 /// </summary>
 public sealed class SquadStartupPlan
 {

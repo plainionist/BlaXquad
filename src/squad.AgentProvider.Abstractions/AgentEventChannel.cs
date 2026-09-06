@@ -3,6 +3,10 @@ using squad.AgentProvider.Abstractions.Agents;
 
 namespace squad.AgentProvider.Abstractions;
 
+/// <summary>
+/// Preserves provider-event ordering through a bounded, single-reader channel. Sustained backpressure faults the
+/// channel and invokes the overload callback rather than allowing unbounded memory growth.
+/// </summary>
 public sealed class AgentEventChannel : IAsyncDisposable
 {
     private const int myDefaultCapacity = 100;
@@ -36,6 +40,10 @@ public sealed class AgentEventChannel : IAsyncDisposable
 
     public int Depth => myChannel.Reader.Count;
 
+    /// <summary>
+    /// Publishes immediately when capacity is available; otherwise schedules one bounded wait. A second concurrent
+    /// overflow is treated as terminal overload.
+    /// </summary>
     public void Publish(AgentEvent agentEvent)
     {
         ArgumentNullException.ThrowIfNull(agentEvent);
@@ -55,6 +63,10 @@ public sealed class AgentEventChannel : IAsyncDisposable
         _ = PublishAsyncCore(agentEvent, CancellationToken.None, gateAlreadyAcquired: true);
     }
 
+    /// <summary>
+    /// Publishes with the same bounded-overflow policy as <see cref="Publish"/>, exposing the wait and any terminal
+    /// overload failure to the caller.
+    /// </summary>
     public Task PublishAsync(AgentEvent agentEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentEvent);
@@ -168,6 +180,3 @@ public sealed class AgentEventChannel : IAsyncDisposable
         myOnOverload?.Invoke(exception);
     }
 }
-
-
-

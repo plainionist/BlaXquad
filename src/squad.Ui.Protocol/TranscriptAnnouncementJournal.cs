@@ -2,6 +2,10 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
+/// <summary>
+/// Retains a bounded per-role sequence of incremental transcript announcements for reconnect recovery. Reads report
+/// when the requested interval predates retained announcement content.
+/// </summary>
 public sealed class TranscriptAnnouncementJournal
 {
     private readonly int myMaxEntriesPerRole;
@@ -40,6 +44,11 @@ public sealed class TranscriptAnnouncementJournal
         }
     }
 
+    /// <summary>
+    /// Returns retained announcements after <paramref name="afterSequence"/> through
+    /// <paramref name="throughSequence"/> inclusive, and marks the result truncated when required earlier content
+    /// has been discarded.
+    /// </summary>
     public TranscriptRecoveryAnnouncement Read(
         string role,
         long afterSequence,
@@ -78,6 +87,3 @@ public sealed class TranscriptAnnouncementJournal
         internal long AnnouncementDiscardedThroughSequence { get; set; }
     }
 }
-
-
-

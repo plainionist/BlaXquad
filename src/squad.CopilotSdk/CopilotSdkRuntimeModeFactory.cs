@@ -2,6 +2,7 @@ using squad.AgentProvider.Abstractions;
 
 namespace squad.CopilotSdk;
 
+/// <summary>Exposes the Copilot SDK implementation through the provider-neutral runtime-mode contract.</summary>
 public sealed class CopilotSdkRuntimeModeFactory : IRuntimeModeFactory
 {
     public string Name => "sdk";
@@ -16,6 +17,5 @@ public sealed class CopilotSdkRuntimeModeFactory : IRuntimeModeFactory
         return Task.CompletedTask;
     }
 }
-
 
 

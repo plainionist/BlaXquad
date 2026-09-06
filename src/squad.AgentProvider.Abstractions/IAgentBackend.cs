@@ -1,11 +1,13 @@
 namespace squad.AgentProvider.Abstractions;
 
-// A backend is a per-process runtime-generation factory; it owns no session or provider-client resources itself.
-// Disposal is a no-op safety net for implementations with nothing generation-scoped to release.
+/// <summary>
+/// Creates isolated provider-runtime generations. Each returned runtime, rather than the backend, owns its
+/// provider connection and sessions.
+/// </summary>
 public interface IAgentBackend : IAsyncDisposable
 {
+    /// <summary>Creates a new runtime generation without reusing resources from an earlier generation.</summary>
     Task<IAgentRuntime> CreateRuntimeAsync(CancellationToken cancellationToken = default);
 }
-
 
 

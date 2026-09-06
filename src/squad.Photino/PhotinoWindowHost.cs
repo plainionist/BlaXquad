@@ -7,6 +7,10 @@ using Photino.NET;
 
 namespace squad.Photino;
 
+/// <summary>
+/// Owns the Photino UI thread and bridges its web messages to a <see cref="UiProtocolSession"/>. Startup waits for
+/// both native window creation and the UI-ready protocol signal.
+/// </summary>
 public sealed class PhotinoWindowHost : IWindowHost
 {
     private const int mySilentLogVerbosity = 0;
@@ -223,6 +227,5 @@ public sealed class PhotinoWindowHost : IWindowHost
         myWindow?.SendWebMessage(message);
     }
 }
-
 
 

@@ -1,11 +1,8 @@
 namespace squad.Host.Runtime;
 
 /// <summary>
-/// An explicit handle for one phase transition owned by <see cref="SessionRegistry"/>. A successful <c>Begin*</c>
-/// call returns exactly one transition, and the caller must resolve it with exactly one <see cref="Commit"/> or
-/// <see cref="Fail"/>. Disposing an unresolved transition treats it as a failure, so transition exclusion is
-/// always released even if an unexpected exception bypassed explicit resolution. This handle owns no I/O resource
-/// - it exists purely to serialize phase changes and guarantee every transition is eventually released.
+/// Resolves one phase transition owned by <see cref="SessionRegistry"/>. The caller must commit or fail exactly
+/// once; disposing an unresolved transition fails it so transition exclusion is always released.
 /// </summary>
 internal sealed class SquadLifecycleTransition : IDisposable
 {

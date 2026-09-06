@@ -12,6 +12,10 @@ using System.Threading.Channels;
 
 namespace squad.Application;
 
+/// <summary>
+/// Serializes provider events and user commands into authoritative per-role state, transcript history, and pending
+/// interactions while publishing UI refresh signals.
+/// </summary>
 public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 {
     private readonly Channel<Func<Task>> myCommands = Channel.CreateUnbounded<Func<Task>>();
@@ -135,6 +139,10 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public AgentElicitationRequest GetPendingElicitation(string role, string requestId) =>
         myInteractions.GetElicitation(role, requestId);
 
+    /// <summary>
+    /// Returns <see langword="null"/> for an unknown role, <see langword="false"/> when work is inadmissible, and
+    /// otherwise the readiness inferred from serialized local state.
+    /// </summary>
     public bool? GetRoleReadiness(string role)
     {
         if (!myRoles.TryGetValue(role, out var state))
@@ -147,6 +155,10 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             return state.Status == "idle" && !state.IsWorking;
     }
 
+    /// <summary>
+    /// Refreshes provider-side readiness when supported, commits the resulting observation through the event
+    /// queue, and then returns the tri-state local readiness result.
+    /// </summary>
     public async Task<bool?> GetRoleReadinessAsync(
         string role,
         CancellationToken cancellationToken = default)
@@ -185,12 +197,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public void RegisterSession(IAgentSession session) => mySessions[session.Role] = session;
 
     /// <summary>
-    /// Internal composition seam: lets <c>SquadApplication</c> wire this ViewModel to the shared lifecycle
-    /// authority (<c>SessionRegistry</c>) so phase checks and session selection are atomic with the rest of the
-    /// process, instead of this ViewModel tracking its own independent accepting flag. Safe to call more than once
-    /// - a ViewModel reused across a fresh application simply adopts the new authority. Without a call to this
-    /// method, the ViewModel falls back to a standalone admission decision so bare "ViewModel only" usage (as in
-    /// unit-level specs) keeps working unchanged.
+    /// Replaces standalone admission with the application's lifecycle authority so phase checks and session
+    /// selection are atomic. Repeated calls replace the previous authority.
     /// </summary>
     public void UseAdmission(ISessionAdmission admission)
     {
@@ -232,6 +240,10 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public Task SendHarnessAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
         TrackCommand(() => DispatchPromptAsync(role, (session, token) => session.SendHarnessAsync(prompt, token), cancellationToken));
 
+    /// <summary>
+    /// Coalesces concurrent aborts for a role, cancels its active local operation, and waits for the provider abort.
+    /// Events remain invalidated after a failed abort until a later abort succeeds.
+    /// </summary>
     public Task AbortAsync(string role, CancellationToken cancellationToken = default) =>
         AbortRoleAndWaitAsync(role, cancellationToken);
 
@@ -265,6 +277,10 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public Task EnqueueEventAsync(string role, AgentEvent agentEvent, CancellationToken cancellationToken = default) =>
         TrackCommand(() => EnqueueCoreAsync(() => ApplyEventAsync(role, agentEvent), cancellationToken));
 
+    /// <summary>
+    /// Stops accepting work, cancels pending provider interactions, and waits for every command accepted before
+    /// shutdown. Repeated calls are safe.
+    /// </summary>
     public async Task StopAsync()
     {
         BeginStopping();
@@ -644,11 +660,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             or AgentPermissionRequest or AgentInputRequest or AgentElicitationRequest;
 
     /// <summary>
-    /// The default <see cref="ISessionAdmission"/> used until <see cref="UseAdmission"/> injects an external
-    /// lifecycle authority (e.g. headquarters' SessionRegistry). Replicates the ViewModel's own former
-    /// "accepting" flag against its own session dictionary, so tests that construct a bare <see cref="SquadViewModel"/>
-    /// with no owning application - calling <see cref="RegisterSession"/> / <see cref="BeginStopping"/> directly -
-    /// keep their current admission and lease semantics unchanged.
+    /// Provides lifecycle admission when the view model is used without an external application authority.
     /// </summary>
     private sealed class StandaloneSessionAdmission(SquadViewModel owner) : ISessionAdmission
     {
@@ -683,6 +695,4 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
     }
 }
-
-
 

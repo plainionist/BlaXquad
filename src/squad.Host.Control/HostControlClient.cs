@@ -5,8 +5,12 @@ using System.Text.Json;
 
 namespace squad.Host.Control;
 
+/// <summary>Communicates with the live host identified by a project root and cleans up stale host metadata.</summary>
 public static class HostControlClient
 {
+    /// <summary>
+    /// Polls until a known role is provider-ready, distinguishing unknown roles and unavailable hosts in failures.
+    /// </summary>
     public static async Task WaitForAgentAsync(string projectRoot, string role, TimeSpan timeout)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
@@ -35,6 +39,7 @@ public static class HostControlClient
             $"Agent '{role}' did not become ready within {timeout.TotalSeconds:0.###} seconds ({lastStatus}).");
     }
 
+    /// <summary>Requests shutdown and waits until the host releases project ownership.</summary>
     public static async Task<bool> ShutdownAsync(string projectRoot, TimeSpan timeout)
     {
         if (!await RequestShutdownAsync(projectRoot))
@@ -49,6 +54,7 @@ public static class HostControlClient
         return true;
     }
 
+    /// <summary>Returns <see langword="false"/> when no live host exists; otherwise sends but does not await shutdown.</summary>
     public static async Task<bool> RequestShutdownAsync(string projectRoot)
     {
         projectRoot = Path.GetFullPath(projectRoot);
@@ -145,6 +151,5 @@ public static class HostControlClient
         return message.GetString()!;
     }
 }
-
 
 
