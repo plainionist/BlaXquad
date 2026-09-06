@@ -2,9 +2,9 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
-internal static class TranscriptProtocol
+public static class TranscriptProtocol
 {
-    internal static object CreateSynchronizationPayload(
+    public static object CreateSynchronizationPayload(
         IReadOnlyList<RoleTranscriptSnapshot> transcriptSnapshot,
         IReadOnlyDictionary<string, TranscriptRecoveryAnnouncement>? recoveryAnnouncements = null,
         bool recovery = false) => new
@@ -36,7 +36,7 @@ internal static class TranscriptProtocol
             }),
         };
 
-    internal static object CreateUpdatePayload(TranscriptUpdate update) => new
+    public static object CreateUpdatePayload(TranscriptUpdate update) => new
     {
         role = update.Role,
         sequence = update.Sequence,
@@ -60,7 +60,7 @@ internal static class TranscriptProtocol
             : CreateAnnouncementPayload(update.Announcement),
     };
 
-    internal static object CreatePagePayload(RoleTranscriptPage page) => new
+    public static object CreatePagePayload(RoleTranscriptPage page) => new
     {
         role = page.Role,
         entries = page.Entries.Select(CreateIndexedEntryPayload),
@@ -68,7 +68,7 @@ internal static class TranscriptProtocol
         historyTruncated = page.HistoryTruncated,
     };
 
-    internal static object CreateArchivedEntryPayload(RoleArchivedTranscriptEntry archivedEntry) => new
+    public static object CreateArchivedEntryPayload(RoleArchivedTranscriptEntry archivedEntry) => new
     {
         role = archivedEntry.Role,
         sequence = archivedEntry.Sequence,

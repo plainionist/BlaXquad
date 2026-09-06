@@ -101,7 +101,7 @@ public sealed class HostLease : IHostLease
         return true;
     }
 
-    internal static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
+    public static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");

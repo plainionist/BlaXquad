@@ -1,12 +1,12 @@
 namespace squad.Host.Control;
 
-internal sealed class CleanupLease : IDisposable
+public sealed class CleanupLease : IDisposable
 {
     private readonly string myStateDir;
     private readonly FileStream myLockFile;
     private bool myDisposed;
 
-    internal CleanupLease(string stateDir, FileStream lockFile)
+    public CleanupLease(string stateDir, FileStream lockFile)
     {
         myStateDir = stateDir;
         myLockFile = lockFile;

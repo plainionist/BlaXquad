@@ -2,7 +2,7 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
-internal sealed record SequencedTranscriptAnnouncement(
+public sealed record SequencedTranscriptAnnouncement(
     long Sequence,
     TranscriptAnnouncement Announcement);
 

@@ -8,7 +8,7 @@ namespace squadHQ.Commands;
 /// production and tests. Lives in headquarters (not squad.Host.Runtime) because it depends on the workspace
 /// assembly, which squad.Host.Runtime must not reference.
 /// </summary>
-static class SquadStartupPlanFactory
+public static class SquadStartupPlanFactory
 {
     public static SquadStartupPlan ForWorkspace(
         Ctx context,
