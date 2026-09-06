@@ -1,4 +1,3 @@
-using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Application.Interactions;
 using squad.Ui.Abstractions;

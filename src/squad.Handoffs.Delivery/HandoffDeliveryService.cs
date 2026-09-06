@@ -1,5 +1,4 @@
 using squad.Configuration;
-using squad.Handoffs;
 
 namespace squad.Handoffs.Delivery;
 
