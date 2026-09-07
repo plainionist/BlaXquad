@@ -93,6 +93,8 @@ does not absorb the broader process-driver migration from issue 012.
 
 ### Slice 1: Coordinate active Copilot usage refreshes
 
+**Status: changes requested (53e52d8efa)**
+
 1. Add a session-owned usage refresh coordinator inside `squad.CopilotSdk`. Give it sole responsibility for the
    five-second event-aware policy: active/idle lifecycle, dirty activity coalescing, one scheduled refresh window,
    per-metric in-flight exclusion, retained final-idle work, cancellation, and retry eligibility after transient
@@ -126,3 +128,19 @@ does not absorb the broader process-driver migration from issue 012.
 - The black-box scenario proves active and final usage propagation only through the real process/provider/UI
   boundaries; the fixed cadence is verified by the prescribed real-provider smoke run.
 - Failure, cancellation, idle races, and disposal cannot strand scheduled work or suppress the required final refresh.
+
+#### Review findings on 53e52d8efa
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.CopilotSdk/UsageRefreshCoordinator.cs` (`NotifyIdle`, `RunWindowLoopAsync`, `MetricRefresher.Run` / `RunFinal` / `ExecuteLoopAsync`).
+- **Violated behavior:** If idle arrives while a metric refresh is in flight, retain that final request and run it after the in-flight call completes; do not silently discard it. An idle transition must still publish the latest values when it races with an active refresh.
+- **Root cause:** The window loop starts `ExecuteLoopAsync` with the window cancellation token. `NotifyIdle` cancels that token first, then `RunFinal` only sets `myFinalPending` when work is already in flight. The retained final iteration reuses the same already-cancelled token, so the final RPC is cancelled and swallowed as a transient failure.
+- **Required outcome:** A retained final-idle refresh must run to completion unless the session is disposed or has failed. Cancelling the active window must not suppress that final request.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.CopilotSdk/CopilotSdkAgentSession.cs` (`TransitionToFailure`, `NotifyUsageActivity`).
+- **Violated behavior:** Session failure must stop pending refresh work. Failure, cancellation, and disposal must leave no background loop or unobserved exception.
+- **Root cause:** Failure completes the event channel and tears down the runtime session, but it never stops `UsageRefreshCoordinator`. `NotifyUsageActivity` ignores `myFailure`, so the five-second window loop can keep running until a later `DisposeAsync`, and a refresh can still `Publish` into the already-completed channel.
+- **Required outcome:** Session failure must cancel pending delays, prevent new RPC work, and observe/await coordinator work the same as disposal, without publishing usage into a completed event channel.
