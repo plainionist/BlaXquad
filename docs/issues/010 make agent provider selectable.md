@@ -65,7 +65,7 @@ target workspace.
 
 ### Slice 2: Load an explicitly selected provider and package the default
 
-**Status: authorized for implementation**
+**Status: complete (af51a88eac)**
 
 1. Add a small headquarters command-line provider selection value and parser. `squad-hq launch` accepts at most one
    `--provider` descriptor containing an assembly path and public factory type name; it remains compatible with
