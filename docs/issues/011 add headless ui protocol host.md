@@ -22,7 +22,7 @@ This is a supported transport adapter, not a test hook. Photino remains the defa
 
 ### Slice 1: Add and expose the stdio protocol host
 
-**Status: in progress - hand off to coder**
+**Status: changes requested (e37278a940)**
 
 1. Add a `squad.Stdio` adapter assembly beside `squad.Photino`. Implement one public `StdioWindowHost` that implements
    `IWindowHost`, depends only on the UI/hosting abstractions and `squad.Ui.Protocol`, and owns one
@@ -69,6 +69,50 @@ This is a supported transport adapter, not a test hook. Photino remains the defa
 - Omitting `--ui` preserves the current Photino host and protocol behavior.
 - The production surface contains no test hook, optional test collaborator, message-injection method, or
   serialized-message callback for the headless transport.
+
+#### Review findings on e37278a940
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Specs/Features/StdioUiProtocol.feature` (prompt and page/recovery scenarios),
+  `src/squad.Specs/StepDefinitions/StdioUiProtocolSteps.cs` (`WhenTheUiSendsACommandForRoleWithPrompt`,
+  `ThenATranscriptUpdateMessageForRoleIsWrittenToStdout`).
+- **Violated behavior:** Slice 1 must exercise a command and the resulting transcript update through the real
+  protocol. The scenario must fail if `prompt.send` is not delivered.
+- **Root cause:** `SquadApplication` waits for `ui.ready` inside `WindowHost.StartAsync` and only then starts
+  sessions. The stdio pump reads the next stdin line as soon as `ui.ready` is handled, so `prompt.send` is processed
+  before `SessionRegistry` has a session. `SendAsync` fails with `Unknown role` and becomes `protocol.error`.
+  `EchoAgentSession` later publishes `AgentStartedEvent`, which projects to a `transcript.update` ("Session started.").
+  The Then step accepts any `transcript.update` for the role, so the scenario passes without the prompt being delivered.
+- **Required outcome:** After `ui.ready`, wait for observable readiness that cannot occur before session admission,
+  then send the prompt, and assert a `transcript.update` caused by that prompt (user text and/or echo reply). The
+  scenario must fail if `prompt.send` is rejected as an unknown role. Apply the same sequencing to the page/recovery
+  scenario if it depends on the prompt having landed.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/Features/StdioUiProtocol.feature` (startup handshake scenario),
+  `src/squad.Specs/StepDefinitions/StdioUiProtocolSteps.cs` (`ThenNoProtocolMessageIsWrittenToStdoutYet`).
+- **Violated behavior:** Startup must not complete before `ui.ready`. This issue's test strategy requires waiting for
+  semantic state with bounded deadlines rather than arbitrary sleeps.
+- **Root cause:** Launch performs workspace, provider, and sleep-inhibitor work before `StdioWindowHost.StartAsync`.
+  A 300ms sleep after process start can elapse entirely during that prep, so empty stdout does not prove the host is
+  waiting for `ui.ready`. The scenario would still pass if the host published immediately on start.
+- **Required outcome:** Lock the invariant without a fixed sleep that can expire before the host is listening. The
+  scenario must fail if any protocol envelope is emitted before `ui.ready` is received, including when launch prep
+  takes longer than a short sleep.
+
+**Finding 3 — medium**
+
+- **Location:** `src/squad.Specs/Features/StdioUiProtocol.feature` (host-controlled shutdown scenario),
+  `src/squad.Specs/StepDefinitions/StdioUiProtocolSteps.cs`
+  (`WhenSquadHqIsLaunchedWithUiStdioRequestingASmokeShutdownOnceReady`).
+- **Violated behavior:** Slice 1 item 7 requires exercising host-control shutdown of the real published process.
+- **Root cause:** The scenario sets `BLAXQUAD_PHOTINO_SMOKE=1`, which requests `StopAsync` from the `ui.ready`
+  handler. That is the Photino smoke shortcut, not `squad-hq shutdown` / the host-control endpoint.
+- **Required outcome:** After the stdio host is ready, request shutdown through the real host-control command and
+  assert the process exits cleanly without closing stdin. Do not use the Photino smoke environment variable for this
+  scenario.
 
 ## Acceptance criteria
 
