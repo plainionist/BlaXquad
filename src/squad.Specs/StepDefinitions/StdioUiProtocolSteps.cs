@@ -13,6 +13,7 @@ namespace squad.Specs.StepDefinitions;
 public sealed class StdioUiProtocolSteps
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan myPreReadyGraceWindow = TimeSpan.FromSeconds(2);
 
     private readonly ScenarioWorkspace myWorkspace;
     private readonly object myLinesLock = new();
@@ -47,9 +48,13 @@ public sealed class StdioUiProtocolSteps
     [When("squad-hq is launched with \"--ui stdio\"")]
     public void WhenSquadHqIsLaunchedWithUiStdio() => Launch();
 
-    [When("squad-hq is launched with \"--ui stdio\" requesting a smoke shutdown once ready")]
-    public void WhenSquadHqIsLaunchedWithUiStdioRequestingASmokeShutdownOnceReady() =>
-        Launch(new Dictionary<string, string?> { ["BLAXQUAD_PHOTINO_SMOKE"] = "1" });
+    [When("squad-hq requests shutdown for the workspace")]
+    public void WhenSquadHqRequestsShutdownForTheWorkspace() =>
+        myWorkspace.RunTool("squad-hq", ["shutdown", myWorkspace.Root]);
+
+    [Then("the shutdown request succeeds")]
+    public void ThenTheShutdownRequestSucceeds() =>
+        Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
 
     [When("the ui sends \"ui.ready\"")]
     public void WhenTheUiSendsUiReady() => SendEnvelope("ui.ready");
@@ -74,10 +79,17 @@ public sealed class StdioUiProtocolSteps
     [Then("no protocol message is written to stdout yet")]
     public void ThenNoProtocolMessageIsWrittenToStdoutYet()
     {
-        Thread.Sleep(300);
-        lock (myLinesLock)
+        // A single fixed-delay check can pass trivially if launch preparation (workspace/provider/sleep-inhibitor
+        // setup) is still running when it fires, proving nothing about the ui.ready gate. Poll continuously across
+        // a bounded window generous enough to span that preparation instead, and fail the instant any line appears.
+        var deadline = DateTime.UtcNow + myPreReadyGraceWindow;
+        while (DateTime.UtcNow < deadline)
         {
-            Assert.That(myStdOutLines, Is.Empty);
+            lock (myLinesLock)
+            {
+                Assert.That(myStdOutLines, Is.Empty, "Protocol output appeared before \"ui.ready\" was sent.");
+            }
+            Thread.Sleep(25);
         }
     }
 
@@ -101,11 +113,16 @@ public sealed class StdioUiProtocolSteps
     public void ThenAStateSnapshotMessageIsWrittenToStdout() =>
         WaitForMessage(element => IsType(element, "state.snapshot"), "a state.snapshot message");
 
-    [Then("a \"transcript.update\" message for role {string} is written to stdout")]
-    public void ThenATranscriptUpdateMessageForRoleIsWrittenToStdout(string role) =>
+    [Then("a \"transcript.update\" message for role {string} with content {string} is written to stdout")]
+    public void ThenATranscriptUpdateMessageForRoleWithContentIsWrittenToStdout(string role, string content) =>
         WaitForMessage(
-            element => IsType(element, "transcript.update") && PayloadRoleEquals(element, role),
-            $"a transcript.update message for role '{role}'");
+            element => IsType(element, "transcript.update")
+                && PayloadRoleEquals(element, role)
+                && GetPayload(element).TryGetProperty("entry", out var entry)
+                && entry.ValueKind == JsonValueKind.Object
+                && entry.TryGetProperty("content", out var contentElement)
+                && contentElement.GetString() == content,
+            $"a transcript.update message for role '{role}' with content '{content}'");
 
     [Then("a \"transcript.page\" message for role {string} is written to stdout")]
     public void ThenATranscriptPageMessageForRoleIsWrittenToStdout(string role) =>
@@ -177,21 +194,13 @@ public sealed class StdioUiProtocolSteps
         }
     }
 
-    private void Launch(IReadOnlyDictionary<string, string?>? extraEnvironment = null)
+    private void Launch()
     {
         var descriptor = $"{typeof(EchoAgentProviderFactory).Assembly.Location};{typeof(EchoAgentProviderFactory).FullName}";
-        var environment = new Dictionary<string, string?>(StringComparer.Ordinal);
-        if (extraEnvironment is not null)
-        {
-            foreach (var (key, value) in extraEnvironment)
-            {
-                environment[key] = value;
-            }
-        }
         myProcess = myWorkspace.StartTool(
             "squad-hq",
             ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
-            environment,
+            environment: null,
             redirectStandardInput: true);
         StartReader(myProcess.StandardOutput, myStdOutLines);
         StartReader(myProcess.StandardError, myStdErrLines);

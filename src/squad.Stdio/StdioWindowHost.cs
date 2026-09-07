@@ -43,7 +43,7 @@ public sealed class StdioWindowHost : IWindowHost
         myStarted = true;
 
         mySession.AttachUiEventSources();
-        myInputPump = RunInputPumpAsync();
+        myInputPump = Task.Run(RunInputPumpAsync);
         return WaitForUiReadyAsync(cancellationToken);
     }
 

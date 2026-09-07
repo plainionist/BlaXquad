@@ -16,14 +16,17 @@ Feature: Stdio UI protocol over the real published process
   Scenario: A prompt command produces a transcript update
     When squad-hq is launched with "--ui stdio"
     And the ui sends "ui.ready"
-    And the ui sends a "prompt.send" command for role "coder" with prompt "hello"
-    Then a "transcript.update" message for role "coder" is written to stdout
+    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
+    When the ui sends a "prompt.send" command for role "coder" with prompt "hello"
+    Then a "transcript.update" message for role "coder" with content "echo: hello" is written to stdout
 
   Scenario: The ui can request a transcript page and a recovery synchronization
     When squad-hq is launched with "--ui stdio"
     And the ui sends "ui.ready"
-    And the ui sends a "prompt.send" command for role "coder" with prompt "hello"
-    And the ui requests a transcript page for role "coder" before index 1
+    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
+    When the ui sends a "prompt.send" command for role "coder" with prompt "hello"
+    Then a "transcript.update" message for role "coder" with content "echo: hello" is written to stdout
+    When the ui requests a transcript page for role "coder" before index 1
     Then a "transcript.page" message for role "coder" is written to stdout
     When the ui requests transcript synchronization
     Then a recovery "transcript.synchronize" message for role "coder" is written to stdout
@@ -42,13 +45,17 @@ Feature: Stdio UI protocol over the real published process
     Then the squad-hq process exits with code "0"
 
   Scenario: A host-controlled shutdown closes the process without closing standard input
-    When squad-hq is launched with "--ui stdio" requesting a smoke shutdown once ready
+    When squad-hq is launched with "--ui stdio"
     And the ui sends "ui.ready"
-    Then the squad-hq process exits with code "0"
+    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
+    When squad-hq requests shutdown for the workspace
+    Then the shutdown request succeeds
+    And the squad-hq process exits with code "0"
 
   Scenario: Protocol output and process diagnostics are kept separate
     When squad-hq is launched with "--ui stdio"
     And the ui sends "ui.ready"
-    And the ui sends a "prompt.send" command for role "coder" with prompt "hello"
+    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
+    When the ui sends a "prompt.send" command for role "coder" with prompt "hello"
     Then every stdout line is a well-formed protocol envelope
     And standard error contains no protocol envelope
