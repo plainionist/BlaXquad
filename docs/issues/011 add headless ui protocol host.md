@@ -117,7 +117,7 @@ complete prompt/reply vertical proof.
 
 ### Slice 4: Harden the process contract and regressions
 
-**Status: in progress - hand off to coder**
+**Status: complete (798a421b1d)**
 
 1. Keep the issue-specific process support narrow: resolve the executable by absolute path from the test
    `squad-tools` publication, create a unique temporary project, use bounded waits, and retain stdout/stderr/process
