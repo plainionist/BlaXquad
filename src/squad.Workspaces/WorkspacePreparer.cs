@@ -19,7 +19,9 @@ public sealed class WorkspacePreparer
     public void InitializeGitRepo(Ctx ctx)
     {
         if (Directory.Exists(Path.Combine(ctx.WorkingDir, ".git")) || File.Exists(Path.Combine(ctx.WorkingDir, ".git")))
+        {
             return;
+        }
 
         Run("git", "init", ctx.WorkingDir);
         Run("git", "-C", ctx.WorkingDir, "branch", "-M", "master");
@@ -31,7 +33,9 @@ public sealed class WorkspacePreparer
     public async Task InitializeGitRepoAsync(Ctx ctx, CancellationToken cancellationToken)
     {
         if (Directory.Exists(Path.Combine(ctx.WorkingDir, ".git")) || File.Exists(Path.Combine(ctx.WorkingDir, ".git")))
+        {
             return;
+        }
 
         await RunAsync("git", ["init", ctx.WorkingDir], cancellationToken);
         await RunAsync("git", ["-C", ctx.WorkingDir, "branch", "-M", "master"], cancellationToken);
@@ -66,9 +70,13 @@ public sealed class WorkspacePreparer
     public void Parse(Ctx ctx)
     {
         if (!File.Exists(ctx.ConfigFile))
+        {
             myFail($"{myRed}Error:{myReset} Config not found at {ctx.ConfigFile}");
+        }
         if (!File.Exists(ctx.ConstitutionFile))
+        {
             myFail($"{myRed}Error:{myReset} Constitution prompt not found at {ctx.ConstitutionFile}");
+        }
 
         SquadConfiguration configuration;
         try
@@ -100,7 +108,9 @@ public sealed class WorkspacePreparer
     public void PrepareWorkspace(Ctx ctx)
     {
         foreach (var dir in new[] { ctx.StateDir, ctx.WorktreesDir })
+        {
             Directory.CreateDirectory(dir);
+        }
         CheckHelperScripts(ctx);
     }
 
@@ -109,10 +119,14 @@ public sealed class WorkspacePreparer
         foreach (var row in ctx.Roles)
         {
             if (row.WorktreeName is "none" or "master")
+            {
                 continue;
+            }
             var gitPath = Path.Combine(row.WorktreePath, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
+            {
                 continue;
+            }
             Run("git", "-C", ctx.WorkingDir, "worktree", "add", "--force", "-B", $"squad-{row.WorktreeName}", row.WorktreePath, "HEAD");
         }
     }
@@ -123,10 +137,14 @@ public sealed class WorkspacePreparer
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (row.WorktreeName is "none" or "master")
+            {
                 continue;
+            }
             var gitPath = Path.Combine(row.WorktreePath, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
+            {
                 continue;
+            }
             await RunAsync("git", ["-C", ctx.WorkingDir, "worktree", "add", "--force", "-B", $"squad-{row.WorktreeName}", row.WorktreePath, "HEAD"], cancellationToken);
         }
     }
@@ -145,7 +163,9 @@ public sealed class WorkspacePreparer
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (row.WorktreeName is "none" or "master")
+                {
                     continue;
+                }
                 await RunAsync("git", ["-C", row.WorktreePath, "checkout", "-B", $"squad-{row.WorktreeName}", head, "--force"], cancellationToken);
                 await RunAsync("git", ["-C", row.WorktreePath, "reset", "--hard", head], cancellationToken);
             }
@@ -166,7 +186,9 @@ public sealed class WorkspacePreparer
             foreach (var row in ctx.Roles)
             {
                 if (row.WorktreeName is "none" or "master")
+                {
                     continue;
+                }
 
                 var target = Path.Combine(row.WorktreePath, sharedPath);
                 ReplaceWithSharedDirectoryLink(source, target);
@@ -195,9 +217,13 @@ public sealed class WorkspacePreparer
 
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         if (OperatingSystem.IsWindows())
+        {
             Run("cmd", "/c", "mklink", "/J", target, source);
+        }
         else
+        {
             Directory.CreateSymbolicLink(target, source);
+        }
     }
 
     private static bool IsDirectoryLink(string path) =>
@@ -207,8 +233,12 @@ public sealed class WorkspacePreparer
     {
         string[] subdirs = ["outbox/tmp", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed"];
         foreach (var row in ctx.Roles)
+        {
             foreach (var dir in subdirs)
+            {
                 Directory.CreateDirectory(Path.Combine(row.WorktreePath, ".blaxquad", "handoffs", dir));
+            }
+        }
     }
 
     private static void ClearConfiguredHandoffs(Ctx ctx, CancellationToken cancellationToken)
@@ -222,17 +252,27 @@ public sealed class WorkspacePreparer
             {
                 var path = Path.Combine(handoffDirectory, directory);
                 if (!Directory.Exists(path))
+                {
                     continue;
+                }
                 foreach (var handoff in Directory.EnumerateFiles(path, "*.handoff"))
+                {
                     File.Delete(handoff);
+                }
             }
 
             var inbox = Path.Combine(handoffDirectory, "inbox");
             if (!Directory.Exists(inbox))
+            {
                 continue;
+            }
             foreach (var bucket in Directory.EnumerateDirectories(inbox))
+            {
                 foreach (var batch in Directory.EnumerateDirectories(bucket, "batch_*"))
+                {
                     Directory.Delete(batch, recursive: true);
+                }
+            }
         }
     }
 
@@ -242,7 +282,9 @@ public sealed class WorkspacePreparer
         {
             var path = SiblingTool.Resolve(ctx.ScriptDir, helper);
             if (!IsExecutable(path))
+            {
                 myFail($"{myRed}Error:{myReset} Required helper script not found or not executable: {path}");
+            }
         }
     }
 
@@ -250,7 +292,9 @@ public sealed class WorkspacePreparer
     {
         var gitignore = Path.Combine(ctx.WorkingDir, ".gitignore");
         if (!File.Exists(gitignore))
+        {
             File.WriteAllText(gitignore, ".blaxquad/\n.worktrees/\n");
+        }
         else
         {
             EnsureInFile(gitignore, ".blaxquad/");
@@ -262,10 +306,14 @@ public sealed class WorkspacePreparer
     {
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         if (!File.Exists(file))
+        {
             File.WriteAllText(file, "");
+        }
         var lines = new HashSet<string>(File.ReadAllLines(file));
         if (!lines.Contains(pattern))
+        {
             File.AppendAllText(file, pattern + "\n");
+        }
     }
 
     private static void WriteAtomic(string target, string content)
@@ -280,7 +328,9 @@ public sealed class WorkspacePreparer
         finally
         {
             if (File.Exists(temporary))
+            {
                 File.Delete(temporary);
+            }
         }
     }
 
@@ -293,9 +343,13 @@ public sealed class WorkspacePreparer
     private bool IsExecutable(string path)
     {
         if (!File.Exists(path))
+        {
             return false;
+        }
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
             return true;
+        }
         return (File.GetUnixFileMode(path) & UnixFileMode.UserExecute) != 0;
     }
 

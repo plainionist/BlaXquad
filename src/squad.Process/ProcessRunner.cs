@@ -15,13 +15,20 @@ public static class ProcessRunner
             UseShellExecute = false,
         };
         foreach (var a in args)
+        {
             psi.ArgumentList.Add(a);
+        }
         if (workingDirectory is not null)
+        {
             psi.WorkingDirectory = workingDirectory;
+        }
         if (environment is not null)
+        {
             foreach (var (key, value) in environment)
+            {
                 psi.Environment[key] = value;
-
+            }
+        }
         using var process = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{fileName}'.");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -60,13 +67,20 @@ public static class ProcessRunner
             UseShellExecute = false,
         };
         foreach (var argument in args)
+        {
             psi.ArgumentList.Add(argument);
+        }
         if (workingDirectory is not null)
+        {
             psi.WorkingDirectory = workingDirectory;
+        }
         if (environment is not null)
+        {
             foreach (var (key, value) in environment)
+            {
                 psi.Environment[key] = value;
-
+            }
+        }
         using var process = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{fileName}'.");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -77,7 +91,9 @@ public static class ProcessRunner
         catch (OperationCanceledException)
         {
             if (!process.HasExited)
+            {
                 process.Kill(entireProcessTree: true);
+            }
             await process.WaitForExitAsync();
             throw;
         }

@@ -63,7 +63,9 @@ public sealed class ScenarioWorkspace : IDisposable
         if (arguments is not null)
         {
             foreach (var argument in arguments)
+            {
                 startInfo.ArgumentList.Add(argument);
+            }
         }
 
         var process = System.Diagnostics.Process.Start(startInfo)
@@ -78,7 +80,9 @@ public sealed class ScenarioWorkspace : IDisposable
         while (DateTime.UtcNow < deadline)
         {
             if (condition())
+            {
                 return;
+            }
             Thread.Sleep(25);
         }
 
@@ -106,7 +110,9 @@ public sealed class ScenarioWorkspace : IDisposable
     {
         var startInfo = CreateStartInfo(executable, environment, workingDirectory);
         foreach (var argument in arguments)
+        {
             startInfo.ArgumentList.Add(argument);
+        }
 
         using var process = System.Diagnostics.Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{executable}'.");
@@ -126,27 +132,39 @@ public sealed class ScenarioWorkspace : IDisposable
         foreach (var process in myRunningProcesses)
         {
             if (!process.HasExited)
+            {
                 process.Kill(entireProcessTree: true);
+            }
             process.WaitForExit();
             process.Dispose();
         }
 
         if (!Directory.Exists(Root))
+        {
             return;
+        }
 
         foreach (var path in EnumeratePaths(Root).OrderByDescending(path => path.Length))
         {
             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
+            {
                 continue;
+            }
 
             File.SetAttributes(path, FileAttributes.Normal);
             if (Directory.Exists(path))
+            {
                 Directory.Delete(path);
+            }
             else
+            {
                 File.Delete(path);
+            }
         }
         foreach (var path in EnumeratePaths(Root))
+        {
             File.SetAttributes(path, FileAttributes.Normal);
+        }
         Directory.Delete(Root, recursive: true);
     }
 
@@ -168,7 +186,9 @@ public sealed class ScenarioWorkspace : IDisposable
         if (environment is not null)
         {
             foreach (var (name, value) in environment)
+            {
                 startInfo.Environment[name] = value;
+            }
         }
         return startInfo;
     }
@@ -179,7 +199,9 @@ public sealed class ScenarioWorkspace : IDisposable
         while (current is not null)
         {
             if (File.Exists(Path.Combine(current.FullName, "squad.slnx")))
+            {
                 return current.FullName;
+            }
             current = current.Parent;
         }
 
@@ -189,7 +211,9 @@ public sealed class ScenarioWorkspace : IDisposable
     private static string ResolveTool(string toolName)
     {
         if (OperatingSystem.IsWindows())
+        {
             toolName += ".exe";
+        }
         return Path.Combine(AppContext.BaseDirectory, "squad-tools", toolName);
     }
 
@@ -201,7 +225,9 @@ public sealed class ScenarioWorkspace : IDisposable
             if (Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
             {
                 foreach (var child in EnumeratePaths(path))
+                {
                     yield return child;
+                }
             }
         }
     }
@@ -209,7 +235,9 @@ public sealed class ScenarioWorkspace : IDisposable
     private static void AssertSuccessful(CommandResult result)
     {
         if (result.ExitCode != 0)
+        {
             throw new InvalidOperationException($"Command failed:{Environment.NewLine}{result.StdErr}");
+        }
     }
 }
 

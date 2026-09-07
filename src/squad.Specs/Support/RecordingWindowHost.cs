@@ -24,7 +24,9 @@ public sealed class RecordingWindowHost : IWindowHost
         OnStart?.Invoke();
         Trace?.Record("window.started");
         if (FailOnStart)
+        {
             throw new InvalidOperationException("recording window start failed");
+        }
         return Task.CompletedTask;
     }
 
@@ -32,16 +34,22 @@ public sealed class RecordingWindowHost : IWindowHost
     {
         Trace?.Record("window.sessionsStarted");
         if (FailOnSessionsStarted)
+        {
             throw new InvalidOperationException("recording window sessions-started failed");
+        }
         OnSessionsStarted?.Invoke();
         return Task.CompletedTask;
     }
     public Task WaitForCloseAsync(CancellationToken cancellationToken = default)
     {
         if (FailOnClose)
+        {
             return Task.FromException(new InvalidOperationException("recording window close failed"));
+        }
         if (CancelOnClose)
+        {
             return Task.FromCanceled(new CancellationToken(true));
+        }
         return myClosed.Task.WaitAsync(cancellationToken);
     }
 

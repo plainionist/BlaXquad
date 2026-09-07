@@ -43,7 +43,9 @@ public sealed class SnapshotPublisher : IAsyncDisposable
     public void Request(UiRefreshPriority priority)
     {
         if (Volatile.Read(ref myDisposed) != 0)
+        {
             return;
+        }
 
         var requestedPriority = priority == UiRefreshPriority.Immediate
             ? myImmediateRequest
@@ -67,9 +69,13 @@ public sealed class SnapshotPublisher : IAsyncDisposable
                 DrainSignals();
                 var priority = Interlocked.Exchange(ref myPendingPriority, myNoRequest);
                 if (priority == myNoRequest)
+                {
                     continue;
+                }
                 if (priority == myDeferredRequest)
+                {
                     await WaitForDeferredPublicationAsync(myShutdown.Token);
+                }
                 await myPublish();
             }
         }
@@ -86,7 +92,9 @@ public sealed class SnapshotPublisher : IAsyncDisposable
             var elapsed = Stopwatch.GetElapsedTime(startedAt);
             var remaining = myInterval - elapsed;
             if (remaining <= TimeSpan.Zero)
+            {
                 break;
+            }
 
             using var waitCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var delay = Task.Delay(remaining, waitCancellation.Token);
@@ -103,7 +111,9 @@ public sealed class SnapshotPublisher : IAsyncDisposable
             DrainSignals();
             var priority = Interlocked.Exchange(ref myPendingPriority, myNoRequest);
             if (priority == myImmediateRequest)
+            {
                 break;
+            }
         }
 
         DrainSignals();
@@ -116,12 +126,16 @@ public sealed class SnapshotPublisher : IAsyncDisposable
         {
             var currentPriority = Volatile.Read(ref myPendingPriority);
             if (currentPriority >= requestedPriority)
+            {
                 return;
+            }
             if (Interlocked.CompareExchange(
                     ref myPendingPriority,
                     requestedPriority,
                     currentPriority) == currentPriority)
+            {
                 return;
+            }
         }
     }
 
@@ -135,11 +149,12 @@ public sealed class SnapshotPublisher : IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         if (Interlocked.Exchange(ref myDisposed, 1) != 0)
+        {
             return;
+        }
         myRequests.Writer.TryComplete();
         await myShutdown.CancelAsync();
         await myWorker;
         myShutdown.Dispose();
     }
 }
-

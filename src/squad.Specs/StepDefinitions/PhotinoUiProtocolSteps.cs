@@ -388,7 +388,9 @@ public sealed class PhotinoUiProtocolSteps : IAsyncDisposable
         if (Interlocked.Exchange(
                 ref mySerializedMessageFailuresRemaining,
                 0) == 1)
+        {
             throw new InvalidOperationException(mySerializedMessageFailure);
+        }
         mySerializedMessages.Enqueue(message);
     }
 

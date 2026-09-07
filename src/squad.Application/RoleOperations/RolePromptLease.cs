@@ -17,7 +17,9 @@ internal sealed class RolePromptLease : IDisposable
     public void Dispose()
     {
         if (myDisposed)
+        {
             return;
+        }
         myDisposed = true;
         myPromptLock.Release();
     }

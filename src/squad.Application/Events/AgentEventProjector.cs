@@ -58,7 +58,9 @@ internal sealed class AgentEventProjector
                 state.Status = readiness.State;
                 state.IsWorking = readiness.State == "busy";
                 if (readiness.State == "error")
+                {
                     state.Error = readiness.Error;
+                }
                 break;
             case AgentUserMessageEvent message:
                 state.IsWorking = true;
@@ -97,7 +99,9 @@ internal sealed class AgentEventProjector
                 state.IsWorking = true;
                 if (IsSubagentPlumbingTool(tool.ToolName) ||
                     tool.ToolName.Equals("skill", StringComparison.OrdinalIgnoreCase))
+                {
                     break;
+                }
                 var isRead = tool.Kind == "read" || IsReadTool(tool.ToolName);
                 var suppressOutput = isRead;
                 var toolDescription = isRead ? DescribeRead(tool) : DescribeToolStart(tool);
@@ -142,7 +146,9 @@ internal sealed class AgentEventProjector
                 state.Model = configuration.Model;
                 state.Effort = configuration.Effort;
                 if (state.ContextLimitTokens is null or <= 0)
+                {
                     state.ContextLimitTokens = GetModelContextWindowLimit(state.Model, 0);
+                }
                 break;
             case AgentSessionModelChangedEvent model:
                 state.Model = model.Model;
@@ -181,16 +187,18 @@ internal sealed class AgentEventProjector
     private static TranscriptUpdate ApplyAssistantMessage(AgentRoleState state, AgentAssistantMessageEvent message)
     {
         if (message.IsDelta)
+        {
             return state.Transcript.AppendAssistantEntry(message.OccurredAt, message.Content);
-
+        }
         return state.Transcript.CompleteAssistantEntry(message.OccurredAt, message.Content);
     }
 
     private static TranscriptUpdate ApplyReasoning(AgentRoleState state, AgentReasoningEvent reasoning)
     {
         if (reasoning.IsDelta)
+        {
             return state.Transcript.AppendReasoningEntry(reasoning.OccurredAt, reasoning.Content);
-
+        }
         return state.Transcript.CompleteReasoningEntry(reasoning.OccurredAt, reasoning.Content);
     }
 
@@ -241,8 +249,9 @@ internal sealed class AgentEventProjector
     private static string? DescribeToolStart(AgentToolStartedEvent tool)
     {
         if (string.IsNullOrWhiteSpace(tool.Arguments))
+        {
             return tool.ToolName;
-
+        }
         if (TryParseToolArguments(tool.Arguments, out var arguments))
         {
             if (arguments.ValueKind is JsonValueKind.Object &&
@@ -252,9 +261,13 @@ internal sealed class AgentEventProjector
             {
                 var cmd = command.GetString()!;
                 if (tool.ToolName.Contains(cmd, StringComparison.Ordinal))
+                {
                     return tool.ToolName;
+                }
                 if (KnownShellRunners.Contains(tool.ToolName))
+                {
                     return $"{tool.ToolName} {cmd}";
+                }
                 return cmd;
             }
 
@@ -291,13 +304,18 @@ internal sealed class AgentEventProjector
     private static string DescribeRead(AgentToolStartedEvent tool)
     {
         if (string.IsNullOrWhiteSpace(tool.Arguments))
+        {
             return tool.ToolName;
+        }
         if (!TryParseToolArguments(tool.Arguments, out var arguments))
+        {
             return tool.ToolName;
-
+        }
         var path = ReadPath(arguments);
         if (string.IsNullOrWhiteSpace(path))
+        {
             return tool.ToolName;
+        }
         var fullPath = Path.IsPathFullyQualified(path) || string.IsNullOrWhiteSpace(tool.WorkingDirectory)
             ? path
             : Path.GetFullPath(path, tool.WorkingDirectory);
@@ -315,7 +333,9 @@ internal sealed class AgentEventProjector
         startLine = 0;
         endLine = 0;
         if (arguments.ValueKind is not JsonValueKind.Object)
+        {
             return false;
+        }
         if (arguments.TryGetProperty("view_range", out var range) &&
             range.ValueKind is JsonValueKind.Array &&
             range.GetArrayLength() == 2 &&
@@ -332,8 +352,12 @@ internal sealed class AgentEventProjector
     private static bool TryReadLine(JsonElement arguments, string[] names, out int line)
     {
         foreach (var name in names)
+        {
             if (arguments.TryGetProperty(name, out var value) && value.TryGetInt32(out line))
+            {
                 return true;
+            }
+        }
         line = 0;
         return false;
     }
@@ -341,10 +365,16 @@ internal sealed class AgentEventProjector
     private static string? ReadPath(JsonElement arguments)
     {
         if (arguments.ValueKind is not JsonValueKind.Object)
+        {
             return null;
+        }
         foreach (var propertyName in new[] { "path", "filePath", "file_path", "filename" })
+        {
             if (arguments.TryGetProperty(propertyName, out var property) && property.ValueKind is JsonValueKind.String)
+            {
                 return property.GetString();
+            }
+        }
         return null;
     }
 
@@ -380,21 +410,27 @@ internal sealed class AgentEventProjector
     {
         var knownLimit = GetKnownModelLimit(model);
         if (knownLimit > 0)
+        {
             return Math.Max(knownLimit, reportedLimit);
+        }
         return reportedLimit > 0 ? reportedLimit : 128000;
     }
 
     private static long GetKnownModelLimit(string? model)
     {
         if (string.IsNullOrWhiteSpace(model))
+        {
             return 0;
-
+        }
         var lower = model.ToLowerInvariant();
         if (lower.Contains("claude"))
+        {
             return 200000;
+        }
         if (lower.Contains("gpt-4o") || lower.Contains("gpt-4.5") || lower.Contains("o1") || lower.Contains("o3"))
+        {
             return 128000;
-
+        }
         return 128000;
     }
 }

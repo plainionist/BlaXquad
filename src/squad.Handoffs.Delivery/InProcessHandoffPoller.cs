@@ -35,8 +35,9 @@ public sealed class InProcessHandoffPoller : IHandoffPump
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
             if (myPolling is not null)
+            {
                 return Task.CompletedTask;
-
+            }
             myPollingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             myPolling = PollAsync(myPollingCancellation.Token);
             return Task.CompletedTask;
@@ -56,8 +57,9 @@ public sealed class InProcessHandoffPoller : IHandoffPump
             pollingCancellation = myPollingCancellation;
         }
         if (polling is null || pollingCancellation is null)
+        {
             return;
-
+        }
         pollingCancellation.Cancel();
         await polling.WaitAsync(cancellationToken);
         lock (mySyncRoot)
@@ -74,7 +76,9 @@ public sealed class InProcessHandoffPoller : IHandoffPump
     public async ValueTask DisposeAsync()
     {
         if (myDisposed)
+        {
             return;
+        }
         myDisposed = true;
         await StopAsync();
     }

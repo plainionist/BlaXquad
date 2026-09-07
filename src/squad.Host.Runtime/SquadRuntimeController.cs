@@ -61,7 +61,9 @@ internal sealed class SquadRuntimeController
         using var transition = mySessionRegistry.BeginStopping();
         await AttemptAsync(myViewModel.StopAsync, failures);
         if (myHandoffStarted)
+        {
             await AttemptAsync(() => myHandoffPump.StopAsync(), failures);
+        }
         failures.AddRange(await mySessionGeneration.TeardownAsync());
         transition.Commit();
         return failures;

@@ -191,11 +191,15 @@ public sealed class ViewModelSteps
         Directory.CreateDirectory(Path.Combine(myApplicationRoot, "blaxquad", "roles"));
         File.WriteAllText(Path.Combine(myApplicationRoot, "blaxquad", "constitution.prompt"), "Follow the constitution.\n");
         foreach (var role in roleNames)
+        {
             File.WriteAllText(Path.Combine(myApplicationRoot, "blaxquad", "roles", role + ".prompt"), "Follow the role.\n");
+        }
 
         myBackend = new RecordingAgentBackend();
         foreach (var role in roleNames)
+        {
             myBackend.AddRole(role);
+        }
 
         var ctx = new Ctx
         {
@@ -261,7 +265,9 @@ public sealed class ViewModelSteps
         myRecordingPump!.Trace = myLifecycleTrace;
         myRecordingSleep!.Trace = myLifecycleTrace;
         foreach (var session in myBackend.Sessions)
+        {
             session.Trace = myLifecycleTrace;
+        }
     }
 
     [Given("a SquadApplication constructed with empty roles and a startup lifecycle trace")]
@@ -278,7 +284,9 @@ public sealed class ViewModelSteps
         viewModel.StateChanged += () =>
         {
             if (roleInitializationRecorded || !viewModel.Roles.ContainsKey("coder"))
+            {
                 return;
+            }
 
             Assert.That(
                 Directory.Exists(context.StateDir),
@@ -484,7 +492,9 @@ public sealed class ViewModelSteps
             session.OnSend = _ =>
             {
                 if (myApplication!.Sessions.ContainsKey(role.Role))
+                {
                     mySdkInstructionsSentAfterRegistration.Add(role.Role);
+                }
             };
         }
 
@@ -560,7 +570,9 @@ public sealed class ViewModelSteps
     {
         myBackend.ReleaseRegistration();
         while (myApplicationReadyCount == 0 && !myApplicationRun!.IsCompleted)
+        {
             await Task.Delay(10);
+        }
         Assert.That(myApplicationReadyCount, Is.EqualTo(1));
     }
 
@@ -777,9 +789,13 @@ public sealed class ViewModelSteps
     {
         var failure = new InvalidOperationException("recording host server failed");
         if (myFaultingHostLease is not null)
+        {
             myFaultingHostLease.FailServer(failure);
+        }
         else
+        {
             myRecordingHostLease!.FailServer(failure);
+        }
     }
 
     [When("the application lifecycle reaches readiness")]
@@ -895,7 +911,9 @@ public sealed class ViewModelSteps
             Assert.That(myBackend.Sessions.All(session => (session.DisposeCount > 0) == myBackend.RuntimeCreated), Is.True);
         });
         if (myRecordingHostLease is not null)
+        {
             Assert.That(myRecordingHostLease.Disposed, Is.True);
+        }
         else
         {
             Assert.That(File.Exists(Path.Combine(myApplicationRoot, ".blaxquad", "host.json")), Is.False);
@@ -909,7 +927,9 @@ public sealed class ViewModelSteps
         myBackend.Sessions.Single(session => session.Role == role).Emit(new AgentStartedEvent(DateTimeOffset.UtcNow));
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
         while (myApplication!.ViewModel.Roles[role].EventCount == 0 && DateTime.UtcNow < deadline)
+        {
             await Task.Delay(10);
+        }
     }
 
     [When("the application recording {string} session requests permission {string}")]
@@ -925,7 +945,9 @@ public sealed class ViewModelSteps
         while (!myApplication!.ViewModel.PendingPermissions.Any(request =>
                    request.Role == role && request.RequestId == requestId) &&
                DateTime.UtcNow < deadline)
+        {
             await Task.Delay(10);
+        }
     }
 
     [When("the application recording {string} session fails with {string}")]
@@ -934,7 +956,9 @@ public sealed class ViewModelSteps
         myBackend.Sessions.Single(session => session.Role == role).Fail(message);
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
         while (myApplication!.ViewModel.Roles[role].Error != message && DateTime.UtcNow < deadline)
+        {
             await Task.Delay(10);
+        }
     }
 
     [When("the recording backend reports terminal failure {string}")]
@@ -964,7 +988,9 @@ public sealed class ViewModelSteps
         myRecordingWindow!.Close();
         await myApplicationRun!;
         if (Directory.Exists(myApplicationRoot))
+        {
             Directory.Delete(myApplicationRoot, recursive: true);
+        }
     }
 
     [When("the application window closes")]
@@ -983,7 +1009,9 @@ public sealed class ViewModelSteps
         var session = myBackend.Sessions.Single();
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
         while (session.Sends.IsEmpty && DateTime.UtcNow < deadline)
+        {
             await Task.Delay(10);
+        }
         Assert.That(session.Sends, Has.Some.EqualTo("still working"));
     }
 
@@ -1050,14 +1078,18 @@ public sealed class ViewModelSteps
     public void WhenTheRecordingSessionEmitsUserMessages(string role, int count)
     {
         for (var index = 0; index < count; index++)
+        {
             Emit(role, new AgentUserMessageEvent(DateTimeOffset.UtcNow, $"message-{index}"));
+        }
     }
 
     [When("the recording {string} session emits {int} harness messages")]
     public void WhenTheRecordingSessionEmitsHarnessMessages(string role, int count)
     {
         for (var index = 0; index < count; index++)
+        {
             Emit(role, new AgentHarnessMessageEvent(DateTimeOffset.UtcNow, $"message-{index}"));
+        }
     }
 
     [When("the recording {string} session emits harness message {string}")]
@@ -1075,7 +1107,9 @@ public sealed class ViewModelSteps
         var toolCallId = myActiveToolCallIds[role];
         var output = myToolOutputNormalizer.Apply(toolCallId, DecodeEscapes(content));
         if (output is not null)
+        {
             Emit(role, new AgentToolOutputChangedEvent(DateTimeOffset.UtcNow, toolCallId, output));
+        }
     }
 
     [When("the recording {string} session emits a final assistant message {string}")]
@@ -1152,7 +1186,9 @@ public sealed class ViewModelSteps
     {
         var output = myToolOutputNormalizer.Apply(toolCallId, DecodeEscapes(partialOutput));
         if (output is not null)
+        {
             Emit(role, new AgentToolOutputChangedEvent(DateTimeOffset.UtcNow, toolCallId, output));
+        }
     }
 
     [When("tool call {string} reports progress {string} for role {string}")]
@@ -1351,7 +1387,9 @@ public sealed class ViewModelSteps
         var publishing = Task.Run(async () =>
         {
             for (var index = 0; index < count; index++)
+            {
                 await myViewModel.EnqueueEventAsync(role, new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, $"update {index}", false));
+            }
         });
 
         while (!publishing.IsCompleted)
@@ -1471,7 +1509,9 @@ public sealed class ViewModelSteps
         myViewModel.TranscriptChanged += update =>
         {
             if (update.Role != role)
+            {
                 return;
+            }
             entered.TrySetResult();
             myTranscriptPublicationRelease.Task.GetAwaiter().GetResult();
             myPausedTranscriptJournal.Add(update);
@@ -1526,7 +1566,9 @@ public sealed class ViewModelSteps
         var journal = new TranscriptAnnouncementJournal(100, 10_000);
         foreach (var update in myTranscriptUpdates.Where(
                      update => update.Role == role))
+        {
             journal.Add(update);
+        }
         var snapshot = myViewModel.CreateTranscriptSnapshot(500);
         var roleSnapshot = snapshot.Single(item => item.Role == role);
         var interval = journal.Read(
@@ -1581,7 +1623,9 @@ public sealed class ViewModelSteps
     {
         var journal = new TranscriptAnnouncementJournal(maximumUpdates, 10_000);
         foreach (var update in myTranscriptUpdates.Where(update => update.Role == role))
+        {
             journal.Add(update);
+        }
 
         var recovery = journal.Read(role, sequence, myTranscriptUpdates.Max(update => update.Sequence));
         Assert.Multiple(() =>
@@ -1627,7 +1671,9 @@ public sealed class ViewModelSteps
     {
         var journal = new TranscriptAnnouncementJournal(100, 10_000);
         foreach (var update in myTranscriptUpdates.Where(update => update.Role == role))
+        {
             journal.Add(update);
+        }
         var snapshot = myViewModel.CreateTranscriptSnapshot(500);
         var roleSnapshot = snapshot.Single(item => item.Role == role);
         var recovery = new Dictionary<string, TranscriptRecoveryAnnouncement>(
@@ -2040,7 +2086,9 @@ public sealed class ViewModelSteps
         };
 
         foreach (var pair in milestones.Zip(milestones.Skip(1)))
+        {
             myLifecycleTrace!.AssertOrdered(pair.First, pair.Second);
+        }
     }
 
     [Then("the lifecycle trace shows the process-wide window starting before backend generation startup")]
@@ -2345,7 +2393,9 @@ public sealed class ViewModelSteps
         myRecordingHostLease = useRealLease ? null : new RecordingHostLease();
         myFaultingHostLease = null;
         if (useRealLease)
+        {
             myApplicationLease = HostLease.Acquire(myApplicationRoot);
+        }
         if (faultServer)
         {
             myApplicationLease = HostLease.Acquire(myApplicationRoot);
@@ -2366,16 +2416,24 @@ public sealed class ViewModelSteps
     {
         GivenASquadApplicationWithRecordingRoles("coder,reviewer");
         if (unavailableRecipient == "missing")
+        {
             myBackend.RemoveRole("reviewer");
+        }
         else if (unavailableRecipient != null && unavailableRecipient is not ("stopped" or "failed"))
+        {
             throw new ArgumentOutOfRangeException(nameof(unavailableRecipient));
+        }
 
         myInProcessHandoffLog.Clear();
         var roles = myApplicationContext!.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray();
         if (unavailableRecipient == "stopped")
+        {
             myRecordingWindow!.OnSessionsStarted = () => myBackend.Sessions.Single(session => session.Role == "reviewer").DisposeAsync().GetAwaiter().GetResult();
+        }
         if (unavailableRecipient == "failed")
+        {
             myRecordingWindow!.OnSessionsStarted = () => myBackend.Sessions.Single(session => session.Role == "reviewer").Fail("recording session failed");
+        }
 
         myApplication = SquadApplication.Create(
             SquadStartupPlanFactory.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
@@ -2424,9 +2482,13 @@ public sealed class ViewModelSteps
     {
         StartApplicationRun();
         while (myApplicationReadyCount == 0 && !myApplicationRun!.IsCompleted)
+        {
             await Task.Delay(10);
+        }
         if (myApplicationReadyCount == 0)
+        {
             await CompleteApplicationRunAsync();
+        }
         Assert.That(myApplicationReadyCount, Is.EqualTo(1));
     }
 
@@ -2446,7 +2508,9 @@ public sealed class ViewModelSteps
     private async Task CompleteApplicationRunAsync()
     {
         if (myApplicationRun is null || myApplicationRunResult is not null || myApplicationLifecycleFailure is not null)
+        {
             return;
+        }
         try
         {
             myApplicationRunResult = await myApplicationRun;

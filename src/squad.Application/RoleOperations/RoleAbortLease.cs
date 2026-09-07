@@ -36,7 +36,9 @@ internal sealed class RoleAbortLease : IDisposable
     public void Dispose()
     {
         if (myDisposed)
+        {
             return;
+        }
         myDisposed = true;
         myCoordinator.RemoveAbort(myRole);
     }

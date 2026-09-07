@@ -26,7 +26,9 @@ try
 catch (CliExitException exception)
 {
     if (!string.IsNullOrEmpty(exception.Message))
+    {
         Console.Error.WriteLine(exception.Message);
+    }
     return exception.ExitCode;
 }
 

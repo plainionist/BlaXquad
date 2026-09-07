@@ -9,21 +9,26 @@ public static class SiblingTool
         {
             var exe = System.IO.Path.Combine(directory, toolName + ".exe");
             if (File.Exists(exe))
+            {
                 return exe;
-
+            }
             var fixtureExe = System.IO.Path.Combine(directory, "squad-tools", toolName + ".exe");
             if (File.Exists(fixtureExe))
+            {
                 return fixtureExe;
+            }
         }
 
         var candidate = System.IO.Path.Combine(directory, toolName);
         if (File.Exists(candidate))
+        {
             return candidate;
-
+        }
         var fixtureCandidate = System.IO.Path.Combine(directory, "squad-tools", toolName);
         if (File.Exists(fixtureCandidate))
+        {
             return fixtureCandidate;
-
+        }
         return candidate;
     }
 }

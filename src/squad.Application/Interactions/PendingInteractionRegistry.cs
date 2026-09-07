@@ -35,7 +35,9 @@ internal sealed class PendingInteractionRegistry
         lock (myLock)
         {
             if (myElicitations.TryGetValue(Key(role, requestId), out var request))
+            {
                 return request;
+            }
             throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{role}'.");
         }
     }
@@ -83,7 +85,9 @@ internal sealed class PendingInteractionRegistry
                 .ToArray();
             var removed = keys.Select(key => myProtectedTranscriptEntries[key]).ToArray();
             foreach (var key in keys)
+            {
                 myProtectedTranscriptEntries.Remove(key);
+            }
             return removed;
         }
     }
@@ -104,7 +108,9 @@ internal sealed class PendingInteractionRegistry
         lock (myLock)
         {
             if (!requests.TryAdd(key, request))
+            {
                 throw new InvalidOperationException($"Interaction '{requestId}' is already pending for role '{role}'.");
+            }
         }
     }
 
@@ -120,7 +126,9 @@ internal sealed class PendingInteractionRegistry
             if (expectedRole is not null)
             {
                 if (requests.Remove(Key(expectedRole, requestId), out var request))
+                {
                     return (expectedRole, request);
+                }
                 throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{expectedRole}'.");
             }
 
@@ -142,7 +150,9 @@ internal sealed class PendingInteractionRegistry
     private static void RemoveForRole<TRequest>(Dictionary<string, TRequest> requests, string role, Func<TRequest, string> roleSelector)
     {
         foreach (var key in requests.Where(pair => roleSelector(pair.Value) == role).Select(pair => pair.Key).ToArray())
+        {
             requests.Remove(key);
+        }
     }
 
     private static string Key(string role, string requestId) => $"{role}\u001f{requestId}";

@@ -45,7 +45,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
             {
                 RawSdkEventTrace.Record(sessionEvent);
                 if (!toolEvents.TryPublish(sessionEvent))
+                {
                     PublishEvent(sessionEvent, agentSession);
+                }
             },
             OnPermissionRequest = (request, _) => HandlePermissionRequestAsync(agentSession, permissions, workingDirectory, request),
             OnUserInputRequest = (request, _) => HandleUserInputRequestAsync(agentSession, request),
@@ -63,9 +65,13 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     private static async Task<PermissionDecision> HandlePermissionRequestAsync(CopilotSdkAgentSession agentSession, string permissions, string workingDirectory, PermissionRequest request)
     {
         if (permissions == "approveAll" && request.ManagedApprovalRequired is not true)
+        {
             return PermissionDecision.ApproveOnce();
+        }
         if (ShouldApproveWorkspaceRead(workingDirectory, request))
+        {
             return PermissionDecision.ApproveOnce();
+        }
 
         var response = await agentSession.RequestPermissionAsync(request.Kind.ToString());
         return response.Approved
@@ -76,7 +82,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     private static bool ShouldApproveWorkspaceRead(string workingDirectory, PermissionRequest request)
     {
         if (request.ManagedApprovalRequired is true || request is not PermissionRequestRead { Path: { Length: > 0 } path })
+        {
             return false;
+        }
 
         try
         {
@@ -118,7 +126,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     private static IDictionary<string, object>? ToSdkElicitationContent(JsonElement? content)
     {
         if (content is not { ValueKind: JsonValueKind.Object } value)
+        {
             return null;
+        }
         return JsonSerializer.Deserialize<Dictionary<string, object>>(value.GetRawText());
     }
 
@@ -129,7 +139,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
         {
             case UserMessageEvent { Data.Content: { } content }:
                 if (!agentSession.TryConsumeHarnessMessageEcho(content))
+                {
                     agentSession.Publish(new AgentUserMessageEvent(occurredAt, content));
+                }
                 break;
             case AssistantMessageDeltaEvent { Data.DeltaContent: { } content }:
                 agentSession.Publish(new AgentAssistantMessageEvent(occurredAt, content, true));
@@ -185,13 +197,17 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     private static void PublishDiscoveredSkills(SessionEvent sessionEvent, CopilotSdkAgentSession agentSession, DateTimeOffset occurredAt)
     {
         if (GetProperty(sessionEvent, "Data") is null || GetProperty(GetProperty(sessionEvent, "Data")!, "Skills") is not IEnumerable skills)
+        {
             return;
+        }
 
         foreach (var skill in skills)
         {
             var path = GetProperty(skill, "Path") as string;
             if (!string.IsNullOrWhiteSpace(path))
+            {
                 agentSession.Publish(new AgentSystemMessageEvent(occurredAt, $"Discovered {path}"));
+            }
         }
     }
 
@@ -199,7 +215,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     {
         var name = GetProperty(GetProperty(sessionEvent, "Data"), "Name") as string;
         if (!string.IsNullOrWhiteSpace(name))
+        {
             agentSession.Publish(new AgentSkillInvokedEvent(occurredAt, name));
+        }
     }
 
     private static object? GetProperty(object? value, string name) => value?.GetType().GetProperty(name)?.GetValue(value);

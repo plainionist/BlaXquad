@@ -350,11 +350,17 @@ public sealed class HostOwnershipSteps
     public async Task ReleaseHostLease()
     {
         if (myOrphanedHostLock is not null)
+        {
             myOrphanedHostLock.Dispose();
+        }
         if (myReleaseAfterShutdown is { IsCompleted: true })
+        {
             await myReleaseAfterShutdown;
+        }
         else if (myLease is not null)
+        {
             await myLease.DisposeAsync();
+        }
     }
 
     private void RunTimedWait(
@@ -371,7 +377,9 @@ public sealed class HostOwnershipSteps
             timeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
         if (projectRoot is not null)
+        {
             arguments.Add(projectRoot);
+        }
         var stopwatch = Stopwatch.StartNew();
         myWorkspace.RunTool("squad-hq", arguments, workingDirectory: workingDirectory);
         myWaitElapsed = stopwatch.Elapsed;

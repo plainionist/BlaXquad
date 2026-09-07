@@ -37,7 +37,9 @@ public static class SquadConfigurationLoader
     private static SquadConfiguration Validate(SquadConfigurationDocument document, string configFile, string rolesDirectory)
     {
         if (document.Roles is null || document.Roles.Count == 0)
+        {
             throw Error($"configuration {configFile} requires a non-empty roles array");
+        }
 
         var rootDirectory = Path.GetFullPath(Path.Combine(rolesDirectory, "..", ".."));
         var sharedWorktreePaths = ValidateSharedWorktreePaths(document.SharedWorktreePaths, rootDirectory, configFile);
@@ -56,34 +58,56 @@ public static class SquadConfigurationLoader
             var permissions = agent.Permissions ?? "prompt";
 
             if (agent.Model is not null && string.IsNullOrWhiteSpace(agent.Model))
+            {
                 throw Error($"agent.model for role '{name}' cannot be empty");
+            }
             if (agent.Effort is not null && string.IsNullOrWhiteSpace(agent.Effort))
+            {
                 throw Error($"agent.effort for role '{name}' cannot be empty");
+            }
 
             if (name.Contains('_'))
+            {
                 throw Error($"Invalid role '{name}': role names may not contain underscores");
+            }
             if (!names.Add(name))
+            {
                 throw Error($"Duplicate role '{name}' in {configFile}");
+            }
             if (worktree.Contains('/') || worktree.Contains('\\') || worktree is "." or "..")
+            {
                 throw Error($"Invalid worktree '{worktree}' for role '{name}'");
+            }
             if (worktree != "master" && !worktrees.Add(worktree))
+            {
                 throw Error($"Duplicate worktree '{worktree}' in {configFile}");
+            }
             if (worktree == "master" && ++masterCount > 1)
+            {
                 throw Error($"Duplicate worktree 'master' in {configFile}");
+            }
             if (receiveMode is not ("task" or "batch"))
+            {
                 throw Error($"Invalid receive mode '{receiveMode}' for role '{name}': expected task or batch");
+            }
             if (permissions is not ("prompt" or "approveAll"))
+            {
                 throw Error($"Invalid permissions '{permissions}' for role '{name}': expected prompt or approveAll");
+            }
 
             var promptFile = Path.Combine(rolesDirectory, name + ".prompt");
             if (!File.Exists(promptFile))
+            {
                 throw Error($"Missing role prompt {promptFile}");
+            }
 
             var worktreePath = worktree == "master"
                 ? Path.GetFullPath(Path.Combine(rolesDirectory, "..", ".."))
                 : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(rolesDirectory)!, "..", ".worktrees", worktree));
             if (!paths.Add(worktreePath))
+            {
                 throw Error($"Duplicate normalized worktree path '{worktreePath}' in {configFile}");
+            }
 
             roles.Add(new SquadRoleConfiguration(name, worktree, receiveMode,
                 new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
@@ -98,7 +122,9 @@ public static class SquadConfigurationLoader
         string configFile)
     {
         if (configuredPaths is null)
+        {
             return [];
+        }
 
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var paths = new List<string>(configuredPaths.Count);
@@ -106,17 +132,27 @@ public static class SquadConfigurationLoader
         foreach (var configuredPath in configuredPaths)
         {
             if (string.IsNullOrWhiteSpace(configuredPath))
+            {
                 throw Error($"sharedWorktreePaths in {configFile} cannot contain an empty path");
+            }
             if (Path.IsPathFullyQualified(configuredPath))
+            {
                 throw Error($"Shared worktree path '{configuredPath}' in {configFile} must be relative");
+            }
 
             var fullPath = Path.GetFullPath(Path.Combine(rootDirectory, configuredPath));
             if (!IsWithin(rootDirectory, fullPath))
+            {
                 throw Error($"Shared worktree path '{configuredPath}' in {configFile} must stay within the repository root");
+            }
             if (!normalizedPaths.Add(fullPath))
+            {
                 throw Error($"Duplicate shared worktree path '{configuredPath}' in {configFile}");
+            }
             if (normalizedPaths.Any(path => path != fullPath && (IsWithin(path, fullPath) || IsWithin(fullPath, path))))
+            {
                 throw Error($"Overlapping shared worktree path '{configuredPath}' in {configFile}");
+            }
 
             paths.Add(configuredPath);
         }

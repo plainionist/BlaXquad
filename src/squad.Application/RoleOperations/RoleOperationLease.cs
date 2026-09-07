@@ -33,10 +33,14 @@ internal sealed class RoleOperationLease : IDisposable
     public void Dispose()
     {
         if (myDisposed)
+        {
             return;
+        }
         myDisposed = true;
         if (myOperation is not null)
+        {
             myCoordinator.UnregisterOperation(myRole, myOperation);
+        }
         myRoleLock.Release();
     }
 }

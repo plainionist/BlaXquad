@@ -9,9 +9,13 @@ public static class HandoffHeaders
         foreach (var line in File.ReadLines(filePath))
         {
             if (string.IsNullOrWhiteSpace(line))
+            {
                 break; // header block ends at the first blank line
+            }
             if (line.StartsWith(prefix, StringComparison.Ordinal))
+            {
                 return line[prefix.Length..];
+            }
         }
         return null;
     }
@@ -36,8 +40,14 @@ public static class HandoffHeaders
     {
         var crlf = content.IndexOf("\r\n\r\n", StringComparison.Ordinal);
         var lf = content.IndexOf("\n\n", StringComparison.Ordinal);
-        if (crlf < 0) return (lf, 2);
-        if (lf < 0) return (crlf, 4);
+        if (crlf < 0)
+        {
+            return (lf, 2);
+        }
+        if (lf < 0)
+        {
+            return (crlf, 4);
+        }
         return crlf < lf ? (crlf, 4) : (lf, 2);
     }
 
@@ -55,7 +65,9 @@ public static class HandoffHeaders
             if (!inserted && string.IsNullOrWhiteSpace(line))
             {
                 if (!replaced)
+                {
                     result.Add(prefix + value);
+                }
                 result.Add(line);
                 inserted = true;
             }
@@ -71,7 +83,9 @@ public static class HandoffHeaders
         }
 
         if (!inserted && !replaced)
+        {
             result.Add(prefix + value);
+        }
 
         var directory = Path.GetDirectoryName(filePath)!;
         var tmp = Path.Combine(directory, $".headers.{Guid.NewGuid():N}");

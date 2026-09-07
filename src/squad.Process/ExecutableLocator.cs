@@ -6,8 +6,9 @@ public static class ExecutableLocator
     public static bool Exists(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
+        {
             return false;
-
+        }
         var extensions = OperatingSystem.IsWindows()
             ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
                 .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

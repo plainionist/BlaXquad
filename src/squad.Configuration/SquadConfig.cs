@@ -13,14 +13,18 @@ public static class SquadConfig
     {
         var configFile = Path.Combine(projectRoot, "blaxquad", "squad.json");
         if (!File.Exists(configFile))
+        {
             return [];
+        }
 
         try
         {
             using var stream = File.OpenRead(configFile);
             using var doc = JsonDocument.Parse(stream);
             if (!doc.RootElement.TryGetProperty("roles", out var rolesElement) || rolesElement.ValueKind != JsonValueKind.Array)
+            {
                 return [];
+            }
 
             var list = new List<RoleRow>();
             foreach (var roleElem in rolesElement.EnumerateArray())

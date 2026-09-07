@@ -69,7 +69,9 @@ internal sealed class SessionGeneration
             lock (myTeardownLock)
             {
                 if (myTeardown == current)
+                {
                     myTeardown = null;
+                }
             }
         }
         return failures;
@@ -103,9 +105,13 @@ internal sealed class SessionGeneration
             }
         }
         if (failures.Count > 0)
+        {
             return failures;
+        }
         foreach (var sessionCancellation in mySessionCancellations)
+        {
             sessionCancellation.Dispose();
+        }
         mySessionCancellations.Clear();
         myEventTasks.Clear();
         mySessions.Clear();

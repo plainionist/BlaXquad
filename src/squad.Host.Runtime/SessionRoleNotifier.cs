@@ -25,7 +25,9 @@ internal sealed class SessionRoleNotifier : IRoleNotifier
         // session (unregistered, completed, or the registry no longer accepting work) must not even attempt a
         // wake-up send.
         if (!mySessions.TryLeaseSession(role, out _))
+        {
             throw new InvalidOperationException($"No active session for role '{role}'.");
+        }
         await myViewModel.SendHarnessAsync(role, myWakeMessage, cancellationToken);
     }
 }

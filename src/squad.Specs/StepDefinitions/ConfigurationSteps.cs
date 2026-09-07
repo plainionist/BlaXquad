@@ -29,7 +29,9 @@ public sealed class ConfigurationSteps
     public void GivenRolePromptsExistFor(string commaSeparatedRoles)
     {
         foreach (var role in commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
             myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
+        }
     }
 
 
@@ -60,7 +62,9 @@ public sealed class ConfigurationSteps
     {
         var handoffs = myWorkspace.PathInWorkspace(".worktrees", role, ".blaxquad", "handoffs");
         foreach (var directory in new[] { "outbox", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed" })
+        {
             Assert.That(Directory.EnumerateFiles(Path.Combine(handoffs, directory), "*.handoff"), Is.Empty);
+        }
         Assert.That(Directory.EnumerateDirectories(Path.Combine(handoffs, "inbox"), "batch_*", SearchOption.AllDirectories), Is.Empty);
     }
 

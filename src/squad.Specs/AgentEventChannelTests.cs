@@ -168,7 +168,9 @@ public sealed class AgentEventChannelTests
                     receivedEvents.Add(msg.Content);
                     count++;
                     if (count == totalEvents)
+                    {
                         break;
+                    }
                 }
                 await Task.Delay(2);
             }

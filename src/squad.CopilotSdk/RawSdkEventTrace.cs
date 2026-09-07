@@ -21,14 +21,18 @@ internal static class RawSdkEventTrace
     {
         var tracePath = Environment.GetEnvironmentVariable(TracePathVariable);
         if (string.IsNullOrWhiteSpace(tracePath))
+        {
             return;
+        }
 
         lock (myTraceLock)
         {
             try
             {
                 if (!TryDescribe(sessionEvent, out var description))
+                {
                     return;
+                }
                 var payloads = description.Payloads
                     .Select(payload => DescribePayload(description.ToolCallId, payload))
                     .ToArray();
@@ -45,7 +49,9 @@ internal static class RawSdkEventTrace
                 };
                 var directory = Path.GetDirectoryName(Path.GetFullPath(tracePath));
                 if (!string.IsNullOrEmpty(directory))
+                {
                     Directory.CreateDirectory(directory);
+                }
                 File.AppendAllText(tracePath, JsonSerializer.Serialize(record) + Environment.NewLine);
                 if (sessionEvent is ToolExecutionCompleteEvent && description.ToolCallId is not null)
                 {
@@ -85,9 +91,13 @@ internal static class RawSdkEventTrace
             case ToolExecutionCompleteEvent complete:
                 var payloads = new List<Payload>();
                 if (complete.Data.Result?.Content is { } content)
+                {
                     payloads.Add(new("content", content));
+                }
                 if (complete.Data.Result?.DetailedContent is { } detailedContent)
+                {
                     payloads.Add(new("detailedContent", detailedContent));
+                }
                 description = new(
                     "tool.execution_complete",
                     complete.Data.ToolCallId,
@@ -114,7 +124,9 @@ internal static class RawSdkEventTrace
             : null;
         var (relationship, appendedContent) = Classify(previous, payload.Content);
         if (toolCallId is not null)
+        {
             myPreviousPayloads[toolCallId] = payload.Content;
+        }
         return new
         {
             field = payload.Field,
@@ -128,13 +140,21 @@ internal static class RawSdkEventTrace
     private static (string Relationship, string? AppendedContent) Classify(string? previous, string current)
     {
         if (previous is null)
+        {
             return ("first payload", null);
+        }
         if (string.Equals(previous, current, StringComparison.Ordinal))
+        {
             return ("exact duplicate", "");
+        }
         if (current.StartsWith(previous, StringComparison.Ordinal))
+        {
             return ("cumulative snapshot", current[previous.Length..]);
+        }
         if (previous.StartsWith(current, StringComparison.Ordinal))
+        {
             return ("rewrite/non-prefix change", null);
+        }
         return ("independent delta", null);
     }
 

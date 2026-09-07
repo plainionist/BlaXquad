@@ -82,7 +82,9 @@ public sealed class TranscriptArchive : IDisposable
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
             if (!myEntryLengths.TryGetValue(role, out var entries))
+            {
                 return [];
+            }
             return entries.Keys
                 .Where(index => index < beforeIndex)
                 .TakeLast(maxEntries)
@@ -108,6 +110,7 @@ public sealed class TranscriptArchive : IDisposable
             ObjectDisposedException.ThrowIf(myDisposed, this);
             if (!myEntryLengths.TryGetValue(role, out var entries)
                 || !entries.ContainsKey(entryIndex))
+            {
                 return new RoleArchivedTranscriptEntry(
                     role,
                     sequence,
@@ -116,6 +119,7 @@ public sealed class TranscriptArchive : IDisposable
                     false,
                     0,
                     0);
+            }
             var contentTruncated = myContentTruncatedEntries.Contains((role, entryIndex));
             return new RoleArchivedTranscriptEntry(
                 role,
@@ -148,17 +152,23 @@ public sealed class TranscriptArchive : IDisposable
         lock (myStateLock)
         {
             if (myDisposed)
+            {
                 return;
+            }
             myDisposed = true;
             if (Directory.Exists(myDirectory))
+            {
                 Directory.Delete(myDirectory, recursive: true);
+            }
         }
     }
 
     private SortedDictionary<int, int> GetEntries(string role)
     {
         if (!myEntryLengths.TryGetValue(role, out var entries))
+        {
             myEntryLengths[role] = entries = [];
+        }
         return entries;
     }
 
@@ -185,11 +195,15 @@ public sealed class TranscriptArchive : IDisposable
         string content)
     {
         if (!entries.TryGetValue(entryIndex, out var currentLength))
+        {
             return;
+        }
         myTotalEntryLengths[(role, entryIndex)] =
             myTotalEntryLengths.GetValueOrDefault((role, entryIndex)) + content.Length;
         if (myContentTruncatedEntries.Contains((role, entryIndex)))
+        {
             return;
+        }
         var maxCharacters = myOptions.MaxArchivedEntryCharacters;
         if (content.Length <= maxCharacters - currentLength)
         {
@@ -201,7 +215,9 @@ public sealed class TranscriptArchive : IDisposable
         var retained = File.ReadAllText(path);
         var contentLimit = Math.Max(0, maxCharacters - myTruncationMarker.Length);
         if (retained.Length < contentLimit)
+        {
             retained += content[..Math.Min(content.Length, contentLimit - retained.Length)];
+        }
         var marker = myTruncationMarker[..Math.Min(myTruncationMarker.Length, maxCharacters)];
         WritePrivateText(path, retained[..Math.Min(retained.Length, contentLimit)] + marker, append: false);
         entries[entryIndex] = maxCharacters;
@@ -262,9 +278,13 @@ public sealed class TranscriptArchive : IDisposable
     private static string LimitContent(string content, int maxCharacters)
     {
         if (content.Length <= maxCharacters)
+        {
             return content;
+        }
         if (maxCharacters <= myTruncationMarker.Length)
+        {
             return myTruncationMarker[..maxCharacters];
+        }
         var contentLength = Math.Max(0, maxCharacters - myTruncationMarker.Length);
         return content[..contentLength] + myTruncationMarker;
     }
@@ -299,9 +319,13 @@ public sealed class TranscriptArchive : IDisposable
         if (OperatingSystem.IsWindows())
         {
             if (append)
+            {
                 File.AppendAllText(path, content);
+            }
             else
+            {
                 File.WriteAllText(path, content);
+            }
             return;
         }
 
@@ -316,4 +340,3 @@ public sealed class TranscriptArchive : IDisposable
         writer.Write(content);
     }
 }
-

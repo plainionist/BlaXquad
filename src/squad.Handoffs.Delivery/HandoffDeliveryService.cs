@@ -32,7 +32,9 @@ sealed class HandoffDeliveryService
             foreach (var path in HandoffQueue.HandoffFiles(outboxDir))
             {
                 if (stopRequested?.Invoke() == true)
+                {
                     return;
+                }
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
@@ -64,7 +66,9 @@ sealed class HandoffDeliveryService
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!HasPendingInbox(role.WorktreePath))
+            {
                 continue;
+            }
             try
             {
                 await myNotifier.NotifyAsync(role.Role, cancellationToken);
@@ -101,7 +105,9 @@ sealed class HandoffDeliveryService
         foreach (var recipient in recipients)
         {
             if (!roles.TryGetValue(recipient, out var roleInfo))
+            {
                 throw new InvalidOperationException($"unknown recipient {recipient}");
+            }
             deliveries.Add((recipient, roleInfo));
         }
 
@@ -153,7 +159,9 @@ sealed class HandoffDeliveryService
             var line = rawLine.TrimEnd('\r');
             var parts = line.Split(": ", 2);
             if (parts.Length == 2 && parts[0].Length > 0 && parts[1].Length > 0)
+            {
                 headers[parts[0]] = parts[1];
+            }
         }
         return (headers, body);
     }
@@ -163,7 +171,9 @@ sealed class HandoffDeliveryService
         var recipients = to.Split(',');
         var end = recipients.Length;
         while (end > 0 && recipients[end - 1].Length == 0)
+        {
             end--;
+        }
         return recipients[..end];
     }
 
@@ -177,7 +187,9 @@ sealed class HandoffDeliveryService
     private static void WriteRecipientArtifact(string target, string content)
     {
         if (Path.Exists(target))
+        {
             return;
+        }
         var targetDir = Path.GetDirectoryName(target)!;
         Directory.CreateDirectory(targetDir);
         var tmp = Path.Combine(targetDir, $".inbox.{Guid.NewGuid():N}");
@@ -189,7 +201,9 @@ sealed class HandoffDeliveryService
         finally
         {
             if (File.Exists(tmp))
+            {
                 File.Delete(tmp);
+            }
         }
     }
 
@@ -199,7 +213,9 @@ sealed class HandoffDeliveryService
         var baseName = Path.GetFileName(source);
         var target = Path.Combine(targetDir, baseName);
         if (Path.Exists(target))
+        {
             target = Path.Combine(targetDir, $"{Timestamps.Now()}_{baseName}");
+        }
         File.Move(source, target);
     }
 

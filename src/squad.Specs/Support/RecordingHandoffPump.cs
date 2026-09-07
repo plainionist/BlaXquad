@@ -30,7 +30,9 @@ public sealed class RecordingHandoffPump : IHandoffPump
         Disposed = true;
         Trace?.Record("handoff.disposed");
         if (FailOnDispose)
+        {
             throw new InvalidOperationException("recording handoff pump disposal failed");
+        }
         return ValueTask.CompletedTask;
     }
 }

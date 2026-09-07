@@ -8,7 +8,9 @@ public static class HostProjectRoot
     {
         var gitRoot = GitRevParse("--show-toplevel");
         if (gitRoot is null)
+        {
             throw new CliExitException(1, "Cannot find squad project root");
+        }
 
         var common = GitRevParse("--git-common-dir");
         if (common is not null)
@@ -16,11 +18,15 @@ public static class HostProjectRoot
             var commonPath = Path.IsPathRooted(common) ? common : Path.GetFullPath(common);
             var candidate = Path.GetDirectoryName(commonPath)!;
             if (File.Exists(Path.Combine(candidate, "blaxquad", "squad.json")))
+            {
                 return candidate;
+            }
         }
 
         if (File.Exists(Path.Combine(gitRoot, "blaxquad", "squad.json")))
+        {
             return gitRoot;
+        }
 
         throw new CliExitException(1, "Cannot find squad project root");
     }

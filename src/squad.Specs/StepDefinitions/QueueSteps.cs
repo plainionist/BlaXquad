@@ -27,7 +27,9 @@ public sealed class QueueSteps
     public void GivenRoleHasQueuedTasks(string role, DataTable tasks)
     {
         foreach (var row in tasks.Rows)
+        {
             WriteTask("new", row["from"], row["priority"], row["task"]);
+        }
     }
 
     [Given("{string} is processing task {string} from {string}")]
@@ -43,7 +45,9 @@ public sealed class QueueSteps
     {
         var batchName = "batch_20260822T120000Z_000001";
         foreach (var row in tasks.Rows)
+        {
             WriteTask($"in_process/{batchName}", row["from"], row["priority"], row["task"]);
+        }
     }
 
     [Given("the completion archive already contains that task")]
@@ -135,7 +139,9 @@ public sealed class QueueSteps
     {
         var directory = myWorkspace.PathInWorkspace(".blaxquad", "handoffs", "inbox", state);
         if (!Directory.Exists(directory))
+        {
             return null;
+        }
 
         return Directory.EnumerateFiles(directory, "*.handoff", SearchOption.AllDirectories)
             .SingleOrDefault(path => File.ReadLines(path).Contains($"task: {task}"));

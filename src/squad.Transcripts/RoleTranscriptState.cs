@@ -114,7 +114,9 @@ public sealed class RoleTranscriptState
             retainedEntry,
             ContentStart: contentStart));
         if (protect)
+        {
             myProtectedTranscriptEntries.Add(entryIndex);
+        }
         myRetainedContentCharacters += retainedEntry.Content.Length;
         EnforceRetentionLimits();
         return update with
@@ -153,11 +155,15 @@ public sealed class RoleTranscriptState
         string output)
     {
         if (!myToolTranscriptEntries.TryGetValue(toolCallId, out var tool))
+        {
             return null;
+        }
         tool = tool with { Output = output, Progress = null };
         myToolTranscriptEntries[toolCallId] = tool;
         if (tool.SuppressOutput)
+        {
             return null;
+        }
         return ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
     }
 
@@ -166,9 +172,13 @@ public sealed class RoleTranscriptState
         string progress)
     {
         if (!myToolTranscriptEntries.TryGetValue(toolCallId, out var tool))
+        {
             return null;
+        }
         if (tool.SuppressOutput)
+        {
             return null;
+        }
         tool = tool with { Progress = progress };
         myToolTranscriptEntries[toolCallId] = tool;
         return ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
@@ -184,7 +194,9 @@ public sealed class RoleTranscriptState
         string? contentFallback)
     {
         if (!myToolTranscriptEntries.Remove(toolCallId, out var tool))
+        {
             return null;
+        }
         TranscriptUpdate? update = null;
         if (tool.SuppressOutput)
         {
@@ -309,6 +321,7 @@ public sealed class RoleTranscriptState
             content));
         EnforceRetentionLimits();
         if (!buffer.IsTruncated)
+        {
             return CreateUpdate(
                 TranscriptUpdateKind.AppendContent,
                 entryIndex.Value,
@@ -318,6 +331,7 @@ public sealed class RoleTranscriptState
                     entryIndex.Value,
                     TranscriptAnnouncementKind.AppendContent,
                     content));
+        }
         var materializedEntry = buffer.CreateEntry();
         return CreateUpdate(
             TranscriptUpdateKind.ReplaceEntry,
@@ -512,7 +526,9 @@ public sealed class RoleTranscriptState
     {
         var maximumCharacters = myRetentionOptions.MaxAnnouncementCharacters;
         if (content.Length <= maximumCharacters)
+        {
             return new(entryIndex, kind, content);
+        }
         return new(
             entryIndex,
             kind,
@@ -526,13 +542,17 @@ public sealed class RoleTranscriptState
         int? entryIndex)
     {
         if (buffer is null || entryIndex is not int index)
+        {
             return;
+        }
         var localIndex = Array.FindIndex(entries, item => item.EntryIndex == index);
         if (localIndex >= 0)
+        {
             entries[localIndex] = new IndexedTranscriptEntry(
                 index,
                 buffer.CreateEntry(),
                 ContentStart: buffer.ContentStart);
+        }
     }
 
     private void EnforceRetentionLimits()
@@ -545,11 +565,15 @@ public sealed class RoleTranscriptState
                 && item.EntryIndex != myReasoningTranscriptEntryIndex
                 && !myProtectedTranscriptEntries.Contains(item.EntryIndex));
             if (removableIndex < 0)
+            {
                 removableIndex = myTranscriptEntries.FindIndex(item =>
                     item.EntryIndex != myAssistantTranscriptEntryIndex
                     && item.EntryIndex != myReasoningTranscriptEntryIndex);
+            }
             if (removableIndex < 0)
+            {
                 return;
+            }
             myRetainedContentCharacters -= myTranscriptEntries[removableIndex].Entry.Content.Length;
             myTranscriptEntries.RemoveAt(removableIndex);
         }
@@ -564,7 +588,9 @@ public sealed class RoleTranscriptState
     {
         var maxCharacters = myRetentionOptions.MaxRetainedEntryCharacters;
         if (content.Length <= maxCharacters)
+        {
             return (content, 0);
+        }
         var contentLength = Math.Max(0, maxCharacters - myArchivedContentAvailableMarker.Length);
         var retainedMarker = myArchivedContentAvailableMarker[
             ..Math.Min(myArchivedContentAvailableMarker.Length, maxCharacters)];
@@ -574,8 +600,10 @@ public sealed class RoleTranscriptState
     private static string MarkArchivedContentUnavailable(string content)
     {
         if (content.StartsWith(myArchivedContentAvailableMarker, StringComparison.Ordinal))
+        {
             return myArchivedContentUnavailableMarker
                 + content[myArchivedContentAvailableMarker.Length..];
+        }
         return myArchivedContentUnavailableMarker[
             ..Math.Min(myArchivedContentUnavailableMarker.Length, content.Length)];
     }

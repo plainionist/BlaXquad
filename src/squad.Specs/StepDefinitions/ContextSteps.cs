@@ -31,7 +31,9 @@ public sealed class ContextSteps
         myWorkspace.WriteFile("blaxquad/squad.json", $"{{\n  \"roles\": [\n{rolesJson}\n  ]\n}}\n");
         myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow constitution.\n");
         foreach (var role in roles)
+        {
             myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as {role}.\n");
+        }
     }
 
     [When("the {string} worktree queries its role context without a legacy role environment variable")]

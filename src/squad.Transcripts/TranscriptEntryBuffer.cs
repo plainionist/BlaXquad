@@ -67,8 +67,9 @@ internal sealed class TranscriptEntryBuffer
     internal TranscriptEntry CreateEntry()
     {
         if (!myTruncated)
+        {
             return new TranscriptEntry(OccurredAt, Source, myContent.ToString());
-
+        }
         var content = new StringBuilder(myMaxCharacters);
         content.Append(myTruncationMarker.AsSpan(
             0,
@@ -85,7 +86,9 @@ internal sealed class TranscriptEntryBuffer
     private void AppendToTail(string content)
     {
         if (myTail is null || myTail.Length == 0)
+        {
             return;
+        }
         foreach (var character in content)
         {
             if (myTailLength < myTail.Length)

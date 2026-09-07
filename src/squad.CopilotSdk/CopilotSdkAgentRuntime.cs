@@ -76,7 +76,9 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
     public async ValueTask DisposeAsync()
     {
         if (myDisposed)
+        {
             return;
+        }
 
         var failures = new List<Exception>();
         CopilotSdkAgentSession[] sessions;
@@ -89,7 +91,9 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
             lock (mySessions)
                 alreadyRetired = myRetiredSessions.Contains(session);
             if (alreadyRetired)
+            {
                 continue;
+            }
             try
             {
                 await session.DisposeAsync();
@@ -162,7 +166,9 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
         }
 
         if (failures.Count > 0)
+        {
             throw new AggregateException(failures);
+        }
 
         lock (mySessions)
         {
@@ -187,7 +193,9 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
         lock (mySessions)
             sessions = [.. mySessions];
         foreach (var session in sessions)
+        {
             session.FailFromBackend(runtimeFailure);
+        }
 
         try
         {

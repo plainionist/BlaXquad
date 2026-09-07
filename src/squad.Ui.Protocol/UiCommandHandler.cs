@@ -60,7 +60,9 @@ internal sealed class UiCommandHandler
                 mySignalUiReady();
                 if (Environment.GetEnvironmentVariable(
                         "BLAXQUAD_PHOTINO_SMOKE") == "1")
+                {
                     myRequestSmokeShutdown();
+                }
                 break;
             case "transcript.synchronize":
                 myRequestTranscriptSynchronization(
@@ -135,8 +137,10 @@ internal sealed class UiCommandHandler
                     action,
                     GetPayloadElement(message.Payload, "content"));
                 if (action == "accept" && request.Mode == "url")
+                {
                     myOpenExternalUrl(
                         Require(request.Url, "pending elicitation URL"));
+                }
                 break;
             default:
                 mySend(
@@ -178,8 +182,10 @@ internal sealed class UiCommandHandler
             || !payload.TryGetProperty(property, out var element)
             || element.ValueKind is not (
                 JsonValueKind.True or JsonValueKind.False))
+        {
             throw new InvalidOperationException(
                 $"The UI message is missing payload.{property}.");
+        }
         return element.GetBoolean();
     }
 
@@ -191,8 +197,10 @@ internal sealed class UiCommandHandler
             || !payload.TryGetProperty(property, out var element)
             || !element.TryGetInt32(out var value)
             || value < 0)
+        {
             throw new InvalidOperationException(
                 $"The UI message is missing payload.{property}.");
+        }
         return value;
     }
 
@@ -200,17 +208,25 @@ internal sealed class UiCommandHandler
         GetTranscriptSynchronizationPositions(JsonElement payload)
     {
         if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
             return new Dictionary<string, TranscriptSynchronizationPosition>(
                 StringComparer.Ordinal);
+        }
         if (payload.ValueKind != JsonValueKind.Object)
+        {
             throw new InvalidOperationException(
                 "The UI message contains an invalid transcript synchronization payload.");
+        }
         if (!payload.TryGetProperty("roles", out var roles))
+        {
             return new Dictionary<string, TranscriptSynchronizationPosition>(
                 StringComparer.Ordinal);
+        }
         if (roles.ValueKind != JsonValueKind.Array)
+        {
             throw new InvalidOperationException(
                 "The UI message contains invalid transcript positions.");
+        }
 
         var positions =
             new Dictionary<string, TranscriptSynchronizationPosition>(
@@ -221,8 +237,10 @@ internal sealed class UiCommandHandler
                 || !role.TryGetProperty("role", out var roleName)
                 || roleName.ValueKind != JsonValueKind.String
                 || string.IsNullOrWhiteSpace(roleName.GetString()))
+            {
                 throw new InvalidOperationException(
                     "The UI message contains an invalid transcript position.");
+            }
             var hasLegacySequence = role.TryGetProperty(
                 "sequence",
                 out var legacySequence);
@@ -242,8 +260,10 @@ internal sealed class UiCommandHandler
                         : legacySequence)
                     .TryGetInt64(out var announcementValue)
                 || announcementValue < 0)
+            {
                 throw new InvalidOperationException(
                     "The UI message contains an invalid transcript position.");
+            }
             positions[roleName.GetString()!] = new(
                 visualValue,
                 announcementValue);
@@ -273,8 +293,10 @@ internal sealed class UiCommandHandler
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
             || uri.Scheme is not ("http" or "https"))
+        {
             throw new InvalidOperationException(
                 "The requested URL must be an absolute HTTP or HTTPS URL.");
+        }
         System.Diagnostics.Process.Start(
             new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri)
             {

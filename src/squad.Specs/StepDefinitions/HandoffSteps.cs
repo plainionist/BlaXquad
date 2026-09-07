@@ -38,7 +38,9 @@ public sealed class HandoffSteps
         myWorkspace.WriteFile("blaxquad/squad.json", $"{{\n  \"roles\": [\n{rolesJson}\n  ]\n}}\n");
         myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow constitution.\n");
         foreach (var role in roles)
+        {
             myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as {role}.\n");
+        }
     }
 
     [Given("{string} has a committed change")]

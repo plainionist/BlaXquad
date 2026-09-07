@@ -38,7 +38,9 @@ internal sealed class SessionRegistry : ISessionAdmission
         {
             RequireNoTransitionInProgress();
             if (myPhase != SquadLifecyclePhase.Created)
+            {
                 throw new InvalidOperationException($"Cannot begin starting from phase '{myPhase}'.");
+            }
             myTransitionInProgress = true;
             myGeneration++;
             myPhase = SquadLifecyclePhase.Starting;
@@ -60,7 +62,9 @@ internal sealed class SessionRegistry : ISessionAdmission
         {
             RequireNoTransitionInProgress();
             if (myPhase is SquadLifecyclePhase.Stopping or SquadLifecyclePhase.Stopped)
+            {
                 throw new InvalidOperationException($"Cannot begin stopping from phase '{myPhase}'.");
+            }
             myTransitionInProgress = true;
             myPhase = SquadLifecyclePhase.Stopping;
         }
@@ -75,7 +79,9 @@ internal sealed class SessionRegistry : ISessionAdmission
         lock (myLock)
         {
             if (!IsAcceptingCore())
+            {
                 throw new InvalidOperationException("Squad is shutting down");
+            }
             myCatalog.Register(session);
         }
     }
@@ -100,7 +106,9 @@ internal sealed class SessionRegistry : ISessionAdmission
     private void RequireNoTransitionInProgress()
     {
         if (myTransitionInProgress)
+        {
             throw new InvalidOperationException("A lifecycle transition is already in progress.");
+        }
     }
 
     private void EndTransition(SquadLifecyclePhase phase)

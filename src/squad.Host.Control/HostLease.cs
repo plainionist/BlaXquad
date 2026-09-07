@@ -77,7 +77,9 @@ public sealed class HostLease : IHostLease
             try
             {
                 if (File.Exists(metadata))
+                {
                     File.Delete(metadata);
+                }
             }
             finally
             {
@@ -92,7 +94,9 @@ public sealed class HostLease : IHostLease
     public static bool RemoveStaleMetadata(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
+        {
             return false;
+        }
         var cleanupLease = lease!;
         using (cleanupLease)
             cleanupLease.RemoveStaleMetadata();
@@ -103,7 +107,9 @@ public sealed class HostLease : IHostLease
     public static bool TryAcquireProbe(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
+        {
             return false;
+        }
         lease!.Dispose();
         return true;
     }
@@ -142,7 +148,9 @@ public sealed class HostLease : IHostLease
         var fullPath = Path.GetFullPath(projectRoot);
         var root = Path.GetPathRoot(fullPath);
         if (fullPath.Length > root!.Length)
+        {
             fullPath = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
         return fullPath;
     }
 
@@ -180,7 +188,9 @@ public sealed class HostLease : IHostLease
                 await using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
                 var request = ParseRequest(await reader.ReadLineAsync(myShutdown.Token));
                 if (request?.Command == "shutdown")
+                {
                     myShutdownRequested.TrySetResult();
+                }
                 await writer.WriteLineAsync(await CreateResponseAsync(request, myShutdown.Token));
             }
             catch (OperationCanceledException) when (myShutdown.IsCancellationRequested)
@@ -193,9 +203,13 @@ public sealed class HostLease : IHostLease
                 if (!listenerCreated)
                 {
                     if (ready.Task.IsCompletedSuccessfully)
+                    {
                         myServerFailure.TrySetException(exception);
+                    }
                     else
+                    {
                         ready.TrySetException(exception);
+                    }
                     return;
                 }
             }
@@ -207,11 +221,15 @@ public sealed class HostLease : IHostLease
         CancellationToken cancellationToken)
     {
         if (request is null)
+        {
             return """{"version":1,"status":"error","message":"invalid request"}""";
+        }
         if (request.Command == "agent-status")
         {
             if (string.IsNullOrWhiteSpace(request.Role))
+            {
                 return """{"version":1,"status":"error","message":"role is required"}""";
+            }
             var provider = Volatile.Read(ref myAgentReadinessProvider);
             var readiness = provider is null
                 ? null
@@ -237,7 +255,9 @@ public sealed class HostLease : IHostLease
     private static HostControlRequest? ParseRequest(string? request)
     {
         if (string.IsNullOrWhiteSpace(request))
+        {
             return null;
+        }
         try
         {
             using var document = JsonDocument.Parse(request);
@@ -248,10 +268,14 @@ public sealed class HostLease : IHostLease
                 || versionNumber != 1
                 || !root.TryGetProperty("command", out var commandElement)
                 || commandElement.ValueKind != JsonValueKind.String)
+            {
                 return null;
+            }
             var command = commandElement.GetString();
             if (command is not ("ping" or "shutdown" or "agent-status"))
+            {
                 return null;
+            }
             var role = root.TryGetProperty("role", out var roleElement)
                 && roleElement.ValueKind == JsonValueKind.String
                 ? roleElement.GetString()
@@ -264,13 +288,17 @@ public sealed class HostLease : IHostLease
     public async ValueTask DisposeAsync()
     {
         if (myDisposed)
+        {
             return;
+        }
         myDisposed = true;
         myShutdown.Cancel();
         try
         {
             if (myServer is not null)
+            {
                 await myServer;
+            }
         }
         finally
         {
@@ -278,7 +306,9 @@ public sealed class HostLease : IHostLease
             try
             {
                 if (File.Exists(metadata))
+                {
                     File.Delete(metadata);
+                }
             }
             finally
             {
@@ -294,7 +324,9 @@ public sealed class HostLease : IHostLease
         if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
         {
             if (flock((int)file.SafeFileHandle.DangerousGetHandle(), 6) != 0)
+            {
                 throw new IOException("The host lock is already held.");
+            }
             return;
         }
 

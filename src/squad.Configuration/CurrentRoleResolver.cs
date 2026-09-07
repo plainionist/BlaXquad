@@ -11,10 +11,14 @@ public static class CurrentRoleResolver
         var currentRoot = Normalize(projectRoot);
         var matches = roles.Where(role => Normalize(role.WorktreePath) == currentRoot).ToList();
         if (matches.Count == 1)
+        {
             return matches[0];
+        }
 
         if (matches.Count > 1)
+        {
             throw new CliExitException(1, $"Ambiguous current worktree matches roles: {string.Join(", ", matches.Select(role => role.Role))}");
+        }
 
         throw new CliExitException(1, "Could not resolve the current role from its worktree.");
     }

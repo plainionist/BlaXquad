@@ -44,10 +44,12 @@ internal sealed class CopilotToolEventNormalizer
                     partial.Data.ToolCallId,
                     partial.Data.PartialOutput);
                 if (normalizedOutput is not null)
+                {
                     myAgentSession.Publish(new AgentToolOutputChangedEvent(
                         occurredAt,
                         partial.Data.ToolCallId,
                         normalizedOutput));
+                }
                 return true;
             case ToolExecutionProgressEvent progress:
                 myAgentSession.Publish(new AgentToolProgressEvent(
@@ -99,5 +101,4 @@ internal sealed class CopilotToolEventNormalizer
         }
     }
 }
-
 

@@ -98,7 +98,9 @@ internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
         foreach (var propertyName in propertyPath)
         {
             if (element.ValueKind is not JsonValueKind.Object || !element.TryGetProperty(propertyName, out element))
+            {
                 return null;
+            }
         }
 
         return element;

@@ -10,7 +10,9 @@ internal static class WaitForAgent
     public static int Run(string[] args)
     {
         if (!TryParse(args, out var role, out var timeout, out var projectRoot))
+        {
             return 1;
+        }
         try
         {
             HostControlClient.WaitForAgentAsync(projectRoot, role, timeout).GetAwaiter().GetResult();
@@ -48,7 +50,9 @@ internal static class WaitForAgent
             if (argument is "--role" or "-role")
             {
                 if (++index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
+                {
                     return UsageError("The role option requires a value.");
+                }
                 role = args[index];
                 continue;
             }
@@ -63,12 +67,16 @@ internal static class WaitForAgent
                     || !double.IsFinite(seconds)
                     || seconds <= 0
                     || seconds > TimeSpan.MaxValue.TotalSeconds)
+                {
                     return UsageError("The timeout must be a positive number of seconds.");
+                }
                 timeout = TimeSpan.FromSeconds(seconds);
                 continue;
             }
             if (argument.StartsWith('-'))
+            {
                 return UsageError($"Unknown option: {argument}");
+            }
             if (role.Length == 0)
             {
                 role = argument;
@@ -84,7 +92,9 @@ internal static class WaitForAgent
         }
 
         if (role.Length == 0)
+        {
             return UsageError("A role is required.");
+        }
         projectRoot = projectRootSpecified
             ? Path.GetFullPath(projectRoot)
             : HostProjectRoot.ResolveViaGit();

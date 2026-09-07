@@ -70,8 +70,10 @@ public sealed class RecordingPhotinoUi : ISquadUi, ITranscriptUi
         myCalls.Enqueue($"elicitation.lookup:{role}:{requestId}");
         if (!myElicitations.TryGetValue(requestId, out var request)
             || request.Role != role)
+        {
             throw new InvalidOperationException(
                 $"Unknown elicitation '{requestId}' for role '{role}'.");
+        }
         return request;
     }
 

@@ -107,9 +107,13 @@ internal sealed class RoleOperationCoordinator : IDisposable
     public void Dispose()
     {
         foreach (var roleLock in myRoleLocks.Values)
+        {
             roleLock.Dispose();
+        }
         foreach (var promptLock in myPromptLocks.Values)
+        {
             promptLock.Dispose();
+        }
     }
 
     internal void RegisterOperation(string role, CancellationTokenSource operation)
@@ -118,7 +122,9 @@ internal sealed class RoleOperationCoordinator : IDisposable
         {
             myActiveOperations[role] = operation;
             if (myInvalidatedRoles.Contains(role))
+            {
                 operation.Cancel();
+            }
         }
     }
 
@@ -126,7 +132,9 @@ internal sealed class RoleOperationCoordinator : IDisposable
     {
         lock (myLock)
             if (myActiveOperations.TryGetValue(role, out var active) && ReferenceEquals(active, operation))
+            {
                 myActiveOperations.Remove(role);
+            }
     }
 
     internal void RemoveAbort(string role)
@@ -150,7 +158,9 @@ internal sealed class RoleOperationCoordinator : IDisposable
     private void CancelActiveOperationLocked(string role)
     {
         if (myActiveOperations.TryGetValue(role, out var operation))
+        {
             operation.Cancel();
+        }
     }
 
     private SemaphoreSlim GetRoleLock(string role)
@@ -158,7 +168,9 @@ internal sealed class RoleOperationCoordinator : IDisposable
         lock (myRoleLocks)
         {
             if (!myRoleLocks.TryGetValue(role, out var roleLock))
+            {
                 myRoleLocks[role] = roleLock = new SemaphoreSlim(1, 1);
+            }
             return roleLock;
         }
     }
@@ -168,7 +180,9 @@ internal sealed class RoleOperationCoordinator : IDisposable
         lock (myPromptLocks)
         {
             if (!myPromptLocks.TryGetValue(role, out var promptLock))
+            {
                 myPromptLocks[role] = promptLock = new SemaphoreSlim(1, 1);
+            }
             return promptLock;
         }
     }

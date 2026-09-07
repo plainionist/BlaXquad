@@ -74,12 +74,16 @@ public sealed class PhotinoWindowHost : IWindowHost
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (myStarted)
+        {
             return Task.CompletedTask;
+        }
 
         EnsureLinuxDisplayIsAvailable();
         var index = Path.Combine(myUiDirectory, "index.html");
         if (!File.Exists(index))
+        {
             throw new InvalidOperationException($"Photino UI was not found at '{index}'. Build src/squad-ui before launching the Photino host.");
+        }
         myStarted = true;
         myUiThread = new Thread(() => RunWindow(index))
         {
@@ -87,7 +91,9 @@ public sealed class PhotinoWindowHost : IWindowHost
             Name = "BlaXquad Photino UI",
         };
         if (OperatingSystem.IsWindows())
+        {
             myUiThread.SetApartmentState(ApartmentState.STA);
+        }
         myUiThread.Start();
         return WaitForUiReadyAsync(cancellationToken);
     }
@@ -134,7 +140,9 @@ public sealed class PhotinoWindowHost : IWindowHost
     public Task WaitForCloseAsync(CancellationToken cancellationToken = default)
     {
         if (myWindow is null)
+        {
             throw new InvalidOperationException("Photino window has not been started.");
+        }
         return myClosed.Task.WaitAsync(cancellationToken);
     }
 
@@ -196,17 +204,23 @@ public sealed class PhotinoWindowHost : IWindowHost
         if (OperatingSystem.IsLinux() &&
             string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) &&
             string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
+        {
             throw new InvalidOperationException("Photino requires a graphical display. Launch from a session with DISPLAY or WAYLAND_DISPLAY configured.");
+        }
     }
 
     private static void EnableWindowsDarkTitleBar(PhotinoWindow window)
     {
         if (!OperatingSystem.IsWindows())
+        {
             return;
+        }
 
         var enabled = 1;
         if (DwmSetWindowAttribute(window.WindowHandle, myUseImmersiveDarkMode, ref enabled, sizeof(int)) != 0)
+        {
             _ = DwmSetWindowAttribute(window.WindowHandle, myUseImmersiveDarkModeBeforeWindows10_2004, ref enabled, sizeof(int));
+        }
         var backgroundColor = myWindowBackgroundColor;
         _ = DwmSetWindowAttribute(window.WindowHandle, myCaptionColor, ref backgroundColor, sizeof(int));
     }
@@ -227,5 +241,4 @@ public sealed class PhotinoWindowHost : IWindowHost
         myWindow?.SendWebMessage(message);
     }
 }
-
 

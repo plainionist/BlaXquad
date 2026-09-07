@@ -17,7 +17,9 @@ public sealed class QueuedSynchronizationContext : SynchronizationContext
         try
         {
             while (myCallbacks.TryDequeue(out var work))
+            {
                 work.Callback(work.State);
+            }
         }
         finally
         {

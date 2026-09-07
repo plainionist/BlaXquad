@@ -52,16 +52,22 @@ public sealed class RecordingAgentSession : IAgentSession
     public async Task SendAsync(string prompt, CancellationToken cancellationToken = default)
     {
         if (myDisposed)
+        {
             throw new ObjectDisposedException(nameof(RecordingAgentSession));
+        }
         if (Interlocked.Increment(ref myActiveSends) > 1)
+        {
             OverlappedSend = true;
+        }
         try
         {
             Sends.Enqueue(prompt);
             SendOrder.Enqueue(prompt);
             OnSend?.Invoke(prompt);
             if (SendDelay > TimeSpan.Zero)
+            {
                 await Task.Delay(SendDelay, cancellationToken);
+            }
         }
         finally
         {
@@ -83,9 +89,13 @@ public sealed class RecordingAgentSession : IAgentSession
             AbortCount++;
             myAbortEntered.TrySetResult();
             if (BlockAbort)
+            {
                 await myAbortGate.Task.WaitAsync(cancellationToken);
+            }
             if (FailAbort)
+            {
                 throw new InvalidOperationException("recording abort failed");
+            }
         }
     }
 
@@ -124,7 +134,9 @@ public sealed class RecordingAgentSession : IAgentSession
         using var registration = cancellationToken.Register(() => EventCancellationObserved = true);
         var readerCancellation = IgnoreEventCancellation ? CancellationToken.None : cancellationToken;
         await foreach (var agentEvent in myEvents.ReadAllAsync(readerCancellation))
+        {
             yield return agentEvent;
+        }
     }
 
     public void Emit(AgentEvent agentEvent) => myEvents.Publish(agentEvent);
@@ -141,11 +153,17 @@ public sealed class RecordingAgentSession : IAgentSession
         myCompletion.TrySetResult();
         Trace?.Record($"session.{Role}.completionResolved");
         if (LeaveEventsOpenOnDispose)
+        {
             EventStreamLeftOpen = true;
+        }
         else
+        {
             await myEvents.DisposeAsync();
+        }
         if (FailOnDispose)
+        {
             throw new InvalidOperationException("recording session disposal failed");
+        }
     }
 }
 

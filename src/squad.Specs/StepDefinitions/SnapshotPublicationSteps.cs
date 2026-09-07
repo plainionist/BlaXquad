@@ -41,7 +41,9 @@ public sealed class SnapshotPublicationSteps : IAsyncDisposable
     {
         Volatile.Write(ref myState, 2);
         for (var index = 0; index < 100; index++)
+        {
             Publisher.Request(UiRefreshPriority.Deferred);
+        }
         Publisher.Request(UiRefreshPriority.Immediate);
     }
 
@@ -137,7 +139,9 @@ public sealed class SnapshotPublicationSteps : IAsyncDisposable
     {
         myReleaseFirstPublication.TrySetResult();
         if (myPublisher is not null)
+        {
             await myPublisher.DisposeAsync();
+        }
     }
 
     private SnapshotPublisher Publisher =>
@@ -167,9 +171,13 @@ public sealed class SnapshotPublicationSteps : IAsyncDisposable
         {
             var current = Volatile.Read(ref myMaximumConcurrency);
             if (current >= active)
+            {
                 return;
+            }
             if (Interlocked.CompareExchange(ref myMaximumConcurrency, active, current) == current)
+            {
                 return;
+            }
         }
     }
 
@@ -178,12 +186,13 @@ public sealed class SnapshotPublicationSteps : IAsyncDisposable
         for (var attempt = 0; attempt < 500; attempt++)
         {
             if (condition())
+            {
                 return;
+            }
             await Task.Delay(10);
         }
         Assert.Fail("Timed out waiting for snapshot publication.");
     }
 }
-
 
 

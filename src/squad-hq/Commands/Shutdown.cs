@@ -17,7 +17,9 @@ static class Shutdown
         try
         {
             if (HostControlClient.ShutdownAsync(projectRoot, TimeSpan.FromSeconds(15)).GetAwaiter().GetResult())
+            {
                 return 0;
+            }
         }
         catch (Exception exception) when (exception is IOException or TimeoutException or UnauthorizedAccessException or OperationCanceledException)
         {

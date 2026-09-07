@@ -26,7 +26,9 @@ public sealed class AgentEventChannel : IAsyncDisposable
         Action<Exception>? onOverload = null)
     {
         if (capacity <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "Capacity must be positive.");
+        }
 
         myWriteTimeout = writeTimeout ?? myDefaultWriteTimeout;
         myOnOverload = onOverload;
@@ -48,10 +50,14 @@ public sealed class AgentEventChannel : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(agentEvent);
         if (myDisposed)
+        {
             return;
+        }
 
         if (myChannel.Writer.TryWrite(agentEvent))
+        {
             return;
+        }
 
         if (!myWriteGate.Wait(0))
         {
@@ -71,10 +77,14 @@ public sealed class AgentEventChannel : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(agentEvent);
         if (myDisposed)
+        {
             return Task.CompletedTask;
+        }
 
         if (myChannel.Writer.TryWrite(agentEvent))
+        {
             return Task.CompletedTask;
+        }
 
         if (!myWriteGate.Wait(0))
         {
@@ -97,7 +107,9 @@ public sealed class AgentEventChannel : IAsyncDisposable
         try
         {
             if (myChannel.Writer.TryWrite(agentEvent))
+            {
                 return;
+            }
 
             await PublishWriteWithTimeoutAsync(agentEvent, cancellationToken).ConfigureAwait(false);
         }
@@ -159,7 +171,9 @@ public sealed class AgentEventChannel : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         if (myDisposed)
+        {
             return ValueTask.CompletedTask;
+        }
 
         myDisposed = true;
         myDisposalCts.Cancel();
@@ -171,10 +185,14 @@ public sealed class AgentEventChannel : IAsyncDisposable
     private void FailTerminal(Exception exception)
     {
         if (myDisposed || myChannel.Reader.Completion.IsCompleted)
+        {
             return;
+        }
 
         if (Interlocked.Exchange(ref myOverflowFaulted, 1) != 0)
+        {
             return;
+        }
 
         myChannel.Writer.TryComplete(exception);
         myOnOverload?.Invoke(exception);

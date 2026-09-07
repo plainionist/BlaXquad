@@ -29,13 +29,17 @@ internal sealed class SquadLifecycleTransition : IDisposable
     public void Dispose()
     {
         if (!myResolved)
+        {
             Fail();
+        }
     }
 
     private void Resolve(Action resolution)
     {
         if (myResolved)
+        {
             throw new InvalidOperationException("The lifecycle transition was already resolved.");
+        }
         myResolved = true;
         resolution();
     }

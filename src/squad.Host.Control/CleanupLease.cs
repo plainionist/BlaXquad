@@ -17,13 +17,17 @@ public sealed class CleanupLease : IDisposable
     {
         var metadata = Path.Combine(myStateDir, "host.json");
         if (File.Exists(metadata))
+        {
             File.Delete(metadata);
+        }
     }
 
     public void Dispose()
     {
         if (myDisposed)
+        {
             return;
+        }
         myDisposed = true;
         try { HostLease.UnlockFile(myLockFile); } catch (Exception) { }
         myLockFile.Dispose();

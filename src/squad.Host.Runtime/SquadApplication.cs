@@ -146,11 +146,17 @@ public sealed class SquadApplication : IAsyncDisposable
             var close = myWindowHost.WaitForCloseAsync(cancellationToken);
             await Task.WhenAny(close, shutdown, serverFailure, handoffFailure, backendFailure, cancellation);
             if (serverFailure.IsCompleted)
+            {
                 serverFailure.GetAwaiter().GetResult();
+            }
             if (handoffFailure.IsCompleted)
+            {
                 handoffFailure.GetAwaiter().GetResult();
+            }
             if (backendFailure.IsCompleted)
+            {
                 backendFailure.GetAwaiter().GetResult();
+            }
             if (shutdown.IsCompleted)
             {
                 shutdown.GetAwaiter().GetResult();
@@ -178,14 +184,18 @@ public sealed class SquadApplication : IAsyncDisposable
             {
                 var startupTerminationFailure = await ObserveStartupAsync(startup, startupCancellation.Token);
                 if (startupTerminationFailure is not null)
+                {
                     terminationFailures.Add(startupTerminationFailure);
+                }
             }
         }
 
         var cleanupFailures = await CleanupAsync();
         cleanupFailures = [.. terminationFailures, .. cleanupFailures];
         if (primary is not null)
+        {
             ThrowWithCleanup(primary, cleanupFailures);
+        }
         ThrowCleanupFailures(cleanupFailures);
         return result ?? RunResult.ShutdownBeforeReady;
     }
@@ -232,13 +242,17 @@ public sealed class SquadApplication : IAsyncDisposable
         failures.AddRange(await myRuntimeController.StopAsync());
 
         if (myWindowStarted)
+        {
             await AttemptCleanupAsync("window host stop", () => myWindowHost.StopAsync(), failures);
+        }
         await AttemptCleanupAsync("window host disposal", () => myWindowHost.DisposeAsync().AsTask(), failures);
         await AttemptCleanupAsync("handoff pump disposal", () => myHandoffPump.DisposeAsync().AsTask(), failures);
         await AttemptCleanupAsync("sleep inhibitor", () => mySleepInhibitor.DisposeAsync().AsTask(), failures);
         await AttemptCleanupAsync("view model", () => myViewModel.DisposeAsync().AsTask(), failures);
         if (myHostLease is not null)
+        {
             await AttemptCleanupAsync("host lease", () => myHostLease.DisposeAsync().AsTask(), failures);
+        }
         myStopping.Dispose();
         return failures;
     }
@@ -251,11 +265,17 @@ public sealed class SquadApplication : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         if (serverFailure.IsCompleted)
+        {
             serverFailure.GetAwaiter().GetResult();
+        }
         if (handoffFailure.IsCompleted)
+        {
             handoffFailure.GetAwaiter().GetResult();
+        }
         if (backendFailure.IsCompleted)
+        {
             backendFailure.GetAwaiter().GetResult();
+        }
         if (shutdown.IsCompleted)
         {
             shutdown.GetAwaiter().GetResult();
@@ -296,15 +316,18 @@ public sealed class SquadApplication : IAsyncDisposable
     private static void ThrowWithCleanup(ExceptionDispatchInfo primary, IReadOnlyList<Exception> cleanupFailures)
     {
         if (cleanupFailures.Count > 0)
+        {
             throw new AggregateException("Squad lifecycle failed and cleanup also failed.", [primary.SourceException, .. cleanupFailures]);
+        }
         primary.Throw();
     }
 
     private static void ThrowCleanupFailures(IReadOnlyList<Exception> failures)
     {
         if (failures.Count > 0)
+        {
             throw new AggregateException("One or more squad resources failed during cleanup.", failures);
+        }
     }
 }
-
 

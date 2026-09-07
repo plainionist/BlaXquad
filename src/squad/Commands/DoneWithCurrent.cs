@@ -30,7 +30,9 @@ static class DoneWithCurrent
         catch (CliExitException ex)
         {
             if (!string.IsNullOrEmpty(ex.Message))
+            {
                 Console.Error.WriteLine(ex.Message);
+            }
             return ex.ExitCode;
         }
     }

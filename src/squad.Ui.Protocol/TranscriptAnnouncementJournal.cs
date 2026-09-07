@@ -39,7 +39,9 @@ public sealed class TranscriptAnnouncementJournal
                 var removed = journal.Entries.Dequeue();
                 journal.CharacterCount -= removed.Announcement?.Content.Length ?? 0;
                 if (removed.Announcement is not null)
+                {
                     journal.AnnouncementDiscardedThroughSequence = removed.Sequence;
+                }
             }
         }
     }
@@ -57,7 +59,9 @@ public sealed class TranscriptAnnouncementJournal
         lock (myStateLock)
         {
             if (!myRoles.TryGetValue(role, out var journal))
+            {
                 return new(afterSequence, throughSequence, [], false);
+            }
 
             var fragments = journal.Entries
                 .Where(entry =>

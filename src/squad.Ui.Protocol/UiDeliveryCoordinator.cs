@@ -155,7 +155,9 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
                             role,
                             out var existing)
                         || sequence < existing.AnnouncementSequence)
+                    {
                         recoveryBaselines[role] = new(sequence, sequence);
+                    }
                 }
             }
         }
@@ -214,7 +216,9 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
                     update.Role,
                     out var sequence) == true
                 && update.Sequence <= sequence)
+            {
                 continue;
+            }
             mySend(
                 "transcript.update",
                 TranscriptProtocol.CreateUpdatePayload(update));
@@ -223,6 +227,5 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
         }
     }
 }
-
 
 

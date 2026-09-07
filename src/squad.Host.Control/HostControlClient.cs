@@ -22,13 +22,19 @@ public static class HostControlClient
             var remaining = timeout - elapsed.Elapsed;
             var status = await QueryAgentStatusAsync(projectRoot, role, remaining);
             if (status == "ready")
+            {
                 return;
+            }
             if (status == "unknown-role")
+            {
                 throw new InvalidOperationException($"The squad has no agent role named '{role}'.");
+            }
             lastStatus = status == "not-ready" ? "agent not ready" : status;
             remaining = timeout - elapsed.Elapsed;
             if (remaining <= TimeSpan.Zero)
+            {
                 break;
+            }
             await Task.Delay(
                 remaining < TimeSpan.FromMilliseconds(100)
                     ? remaining
@@ -43,14 +49,20 @@ public static class HostControlClient
     public static async Task<bool> ShutdownAsync(string projectRoot, TimeSpan timeout)
     {
         if (!await RequestShutdownAsync(projectRoot))
+        {
             return false;
+        }
 
         projectRoot = Path.GetFullPath(projectRoot);
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline && !HostLease.TryAcquireProbe(projectRoot))
+        {
             await Task.Delay(100);
+        }
         if (!HostLease.TryAcquireProbe(projectRoot))
+        {
             throw new TimeoutException("The squad host did not shut down within 15 seconds.");
+        }
         return true;
     }
 
@@ -60,9 +72,13 @@ public static class HostControlClient
         projectRoot = Path.GetFullPath(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
         if (!Directory.Exists(stateDir))
+        {
             return false;
+        }
         if (HostLease.RemoveStaleMetadata(projectRoot))
+        {
             return false;
+        }
         var pipeName = HostLease.PipeNameFor(projectRoot);
 
         using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
@@ -74,7 +90,9 @@ public static class HostControlClient
         catch (Exception exception) when (exception is IOException or TimeoutException or OperationCanceledException)
         {
             if (HostLease.RemoveStaleMetadata(projectRoot))
+            {
                 return false;
+            }
             throw new IOException("The squad host metadata exists, but its control pipe is unavailable while the host lock is held.", exception);
         }
         using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
@@ -88,7 +106,9 @@ public static class HostControlClient
     {
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
         if (!Directory.Exists(stateDir) || HostLease.RemoveStaleMetadata(projectRoot))
+        {
             return "squad host unavailable";
+        }
 
         var pipeName = HostLease.PipeNameFor(projectRoot);
         using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
@@ -103,7 +123,9 @@ public static class HostControlClient
             exception is IOException or TimeoutException)
         {
             if (HostLease.RemoveStaleMetadata(projectRoot))
+            {
                 return "squad host unavailable";
+            }
             return "squad control endpoint unavailable";
         }
 
@@ -111,7 +133,9 @@ public static class HostControlClient
         using var reader = new StreamReader(pipe, new UTF8Encoding(false), leaveOpen: true);
         var ioRemaining = remaining - queryElapsed.Elapsed;
         if (ioRemaining <= TimeSpan.Zero)
+        {
             return "squad control endpoint unavailable";
+        }
         var ioDuration = ioRemaining < TimeSpan.FromSeconds(1)
             ? ioRemaining
             : TimeSpan.FromSeconds(1);
@@ -135,7 +159,9 @@ public static class HostControlClient
                 : "squad control endpoint unavailable";
         }
         if (string.IsNullOrWhiteSpace(response))
+        {
             throw new InvalidDataException("The squad host returned an empty readiness response.");
+        }
         using var document = JsonDocument.Parse(response);
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object
@@ -147,7 +173,9 @@ public static class HostControlClient
             || responseStatus.GetString() != "ok"
             || !root.TryGetProperty("message", out var message)
             || message.ValueKind != JsonValueKind.String)
+        {
             throw new InvalidDataException("The squad host returned an invalid readiness response.");
+        }
         return message.GetString()!;
     }
 }

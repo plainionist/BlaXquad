@@ -9,7 +9,9 @@ public static class HandoffQueue
     public static IReadOnlyList<string> HandoffFiles(string dir)
     {
         if (!Directory.Exists(dir))
+        {
             return Array.Empty<string>();
+        }
         return Directory.EnumerateFiles(dir)
             .Where(f => f.EndsWith(".handoff", StringComparison.Ordinal))
             .OrderBy(Path.GetFileName, StringComparer.Ordinal)
@@ -20,7 +22,9 @@ public static class HandoffQueue
     public static IReadOnlyList<string> BatchDirs(string dir)
     {
         if (!Directory.Exists(dir))
+        {
             return Array.Empty<string>();
+        }
         return Directory.EnumerateDirectories(dir)
             .Where(d => Path.GetFileName(d).StartsWith("batch_", StringComparison.Ordinal))
             .OrderBy(Path.GetFileName, StringComparer.Ordinal)
@@ -36,7 +40,9 @@ public static class HandoffQueue
         output.WriteLine($"TYPE: {HandoffHeaders.HeaderField(filePath, "type") ?? "unknown"}");
         output.WriteLine($"PRIORITY: {HandoffHeaders.HeaderField(filePath, "priority") ?? "50"}");
         if (taskName is not null)
+        {
             output.WriteLine($"TASK_NAME: {taskName}");
+        }
         output.WriteLine("PAYLOAD:");
         output.Write(HandoffHeaders.Body(filePath));
     }
@@ -46,7 +52,9 @@ public static class HandoffQueue
     {
         var files = HandoffFiles(batchDir);
         if (files.Count == 0)
+        {
             throw new CliExitException(2, $"AMBIGUOUS_TASK_STATE: batch contains no tasks: {batchDir}");
+        }
 
         output.WriteLine($"BATCH: {batchDir}");
         output.WriteLine($"COUNT: {files.Count}");

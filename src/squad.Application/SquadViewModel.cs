@@ -61,7 +61,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public void InitializeRoles(IEnumerable<string> roleNames)
     {
         foreach (var role in roleNames)
+        {
             myRoles.TryAdd(role, new AgentRoleState(role, myTranscriptArchive, myTranscriptRetentionOptions));
+        }
         NotifyStateChanged();
     }
 
@@ -124,7 +126,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfNegative(beforeIndex);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
         if (!myRoles.TryGetValue(role, out var state))
+        {
             throw new InvalidOperationException($"Unknown role: {role}");
+        }
         return state.Transcript.CreateTranscriptPage(beforeIndex, maxEntries);
     }
 
@@ -132,7 +136,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         ArgumentOutOfRangeException.ThrowIfNegative(entryIndex);
         if (!myRoles.TryGetValue(role, out var state))
+        {
             throw new InvalidOperationException($"Unknown role: {role}");
+        }
         return state.Transcript.CreateArchivedTranscriptEntry(entryIndex);
     }
 
@@ -146,11 +152,17 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public bool? GetRoleReadiness(string role)
     {
         if (!myRoles.TryGetValue(role, out var state))
+        {
             return null;
+        }
         if (!myAdmission.IsAccepting)
+        {
             return false;
+        }
         if (myRoleOperations.IsInvalidated(role))
+        {
             return false;
+        }
         lock (state.SyncRoot)
             return state.Status == "idle" && !state.IsWorking;
     }
@@ -164,15 +176,23 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         if (!myRoles.TryGetValue(role, out var state))
+        {
             return null;
+        }
         if (!myAdmission.IsAccepting)
+        {
             return false;
+        }
         if (myRoleOperations.IsInvalidated(role))
+        {
             return false;
+        }
         lock (state.SyncRoot)
         {
             if (state.Status is "error" or "stopped")
+            {
                 return false;
+            }
         }
         if (mySessions.TryGetValue(role, out var session)
             && session is IAgentReadinessProbe readinessProbe)
@@ -212,7 +232,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         return EnqueueCoreAsync(() =>
         {
             if (!myRoles.TryGetValue(role, out var state))
+            {
                 return Task.CompletedTask;
+            }
             myRoleOperations.MarkRoleFailed(role);
             RemovePendingInteractionsForRole(role);
             lock (state.SyncRoot)
@@ -347,7 +369,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         lock (myAdmissionLock)
         {
             if (!myAdmission.IsAccepting)
+            {
                 return Task.FromException(new InvalidOperationException("Squad is shutting down"));
+            }
             myAcceptedCommands.Add(completion.Task);
         }
 
@@ -380,28 +404,40 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private async Task RunEventLoopAsync()
     {
         await foreach (var command in myCommands.Reader.ReadAllAsync(myShutdown.Token))
+        {
             await command();
+        }
     }
 
     private Task ApplyEventAsync(string role, AgentEvent agentEvent)
     {
         if (!myRoles.TryGetValue(role, out var state))
+        {
             return Task.CompletedTask;
+        }
         if (myRoleOperations.IsRoleFailed(role))
+        {
             return Task.CompletedTask;
+        }
         if (agentEvent is AgentReadinessEvent readinessObservation
             && (!mySessions.TryGetValue(role, out var readinessSession)
                 || readinessSession is not IAgentReadinessProbe readinessProbe
                 || !readinessProbe.IsReadinessGenerationCurrent(readinessObservation.Generation)))
+        {
             return Task.CompletedTask;
+        }
         if (ShouldIgnoreEvent(role, agentEvent))
+        {
             return Task.CompletedTask;
+        }
         TranscriptUpdate? transcriptUpdate;
         lock (state.SyncRoot)
         {
             transcriptUpdate = myEventProjector.Project(state, agentEvent);
             if (transcriptUpdate is not null)
+            {
                 TranscriptChanged?.Invoke(transcriptUpdate);
+            }
         }
         NotifyStateChanged(IsImmediateUiEvent(agentEvent));
         return Task.CompletedTask;
@@ -416,7 +452,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         myRoleOperations.ResumeEvents(role);
         if (mySessions.TryGetValue(role, out var session)
             && session is IAgentReadinessProbe readinessProbe)
+        {
             readinessProbe.InvalidateReadiness();
+        }
         await EnqueueCoreAsync(() => MarkWaitingForResponseAsync(role), lifetimeCancellation.Token);
         await RunForRoleAsync(role, operation, lifetimeCancellation.Token);
     }
@@ -443,7 +481,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         EnsureAccepting();
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdown.Token);
         if (!myAdmission.TryLeaseSession(role, out var lease))
+        {
             throw new InvalidOperationException($"Unknown role: {role}");
+        }
         using var operationLease = await myRoleOperations.AcquireOperationLeaseAsync(role, lifetimeCancellation.Token);
         EnsureAccepting();
         EnsureRoleAvailable(role);
@@ -454,7 +494,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private void EnsureRoleAvailable(string role)
     {
         if (!myRoleOperations.IsRoleFailed(role))
+        {
             return;
+        }
         if (myRoles.TryGetValue(role, out var state))
         {
             lock (state.SyncRoot)
@@ -508,14 +550,18 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private bool ShouldIgnoreEvent(string role, AgentEvent agentEvent)
     {
         if (agentEvent is AgentStartedEvent or AgentStoppedEvent or AgentSessionConfigurationEvent or AgentSessionModelChangedEvent or AgentContextUsageEvent or AgentSessionUsageEvent)
+        {
             return false;
+        }
         return myRoleOperations.IsInvalidated(role);
     }
 
     private void MarkRoleIdle(string role)
     {
         if (!myRoles.TryGetValue(role, out var state))
+        {
             return;
+        }
         lock (state.SyncRoot)
         {
             state.IsWorking = false;
@@ -556,9 +602,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         catch
         {
             if (!myRoleOperations.IsRoleFailed(role))
+            {
                 restore(request);
+            }
             else
+            {
                 UnprotectPendingTranscriptEntry(role, requestId);
+            }
             NotifyStateChanged();
             throw;
         }
@@ -570,7 +620,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         foreach (var session in sessions)
         {
             if (!session.Completion.IsCompleted)
+            {
                 await session.CancelPendingInteractionsAsync();
+            }
         }
         myInteractions.Clear();
         NotifyStateChanged();
@@ -579,19 +631,27 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private void RemovePendingInteractionsForRole(string role)
     {
         foreach (var protectedEntry in myInteractions.RemoveForRole(role))
+        {
             if (myRoles.TryGetValue(protectedEntry.Role, out var state))
+            {
                 lock (state.SyncRoot)
                     state.Transcript.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
+            }
+        }
     }
 
     private void UnprotectPendingTranscriptEntry(string role, string requestId)
     {
         var protectedEntry = myInteractions.TryRemoveProtectedTranscriptEntry(role, requestId);
         if (protectedEntry is null)
+        {
             return;
+        }
         if (myRoles.TryGetValue(protectedEntry.Value.Role, out var state))
+        {
             lock (state.SyncRoot)
                 state.Transcript.UnprotectTranscriptEntry(protectedEntry.Value.EntryIndex);
+        }
     }
 
     private static void ValidateTranscriptRetentionOptions(TranscriptRetentionOptions options)
@@ -604,31 +664,43 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxArchivedEntryCharacters);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxAnnouncementCharacters);
         if (options.MaxRetainedEntries < 2)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(options),
                 "At least two retained entries are required for concurrent assistant and reasoning streams.");
+        }
         if (options.MaxRetainedContentCharacters < 2)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(options),
                 "At least two retained content characters are required for concurrent assistant and reasoning streams.");
+        }
         if (options.MaxRetainedEntryCharacters > options.MaxRetainedContentCharacters)
+        {
             throw new ArgumentException(
                 "The retained entry limit cannot exceed the retained content limit.",
                 nameof(options));
+        }
         if (options.MaxArchivedEntryCharacters > options.MaxArchivedContentCharacters)
+        {
             throw new ArgumentException(
                 "The archived entry limit cannot exceed the archived content limit.",
                 nameof(options));
+        }
         if (options.MaxArchivedEntryCharacters <= options.MaxRetainedEntryCharacters)
+        {
             throw new ArgumentException(
                 "The archived entry limit must exceed the retained entry limit.",
                 nameof(options));
+        }
     }
 
     private void EnsureAccepting()
     {
         if (!myAdmission.IsAccepting)
+        {
             throw new InvalidOperationException("Squad is shutting down");
+        }
     }
 
     private void NotifyStateChanged(bool immediate = true)
@@ -695,4 +767,3 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
     }
 }
-

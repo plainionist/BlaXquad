@@ -66,16 +66,24 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
                 await myRegistrationGate.WaitAsync(cancellationToken);
             }
             if (myEarlyEvents.TryGetValue(session.Role, out var earlyEvent))
+            {
                 session.Emit(earlyEvent);
+            }
             await sessionStarted(session);
             myTrace?.Record($"backend.sessionRegistered:{session.Role}");
             if (myInitialInstructions.TryGetValue(session.Role, out var initialInstruction))
+            {
                 await session.SendAsync(initialInstruction, cancellationToken);
+            }
             if (myFailAfterCreatingSessionCount > 0 && index + 1 >= myFailAfterCreatingSessionCount)
+            {
                 throw new InvalidOperationException("recording backend failed after creating sessions");
+            }
         }
         if (myFailDuringStart)
+        {
             throw new InvalidOperationException("recording backend start failed");
+        }
     }
 
     // Retry-safe: a session is retired only once its own disposal succeeds. A failed attempt collects failures but
@@ -84,16 +92,22 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
     public async ValueTask DisposeAsync()
     {
         if (myDisposed)
+        {
             return;
+        }
         myOnDisposeEntered();
         if (myBlockDispose)
+        {
             await myDisposeGate;
+        }
         var failures = new List<Exception>();
         for (var index = mySessions.Count - 1; index >= 0; index--)
         {
             var session = mySessions[index];
             if (myRetiredSessions.Contains(session))
+            {
                 continue;
+            }
             try
             {
                 await session.DisposeAsync();
@@ -106,7 +120,9 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
         }
         myTrace?.Record("backend.disposed");
         if (failures.Count > 0)
+        {
             throw new AggregateException(failures);
+        }
         myDisposed = true;
     }
 }

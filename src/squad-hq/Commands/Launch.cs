@@ -128,7 +128,9 @@ static class Launch
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         if (!ExecutableLocator.Exists("git"))
+                        {
                             Fail($"{Red}Error:{Reset} 'git' is required but not installed.");
+                        }
                         await preparer.InitializeGitRepoAsync(context, cancellationToken);
                         await preparer.EnsureRuntimeGitExcludesAsync(context, cancellationToken);
                         cancellationToken.ThrowIfCancellationRequested();
@@ -161,7 +163,9 @@ static class Launch
             {
                 Console.CancelKeyPress -= cancelHandler;
                 if (application is null && hostLease is not null)
+                {
                     hostLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                }
             }
         }
     }

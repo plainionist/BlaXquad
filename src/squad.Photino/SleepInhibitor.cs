@@ -27,11 +27,15 @@ public sealed class SleepInhibitor : ISleepInhibitor
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (Environment.GetEnvironmentVariable("BLAXQUAD_PREVENT_SLEEP") == "0")
+        {
             return;
+        }
         if (OperatingSystem.IsWindows())
         {
             if (myWindowsThread is not null)
+            {
                 return;
+            }
 
             myWindowsStop = new AutoResetEvent(false);
             myWindowsReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -79,7 +83,9 @@ public sealed class SleepInhibitor : ISleepInhibitor
     private async Task StopUnixInhibitorAsync()
     {
         if (myUnixInhibitor is not { } inhibitor)
+        {
             return;
+        }
 
         var terminatedByOwner = false;
         try
@@ -90,7 +96,9 @@ public sealed class SleepInhibitor : ISleepInhibitor
                 await TerminateAsync(inhibitor);
             }
             if (!terminatedByOwner && inhibitor.ExitCode != 0)
+            {
                 throw new InvalidOperationException($"Sleep inhibitor exited with code {inhibitor.ExitCode}.");
+            }
         }
         finally
         {
@@ -104,11 +112,15 @@ public sealed class SleepInhibitor : ISleepInhibitor
         try
         {
             if (SetThreadExecutionState(myEsContinuous | myEsSystemRequired | myEsDisplayRequired) == 0)
+            {
                 throw new InvalidOperationException("Could not enable Windows sleep prevention.");
+            }
             myWindowsReady!.TrySetResult();
             myWindowsStop!.WaitOne();
             if (SetThreadExecutionState(myEsContinuous) == 0)
+            {
                 throw new InvalidOperationException("Could not reset Windows sleep prevention.");
+            }
         }
         catch (Exception exception)
         {
@@ -124,7 +136,9 @@ public sealed class SleepInhibitor : ISleepInhibitor
     private async Task StopWindowsInhibitorAsync()
     {
         if (myWindowsThread is null)
+        {
             return;
+        }
 
         myWindowsStop!.Set();
         await myWindowsStopped!.Task;
@@ -136,21 +150,29 @@ public sealed class SleepInhibitor : ISleepInhibitor
         myWindowsStopped = null;
         myWindowsFailure = null;
         if (failure is not null)
+        {
             throw failure;
+        }
     }
 
     private static IReadOnlyList<string> DetectPrefix()
     {
         if (Environment.GetEnvironmentVariable("BLAXQUAD_PREVENT_SLEEP") == "0")
+        {
             return [];
+        }
 
         if (OperatingSystem.IsMacOS() && ExecutableLocator.Exists("caffeinate"))
+        {
             return ["caffeinate", "-dims"];
+        }
         if (OperatingSystem.IsLinux() &&
             ExecutableLocator.Exists("systemd-inhibit") &&
             ExecutableLocator.Exists("systemctl") &&
             LinuxSystemdRunning())
+        {
             return ["systemd-inhibit", "--what=sleep:idle", "--who=squad", "--why=squad is active"];
+        }
         return [];
     }
 
@@ -164,7 +186,9 @@ public sealed class SleepInhibitor : ISleepInhibitor
     private static System.Diagnostics.Process StartDetached(IReadOnlyList<string> command, string? stdOutErrFile = null)
     {
         if (command.Count == 0)
+        {
             throw new ArgumentException("Command must not be empty.", nameof(command));
+        }
 
         var psi = new ProcessStartInfo(command[0])
         {
@@ -174,18 +198,24 @@ public sealed class SleepInhibitor : ISleepInhibitor
             RedirectStandardError = stdOutErrFile is not null,
         };
         foreach (var argument in command.Skip(1))
+        {
             psi.ArgumentList.Add(argument);
+        }
 
         var process = System.Diagnostics.Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start '{command[0]}'.");
         if (stdOutErrFile is not null)
+        {
             _ = CaptureOutputAsync(process, stdOutErrFile);
+        }
         return process;
     }
 
     private static async Task TerminateAsync(System.Diagnostics.Process process)
     {
         if (!process.HasExited)
+        {
             process.Kill(entireProcessTree: true);
+        }
         await process.WaitForExitAsync();
     }
 
@@ -209,7 +239,9 @@ public sealed class SleepInhibitor : ISleepInhibitor
     private static async Task PumpOutputAsync(StreamReader reader, TextWriter writer)
     {
         while (await reader.ReadLineAsync() is { } line)
+        {
             await writer.WriteLineAsync(line);
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
