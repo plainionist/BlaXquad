@@ -18,6 +18,58 @@ output.
 
 This is a supported transport adapter, not a test hook. Photino remains the default UI.
 
+## Implementation plan
+
+### Slice 1: Add and expose the stdio protocol host
+
+**Status: in progress - hand off to coder**
+
+1. Add a `squad.Stdio` adapter assembly beside `squad.Photino`. Implement one public `StdioWindowHost` that implements
+   `IWindowHost`, depends only on the UI/hosting abstractions and `squad.Ui.Protocol`, and owns one
+   `UiProtocolSession`. Keep newline framing, console ownership, and host lifecycle in this adapter; do not move
+   transport concerns into `UiProtocolSession`, `SquadApplication`, or `SquadViewModel`.
+2. On start, attach the normal UI event sources, begin one sequential standard-input read loop, pass every non-EOF
+   line unchanged to `UiProtocolSession.ReceiveMessageAsync`, and wait for the existing `ui.ready` command before
+   completing startup. Route `SessionsStartedAsync` directly to the session so initial snapshots and transcript
+   synchronization use the same protocol delivery coordinator as Photino.
+3. Serialize every outgoing protocol envelope as exactly one line on `Console.Out` and flush it before accepting that
+   it was delivered. Keep writes coherent when snapshot, transcript, and command responses originate concurrently.
+   The adapter must never write diagnostics or lifecycle text to stdout; existing command/process failures continue
+   through `Console.Error`.
+4. Give the host one idempotent lifecycle: EOF completes the close signal, host-control shutdown and process
+   cancellation stop the input pump, and `StopAsync`/`DisposeAsync` detach event sources and dispose the protocol
+   session exactly once. Startup must not hang if cancellation or EOF wins before `ui.ready`, and normal shutdown must
+   not depend on another input line arriving.
+5. Add a small headquarters `--ui <photino|stdio>` option parser. Accept the option at most once in any position
+   supported by the existing launch parser, preserve `--continue`, `--provider`, and the optional workspace path,
+   select `StdioWindowHost` only for the explicit `stdio` value, and keep Photino plus its current sleep-inhibitor
+   behavior as the default. Report missing, repeated, or unknown UI values as concise `CliExitException` diagnostics
+   on stderr.
+6. Wire the new adapter project into the solution and `squad-hq` composition without adding a second UI SPI, a public
+   message-injection API, a serialized-message callback, nullable stream/test collaborators, or headless branches in
+   the application/domain layers. Do not make Photino optional in packaging in this issue.
+7. Add focused black-box Gherkin scenarios in `squad.Specs` that launch the real published `squad-hq` with
+   `--ui stdio` and an explicitly selected, minimal test-owned provider fixture. Exercise the real `ui.ready`
+   handshake, initial snapshot/transcript messages, a command and resulting transcript update, page/synchronization
+   requests, malformed protocol input, EOF, host-control shutdown, and stderr/stdout separation. Keep this support
+   narrowly scoped; the reusable scenario facade and fake-provider control pipe belong to issue 012.
+8. Add option-failure scenarios for missing, duplicate, and unknown `--ui` values, and retain coverage proving an
+   omitted `--ui` still selects the existing Photino path. Run the focused headless/protocol/launch scenarios followed
+   by the complete build and acceptance suite.
+
+**Slice acceptance**
+
+- `squad-hq launch --ui stdio` drives the real versioned `UiProtocolSession` over newline-delimited stdin/stdout and
+  does not complete startup before `ui.ready`.
+- State snapshots, transcript synchronization and updates, pages, command responses, and protocol errors are emitted
+  through the existing protocol code paths as one JSON envelope per stdout line.
+- EOF, host-control shutdown, cancellation, stop, and disposal converge on clean, idempotent host termination without
+  blocked reads or leaked protocol subscriptions.
+- Stdout contains protocol envelopes only; launch/runtime diagnostics remain on stderr.
+- Omitting `--ui` preserves the current Photino host and protocol behavior.
+- The production surface contains no test hook, optional test collaborator, message-injection method, or
+  serialized-message callback for the headless transport.
+
 ## Acceptance criteria
 
 - `squad-hq launch` can explicitly select a headless stdio UI mode.
