@@ -5,10 +5,6 @@ priority: 50
 
 # Refresh usage during active agent sessions
 
-## Dependency
-
-- `012 establish process specification driver.md`
-
 ## Problem
 
 The role header shows current context-window usage and accumulated AI credits (AIC), but long-running Copilot turns can
@@ -91,8 +87,9 @@ Follow the [backend test strategy](../manual/test-strategy.md).
 
 ## Implementation plan
 
-This issue is one cohesive slice after the process-level specification driver and its fake-provider control channel
-from issue 012 are available.
+This issue is one cohesive slice. The current process fixture does not yet contain the control channel anticipated by
+the test strategy, so this slice adds only the focused test-owned provider control needed for its usage scenario; it
+does not absorb the broader process-driver migration from issue 012.
 
 ### Slice 1: Coordinate active Copilot usage refreshes
 
@@ -112,11 +109,12 @@ from issue 012 are available.
 4. Integrate coordinator shutdown with session failure and disposal. Cancel pending delays, prevent new RPC work, and
    observe/await owned background work so teardown leaves no loop or unobserved exception. Keep provider-neutral
    events, C# state projection, UI protocol, and Vue unchanged.
-5. Extend the process-boundary Gherkin coverage in `squad.Specs` through the issue-012 scenario facade and
-   fake-provider control channel. While a role is still working, emit newer context and AIC usage and wait for a real
+5. Add the minimum private fake-provider control channel needed by the process-boundary Gherkin scenario, keeping its
+   transport, DTOs, and provider implementation entirely in `squad.Specs` and exposing only semantic usage/idle
+   operations to steps. While a role is still working, emit newer context and AIC usage and wait for a real
    `state.snapshot` carrying both values; then emit idle plus final values and verify the final snapshot preserves the
-   latest usage. Use semantic acknowledgements and bounded diagnostic waits, without sleeps, SDK references,
-   implementation counters, or timing seams.
+   latest usage. Use acknowledgements and bounded diagnostic waits, without sleeps, SDK references, implementation
+   counters, or timing seams.
 6. Run the focused backend scenarios and the existing Copilot SDK build/tests. Perform a real Copilot smoke turn that
    lasts beyond five seconds and inspect diagnostics to confirm active requests are bounded per session, idle stops
    scheduling, final refreshes survive overlap, and concurrent role sessions refresh independently.
