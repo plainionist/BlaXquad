@@ -52,6 +52,21 @@ Feature: Stdio UI protocol over the real published process
     Then the shutdown request succeeds
     And the squad-hq process exits with code "0"
 
+  Scenario: End of standard input before the ui.ready handshake still unblocks startup
+    When squad-hq is launched with "--ui stdio"
+    And standard input is closed
+    Then the squad-hq process exits with code "0"
+
+  Scenario: A terminated process releases workspace host ownership for the next launch
+    When squad-hq is launched with "--ui stdio"
+    And the ui sends "ui.ready"
+    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
+    When the squad-hq process is forcibly terminated
+    Then the squad-hq process has exited
+    When squad-hq is launched with "--ui stdio"
+    And the ui sends "ui.ready"
+    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
+
   Scenario: Protocol output and process diagnostics are kept separate
     When squad-hq is launched with "--ui stdio"
     And the ui sends "ui.ready"

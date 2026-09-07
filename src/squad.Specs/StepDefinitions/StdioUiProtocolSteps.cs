@@ -96,6 +96,13 @@ public sealed class StdioUiProtocolSteps
     [When("standard input is closed")]
     public void WhenStandardInputIsClosed() => myProcess!.StandardInput.Close();
 
+    [When("the squad-hq process is forcibly terminated")]
+    public void WhenTheSquadHqProcessIsForciblyTerminated() => myProcess!.Kill(entireProcessTree: true);
+
+    [Then("the squad-hq process has exited")]
+    public void ThenTheSquadHqProcessHasExited() =>
+        Assert.That(myProcess!.WaitForExit((int)DefaultTimeout.TotalMilliseconds), Is.True, "Timed out waiting for the squad-hq process to exit.");
+
     [Then("no protocol message is written to stdout yet")]
     public void ThenNoProtocolMessageIsWrittenToStdoutYet()
     {
@@ -216,6 +223,14 @@ public sealed class StdioUiProtocolSteps
 
     private void Launch()
     {
+        // Relaunching against the same workspace within one scenario (e.g. after a forced termination) must not
+        // let a Then-step observe stale lines from a previous process instance, so each launch starts with a
+        // clean buffer.
+        lock (myLinesLock)
+        {
+            myStdOutLines.Clear();
+            myStdErrLines.Clear();
+        }
         var descriptor = $"{typeof(EchoAgentProviderFactory).Assembly.Location};{typeof(EchoAgentProviderFactory).FullName}";
         myProcess = myWorkspace.StartTool(
             "squad-hq",

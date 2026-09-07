@@ -77,9 +77,23 @@ public sealed class StdioWindowHost : IWindowHost
                 {
                     break;
                 }
+                catch (IOException)
+                {
+                    // The underlying stream faulted (e.g. torn down by a racing stop); this background task is
+                    // never awaited, so a read failure must end the pump the same way EOF does rather than fault
+                    // this task and go unobserved.
+                    break;
+                }
                 if (line is null)
                 {
                     // End of standard input: treat exactly like the native window being closed.
+                    break;
+                }
+                if (myPumpCancellation.IsCancellationRequested)
+                {
+                    // A stop was requested while this read was already in flight. Console.In's cancellation token
+                    // does not interrupt a read already in progress, so a line can still arrive after cancellation;
+                    // the protocol session may already be disposed, so do not forward it.
                     break;
                 }
                 await mySession.ReceiveMessageAsync(line);
