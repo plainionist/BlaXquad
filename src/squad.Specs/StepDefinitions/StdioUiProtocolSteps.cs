@@ -45,6 +45,26 @@ public sealed class StdioUiProtocolSteps
         myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
     }
 
+    [Given("a git project configured with {string} and {string} roles using the echo provider fixture")]
+    public void GivenAGitProjectConfiguredWithRolesUsingTheEchoProviderFixture(string firstRole, string secondRole)
+    {
+        myRole = firstRole;
+        myWorkspace.InitializeGitRepository();
+        myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow the project constitution.\n");
+        myWorkspace.WriteFile(
+            "blaxquad/squad.json",
+            $$"""
+            {
+              "roles": [
+                { "name": "{{firstRole}}", "worktree": "master", "agent": {} },
+                { "name": "{{secondRole}}", "worktree": "{{secondRole}}", "agent": {} }
+              ]
+            }
+            """ + "\n");
+        myWorkspace.WriteFile($"blaxquad/roles/{firstRole}.prompt", $"Act as the {firstRole}.\n");
+        myWorkspace.WriteFile($"blaxquad/roles/{secondRole}.prompt", $"Act as the {secondRole}.\n");
+    }
+
     [When("squad-hq is launched with \"--ui stdio\"")]
     public void WhenSquadHqIsLaunchedWithUiStdio() => Launch();
 
