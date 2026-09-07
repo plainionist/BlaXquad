@@ -122,3 +122,96 @@ for draft clearing and visible transcript behavior. For diagnosis, temporarily t
 events alongside the ViewModel admission decision. The existing `BLAXQUAD_SDK_EVENT_TRACE` cannot provide that
 evidence because it currently records tool events only.
 
+## Implementation plan
+
+### Architectural decisions
+
+- Keep command ordering and turn ownership authoritative in C#. `RoleOperationCoordinator` owns a short per-role
+  admission lane that assigns monotonically increasing turn generations in call order. Admission ends after an
+  operation is registered or an abort has closed the preceding generation; provider I/O remains outside that lane.
+- Carry the admitted generation through the `IAgentSession` send contract and provider-event stream. Turn-scoped
+  events are admitted only when their generation is current. Session lifecycle, configuration, and aggregate usage
+  observations remain explicitly session-scoped rather than being assigned to whichever turn happens to be current.
+- At the Copilot SDK boundary, correlate the ordered local send with its `UserMessageEvent`. A matching local echo
+  acknowledges that generation and is not projected as another user row. An unmatched user event remains an
+  `AgentUserMessageEvent`, preserving provider-originated user content. Abort closes the old generation without
+  relabelling queued callbacks; opening the next generation cannot make old events current again.
+- Separate prompt acceptance from provider completion. Acceptance occurs after the abort barrier and operation
+  registration, when the C# transcript appends the prompt. A failure before that point is a rejection; a failure
+  afterwards is an accepted-turn failure and cannot remove the user entry.
+- Preserve Photino callback arrival order at application admission, not by awaiting complete native command tasks.
+  Different roles and provider operations remain concurrent, and an abort ordered after a prompt can still cancel
+  that active prompt.
+
+### Slice 1: Generation-scoped command and event admission
+
+Implement the per-role admission lane and replace role-wide event invalidation with generation-scoped operation
+ownership.
+
+- Extend the provider-neutral send/event seam under `squad.AgentProvider.Abstractions` with an explicit turn
+  generation. Keep new public or internal types in separate files.
+- Refactor `RoleOperationCoordinator` and its leases so prompt and abort calls receive deterministic per-role
+  admission order. An abort closes and cancels only the admitted generation immediately before it; a later prompt
+  waits for that abort and opens a new generation.
+- Update `SquadViewModel` event admission and the Copilot SDK adapter so turn-scoped events retain their source
+  generation. Use the SDK's ordered user-message echo as the boundary between generations, and retain unmatched
+  user events as external events.
+- Expand the opt-in SDK trace sufficiently to diagnose user-message, send-generation, and abort-boundary ordering;
+  keep tracing inert unless `BLAXQUAD_SDK_EVENT_TRACE` is set.
+- Extend `RecordingAgentSession`, `ViewModel.feature`, and `PhotinoUiProtocol.feature` support to exercise deliberately
+  blocked aborts, concurrent native receives, and late events with explicit source generations.
+
+Acceptance criteria:
+
+- Adjacent `role.abort` then `prompt.send` calls through concurrent Photino callbacks always admit in callback order;
+  the second prompt waits for abort completion and reaches the provider.
+- Reversing the callback order lets the abort cancel that prompt, proving ordering is not hard-coded in favor of
+  sends.
+- Assistant, tool, idle, interaction, and user events from the cancelled generation remain ignored after the next
+  generation starts, while current-generation and session-scoped events still project normally.
+- Complete prompt/provider tasks are not globally serialized, and another role continues while one role's abort is
+  blocked.
+
+### Slice 2: Authoritative prompt projection and failure semantics
+
+Make accepted local prompts durable in the application transcript and make provider echoes idempotent.
+
+- Split prompt submission into an acceptance result and provider-completion task at the `ISquadUi`/`SquadViewModel`
+  boundary. Preserve existing callers with explicit implementations rather than interface defaults.
+- In `SquadViewModel`, after the prior abort barrier and new generation registration, append one `user` transcript
+  entry and publish its `TranscriptUpdate` immediately before invoking `IAgentSession.SendAsync`.
+- Generalize the Copilot SDK's existing harness-echo tracking to correlate local user and harness sends by generation,
+  content, and origin. Consume only the matching local SDK echo; continue projecting unmatched external user events.
+- Represent provider failure after acceptance as an explicit error on the accepted generation. Reject failures that
+  happen before transcript mutation without creating a user row.
+- Add black-box `ViewModel.feature` scenarios for a replacement prompt during blocked cancellation, an interleaved
+  matching echo, unmatched external user content, and failures on both sides of the acceptance boundary.
+
+Acceptance criteria:
+
+- The replacement prompt appears once before provider send begins and remains once whether its matching echo arrives
+  before, during, or after abort completion.
+- A missing echo does not hide the accepted prompt, and an unmatched provider-originated user event is retained.
+- Pre-acceptance failure leaves no user entry; post-acceptance provider failure leaves the user entry and adds an
+  explicit failure indication.
+
+### Slice 3: Correlated prompt acknowledgement and draft lifecycle
+
+Expose the acceptance boundary through the UI protocol and clear Vue drafts only on correlated acceptance.
+
+- Add a required prompt request ID and typed `prompt.accepted`, `prompt.rejected`, and `prompt.failed` responses,
+  bumping the bundled protocol version. Keep generic `protocol.error` for envelope and unrelated command failures.
+- Have `UiCommandHandler` publish acceptance as soon as C# transcript ownership is established, rejection when
+  admission fails, and a later correlated failure if provider completion fails.
+- In `useDashboardSession`, retain each submitted draft until its matching acceptance. Clear only the submitted text,
+  preserving edits typed while the command is pending; retain the draft and expose the correlated error on rejection.
+  An accepted prompt remains cleared if its provider operation later fails because the transcript is already durable.
+- Update protocol Gherkin scenarios and add a focused Playwright scenario that cancels, immediately submits a
+  replacement, interleaves host responses, and asserts both visible transcript content and draft preservation.
+
+Acceptance criteria:
+
+- Rejected submissions keep the exact submitted draft and identify the failing request.
+- Accepted submissions clear only the acknowledged text; newer typing survives.
+- The cancel-then-send scenario shows the replacement prompt exactly once, and a post-acceptance failure is visible
+  without restoring or losing the accepted text.
