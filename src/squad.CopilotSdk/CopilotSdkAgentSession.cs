@@ -87,7 +87,7 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     /// <summary>Routes one raw SDK event through the usage refresh coordinator ahead of normal event translation.</summary>
     internal void NotifyUsageActivity(bool isIdle)
     {
-        if (myDisposed)
+        if (myDisposed || myFailure is not null)
         {
             return;
         }
@@ -200,12 +200,12 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private async Task RefreshContextUsageAsync(CancellationToken cancellationToken)
     {
         var runtimeSession = myRuntimeSession;
-        if (runtimeSession is null || myDisposed)
+        if (runtimeSession is null || myDisposed || myFailure is not null)
         {
             return;
         }
         var usage = await runtimeSession.GetContextUsageAsync(cancellationToken);
-        if (usage is { } contextUsage && contextUsage.LimitTokens > 0 && !myDisposed)
+        if (usage is { } contextUsage && contextUsage.LimitTokens > 0 && !myDisposed && myFailure is null)
         {
             Publish(new AgentContextUsageEvent(DateTimeOffset.UtcNow, contextUsage.UsedTokens, contextUsage.LimitTokens));
         }
@@ -214,9 +214,14 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private async Task RefreshUsageAsync(CancellationToken cancellationToken)
     {
         var runtimeSession = myRuntimeSession;
-        if (runtimeSession is not null && !myDisposed)
+        if (runtimeSession is null || myDisposed || myFailure is not null)
         {
-            Publish(new AgentSessionUsageEvent(DateTimeOffset.UtcNow, await runtimeSession.GetAicUsageAsync(cancellationToken)));
+            return;
+        }
+        var usage = await runtimeSession.GetAicUsageAsync(cancellationToken);
+        if (!myDisposed && myFailure is null)
+        {
+            Publish(new AgentSessionUsageEvent(DateTimeOffset.UtcNow, usage));
         }
     }
 
@@ -254,18 +259,34 @@ public sealed class CopilotSdkAgentSession : IAgentSession
         }
 
         myEvents.Complete(exception);
+        _ = TeardownAfterFailureAsync(teardownRuntimeSession);
+        myCompletion.TrySetException(exception);
+        CompleteWithException(permissions, exception);
+        CompleteWithException(inputs, exception);
+        CompleteWithException(elicitations, exception);
+    }
+
+    /// <summary>
+    /// Stops the usage refresh coordinator the same way disposal does — cancelling pending delays, preventing new
+    /// RPC work, and observing any in-flight refresh — before proceeding with runtime-session teardown. This runs
+    /// ahead of the runtime-session teardown so a scheduled refresh can never publish into the now-completed event
+    /// channel.
+    /// </summary>
+    private async Task TeardownAfterFailureAsync(bool teardownRuntimeSession)
+    {
+        if (myUsageRefresh is not null)
+        {
+            await myUsageRefresh.DisposeAsync().ConfigureAwait(false);
+        }
+
         if (teardownRuntimeSession)
         {
-            _ = TeardownFailedRuntimeSessionAsync();
+            await TeardownFailedRuntimeSessionAsync().ConfigureAwait(false);
         }
         else
         {
             myFailureTeardown.TrySetResult();
         }
-        myCompletion.TrySetException(exception);
-        CompleteWithException(permissions, exception);
-        CompleteWithException(inputs, exception);
-        CompleteWithException(elicitations, exception);
     }
 
     private async Task TeardownFailedRuntimeSessionAsync()

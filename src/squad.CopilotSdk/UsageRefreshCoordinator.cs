@@ -4,8 +4,10 @@ namespace squad.CopilotSdk;
 /// Owns the fixed five-second, event-aware usage refresh policy for one Copilot SDK session. SDK activity marks
 /// the session dirty and ensures one refresh cycle is scheduled per window; a session-idle transition stops active
 /// scheduling and runs one final refresh per metric, retaining that final request when a metric refresh is already
-/// in flight rather than discarding it. The interval is a fixed implementation policy: no clock, scheduler,
-/// callback, or configuration seam is exposed.
+/// in flight rather than discarding it. Metric work always runs on the coordinator's own lifetime token, never the
+/// per-window scheduling token, so an idle race can never cancel a refresh that is already under way or retained
+/// for final delivery; only <see cref="DisposeAsync"/> (session teardown or failure) stops that work. The interval
+/// is a fixed implementation policy: no clock, scheduler, callback, or configuration seam is exposed.
 /// </summary>
 internal sealed class UsageRefreshCoordinator : IAsyncDisposable
 {
@@ -134,8 +136,10 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
 
                 if (shouldRefresh)
                 {
-                    myContext.Run(cancellationToken);
-                    myUsage.Run(cancellationToken);
+                    // Metric work runs on the coordinator lifetime token, not the window token: cancelling this
+                    // window (e.g. an idle race) must never cancel a refresh already under way.
+                    myContext.Run(myLifetime.Token);
+                    myUsage.Run(myLifetime.Token);
                 }
             }
         }
