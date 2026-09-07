@@ -11,7 +11,7 @@
     },
     {
       "name": "coder",
-      "worktree": "master",
+      "worktree": "coder",
       "agent": {
         "model": "claude-sonnet-5",
         "effort": "high",
@@ -20,7 +20,7 @@
     },
     {
       "name": "reviewer",
-      "worktree": "master",
+      "worktree": "reviewer",
       "agent": {
         "model": "grok-4.6",
         "effort": "high",
