@@ -76,7 +76,7 @@ complete prompt/reply vertical proof.
 
 ### Slice 2: Carry the existing protocol over stdio
 
-**Status: in progress - hand off to coder**
+**Status: complete (22286ff740)**
 
 1. Attach the normal UI event sources when the host starts and route `SessionsStartedAsync` directly to the protocol
    session so initial snapshots and transcript synchronization use the same delivery coordinator as Photino.
