@@ -26,7 +26,7 @@ target workspace.
 
 ### Slice 1: Establish the prepared-context provider contract
 
-**Status: in progress - hand off to coder**
+**Status: complete (46928a39fa)**
 
 1. Replace `IRuntimeModeFactory` with a provider-focused `IAgentProviderFactory` in
    `squad.AgentProvider.Abstractions`. Keep only the provider name and one asynchronous creation operation accepting a
@@ -65,7 +65,7 @@ target workspace.
 
 ### Slice 2: Load an explicitly selected provider and package the default
 
-**Status: waiting for reviewer acceptance of Slice 1**
+**Status: authorized for implementation**
 
 1. Add a small headquarters command-line provider selection value and parser. `squad-hq launch` accepts at most one
    `--provider` descriptor containing an assembly path and public factory type name; it remains compatible with
