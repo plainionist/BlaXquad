@@ -5,6 +5,10 @@ priority: 50
 
 # Refresh usage during active agent sessions
 
+## Dependency
+
+- `012 establish process specification driver.md`
+
 ## Problem
 
 The role header shows current context-window usage and accumulated AI credits (AIC), but long-running Copilot turns can
@@ -84,3 +88,43 @@ Follow the [backend test strategy](../manual/test-strategy.md).
   Do not create a white-box SDK test harness to automate that implementation detail.
 - Add or change Playwright coverage only if presentation behavior changes; this issue is expected to require no Vue
   change.
+
+## Implementation plan
+
+This issue is one cohesive slice after the process-level specification driver and its fake-provider control channel
+from issue 012 are available.
+
+### Slice 1: Coordinate active Copilot usage refreshes
+
+1. Add a session-owned usage refresh coordinator inside `squad.CopilotSdk`. Give it sole responsibility for the
+   five-second event-aware policy: active/idle lifecycle, dirty activity coalescing, one scheduled refresh window,
+   per-metric in-flight exclusion, retained final-idle work, cancellation, and retry eligibility after transient
+   failures. Keep the interval fixed and do not expose a clock, scheduler, callback, or configuration seam.
+2. Route every raw SDK event through the coordinator before normal event translation so assistant, reasoning, tool,
+   interaction, and other activity all use the same policy. Treat `SessionIdleEvent` as the transition that stops
+   active scheduling and requests one final refresh. Keep `SessionUsageCheckpointEvent` publishing AIC immediately;
+   the existing authoritative projection must continue preventing a delayed metrics response from lowering
+   accumulated usage.
+3. Move attach-time context and AIC requests under the same coordinator while preserving their immediate execution.
+   A refresh cycle may start both independent RPCs, but a metric already in flight must retain rather than discard a
+   final-idle request. When that request completes, run the retained final request for that metric without restarting
+   periodic scheduling. Transient RPC failures remain non-fatal and leave later activity or idle able to retry.
+4. Integrate coordinator shutdown with session failure and disposal. Cancel pending delays, prevent new RPC work, and
+   observe/await owned background work so teardown leaves no loop or unobserved exception. Keep provider-neutral
+   events, C# state projection, UI protocol, and Vue unchanged.
+5. Extend the process-boundary Gherkin coverage in `squad.Specs` through the issue-012 scenario facade and
+   fake-provider control channel. While a role is still working, emit newer context and AIC usage and wait for a real
+   `state.snapshot` carrying both values; then emit idle plus final values and verify the final snapshot preserves the
+   latest usage. Use semantic acknowledgements and bounded diagnostic waits, without sleeps, SDK references,
+   implementation counters, or timing seams.
+6. Run the focused backend scenarios and the existing Copilot SDK build/tests. Perform a real Copilot smoke turn that
+   lasts beyond five seconds and inspect diagnostics to confirm active requests are bounded per session, idle stops
+   scheduling, final refreshes survive overlap, and concurrent role sessions refresh independently.
+
+### Slice acceptance
+
+- All acceptance criteria in this issue are satisfied without changing the provider-neutral protocol or frontend.
+- The refresh coordinator has one owner per Copilot session and no process-wide or cross-role scheduling state.
+- The black-box scenario proves active and final usage propagation only through the real process/provider/UI
+  boundaries; the fixed cadence is verified by the prescribed real-provider smoke run.
+- Failure, cancellation, idle races, and disposal cannot strand scheduled work or suppress the required final refresh.
