@@ -5,6 +5,7 @@ using squad.Handoffs;
 using squad.Handoffs.Delivery;
 using squad.Application;
 using squad.Photino;
+using squad.Stdio;
 using squad.Ui.Abstractions;
 using squad.Workspaces;
 using squad.Host.Control;
@@ -22,15 +23,16 @@ static class Launch
         const string Red = "\u001b[0;31m";
         const string Reset = "\u001b[0m";
 
-        var (providerDescriptor, remaining) = ProviderOption.Extract(args);
+        var (providerDescriptor, providerRemaining) = ProviderOption.Extract(args);
+        var (uiMode, remaining) = UiOption.Extract(providerRemaining);
 
         switch (remaining.ElementAtOrDefault(0))
         {
             case "--continue":
-                RunMain(remaining.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true, providerDescriptor);
+                RunMain(remaining.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true, providerDescriptor, uiMode);
                 return 0;
             default:
-                RunMain(remaining.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false, providerDescriptor);
+                RunMain(remaining.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false, providerDescriptor, uiMode);
                 return 0;
         }
 
@@ -100,7 +102,7 @@ static class Launch
                 environment);
         }
 
-        void RunMain(string root, bool continueLaunch, ProviderDescriptor? providerDescriptor)
+        void RunMain(string root, bool continueLaunch, ProviderDescriptor? providerDescriptor, UiMode uiMode)
         {
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var context = BuildContext(root);
@@ -125,7 +127,7 @@ static class Launch
             {
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var runtime = Create(context.WorkingDir, viewModel, agentProviderFactory);
+                var runtime = Create(context.WorkingDir, viewModel, agentProviderFactory, uiMode);
                 var startupPlan = SquadStartupPlanFactory.ForWorkspace(
                     context,
                     preparer,
@@ -175,10 +177,10 @@ static class Launch
         }
     }
 
-    private static RuntimeMode Create(string workingDirectory, ISquadUi ui, IAgentProviderFactory agentProviderFactory) =>
+    private static RuntimeMode Create(string workingDirectory, ISquadUi ui, IAgentProviderFactory agentProviderFactory, UiMode uiMode) =>
         new(
             agentProviderFactory,
-            new PhotinoWindowHost(ui, workingDirectory),
+            uiMode == UiMode.Stdio ? new StdioWindowHost(ui) : new PhotinoWindowHost(ui, workingDirectory),
             new SleepInhibitor());
 
     // Built from data strings only (no squad.CopilotSdk source or assembly reference) so squad-hq stays

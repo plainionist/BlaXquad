@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.Ui.Protocol\squad.Ui.Protocol.csproj" />
+    <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

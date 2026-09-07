@@ -48,18 +48,21 @@ public sealed class ScenarioWorkspace : IDisposable
         string toolName,
         IReadOnlyList<string>? arguments = null,
         IReadOnlyDictionary<string, string?>? environment = null,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        bool redirectStandardInput = false)
     {
-        return StartProcess(ResolveTool(toolName), arguments, environment, workingDirectory);
+        return StartProcess(ResolveTool(toolName), arguments, environment, workingDirectory, redirectStandardInput);
     }
 
     public System.Diagnostics.Process StartProcess(
         string executable,
         IReadOnlyList<string>? arguments = null,
         IReadOnlyDictionary<string, string?>? environment = null,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        bool redirectStandardInput = false)
     {
         var startInfo = CreateStartInfo(executable, environment, workingDirectory);
+        startInfo.RedirectStandardInput = redirectStandardInput;
         if (arguments is not null)
         {
             foreach (var argument in arguments)
