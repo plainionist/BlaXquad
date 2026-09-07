@@ -47,7 +47,9 @@ public sealed class WorkspacePreparer
 
     public void EnsureRuntimeGitExcludes(Ctx ctx)
     {
-        var excludeFile = ProcessRunner.RunChecked("git", ["-C", ctx.WorkingDir, "rev-parse", "--git-path", "info/exclude"]).StdOut.Trim();
+        var gitPath = ProcessRunner.RunChecked(
+            "git", ["-C", ctx.WorkingDir, "rev-parse", "--git-path", "info/exclude"], workingDirectory: ctx.WorkingDir).StdOut.Trim();
+        var excludeFile = ResolveGitPath(ctx, gitPath);
         Directory.CreateDirectory(Path.GetDirectoryName(excludeFile)!);
         EnsureInFile(excludeFile, ".blaxquad/");
         EnsureInFile(excludeFile, ".worktrees/");
@@ -55,12 +57,21 @@ public sealed class WorkspacePreparer
 
     public async Task EnsureRuntimeGitExcludesAsync(Ctx ctx, CancellationToken cancellationToken)
     {
-        var excludeFile = (await ProcessRunner.RunCheckedAsync("git", ["-C", ctx.WorkingDir, "rev-parse", "--git-path", "info/exclude"], cancellationToken: cancellationToken)).StdOut.Trim();
+        var gitPath = (await ProcessRunner.RunCheckedAsync(
+            "git", ["-C", ctx.WorkingDir, "rev-parse", "--git-path", "info/exclude"], workingDirectory: ctx.WorkingDir, cancellationToken: cancellationToken)).StdOut.Trim();
         cancellationToken.ThrowIfCancellationRequested();
+        var excludeFile = ResolveGitPath(ctx, gitPath);
         Directory.CreateDirectory(Path.GetDirectoryName(excludeFile)!);
         EnsureInFile(excludeFile, ".blaxquad/");
         EnsureInFile(excludeFile, ".worktrees/");
     }
+
+    // "git rev-parse --git-path" prints a path relative to the invoking process's own current directory (not the
+    // requested "-C" workspace) whenever the two differ, e.g. launching a workspace while sitting in an unrelated
+    // shell directory. Anchor the child git process at the workspace and re-resolve any relative result against it
+    // explicitly so exclude-file resolution never depends on this process's own working directory.
+    private static string ResolveGitPath(Ctx ctx, string gitPath) =>
+        Path.IsPathRooted(gitPath) ? gitPath : Path.GetFullPath(gitPath, ctx.WorkingDir);
 
     public void WriteAgentInstructionFile(string role, string promptFile) =>
         File.WriteAllText(promptFile,
