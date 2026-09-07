@@ -22,9 +22,8 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private readonly Queue<string> myPendingHarnessMessageEchoes = new();
     private readonly TaskCompletionSource myFailureTeardown = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CopilotSdkRuntimeSession? myRuntimeSession;
+    private UsageRefreshCoordinator? myUsageRefresh;
     private Exception? myFailure;
-    private int myContextRefreshInFlight;
-    private int myUsageRefreshInFlight;
     private bool myDisposed;
 
     public CopilotSdkAgentSession(
@@ -48,8 +47,8 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     {
         myRuntimeSession = runtimeSession;
         runtimeSession.StartContextWindowResolution();
-        RefreshContextUsage();
-        RefreshUsage();
+        myUsageRefresh = new UsageRefreshCoordinator(RefreshContextUsageAsync, RefreshUsageAsync);
+        myUsageRefresh.RunInitialRefresh();
     }
 
     public void Publish(AgentEvent agentEvent) => myEvents.Publish(agentEvent);
@@ -85,22 +84,21 @@ public sealed class CopilotSdkAgentSession : IAgentSession
         }
     }
 
-    internal void RefreshContextUsage()
+    /// <summary>Routes one raw SDK event through the usage refresh coordinator ahead of normal event translation.</summary>
+    internal void NotifyUsageActivity(bool isIdle)
     {
-        if (myDisposed || Interlocked.Exchange(ref myContextRefreshInFlight, 1) != 0)
+        if (myDisposed)
         {
             return;
         }
-        _ = RefreshContextUsageAsync();
-    }
-
-    internal void RefreshUsage()
-    {
-        if (myDisposed || Interlocked.Exchange(ref myUsageRefreshInFlight, 1) != 0)
+        if (isIdle)
         {
-            return;
+            myUsageRefresh?.NotifyIdle();
         }
-        _ = RefreshUsageAsync();
+        else
+        {
+            myUsageRefresh?.NotifyActivity();
+        }
     }
 
     /// <summary>
@@ -168,6 +166,10 @@ public sealed class CopilotSdkAgentSession : IAgentSession
         try
         {
             CancelPendingInteractionsCore(CancellationToken.None);
+            if (myUsageRefresh is not null)
+            {
+                await myUsageRefresh.DisposeAsync();
+            }
             if (myFailure is not null)
             {
                 await myFailureTeardown.Task;
@@ -195,46 +197,26 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private CopilotSdkRuntimeSession RequireRuntimeSession() =>
         myRuntimeSession ?? throw new InvalidOperationException("Copilot session has not been created");
 
-    private async Task RefreshContextUsageAsync()
+    private async Task RefreshContextUsageAsync(CancellationToken cancellationToken)
     {
-        try
+        var runtimeSession = myRuntimeSession;
+        if (runtimeSession is null || myDisposed)
         {
-            var runtimeSession = myRuntimeSession;
-            if (runtimeSession is null || myDisposed)
-            {
-                return;
-            }
-            var usage = await runtimeSession.GetContextUsageAsync();
-            if (usage is { } contextUsage && contextUsage.LimitTokens > 0 && !myDisposed)
-            {
-                Publish(new AgentContextUsageEvent(DateTimeOffset.UtcNow, contextUsage.UsedTokens, contextUsage.LimitTokens));
-            }
+            return;
         }
-        catch
+        var usage = await runtimeSession.GetContextUsageAsync(cancellationToken);
+        if (usage is { } contextUsage && contextUsage.LimitTokens > 0 && !myDisposed)
         {
-        }
-        finally
-        {
-            Volatile.Write(ref myContextRefreshInFlight, 0);
+            Publish(new AgentContextUsageEvent(DateTimeOffset.UtcNow, contextUsage.UsedTokens, contextUsage.LimitTokens));
         }
     }
 
-    private async Task RefreshUsageAsync()
+    private async Task RefreshUsageAsync(CancellationToken cancellationToken)
     {
-        try
+        var runtimeSession = myRuntimeSession;
+        if (runtimeSession is not null && !myDisposed)
         {
-            var runtimeSession = myRuntimeSession;
-            if (runtimeSession is not null && !myDisposed)
-            {
-                Publish(new AgentSessionUsageEvent(DateTimeOffset.UtcNow, await runtimeSession.GetAicUsageAsync()));
-            }
-        }
-        catch
-        {
-        }
-        finally
-        {
-            Volatile.Write(ref myUsageRefreshInFlight, 0);
+            Publish(new AgentSessionUsageEvent(DateTimeOffset.UtcNow, await runtimeSession.GetAicUsageAsync(cancellationToken)));
         }
     }
 

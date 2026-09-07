@@ -44,6 +44,7 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
             OnEvent = sessionEvent =>
             {
                 RawSdkEventTrace.Record(sessionEvent);
+                agentSession.NotifyUsageActivity(isIdle: sessionEvent is SessionIdleEvent);
                 if (!toolEvents.TryPublish(sessionEvent))
                 {
                     PublishEvent(sessionEvent, agentSession);
@@ -179,8 +180,6 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
                 break;
             case SessionIdleEvent:
                 agentSession.Publish(new AgentIdleEvent(occurredAt));
-                agentSession.RefreshContextUsage();
-                agentSession.RefreshUsage();
                 break;
             case SessionErrorEvent { Data.Message: { } message }:
                 agentSession.Publish(new AgentErrorEvent(occurredAt, message));
