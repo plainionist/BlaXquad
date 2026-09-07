@@ -1,16 +1,44 @@
 <Project>
   <PropertyGroup>
-    <_CopilotSdkOutputRoot>$(MSBuildThisFileDirectory)bin\$(Configuration)</_CopilotSdkOutputRoot>
-    <_CopilotSdkRuntimeDirectory>$(_CopilotSdkOutputRoot)\$(TargetFramework)\$(RuntimeIdentifier)\runtimes\$(RuntimeIdentifier)\native</_CopilotSdkRuntimeDirectory>
+    <!-- Set -p:IncludeCopilotSdkProvider=false on publish to omit the default provider entirely (used to
+         prove squad-hq can package and run without ever loading squad.CopilotSdk). -->
+    <IncludeCopilotSdkProvider Condition="'$(IncludeCopilotSdkProvider)' == ''">true</IncludeCopilotSdkProvider>
+    <_CopilotSdkPublishOutputDirectory>$(MSBuildThisFileDirectory)bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\publish\</_CopilotSdkPublishOutputDirectory>
+    <_CopilotSdkRuntimeDirectory>$(_CopilotSdkPublishOutputDirectory)runtimes\$(RuntimeIdentifier)\native</_CopilotSdkRuntimeDirectory>
   </PropertyGroup>
 
-  <Target Name="IncludeCopilotSdkRuntime" AfterTargets="Publish">
+  <!-- Publishes the default Copilot provider as a standalone, framework-dependent artifact so its managed
+       dependencies and native runtime assets can be copied into a referencing publish output as packaging
+       inputs only, without squad-hq ever compiling against squad.CopilotSdk. -->
+  <Target Name="PublishCopilotSdkProviderForPackaging"
+          BeforeTargets="Publish"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(IncludeCopilotSdkProvider)' == 'true'">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)squad.CopilotSdk.csproj"
+             Targets="Restore;Publish"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);TargetFramework=$(TargetFramework);SelfContained=false;PublishDir=$(_CopilotSdkPublishOutputDirectory)" />
+  </Target>
+
+  <Target Name="IncludeCopilotSdkProvider"
+          AfterTargets="Publish"
+          Condition="'$(IncludeCopilotSdkProvider)' == 'true'">
     <ItemGroup>
+      <!-- squad.AgentProvider.Abstractions is excluded: the host already publishes it, and the provider
+           loader relies on that single shared copy so IAgentProviderFactory/IAgentBackend unify across
+           the host and the provider's own assembly load context. -->
+      <CopilotSdkProviderFile Include="$(_CopilotSdkPublishOutputDirectory)*.dll"
+                              Exclude="$(_CopilotSdkPublishOutputDirectory)squad.AgentProvider.Abstractions.dll" />
+      <CopilotSdkProviderFile Include="$(_CopilotSdkPublishOutputDirectory)squad.CopilotSdk.deps.json" />
       <CopilotSdkRuntimeFile Include="$(_CopilotSdkRuntimeDirectory)\*" />
     </ItemGroup>
+    <Error Condition="'@(CopilotSdkProviderFile)' == ''"
+           Text="Copilot SDK provider assembly was not found at $(_CopilotSdkPublishOutputDirectory)." />
     <Error Condition="'@(CopilotSdkRuntimeFile)' == ''"
            Text="Copilot SDK runtime assets were not found at $(_CopilotSdkRuntimeDirectory)." />
+    <Copy SourceFiles="@(CopilotSdkProviderFile)"
+          DestinationFiles="@(CopilotSdkProviderFile->'$(PublishDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(CopilotSdkRuntimeFile)"
           DestinationFiles="@(CopilotSdkRuntimeFile->'$(PublishDir)runtimes\$(RuntimeIdentifier)\native\%(Filename)%(Extension)')" />
   </Target>
 </Project>
+

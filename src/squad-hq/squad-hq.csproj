@@ -19,8 +19,6 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
-    <ProjectReference Include="..\squad.CopilotSdk\squad.CopilotSdk.csproj"
-              AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Photino\squad.Photino.csproj"
               AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Application\squad.Application.csproj"
@@ -36,13 +34,5 @@
     <ProjectReference Include="..\squad.Host.Runtime\squad.Host.Runtime.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
   </ItemGroup>
-
-  <Target Name="BuildCopilotSdkRuntimeForPublish"
-          BeforeTargets="Publish"
-          Condition="'$(RuntimeIdentifier)' != ''">
-    <MSBuild Projects="..\squad.CopilotSdk\squad.CopilotSdk.csproj"
-             Targets="Build"
-             BuildInParallel="false"
-             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);TargetFramework=$(TargetFramework)" />
-  </Target>
 </Project>
+

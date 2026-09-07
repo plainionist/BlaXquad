@@ -6,7 +6,6 @@ using squad.Handoffs.Delivery;
 using squad.Application;
 using squad.Photino;
 using squad.Ui.Abstractions;
-using squad.CopilotSdk;
 using squad.Workspaces;
 using squad.Host.Control;
 using squad.Host.Runtime;
@@ -15,18 +14,23 @@ namespace squadHQ.Commands;
 
 static class Launch
 {
+    private const string DefaultProviderAssemblyName = "squad.CopilotSdk.dll";
+    private const string DefaultProviderTypeName = "squad.CopilotSdk.CopilotSdkAgentProviderFactory";
+
     public static int Run(string[] args)
     {
         const string Red = "\u001b[0;31m";
         const string Reset = "\u001b[0m";
 
-        switch (args.ElementAtOrDefault(0))
+        var (providerDescriptor, remaining) = ProviderOption.Extract(args);
+
+        switch (remaining.ElementAtOrDefault(0))
         {
             case "--continue":
-                RunMain(args.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true);
+                RunMain(remaining.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true, providerDescriptor);
                 return 0;
             default:
-                RunMain(args.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false);
+                RunMain(remaining.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false, providerDescriptor);
                 return 0;
         }
 
@@ -96,8 +100,9 @@ static class Launch
                 environment);
         }
 
-        void RunMain(string root, bool continueLaunch)
+        void RunMain(string root, bool continueLaunch, ProviderDescriptor? providerDescriptor)
         {
+            var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var context = BuildContext(root);
             context.ContinueLaunch = continueLaunch;
             IHostLease? hostLease = HostLease.Acquire(context.WorkingDir);
@@ -120,7 +125,7 @@ static class Launch
             {
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var runtime = Create(context.WorkingDir, viewModel);
+                var runtime = Create(context.WorkingDir, viewModel, agentProviderFactory);
                 var startupPlan = SquadStartupPlanFactory.ForWorkspace(
                     context,
                     preparer,
@@ -170,11 +175,16 @@ static class Launch
         }
     }
 
-    private static RuntimeMode Create(string workingDirectory, ISquadUi ui) =>
+    private static RuntimeMode Create(string workingDirectory, ISquadUi ui, IAgentProviderFactory agentProviderFactory) =>
         new(
-            new CopilotSdkAgentProviderFactory(),
+            agentProviderFactory,
             new PhotinoWindowHost(ui, workingDirectory),
             new SleepInhibitor());
+
+    // Built from data strings only (no squad.CopilotSdk source or assembly reference) so squad-hq stays
+    // free of a compile-time dependency on the default provider while still launching with it by default.
+    private static ProviderDescriptor DefaultProviderDescriptor() =>
+        new(Path.Combine(AppContext.BaseDirectory, DefaultProviderAssemblyName), DefaultProviderTypeName);
 
 
     private static string InitialInstruction(string role) =>

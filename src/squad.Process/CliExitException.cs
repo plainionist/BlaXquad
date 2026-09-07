@@ -9,4 +9,9 @@ public sealed class CliExitException : Exception
     {
         ExitCode = exitCode;
     }
+
+    public CliExitException(int exitCode, string? message, Exception? innerException) : base(message, innerException)
+    {
+        ExitCode = exitCode;
+    }
 }
