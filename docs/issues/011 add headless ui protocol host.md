@@ -99,7 +99,7 @@ complete prompt/reply vertical proof.
 
 ### Slice 3: Converge every termination path
 
-**Status: not started**
+**Status: in progress - hand off to coder**
 
 1. Give the adapter one idempotent lifecycle. EOF completes its close signal; host-control shutdown and process
    cancellation stop the input pump; `StopAsync` and `DisposeAsync` detach event sources and dispose the protocol
