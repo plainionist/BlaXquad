@@ -120,7 +120,7 @@ static class Launch
             {
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var runtime = Create(() => BuildBackendContext(context), viewModel);
+                var runtime = Create(context.WorkingDir, viewModel);
                 var startupPlan = SquadStartupPlanFactory.ForWorkspace(
                     context,
                     preparer,
@@ -135,12 +135,12 @@ static class Launch
                         await preparer.EnsureRuntimeGitExcludesAsync(context, cancellationToken);
                         cancellationToken.ThrowIfCancellationRequested();
                         PrepareContext(context);
-                        await runtime.PrepareAsync(cancellationToken);
+                        return BuildBackendContext(context);
                     });
 
                 application = SquadApplication.Create(
                     startupPlan,
-                    runtime.AgentBackend,
+                    runtime.AgentProviderFactory,
                     handoffPumpFactory: notifier => new InProcessHandoffPoller(
                         () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
                         notifier,
@@ -170,16 +170,11 @@ static class Launch
         }
     }
 
-    private static RuntimeMode Create(Func<AgentBackendContext> context, ISquadUi ui)
-    {
-        var factory = new CopilotSdkRuntimeModeFactory();
-        var backend = factory.CreateBackend(context);
-        return new RuntimeMode(
-            backend,
-            new PhotinoWindowHost(ui, context().WorkingDirectory),
-            new SleepInhibitor(),
-            cancellationToken => factory.PrepareAsync(context, cancellationToken));
-    }
+    private static RuntimeMode Create(string workingDirectory, ISquadUi ui) =>
+        new(
+            new CopilotSdkAgentProviderFactory(),
+            new PhotinoWindowHost(ui, workingDirectory),
+            new SleepInhibitor());
 
 
     private static string InitialInstruction(string role) =>

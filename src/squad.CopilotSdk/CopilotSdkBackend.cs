@@ -8,10 +8,10 @@ namespace squad.CopilotSdk;
 /// </summary>
 public sealed class CopilotSdkBackend : IAgentBackend, IAgentBackendFailureSource
 {
-    private readonly Func<AgentBackendContext> myContext;
+    private readonly AgentBackendContext myContext;
     private readonly TaskCompletionSource myFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public CopilotSdkBackend(Func<AgentBackendContext> context)
+    public CopilotSdkBackend(AgentBackendContext context)
     {
         myContext = context;
     }
@@ -20,9 +20,8 @@ public sealed class CopilotSdkBackend : IAgentBackend, IAgentBackendFailureSourc
 
     public async Task<IAgentRuntime> CreateRuntimeAsync(CancellationToken cancellationToken = default)
     {
-        var context = myContext();
-        var client = await CopilotSdkClient.StartAsync(context.WorkingDirectory, context.Environment, cancellationToken);
-        return new CopilotSdkAgentRuntime(client, context, ReportFatalFailure);
+        var client = await CopilotSdkClient.StartAsync(myContext.WorkingDirectory, myContext.Environment, cancellationToken);
+        return new CopilotSdkAgentRuntime(client, myContext, ReportFatalFailure);
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

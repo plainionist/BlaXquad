@@ -3,11 +3,10 @@ using squad.Hosting.Abstractions;
 
 namespace squadHQ.Commands;
 
-/// <summary>Bundles the provider and platform resources selected by headquarters for one launch.</summary>
+/// <summary>Bundles the selected provider factory and platform resources selected by headquarters for one launch.</summary>
 internal sealed record RuntimeMode(
-    IAgentBackend AgentBackend,
+    IAgentProviderFactory AgentProviderFactory,
     IWindowHost WindowHost,
-    ISleepInhibitor SleepInhibitor,
-    Func<CancellationToken, Task> PrepareAsync);
+    ISleepInhibitor SleepInhibitor);
 
 

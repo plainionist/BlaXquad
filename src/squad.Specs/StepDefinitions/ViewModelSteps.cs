@@ -222,7 +222,7 @@ public sealed class ViewModelSteps
         myRecordingSleep = new RecordingSleepInhibitor();
         myApplication = SquadApplication.Create(
             SquadStartupPlanFactory.ForWorkspace(ctx, new WorkspacePreparer(_ => { })),
-            myBackend,
+            new RecordingAgentProviderFactory(myBackend),
             handoffPumpFactory: _ => myRecordingPump,
             myRecordingWindow,
             myRecordingSleep,
@@ -323,9 +323,9 @@ public sealed class ViewModelSteps
                     myLifecycleTrace.Record("roles.populated");
                     myLifecycleTrace.Record("backend.prepared");
                     myLifecycleTrace.Record("postLockPreparation.completed");
-                    return Task.CompletedTask;
+                    return Task.FromResult(BuildAgentBackendContext(context));
                 }),
-            myBackend,
+            new RecordingAgentProviderFactory(myBackend),
             myRecordingPump!,
             myRecordingWindow,
             myRecordingSleep!,
@@ -338,7 +338,7 @@ public sealed class ViewModelSteps
     {
         GivenASquadApplicationWithRecordingRoles("coder");
         myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), myBackend, myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
+        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), new RecordingAgentProviderFactory(myBackend), myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
     }
 
     [When("the leased SquadApplication starts")]
@@ -391,8 +391,9 @@ public sealed class ViewModelSteps
                         myPreparationCanceled.TrySetResult();
                         throw;
                     }
+                    return BuildAgentBackendContext(myApplicationContext!);
                 }),
-            myBackend,
+            new RecordingAgentProviderFactory(myBackend),
             myRecordingPump!,
             myRecordingWindow!,
             myRecordingSleep!,
@@ -446,7 +447,7 @@ public sealed class ViewModelSteps
                 myApplicationContext!,
                 new WorkspacePreparer(_ => { }),
                 prepareContextAsync: _ => throw new CliExitException(1, "recording CLI startup failure")),
-            myBackend,
+            new RecordingAgentProviderFactory(myBackend),
             myRecordingPump!,
             myRecordingWindow!,
             myRecordingSleep!,
@@ -501,7 +502,7 @@ public sealed class ViewModelSteps
         var viewModel = myApplication!.ViewModel;
         myApplication = new SquadApplication(
             SquadStartupPlanFactory.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
-            myBackend,
+            new RecordingAgentProviderFactory(myBackend),
             myRecordingPump!,
             myRecordingWindow!,
             myRecordingSleep!,
@@ -2382,7 +2383,7 @@ public sealed class ViewModelSteps
     private void AttachHostLease()
     {
         myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), myBackend, myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
+        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), new RecordingAgentProviderFactory(myBackend), myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
     }
 
     private void ConfigureControllableApplication(bool blockStartup = false, bool useRealLease = false, bool faultServer = false)
@@ -2404,7 +2405,7 @@ public sealed class ViewModelSteps
         }
         myApplication = new SquadApplication(
             SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })),
-            myBackend,
+            new RecordingAgentProviderFactory(myBackend),
             myRecordingPump,
             myRecordingWindow!,
             myRecordingSleep,
@@ -2437,7 +2438,7 @@ public sealed class ViewModelSteps
 
         myApplication = SquadApplication.Create(
             SquadStartupPlanFactory.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
-            myBackend,
+            new RecordingAgentProviderFactory(myBackend),
             handoffPumpFactory: notifier => myInProcessHandoffPump = new InProcessHandoffPoller(
                 roles,
                 notifier,
