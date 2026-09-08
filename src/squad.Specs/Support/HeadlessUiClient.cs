@@ -94,13 +94,14 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
-    /// <summary>Waits until a "state.snapshot" message no longer publishes the given pending permission request
-    /// for the given role - proving a terminal role failure genuinely removed it, rather than a snapshot merely
-    /// taken before its removal.</summary>
+    /// <summary>Waits until the most recently published "state.snapshot" message no longer publishes the given
+    /// pending permission request for the given role - proving a terminal role failure genuinely removed it,
+    /// rather than merely matching an earlier snapshot recorded before the request ever existed (for example the
+    /// initial "ui.ready" handshake snapshot).</summary>
     public Task WaitForNoPendingPermissionAsync(
         string role, string requestId, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
-        WaitForMessageAsync(
-            element => IsStateSnapshot(element) && !HasPendingPermissionWithId(element, role, requestId),
+        WaitForLatestStateSnapshotAsync(
+            element => !HasPendingPermissionWithId(element, role, requestId),
             $"role '{role}' to no longer publish a pending permission '{requestId}'",
             timeout,
             additionalDiagnostics);
@@ -202,6 +203,38 @@ public sealed class HeadlessUiClient
                     }
                     return document.RootElement.Clone();
                 }
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new HeadlessUiWaitTimeoutException(description, DescribeDiagnostics(stdOut, additionalDiagnostics));
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
+    /// <summary>Waits until the most recently published "state.snapshot" message (not just any snapshot ever
+    /// observed) satisfies the given predicate - the correct proof for state that must have been removed or
+    /// changed, where an earlier snapshot recorded before the change could otherwise satisfy a naive first-match
+    /// search.</summary>
+    private async Task<JsonElement> WaitForLatestStateSnapshotAsync(
+        Func<JsonElement, bool> predicate, string description, TimeSpan? timeout, Func<string>? additionalDiagnostics)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            var stdOut = CopyLines(myStdOutLines);
+            JsonElement? latestSnapshot = null;
+            foreach (var line in stdOut)
+            {
+                using var document = JsonDocument.Parse(line);
+                if (IsStateSnapshot(document.RootElement))
+                {
+                    latestSnapshot = document.RootElement.Clone();
+                }
+            }
+            if (latestSnapshot is { } snapshot && predicate(snapshot))
+            {
+                return snapshot;
             }
             if (DateTime.UtcNow >= deadline)
             {
