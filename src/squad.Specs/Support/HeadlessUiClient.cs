@@ -1,0 +1,176 @@
+using System.Text.Json;
+
+namespace squad.Specs.Support;
+
+/// <summary>
+/// Semantic client for one launched "squad-hq --ui stdio" process. It owns the process's standard input, drains
+/// standard output and standard error concurrently with two independent background readers so a full stderr pipe
+/// can never block a pending stdout read (or vice versa), and privately frames the newline-delimited, versioned UI
+/// protocol envelopes. Step definitions see only readiness, prompt sending, role-status waiting, transcript
+/// waiting, and protocol-error reporting - never raw JSON, envelopes, streams, or the child process itself.
+/// </summary>
+public sealed class HeadlessUiClient
+{
+    private const int ProtocolVersion = 3;
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
+
+    private readonly System.Diagnostics.Process myProcess;
+    private readonly object myLinesLock = new();
+    private readonly List<string> myStdOutLines = [];
+    private readonly List<string> myStdErrLines = [];
+
+    public HeadlessUiClient(System.Diagnostics.Process process)
+    {
+        myProcess = process;
+        Drain(process.StandardOutput, myStdOutLines);
+        Drain(process.StandardError, myStdErrLines);
+    }
+
+    /// <summary>
+    /// Sends "ui.ready" and waits for the real handshake response - the initial "state.snapshot" message - proving
+    /// the process completed startup and began publishing protocol state.
+    /// </summary>
+    public Task CompleteReadyHandshakeAsync(TimeSpan? timeout = null)
+    {
+        SendEnvelope("ui.ready");
+        return WaitForMessageAsync(IsStateSnapshot, "the ui.ready handshake to produce a state.snapshot message", timeout);
+    }
+
+    /// <summary>Sends a prompt for the given role through the real "prompt.send" command.</summary>
+    public void SendPrompt(string role, string prompt) => SendEnvelope("prompt.send", role, new { prompt });
+
+    /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
+    public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element) && RoleHasStatus(element, role, status),
+            $"role '{role}' to report status '{status}'",
+            timeout);
+
+    /// <summary>Waits until a "transcript.update" message reports the given content for the given role.</summary>
+    public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null) =>
+        WaitForMessageAsync(
+            element => IsTranscriptUpdate(element, role, content),
+            $"a transcript update for role '{role}' with content '{content}'",
+            timeout);
+
+    /// <summary>Waits for a "protocol.error" message and returns its human-readable message.</summary>
+    public async Task<string> WaitForProtocolErrorAsync(TimeSpan? timeout = null)
+    {
+        var element = await WaitForMessageAsync(IsProtocolError, "a protocol.error message", timeout);
+        return GetPayload(element).TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
+            ? message.GetString()!
+            : throw new InvalidOperationException("The protocol.error message did not include a message.");
+    }
+
+    private void SendEnvelope(string type, string? role = null, object? payload = null)
+    {
+        var envelope = new Dictionary<string, object?> { ["version"] = ProtocolVersion, ["type"] = type };
+        if (role is not null)
+        {
+            envelope["role"] = role;
+        }
+        if (payload is not null)
+        {
+            envelope["payload"] = payload;
+        }
+        myProcess.StandardInput.WriteLine(JsonSerializer.Serialize(envelope));
+        myProcess.StandardInput.Flush();
+    }
+
+    private void Drain(StreamReader reader, List<string> destination) =>
+        Task.Run(async () =>
+        {
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                lock (myLinesLock)
+                {
+                    destination.Add(line);
+                }
+            }
+        });
+
+    private async Task<JsonElement> WaitForMessageAsync(Func<JsonElement, bool> predicate, string description, TimeSpan? timeout)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            var stdOut = CopyLines(myStdOutLines);
+            foreach (var line in stdOut)
+            {
+                using var document = JsonDocument.Parse(line);
+                if (predicate(document.RootElement))
+                {
+                    return document.RootElement.Clone();
+                }
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new HeadlessUiWaitTimeoutException(description, stdOut, CopyLines(myStdErrLines), SummarizeUiState(stdOut));
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
+    private List<string> CopyLines(List<string> lines)
+    {
+        lock (myLinesLock)
+        {
+            return [.. lines];
+        }
+    }
+
+    private static string SummarizeUiState(IReadOnlyList<string> stdOutLines)
+    {
+        string? lastSnapshot = null;
+        foreach (var line in stdOutLines)
+        {
+            using var document = JsonDocument.Parse(line);
+            if (IsStateSnapshot(document.RootElement))
+            {
+                lastSnapshot = line;
+            }
+        }
+        return lastSnapshot ?? "(no state.snapshot message observed)";
+    }
+
+    private static bool IsStateSnapshot(JsonElement element) => IsType(element, "state.snapshot");
+
+    private static bool IsProtocolError(JsonElement element) => IsType(element, "protocol.error");
+
+    private static bool IsTranscriptUpdate(JsonElement element, string role, string content)
+    {
+        if (!IsType(element, "transcript.update"))
+        {
+            return false;
+        }
+        var payload = GetPayload(element);
+        return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role
+            && payload.TryGetProperty("entry", out var entry)
+            && entry.ValueKind == JsonValueKind.Object
+            && entry.TryGetProperty("content", out var contentElement)
+            && contentElement.GetString() == content;
+    }
+
+    private static bool RoleHasStatus(JsonElement element, string role, string status)
+    {
+        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role
+                && roleElement.TryGetProperty("status", out var statusElement) && statusElement.GetString() == status)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsType(JsonElement element, string type) =>
+        element.TryGetProperty("type", out var typeElement) && typeElement.GetString() == type;
+
+    private static JsonElement GetPayload(JsonElement element) => element.GetProperty("payload");
+}
