@@ -7,10 +7,6 @@ priority: 17
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependency
-
-- `012 establish process specification driver.md`
-
 ## Goal
 
 Rewrite the prompt, abort, readiness, role-isolation, and pending-interaction scenarios from `ViewModel.feature` as

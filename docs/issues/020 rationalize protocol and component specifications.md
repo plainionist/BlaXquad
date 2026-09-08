@@ -7,12 +7,6 @@ priority: 20
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependencies
-
-- `017 migrate role interaction specifications.md`
-- `018 migrate transcript specifications.md`
-- `019 migrate headquarters lifecycle specifications.md`
-
 ## Goal
 
 Review the remaining direct component specifications and either express their valuable contract through the real

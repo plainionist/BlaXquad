@@ -7,11 +7,6 @@ priority: 19
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependencies
-
-- `015 migrate host ownership specifications.md`
-- `017 migrate role interaction specifications.md`
-
 ## Goal
 
 Rewrite startup, shutdown, cancellation, provider failure, resource cleanup, generation isolation, and command-draining

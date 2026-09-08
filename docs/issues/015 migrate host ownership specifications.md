@@ -7,10 +7,6 @@ priority: 15
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependency
-
-- `012 establish process specification driver.md`
-
 ## Goal
 
 Rewrite `HostOwnership.feature` around the behavior of the actual `squad-hq` processes and commands rather than

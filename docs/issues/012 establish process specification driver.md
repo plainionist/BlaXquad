@@ -7,11 +7,6 @@ priority: 12
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependencies
-
-- `010 make agent provider selectable.md`
-- `011 add headless ui protocol host.md`
-
 ## Architecture
 
 Keep the process specification boundary entirely inside `squad.Specs`. The reusable test API has four owners:

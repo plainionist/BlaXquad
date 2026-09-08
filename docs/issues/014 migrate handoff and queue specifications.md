@@ -7,10 +7,6 @@ priority: 14
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependency
-
-- `013 migrate context and setup specifications.md`
-
 ## Goal
 
 Refactor the existing agent-command use cases to invoke the real `squad` executable and observe durable mailbox

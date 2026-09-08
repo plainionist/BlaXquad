@@ -7,10 +7,6 @@ priority: 13
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependency
-
-- `012 establish process specification driver.md`
-
 ## Goal
 
 Make project setup and context scenarios the first existing specifications to use the process driver.

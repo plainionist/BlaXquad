@@ -7,10 +7,6 @@ priority: 18
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependency
-
-- `017 migrate role interaction specifications.md`
-
 ## Goal
 
 Rewrite transcript, tool activity, usage, retention, paging, and archived-entry scenarios to publish provider events

@@ -7,17 +7,6 @@ priority: 21
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependencies
-
-- `013 migrate context and setup specifications.md`
-- `014 migrate handoff and queue specifications.md`
-- `015 migrate host ownership specifications.md`
-- `016 migrate delivery and recovery specifications.md`
-- `017 migrate role interaction specifications.md`
-- `018 migrate transcript specifications.md`
-- `019 migrate headquarters lifecycle specifications.md`
-- `020 rationalize protocol and component specifications.md`
-
 ## Goal
 
 Delete the obsolete white-box step definitions, fixtures, fakes, helpers, and project references after all supported

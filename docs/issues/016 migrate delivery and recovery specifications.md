@@ -7,11 +7,6 @@ priority: 16
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependencies
-
-- `014 migrate handoff and queue specifications.md`
-- `015 migrate host ownership specifications.md`
-
 ## Goal
 
 Rewrite handoff delivery and recovery scenarios as complete user flows through real `squad` and `squad-hq` processes,

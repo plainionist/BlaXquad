@@ -7,10 +7,6 @@ priority: 22
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
-## Dependency
-
-- `021 remove legacy white box test harness.md`
-
 ## Goal
 
 Remove production API, indirection, nullability, callbacks, overloads, and state exposure that no longer has a
