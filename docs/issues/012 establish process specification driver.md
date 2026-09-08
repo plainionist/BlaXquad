@@ -48,6 +48,8 @@ Add a dedicated `squad.Specs` publication target that publishes the real `squad-
 
 ### Slice 2: Add exact published-tool and temporary-workspace support
 
+**Status: changes requested (12154f4f1b)**
+
 Add test-owned support that creates a uniquely rooted configured Git project, locates role worktrees, and runs the
 exact published `squad` and provider-free `squad-hq` executables. Capture command line, exit code, stdout, stderr, and
 process lifetime. Do not resolve tools from `PATH`, run binaries from the checkout, or inspect ambient headquarters
@@ -59,6 +61,22 @@ processes.
   the exact backend-spec publication.
 - Command failures report the executable, arguments, working directory, exit code, stdout, and stderr.
 - All created paths and processes are scenario-owned and safe for parallel scenarios.
+
+#### Review findings on 12154f4f1b
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Specs/Features/BackendSpecWorkspace.feature` (both scenarios),
+  `src/squad.Specs/StepDefinitions/BackendSpecWorkspaceSteps.cs`
+  (`ThenTheBackendSpecCommandSucceeds`, `ThenTheFailedCommandReportsFullDiagnostics`).
+- **Violated behavior:** Slice 2 must prove a focused specification invokes the exact backend-spec publication.
+  Tools must not be resolved from `PATH`, a checkout binary, or the production `squad-tools` publication.
+- **Root cause:** The success scenario only asserts exit code 0. `squad-hq shutdown` returns 0 when no host exists, so
+  the production `squad-tools` `squad-hq` would also pass. The failure scenario only asserts
+  `Path.GetFileName(result.Executable)` is `squad-hq.exe`/`squad-hq`, which is also true for PATH, checkout, and
+  `squad-tools` binaries.
+- **Required outcome:** The specification must fail if the invoked executable is not the `squad-tools-backend-spec`
+  publication's `squad-hq`. Assert that full path, not merely the filename.
 
 ### Slice 3: Add the semantic headless UI client
 
