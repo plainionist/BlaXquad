@@ -35,7 +35,7 @@ contract.
 
 ### Slice 1: Migrate ownership and shutdown lifecycle
 
-**Status: changes requested (a24df127c4)**
+**Status: complete (63da8c3ab7)**
 
 1. Extend the test-owned process facade only with the semantic operations needed to start, address, stop, and
    deliberately terminate an exact `squad-hq` child process. Keep executable paths, process handles, provider
@@ -60,24 +60,6 @@ Slice acceptance:
 - A replacement host starts and remains controllable after the prior host is terminated without normal shutdown.
 - The migrated steps do not inspect `.blaxquad/host.json`, acquire `HostLease`/cleanup leases, or send raw named-pipe
   requests.
-
-#### Review findings on a24df127c4
-
-**Finding 1 — high**
-
-- **Location:** `src/squad.Specs/Support/ScenarioWorkspace.cs` (`StartSquadHqHostAsync`),
-  `src/squad.Specs/StepDefinitions/HostOwnershipSteps.cs` (`GivenASquadHostIsRunning` and the migrated
-  launch/shutdown/terminate steps), `src/squad.Specs/Support/HeadlessUiClient.cs` (`Terminate`, `WaitForExit`).
-- **Violated behavior:** Slice 1 must start a real provider-free headquarters process and extend the test-owned
-  process facade with start, address, stop, and deliberate terminate of that exact `squad-hq` child process.
-  `BackendScenario` is the single composition root that already launches the published provider-free `squad-hq`,
-  completes the UI handshake, and stops through `squad-hq shutdown`.
-- **Root cause:** `StartSquadHqHostAsync` wraps `StartHeadlessUiClient`, which uses `StartTool` and therefore the
-  production-like `squad-tools` publication rather than `BackendSpecSquadHqExecutablePath`. Ownership and shutdown
-  scenarios bypass `BackendScenario` and add a parallel process-lifecycle API on the UI client.
-- **Required outcome:** Start, address, stop, and abruptly terminate the provider-free publication through
-  `BackendScenario` (extend that facade with terminate if needed). Do not launch `squad-tools` as the first host,
-  and do not add a second host-start path on `ScenarioWorkspace`.
 
 ### Slice 2: Migrate readiness and timeout diagnostics
 
