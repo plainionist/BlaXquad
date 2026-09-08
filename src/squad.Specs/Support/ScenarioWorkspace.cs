@@ -40,8 +40,58 @@ public sealed class ScenarioWorkspace : IDisposable
         IReadOnlyDictionary<string, string?>? environment = null,
         string? workingDirectory = null)
     {
-        var executable = ResolveTool(toolName);
+        var executable = ResolveTool(toolName, "squad-tools");
         return Run(executable, arguments ?? [], environment, workingDirectory);
+    }
+
+    /// <summary>
+    /// Runs the exact published, provider-free squad-hq used by backend specifications (published
+    /// with IncludeCopilotSdkProvider=false into its own test-output directory), never the
+    /// production-like squad-tools publication, PATH, or a checkout binary.
+    /// </summary>
+    public CommandResult RunBackendSpecSquadHq(
+        IReadOnlyList<string>? arguments = null,
+        IReadOnlyDictionary<string, string?>? environment = null,
+        string? workingDirectory = null)
+    {
+        var executable = ResolveTool("squad-hq", "squad-tools-backend-spec");
+        return Run(executable, arguments ?? [], environment, workingDirectory);
+    }
+
+    /// <summary>
+    /// Creates a uniquely rooted, configured Git project with one linked worktree per role and
+    /// returns each role's worktree path, so specifications do not duplicate project bootstrap.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureProject(params string[] roles)
+    {
+        if (roles.Length == 0)
+        {
+            throw new ArgumentException("At least one role is required.", nameof(roles));
+        }
+
+        InitializeGitRepository();
+        WriteFile("blaxquad/constitution.prompt", "Follow the project constitution.\n");
+
+        var worktreePaths = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var role in roles)
+        {
+            WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
+            var worktreePath = PathInWorkspace(".worktrees", role);
+            AssertSuccessful(RunGit("worktree", "add", "--quiet", "-b", $"squad-{role}", worktreePath));
+            worktreePaths[role] = worktreePath;
+        }
+
+        var rolesJson = string.Join(",\n", roles.Select(role =>
+            $$"""    { "name": "{{role}}", "worktree": "{{role}}", "agent": {} }"""));
+        WriteFile("blaxquad/squad.json", $$"""
+            {
+              "roles": [
+            {{rolesJson}}
+              ]
+            }
+            """ + "\n");
+
+        return worktreePaths;
     }
 
     public System.Diagnostics.Process StartTool(
@@ -51,7 +101,7 @@ public sealed class ScenarioWorkspace : IDisposable
         string? workingDirectory = null,
         bool redirectStandardInput = false)
     {
-        return StartProcess(ResolveTool(toolName), arguments, environment, workingDirectory, redirectStandardInput);
+        return StartProcess(ResolveTool(toolName, "squad-tools"), arguments, environment, workingDirectory, redirectStandardInput);
     }
 
     public System.Diagnostics.Process StartProcess(
@@ -124,6 +174,9 @@ public sealed class ScenarioWorkspace : IDisposable
         process.WaitForExit();
 
         LastResult = new CommandResult(
+            executable,
+            arguments,
+            startInfo.WorkingDirectory,
             process.ExitCode,
             Normalize(stdout.GetAwaiter().GetResult()),
             Normalize(stderr.GetAwaiter().GetResult()));
@@ -211,13 +264,18 @@ public sealed class ScenarioWorkspace : IDisposable
         throw new InvalidOperationException("Could not locate the repository root.");
     }
 
-    private static string ResolveTool(string toolName)
+    /// <summary>
+    /// Resolves an exact executable from a specific test-output publication directory (for
+    /// example the production-like "squad-tools" or the provider-free
+    /// "squad-tools-backend-spec"). Never resolves from PATH or a checkout build output.
+    /// </summary>
+    private static string ResolveTool(string toolName, string publicationDirectoryName)
     {
         if (OperatingSystem.IsWindows())
         {
             toolName += ".exe";
         }
-        return Path.Combine(AppContext.BaseDirectory, "squad-tools", toolName);
+        return Path.Combine(AppContext.BaseDirectory, publicationDirectoryName, toolName);
     }
 
     private static IEnumerable<string> EnumeratePaths(string directory)
@@ -235,13 +293,7 @@ public sealed class ScenarioWorkspace : IDisposable
         }
     }
 
-    private static void AssertSuccessful(CommandResult result)
-    {
-        if (result.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"Command failed:{Environment.NewLine}{result.StdErr}");
-        }
-    }
+    private static void AssertSuccessful(CommandResult result) => result.EnsureSuccess();
 }
 
 
