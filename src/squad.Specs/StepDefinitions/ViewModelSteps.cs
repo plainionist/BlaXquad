@@ -44,9 +44,6 @@ public sealed class ViewModelSteps
     private RunResult? myApplicationRunResult;
     private Exception? myApplicationLifecycleFailure;
     private readonly List<string> mySdkInstructionsSentAfterRegistration = [];
-    private Task? myAbortTask;
-    private Exception? myAbortFailure;
-    private Task? myPendingPrompt;
     private readonly List<TranscriptUpdate> myTranscriptUpdates = [];
     private readonly CopilotToolOutputNormalizer myToolOutputNormalizer = new();
     private readonly Dictionary<string, string> myActiveToolCallIds = new(StringComparer.Ordinal);
@@ -841,35 +838,6 @@ public sealed class ViewModelSteps
         }
     }
 
-    [When("the application recording {string} session requests permission {string}")]
-    public async Task WhenTheApplicationRecordingSessionRequestsPermission(string role, string requestId)
-    {
-        myBackend.Sessions.Single(session => session.Role == role).Emit(
-            new AgentPermissionRequest(
-                DateTimeOffset.UtcNow,
-                requestId,
-                role,
-                "Run command."));
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-        while (!myApplication!.ViewModel.PendingPermissions.Any(request =>
-                   request.Role == role && request.RequestId == requestId) &&
-               DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(10);
-        }
-    }
-
-    [When("the application recording {string} session fails with {string}")]
-    public async Task WhenTheApplicationRecordingSessionFailsWith(string role, string message)
-    {
-        myBackend.Sessions.Single(session => session.Role == role).Fail(message);
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-        while (myApplication!.ViewModel.Roles[role].Error != message && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(10);
-        }
-    }
-
     [When("the recording backend reports terminal failure {string}")]
     public void WhenTheRecordingBackendReportsTerminalFailure(string message) =>
         myBackend.FailBackend(message);
@@ -880,16 +848,6 @@ public sealed class ViewModelSteps
         myRecordingWindow!.Close();
         myBackend.Sessions.Single(session => session.Role == role).Fail("failure during shutdown");
     }
-
-    [When("a late started event is submitted for application role {string}")]
-    public Task WhenALateStartedEventIsSubmittedForApplicationRole(string role) =>
-        myApplication!.ViewModel.EnqueueEventAsync(
-            role,
-            new AgentStartedEvent(DateTimeOffset.UtcNow));
-
-    [When("prompt {string} is sent to application role {string}")]
-    public Task WhenPromptIsSentToApplicationRole(string prompt, string role) =>
-        myApplication!.ViewModel.SendAsync(role, prompt);
 
     [When("the SquadApplication stops")]
     public async Task WhenTheSquadApplicationStops()
@@ -1167,61 +1125,6 @@ public sealed class ViewModelSteps
         var slow = myViewModel.SendAsync(slowRole, "slow");
         var other = myViewModel.SendAsync(otherRole, "fast");
         await Task.WhenAll(slow, other);
-    }
-
-    [When("{string} is aborted")]
-    public async Task WhenRoleIsAborted(string role) => await myViewModel.AbortAsync(role);
-
-    [When("a slow prompt {string} starts for {string}")]
-    public void WhenASlowPromptStarts(string prompt, string role)
-    {
-        var session = myBackend.Sessions.Single(session => session.Role == role);
-        session.SendDelay = TimeSpan.FromSeconds(30);
-        myInFlightApplicationCommand = myViewModel.SendAsync(role, prompt);
-        myWorkspace.WaitUntil(() => session.Sends.Contains(prompt), "slow prompt start");
-    }
-
-    [When("cancellation starts for {string}")]
-    public async Task WhenCancellationStarts(string role)
-    {
-        var session = myBackend.Sessions.Single(session => session.Role == role);
-        session.BlockAbort = true;
-        myAbortTask = myViewModel.AbortAsync(role);
-        await session.AbortEntered.WaitAsync(TimeSpan.FromSeconds(1));
-    }
-
-    [When("prompt {string} is started while cancellation is pending for {string}")]
-    public void WhenPromptIsStartedWhileCancellationIsPending(string prompt, string role) =>
-        myPendingPrompt = myViewModel.SendAsync(role, prompt);
-
-    [Then("the pending prompt has not been sent to {string}")]
-    public void ThenThePendingPromptHasNotBeenSent(string role) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).Sends, Has.None.EqualTo("second"));
-
-    [When("cancellation completes for {string}")]
-    public async Task WhenCancellationCompletes(string role)
-    {
-        myBackend.Sessions.Single(session => session.Role == role).ReleaseAbort();
-        await Task.WhenAll(myAbortTask!, myPendingPrompt!).WaitAsync(TimeSpan.FromSeconds(2));
-    }
-
-    [When("cancellation fails for {string}")]
-    public async Task WhenCancellationFails(string role)
-    {
-        var session = myBackend.Sessions.Single(session => session.Role == role);
-        session.FailAbort = true;
-        try
-        {
-            await myViewModel.AbortAsync(role);
-        }
-        catch (InvalidOperationException exception) when (exception.Message == "recording abort failed")
-        {
-            myAbortFailure = exception;
-        }
-        finally
-        {
-            session.FailAbort = false;
-        }
     }
 
     [Then("ViewModel role {string} has status {string}")]
@@ -1885,23 +1788,6 @@ public sealed class ViewModelSteps
         Assert.That(myApplication!.ViewModel.Roles[role].Status, Is.EqualTo("error"));
     }
 
-    [Then("the application ViewModel has no pending interactions for {string}")]
-    public void ThenTheApplicationViewModelHasNoPendingInteractionsFor(string role)
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(myApplication!.ViewModel.PendingPermissions, Has.None.Property("Role").EqualTo(role));
-            Assert.That(myApplication.ViewModel.PendingInputs, Has.None.Property("Role").EqualTo(role));
-            Assert.That(myApplication.ViewModel.PendingElicitations, Has.None.Property("Role").EqualTo(role));
-        });
-    }
-
-    [Then("the application recording {string} session received prompt {string}")]
-    public void ThenTheApplicationRecordingSessionReceivedPrompt(string role, string prompt) =>
-        Assert.That(
-            myBackend.Sessions.Single(session => session.Role == role).Sends,
-            Does.Contain(prompt));
-
     [Then("the recording application sessions are drained")]
     public void ThenTheRecordingApplicationSessionsAreDrained() => Assert.That(myApplication!.Sessions, Is.Empty);
 
@@ -2014,9 +1900,6 @@ public sealed class ViewModelSteps
     [Then("ViewModel role {string} is ready for a prompt")]
     public void ThenViewModelRoleIsReadyForAPrompt(string role) => Assert.That(myViewModel!.GetRoleReadiness(role), Is.True);
 
-    [Then("ViewModel role {string} is not ready for a prompt")]
-    public void ThenViewModelRoleIsNotReadyForAPrompt(string role) => Assert.That(myViewModel!.GetRoleReadiness(role), Is.False);
-
     [Then("ViewModel role {string} transcript has a {string} entry {string}")]
     public void ThenViewModelRoleTranscriptHasEntry(string role, string source, string content) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Source == source && entry.Content == content), Is.True);
@@ -2061,29 +1944,6 @@ public sealed class ViewModelSteps
 
     [Then("ViewModel role {string} has no active tool")]
     public void ThenViewModelRoleHasNoActiveTool(string role) => Assert.That(myViewModel.Roles[role].ActiveTool, Is.Null);
-
-    [Then("the recording {string} session received prompts {string}")]
-    public void ThenRecordingSessionReceivedPrompts(string role, string prompts) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).Sends, Is.EqualTo(prompts.Split(',')));
-
-    [Then("the recording {string} session received prompt {string}")]
-    public void ThenRecordingSessionReceivedPrompt(string role, string prompt) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).Sends, Has.Some.EqualTo(prompt));
-
-    [Then("the recording {string} session has one abort")]
-    public void ThenRecordingSessionHasOneAbort(string role) => Assert.That(myBackend.Sessions.Single(session => session.Role == role).AbortCount, Is.EqualTo(1));
-
-    [Then("the recording {string} session has no abort")]
-    public void ThenRecordingSessionHasNoAbort(string role) => Assert.That(myBackend.Sessions.Single(session => session.Role == role).AbortCount, Is.Zero);
-
-    [Then("the active prompt was cancelled")]
-    public void ThenTheActivePromptWasCancelled() => Assert.That(myInFlightApplicationCommand, Is.Not.Null.And.Property("IsCanceled").True);
-
-    [Then("cancellation failed")]
-    public void ThenCancellationFailed() => Assert.That(myAbortFailure, Is.Not.Null);
-
-    [Then("the recording {string} session has two aborts")]
-    public void ThenRecordingSessionHasTwoAborts(string role) => Assert.That(myBackend.Sessions.Single(session => session.Role == role).AbortCount, Is.EqualTo(2));
 
     private void Emit(string role, AgentEvent agentEvent)
     {

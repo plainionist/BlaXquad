@@ -15,6 +15,9 @@ namespace squad.Specs.Support;
 /// member (harness messages, aborts, and interaction responses) reports its own generic observation across the
 /// same control transport when one is configured, and <see cref="Emit"/> publishes whichever real production
 /// <c>AgentEvent</c> (or session completion/failure) a "emit" command pushed across the pipe names.
+/// <see cref="AbortAsync"/> defaults to immediate success, but "emit" commands can arm it to remain pending or to
+/// fail on its very next call, giving a scenario deterministic, acknowledged control over an abort's outcome
+/// without any arbitrary sleep.
 /// </summary>
 internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
 {
@@ -24,6 +27,8 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     private TaskCompletionSource<string>? myPendingReply;
     private long myGeneration;
     private bool myRejectNextHarness;
+    private TaskCompletionSource? myPendingAbort;
+    private string? myNextAbortFailureMessage;
 
     public FakeAgentSession(string role, FakeProviderControlClient? control = null)
     {
@@ -100,14 +105,60 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     public void RejectNextHarness() => myRejectNextHarness = true;
 
     /// <summary>Reports, when a control transport is configured, that the host aborted this session's current
-    /// operation.</summary>
+    /// operation. By default the abort completes immediately, matching every scenario that never arms one of the
+    /// controls below. If <see cref="ArmPendingAbort"/> armed this session first, the abort remains pending until
+    /// <see cref="CompletePendingAbort"/> or <see cref="FailPendingAbort"/> resolves it - proving a following
+    /// prompt genuinely waits for an in-flight cancellation instead of racing it. If <see cref="FailNextAbort"/>
+    /// armed this session first, the abort fails immediately instead - proving a failed abort's user-visible
+    /// outcome.</summary>
     public async Task AbortAsync(CancellationToken cancellationToken = default)
     {
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(Role, SessionId, "abort", new { }, cancellationToken);
         }
+
+        var failureMessage = Interlocked.Exchange(ref myNextAbortFailureMessage, null);
+        if (failureMessage is not null)
+        {
+            throw new InvalidOperationException(failureMessage);
+        }
+
+        // Keeps the field set (rather than clearing it up front) so a concurrent "complete pending abort" or
+        // "fail pending abort" control - which resolves through this same field - can still find and resolve the
+        // very instance this call is awaiting, then clears it (only if a newer arming has not since replaced it).
+        var pendingAbort = myPendingAbort;
+        if (pendingAbort is not null)
+        {
+            try
+            {
+                await pendingAbort.Task.WaitAsync(cancellationToken);
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref myPendingAbort, null, pendingAbort);
+            }
+        }
     }
+
+    /// <summary>Test-only control (not a production event): arms this session so its very next
+    /// <see cref="AbortAsync"/> call remains pending until <see cref="CompletePendingAbort"/> or
+    /// <see cref="FailPendingAbort"/> resolves it - the deterministic control a scenario needs to prove abort
+    /// in-flight behavior (a following prompt waiting for it to finish) without an arbitrary sleep.</summary>
+    public void ArmPendingAbort() => myPendingAbort = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>Resolves this session's currently pending abort (armed by <see cref="ArmPendingAbort"/>) as
+    /// successful.</summary>
+    public void CompletePendingAbort() => myPendingAbort?.TrySetResult();
+
+    /// <summary>Resolves this session's currently pending abort (armed by <see cref="ArmPendingAbort"/>) as
+    /// failed with the given message.</summary>
+    public void FailPendingAbort(string message) => myPendingAbort?.TrySetException(new InvalidOperationException(message));
+
+    /// <summary>Test-only control (not a production event): arms this session so its very next
+    /// <see cref="AbortAsync"/> call fails immediately with the given message instead of succeeding - proving a
+    /// failed abort's user-visible outcome without any pending, held-open state.</summary>
+    public void FailNextAbort(string message) => myNextAbortFailureMessage = message;
 
     /// <summary>Reports, when a control transport is configured, the host's response to a permission request this
     /// session previously emitted through <see cref="Emit"/>.</summary>
@@ -236,6 +287,18 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                 return null;
             case "reject-next-harness":
                 RejectNextHarness();
+                return null;
+            case "arm-pending-abort":
+                ArmPendingAbort();
+                return null;
+            case "complete-pending-abort":
+                CompletePendingAbort();
+                return null;
+            case "fail-pending-abort":
+                FailPendingAbort(data.GetProperty("message").GetString()!);
+                return null;
+            case "fail-next-abort":
+                FailNextAbort(data.GetProperty("message").GetString()!);
                 return null;
             case "complete-session":
                 myEvents.Publish(new AgentStoppedEvent(now));

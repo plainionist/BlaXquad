@@ -53,6 +53,33 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     /// <summary>Waits until this role's session has reported the host aborting its current operation.</summary>
     public Task WaitForAbortAsync(TimeSpan? timeout = null) => control.WaitForAbortAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Waits until this role's session has reported at least the given number of distinct aborts -
+    /// proving a repeated abort produced a genuinely new observation.</summary>
+    public Task WaitForAbortCountAsync(int minimumCount, TimeSpan? timeout = null) =>
+        control.WaitForAbortCountAsync(role, minimumCount, timeout, uiDiagnostics);
+
+    /// <summary>Returns whether this role's session has already reported an abort, without waiting - used to
+    /// prove an abort addressed to another role never reached this one.</summary>
+    public bool HasObservedAbort() => control.HasObservation(role, "abort");
+
+    /// <summary>Arms this role's session so its next abort remains pending until explicitly resolved through
+    /// <see cref="CompletePendingAbortAsync"/> or <see cref="FailPendingAbortAsync"/>.</summary>
+    public Task ArmPendingAbortAsync(TimeSpan? timeout = null) => control.ArmPendingAbortAsync(role, timeout, uiDiagnostics);
+
+    /// <summary>Resolves this role's currently pending abort (armed by <see cref="ArmPendingAbortAsync"/>) as
+    /// successful.</summary>
+    public Task CompletePendingAbortAsync(TimeSpan? timeout = null) => control.CompletePendingAbortAsync(role, timeout, uiDiagnostics);
+
+    /// <summary>Resolves this role's currently pending abort (armed by <see cref="ArmPendingAbortAsync"/>) as
+    /// failed with the given message.</summary>
+    public Task FailPendingAbortAsync(string message, TimeSpan? timeout = null) =>
+        control.FailPendingAbortAsync(role, message, timeout, uiDiagnostics);
+
+    /// <summary>Arms this role's session so its very next abort fails immediately with the given message instead
+    /// of succeeding.</summary>
+    public Task FailNextAbortAsync(string message, TimeSpan? timeout = null) =>
+        control.FailNextAbortAsync(role, message, timeout, uiDiagnostics);
+
     /// <summary>Waits until this role's session has reported the host cancelling its pending interactions (for
     /// example while stopping with a request still outstanding).</summary>
     public Task WaitForPendingInteractionsCancelledAsync(TimeSpan? timeout = null) =>

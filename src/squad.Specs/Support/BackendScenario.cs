@@ -153,6 +153,11 @@ public sealed class BackendScenario : IDisposable
     public Task WaitForPendingPermissionAsync(string role, string requestId, string description, TimeSpan? timeout = null) =>
         RequireUi().WaitForPendingPermissionAsync(role, requestId, description, timeout, DescribeControlDiagnostics());
 
+    /// <summary>Waits until a "state.snapshot" message no longer publishes the given pending permission request
+    /// for the given role - proving a terminal role failure genuinely removed it.</summary>
+    public Task WaitForNoPendingPermissionAsync(string role, string requestId, TimeSpan? timeout = null) =>
+        RequireUi().WaitForNoPendingPermissionAsync(role, requestId, timeout, DescribeControlDiagnostics());
+
     /// <summary>Waits until a "state.snapshot" message publishes a pending input request with the given role,
     /// request id, prompt, choices, and freeform support - proving every supported field of the published
     /// interaction.</summary>

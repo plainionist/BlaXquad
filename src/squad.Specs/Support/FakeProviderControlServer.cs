@@ -27,6 +27,7 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     private readonly Dictionary<string, string> myActiveSessionByRole = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> myLatestPromptByRole = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Role, string Kind), JsonElement> myLatestObservationByRoleAndKind = new();
+    private readonly Dictionary<(string Role, string Kind), int> myObservationCountsByRoleAndKind = new();
     private ControlPipeDuplex? myDuplex;
     private bool myAuthenticated;
 
@@ -199,6 +200,39 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     public async Task WaitForAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         await WaitForObservationDataAsync(role, "abort", timeout, additionalDiagnostics);
 
+    /// <summary>Waits until the connected client has reported at least the given number of distinct aborts for
+    /// the given role - proving a repeated abort produced a genuinely new observation rather than re-matching an
+    /// earlier one already reported (unlike <see cref="WaitForAbortAsync"/>, which only ever inspects the
+    /// latest).</summary>
+    public Task WaitForAbortCountAsync(
+        string role, int minimumCount, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForObservationCountAsync(role, "abort", minimumCount, timeout, additionalDiagnostics);
+
+    /// <summary>Waits until the connected client has reported at least the given number of observations of the
+    /// given kind for the given role.</summary>
+    private async Task WaitForObservationCountAsync(
+        string role, string kind, int minimumCount, TimeSpan? timeout, Func<string>? additionalDiagnostics)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            lock (myStateLock)
+            {
+                if (myObservationCountsByRoleAndKind.GetValueOrDefault((role, kind)) >= minimumCount)
+                {
+                    return;
+                }
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new FakeProviderControlTimeoutException(
+                    $"role '{role}' to report at least {minimumCount} '{kind}' observations across the fake-provider control pipe",
+                    DescribeDiagnostics(additionalDiagnostics));
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
     /// <summary>Waits until the connected client has reported the host cancelling this role's pending
     /// interactions (for example while stopping with a request still outstanding).</summary>
     public async Task WaitForPendingInteractionsCancelledAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
@@ -322,6 +356,31 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// notification does not lose durable delivery state or destabilize the host.</summary>
     public Task RejectNextHarnessAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "reject-next-harness", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Arms the given role's session so its next abort remains pending until explicitly resolved through
+    /// <see cref="CompletePendingAbortAsync"/> or <see cref="FailPendingAbortAsync"/> - the deterministic control
+    /// a scenario needs to prove abort in-flight behavior (a following prompt waiting for it to finish) without
+    /// an arbitrary sleep.</summary>
+    public Task ArmPendingAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "arm-pending-abort", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Resolves the given role's currently pending abort (armed by <see cref="ArmPendingAbortAsync"/>) as
+    /// successful.</summary>
+    public Task CompletePendingAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "complete-pending-abort", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Resolves the given role's currently pending abort (armed by <see cref="ArmPendingAbortAsync"/>) as
+    /// failed with the given message.</summary>
+    public Task FailPendingAbortAsync(
+        string role, string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "fail-pending-abort", new { message }, timeout, additionalDiagnostics);
+
+    /// <summary>Arms the given role's session so its very next abort fails immediately with the given message
+    /// instead of succeeding - proving a failed abort's user-visible outcome without any pending, held-open
+    /// state.</summary>
+    public Task FailNextAbortAsync(
+        string role, string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "fail-next-abort", new { message }, timeout, additionalDiagnostics);
 
     /// <summary>Completes the given role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
@@ -677,6 +736,7 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         lock (myStateLock)
         {
             myLatestObservationByRoleAndKind[(role, kind)] = data.Clone();
+            myObservationCountsByRoleAndKind[(role, kind)] = myObservationCountsByRoleAndKind.GetValueOrDefault((role, kind)) + 1;
         }
         await myDuplex!.SendAsync("ack", correlationId, new { type = "observe", kind }, cancellationToken);
     }

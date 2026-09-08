@@ -71,7 +71,9 @@ public sealed class BackendScenarioSteps
 
     [Then("the {string} agent observes the prompt {string}")]
     public void ThenTheAgentObservesThePrompt(string role, string expectedPrompt) =>
-        Assert.That(Await(myScenario.Agent(role).WaitForPromptAsync()), Is.EqualTo(expectedPrompt));
+        // Matches on content (not just "any latest prompt") so this keeps polling past an earlier, already-observed
+        // prompt for the same role (e.g. one sent before an abort) rather than returning it stale.
+        Assert.That(Await(myScenario.Agent(role).WaitForPromptAsync(prompt => prompt == expectedPrompt)), Is.EqualTo(expectedPrompt));
 
     [When("the {string} agent replies with {string}")]
     public void WhenTheAgentRepliesWith(string role, string content) =>
@@ -97,6 +99,54 @@ public sealed class BackendScenarioSteps
 
     [Then("the {string} agent observes an abort")]
     public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());
+
+    [Then("the {string} agent has not observed an abort")]
+    public void ThenTheAgentHasNotObservedAnAbort(string role) => Assert.That(myScenario.Agent(role).HasObservedAbort(), Is.False);
+
+    [Then("the {string} agent observes {int} aborts")]
+    public void ThenTheAgentObservesAborts(string role, int count) => Await(myScenario.Agent(role).WaitForAbortCountAsync(count));
+
+    [Then("the {string} agent has only observed the prompt {string}")]
+    public void ThenTheAgentHasOnlyObservedThePrompt(string role, string expectedPrompt) =>
+        Assert.That(myScenario.Agent(role).LatestPrompt(), Is.EqualTo(expectedPrompt));
+
+    [Then("the {string} agent has not received the prompt {string} within {int} seconds")]
+    public void ThenTheAgentHasNotReceivedThePromptWithinSeconds(string role, string prompt, int seconds) =>
+        Assert.CatchAsync<TimeoutException>(
+            () => myScenario.Agent(role).WaitForPromptAsync(observed => observed == prompt, TimeSpan.FromSeconds(seconds)));
+
+    [When("the backend scenario arms role {string} to hold its next abort pending")]
+    public void WhenTheBackendScenarioArmsRoleToHoldItsNextAbortPending(string role) =>
+        Await(myScenario.Agent(role).ArmPendingAbortAsync());
+
+    [When("the backend scenario completes the pending abort for role {string}")]
+    public void WhenTheBackendScenarioCompletesThePendingAbortForRole(string role) =>
+        Await(myScenario.Agent(role).CompletePendingAbortAsync());
+
+    [When("the backend scenario arms role {string} to fail its next abort with message {string}")]
+    public void WhenTheBackendScenarioArmsRoleToFailItsNextAbortWithMessage(string role, string message) =>
+        Await(myScenario.Agent(role).FailNextAbortAsync(message));
+
+    [Then("role {string} is not ready for a prompt")]
+    public void ThenRoleIsNotReadyForAPrompt(string role)
+    {
+        // A short, independently bounded probe against the same live host proves the role is genuinely not ready
+        // yet: it polls the host for its own full timeout before concluding "not ready", so its completion is
+        // evidence of a live, contacted host currently reporting this role as not ready - not a guess about how
+        // long a fixed sleep should be.
+        var probe = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(1));
+        var probeResult = Await(probe.WaitForCompletionAsync(TimeSpan.FromSeconds(5)));
+        Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);
+    }
+
+    [Then("the backend scenario observes no pending permission {string} for role {string}")]
+    public void ThenTheBackendScenarioObservesNoPendingPermissionForRole(string requestId, string role) =>
+        Await(myScenario.WaitForNoPendingPermissionAsync(role, requestId));
+
+    [Then("the backend scenario does not observe the transcript for role {string} containing {string} within {int} seconds")]
+    public void ThenTheBackendScenarioDoesNotObserveTheTranscriptForRoleContainingWithinSeconds(string role, string content, int seconds) =>
+        Assert.CatchAsync<TimeoutException>(
+            () => myScenario.WaitForTranscriptAsync(role, content, TimeSpan.FromSeconds(seconds)));
 
     [Then("the {string} agent observes its pending interactions were cancelled")]
     public void ThenTheAgentObservesItsPendingInteractionsWereCancelled(string role) =>

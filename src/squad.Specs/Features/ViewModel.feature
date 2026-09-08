@@ -10,19 +10,6 @@ Feature: Squad ViewModel
     When the SquadApplication stops
     Then the recording application sessions are drained
 
-  Scenario: Failed role state is terminal and clears its pending interactions
-    Given a SquadApplication with recording roles "coder,reviewer"
-    When the SquadApplication starts
-    And the application recording "coder" session requests permission "permission-1"
-    And the application recording "coder" session fails with "event channel overloaded"
-    And a late started event is submitted for application role "coder"
-    And prompt "still available" is sent to application role "reviewer"
-    Then the application ViewModel role "coder" has error "event channel overloaded"
-    And the application ViewModel has no pending interactions for "coder"
-    And the application recording "reviewer" session received prompt "still available"
-    When the SquadApplication stops
-    Then the recording application sessions are drained
-
   Scenario: Backend-wide terminal failure stops the application
     Given a SquadApplication with recording roles "coder,reviewer"
     When the SquadApplication starts
@@ -706,48 +693,3 @@ Feature: Squad ViewModel
     Then ViewModel role "coder" has active tool "git status"
     When the recording "coder" session emits tool completion "git status"
     Then ViewModel role "coder" has no active tool
-
-  Scenario: Abort is routed to the matching role
-    Given a ViewModel with recording roles "coder,reviewer"
-    When the recording "coder" session emits an idle event
-    And "coder" is aborted
-    Then the recording "coder" session has one abort
-    And the recording "reviewer" session has no abort
-    And ViewModel role "coder" is not ready for a prompt
-
-  Scenario: Cancelling an active prompt cancels its local operation
-    Given a ViewModel with recording roles "coder"
-    When a slow prompt "first" starts for "coder"
-    And "coder" is aborted
-    Then the active prompt was cancelled
-    And the recording "coder" session has one abort
-
-  Scenario: A prompt waits for an in-flight cancellation to finish
-    Given a ViewModel with recording roles "coder"
-    When a prompt "first" is sent to "coder"
-    And cancellation starts for "coder"
-    And prompt "second" is started while cancellation is pending for "coder"
-    Then the pending prompt has not been sent to "coder"
-    When cancellation completes for "coder"
-    Then the recording "coder" session received prompts "first,second"
-
-  Scenario: Events from a cancelled turn are ignored
-    Given a ViewModel with recording roles "coder"
-    When "coder" is aborted
-    And the recording "coder" session emits a final assistant message "stale response"
-    Then ViewModel role "coder" transcript has no entry "stale response"
-
-  Scenario: Repeated idle cancellation is safe
-    Given a ViewModel with recording roles "coder"
-    When "coder" is aborted
-    And "coder" is aborted
-    Then the recording "coder" session has two aborts
-
-  Scenario: A failed cancellation can be retried
-    Given a ViewModel with recording roles "coder"
-    When cancellation fails for "coder"
-    Then cancellation failed
-    When "coder" is aborted
-    And a prompt "next" is sent to "coder"
-    Then the recording "coder" session received prompt "next"
-    And the recording "coder" session has two aborts

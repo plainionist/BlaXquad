@@ -9,8 +9,6 @@ public sealed class RecordingAgentSession : IAgentSession
 {
     private readonly AgentEventChannel myEvents;
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly TaskCompletionSource myAbortEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly TaskCompletionSource myAbortGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int myActiveSends;
     private bool myDisposed;
 
@@ -25,11 +23,7 @@ public sealed class RecordingAgentSession : IAgentSession
     public string SessionId { get; }
     public Task Completion => myCompletion.Task;
     public ConcurrentQueue<string> Sends { get; } = new();
-    public int AbortCount { get; private set; }
     public TimeSpan SendDelay { get; set; }
-    public bool BlockAbort { get; set; }
-    public bool FailAbort { get; set; }
-    public Task AbortEntered => myAbortEntered.Task;
     public bool OverlappedSend { get; private set; }
     public bool Disposed => myDisposed;
     public bool FailOnDispose { get; set; }
@@ -75,25 +69,11 @@ public sealed class RecordingAgentSession : IAgentSession
         await SendAsync(prompt, cancellationToken);
     }
 
-    public async Task AbortAsync(CancellationToken cancellationToken = default)
+    public Task AbortAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!myDisposed)
-        {
-            AbortCount++;
-            myAbortEntered.TrySetResult();
-            if (BlockAbort)
-            {
-                await myAbortGate.Task.WaitAsync(cancellationToken);
-            }
-            if (FailAbort)
-            {
-                throw new InvalidOperationException("recording abort failed");
-            }
-        }
+        return Task.CompletedTask;
     }
-
-    public void ReleaseAbort() => myAbortGate.TrySetResult();
 
     public Task RespondToPermissionAsync(string requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default)
     {

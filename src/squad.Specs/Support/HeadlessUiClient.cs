@@ -94,6 +94,17 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
+    /// <summary>Waits until a "state.snapshot" message no longer publishes the given pending permission request
+    /// for the given role - proving a terminal role failure genuinely removed it, rather than a snapshot merely
+    /// taken before its removal.</summary>
+    public Task WaitForNoPendingPermissionAsync(
+        string role, string requestId, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element) && !HasPendingPermissionWithId(element, role, requestId),
+            $"role '{role}' to no longer publish a pending permission '{requestId}'",
+            timeout,
+            additionalDiagnostics);
+
     /// <summary>Waits until a "state.snapshot" message publishes a pending input request with the given role,
     /// request id, prompt, choices, and freeform support.</summary>
     public Task WaitForPendingInputAsync(
@@ -302,6 +313,22 @@ public sealed class HeadlessUiClient
             if (MatchesRoleAndRequestId(permission, role, requestId)
                 && permission.TryGetProperty("description", out var descriptionElement)
                 && descriptionElement.GetString() == description)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool HasPendingPermissionWithId(JsonElement element, string role, string requestId)
+    {
+        if (!GetPayload(element).TryGetProperty("permissions", out var permissions) || permissions.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var permission in permissions.EnumerateArray())
+        {
+            if (MatchesRoleAndRequestId(permission, role, requestId))
             {
                 return true;
             }
