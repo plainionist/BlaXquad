@@ -35,8 +35,6 @@ contain the production default provider for existing specifications. Load the fa
 
 ### Slice 1: Establish the provider-free process scenario facade
 
-**Status: in progress - hand off to coder**
-
 1. Add a dedicated backend-spec publication target to `squad.Specs` that publishes the real `squad-hq` with
    `IncludeCopilotSdkProvider=false` into its own test-output directory. Keep the existing production-like
    `squad-tools` publication unchanged for specifications that exercise the default Copilot package. The proof
@@ -76,7 +74,6 @@ contain the production default provider for existing specifications. Load the fa
 
 ### Slice 2: Add the fake provider channel and complete the vertical proof
 
-**Status: waiting for reviewer acceptance of Slice 1**
 
 1. Add one public fake `IAgentProviderFactory` in `squad.Specs` and provider-side backend, runtime, and session
    implementations in separate source files. Load that factory into the provider-free headquarters through the
