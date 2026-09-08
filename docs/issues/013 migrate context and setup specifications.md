@@ -7,6 +7,55 @@ priority: 13
 
 This issue implements the [backend test strategy](../manual/test-strategy.md).
 
+## Architecture
+
+Keep context coverage at the published CLI boundary. `ScenarioWorkspace` remains the single owner of temporary Git
+repository setup, role worktree paths, environment construction, and exact executable selection. Extend that
+test-owned API with role-oriented `squad` invocation rather than letting `ContextSteps` create worktrees, construct
+configuration files, retain raw path maps, or launch tools directly.
+
+The scenarios assert the `context` command's public contract: exit status, scalar standard output, and the documented
+JSON fields. JSON deserialization remains test code and must not use `Ctx`, `SquadConfig`, or any product workspace
+type. Keep both existing scenarios because together they cover worktree-derived identity and the complete documented
+machine-readable context, including `BLAXQUAD_SRC`.
+
+`Configuration.feature` and `Startup.feature` are empty placeholders. Their former parser/preparer scenarios and
+test-only commands were already removed; the bindings that remain perform only unreachable fixture setup or direct
+product inspection. Delete those features, generated fixtures, and bindings rather than restoring white-box
+configuration coverage. Configuration failures still exercised by supported commands elsewhere remain out of scope.
+
+## Implementation plan
+
+Implement this issue as one independently reviewable slice.
+
+### Slice 1: Migrate context specifications and remove empty setup fixtures
+
+**Status: in progress**
+
+1. Extend `ScenarioWorkspace` so one configured-project operation creates the real Git repository and all requested
+   role worktrees, records their locations behind the workspace API, and can run the exact published `squad`
+   executable for a named role with an optional test-owned environment.
+2. Refactor `ContextSteps` to use that API. Preserve both scenarios and assert successful exit plus the exact role
+   output or documented JSON fields; do not instantiate or inspect configuration, context, or workspace product
+   objects.
+3. Delete `Configuration.feature`, `Startup.feature`, their generated `.feature.cs` fixtures, and
+   `ConfigurationSteps.cs`. Do not retain unused setup/assertion bindings and do not add replacement parser or
+   preparer tests.
+4. Regenerate the `Context.feature` fixture through the existing Reqnroll build path and run the focused context
+   specification, followed by the existing backend acceptance suite if the focused migration passes.
+
+**Slice acceptance**
+
+- Both context scenarios execute the exact `squad-tools` publication from temporary real role worktrees created by
+  `ScenarioWorkspace`.
+- Role resolution succeeds without `BLAXQUAD_ROLE`, and JSON output identifies the role, project root, role worktree
+  root, and explicit shared source path.
+- Context step definitions contain no Git commands, configuration-file construction, worktree bookkeeping, direct
+  process setup, or product configuration/context types.
+- Empty setup features, generated fixtures, and all bindings used only by them are absent.
+- No production project or API changes, test-only production branches, or replacement test assembly are introduced.
+- The supported backend acceptance suite passes with no context or configuration behavior regression.
+
 ## Goal
 
 Make project setup and context scenarios the first existing specifications to use the process driver.
