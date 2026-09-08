@@ -48,6 +48,14 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Creates one Git project configured with a real linked worktree per given role (delegating the durable
+    /// layout to <see cref="ScenarioWorkspace.ConfigureProject"/>), for scenarios that need more than one role's
+    /// session live in the same launched process - for example a sender role whose own "squad handoff" CLI
+    /// invocation and a recipient role whose fake session observes the resulting wake-up.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureRoles(params string[] roles) => myWorkspace.ConfigureProject(roles);
+
+    /// <summary>
     /// Enables the private fake-provider control transport for the next <see cref="StartAsync{TProviderFactory}"/>
     /// call: a uniquely named local pipe and a random per-scenario token that only reach the launched process
     /// through environment variables the fake provider itself reads - never a command-line argument or file.

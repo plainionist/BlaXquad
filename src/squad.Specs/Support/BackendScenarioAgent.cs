@@ -94,6 +94,10 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     /// <summary>Emits an explicit idle transition for this role's session.</summary>
     public Task EmitIdleAsync(TimeSpan? timeout = null) => control.EmitIdleAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Arms this role's session to reject its very next host-authored harness send with an exception
+    /// instead of publishing or reporting it.</summary>
+    public Task RejectNextHarnessAsync(TimeSpan? timeout = null) => control.RejectNextHarnessAsync(role, timeout, uiDiagnostics);
+
     /// <summary>Completes this role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
     public Task CompleteSessionAsync(TimeSpan? timeout = null) => control.CompleteSessionAsync(role, timeout, uiDiagnostics);

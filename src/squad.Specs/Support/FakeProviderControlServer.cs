@@ -211,6 +211,12 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     public Task EmitIdleAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "idle", new { }, timeout, additionalDiagnostics);
 
+    /// <summary>Arms the given role's session to reject its very next host-authored harness send with an
+    /// exception instead of publishing or reporting it - the only way a scenario can prove that a single failed
+    /// notification does not lose durable delivery state or destabilize the host.</summary>
+    public Task RejectNextHarnessAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "reject-next-harness", new { }, timeout, additionalDiagnostics);
+
     /// <summary>Completes the given role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
     public Task CompleteSessionAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>

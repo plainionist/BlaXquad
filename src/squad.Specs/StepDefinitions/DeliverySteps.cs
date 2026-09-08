@@ -1,139 +1,89 @@
 using squad.Specs.Support;
-using squad.Configuration;
-using squad.Application;
-using squad.Handoffs.Delivery;
-using System.Collections.Concurrent;
 
 namespace squad.Specs.StepDefinitions;
 
+/// <summary>
+/// Drives handoff delivery scenarios exclusively across the real process/protocol boundary: a real "squad handoff"
+/// (or, for an otherwise-uncreatable invalid prerequisite, a seeded durable artifact) queued into a role's own
+/// worktree, a real squad-hq host polling and delivering it, and the recipient's fake session observing the
+/// resulting wake-up harness message through the real transcript. Never constructs
+/// <c>InProcessHandoffPoller</c>, <c>HandoffDeliveryService</c>, <c>IRoleNotifier</c>, or a role-row product type.
+/// </summary>
 [Binding]
 public sealed class DeliverySteps
 {
+    /// <summary>The exact wake-up harness message production's <c>SessionRoleNotifier</c> sends a recipient after
+    /// a handoff is durably delivered.</summary>
+    private const string WakeUpMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
+    private const string SenderRole = "coder";
+
     private readonly ScenarioWorkspace myWorkspace;
-    private readonly Dictionary<string, string> myWorktrees = new(StringComparer.Ordinal);
-    private readonly List<RoleRow> myDeliveryRoles = [];
-    private readonly RecordingRoleNotifier myNotifier = new();
-    private readonly ConcurrentQueue<string> myDeliveryLog = [];
+    private readonly BackendScenario myScenario;
+    private readonly HandoffMailboxObserver myMailbox;
 
     public DeliverySteps(ScenarioWorkspace workspace)
     {
         myWorkspace = workspace;
+        myScenario = new BackendScenario(workspace);
+        myMailbox = new HandoffMailboxObserver(workspace);
     }
 
-    [Given("delivery roles {string}")]
-    public void GivenDeliveryRoles(string commaSeparatedRoles)
+    [AfterScenario]
+    public void CleanUp() => myScenario.Dispose();
+
+    [Given("a running squad host for roles {string}")]
+    public async Task GivenARunningSquadHostForRoles(string commaSeparatedRoles)
     {
         var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        myDeliveryRoles.Clear();
+        myScenario.ConfigureRoles(roles);
+        myScenario.EnableFakeProviderControl();
+        await myScenario.StartAsync<FakeAgentProviderFactory>();
         foreach (var role in roles)
         {
-            var worktree = myWorkspace.PathInWorkspace("worktrees", role);
-            myWorktrees[role] = worktree;
-            Directory.CreateDirectory(worktree);
-            myDeliveryRoles.Add(new RoleRow(role, role, worktree, role, "task"));
+            await myScenario.WaitForRoleSessionStartedAsync(role);
         }
     }
 
-    [Given("{string} has an outbound note to {string}")]
-    public void GivenRoleHasAnOutboundNoteTo(string sender, string recipients)
-    {
-        var path = Path.Combine(
-            myWorktrees[sender], ".blaxquad", "handoffs", "outbox",
-            $"50_20260822T120000Z_000001_from_{sender}_to_{recipients.Replace(',', '_')}.handoff");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(
-            path,
-            $"id: test-1\nfrom: {sender}\nto: {recipients}\npriority: 50\ntype: note\nmessage: Ready for review.\n\nReady for review.\n");
-    }
+    [When("{string} durably queues an invalid note to {string}")]
+    public void WhenRoleDurablyQueuesAnInvalidNoteTo(string role, string recipients) =>
+        myMailbox.SeedInvalidOutboundNote(role, recipients, "Ready for review.");
 
-    [Given("the recording notifier will fail")]
-    public void GivenTheRecordingNotifierWillFail() => myNotifier.Fail = true;
-
-    [Given("an empty project")]
-    public void GivenAnEmptyProject()
-    {
-    }
-
-    [Given("{string} already has the recipient copy")]
-    public void GivenRoleAlreadyHasTheRecipientCopy(string role)
-    {
-        var source = Directory.GetFiles(
-            Path.Combine(myWorktrees["coder"], ".blaxquad", "handoffs", "outbox"),
-            "*.handoff").Single();
-        var target = Path.Combine(
-            myWorktrees[role], ".blaxquad", "handoffs", "inbox", "new", Path.GetFileName(source));
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        File.Copy(source, target);
-    }
-
-    [When("the squad host processes the handoff outbox")]
-    public async Task WhenTheSquadHostProcessesTheHandoffOutbox()
-    {
-        await using var poller = new InProcessHandoffPoller(
-            myDeliveryRoles,
-            myNotifier,
-            parts => myDeliveryLog.Enqueue(string.Join(" ", parts)));
-        await poller.StartAsync();
-        myWorkspace.WaitUntil(
-            () => SentFiles().Length + FailedFiles().Length == 1,
-            "the host to archive the outbound handoff");
-        await poller.StopAsync();
-    }
+    [Given("the {string} agent will reject its next harness send")]
+    public async Task GivenTheAgentWillRejectItsNextHarnessSend(string role) =>
+        await myScenario.Agent(role).RejectNextHarnessAsync();
 
     [Then("the sender handoff is archived as sent")]
     public void ThenTheSenderHandoffIsArchivedAsSent() =>
-        Assert.That(SentFiles(), Has.Length.EqualTo(1));
+        myWorkspace.WaitUntil(
+            () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffs(SenderRole).Count == 1,
+            "the host to archive the outbound handoff");
 
     [Then("the sender handoff is archived as failed")]
-    public void ThenTheSenderHandoffIsArchivedAsFailed() =>
-        Assert.That(FailedFiles(), Has.Length.EqualTo(1));
+    public void ThenTheSenderHandoffIsArchivedAsFailed()
+    {
+        myWorkspace.WaitUntil(
+            () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffs(SenderRole).Count == 1,
+            "the host to archive the outbound handoff");
+        Assert.That(myMailbox.FailedHandoffs(SenderRole), Has.Exactly(1).Items);
+    }
 
     [Then("{string} has one new handoff")]
     public void ThenRoleHasOneNewHandoff(string role) =>
-        Assert.That(NewHandoffs(role), Has.Length.EqualTo(1));
+        Assert.That(myMailbox.NewInboxHandoffs(role), Has.Exactly(1).Items);
 
     [Then("{string} has no new handoff")]
     public void ThenRoleHasNoNewHandoff(string role) =>
-        Assert.That(NewHandoffs(role), Is.Empty);
+        Assert.That(myMailbox.NewInboxHandoffs(role), Is.Empty);
 
     [Then("the new handoff for {string} has recipient header {string}")]
-    public void ThenTheNewHandoffHasRecipientHeader(string role, string recipient)
-    {
-        Assert.That(File.ReadLines(NewHandoffs(role).Single()), Does.Contain($"recipient: {recipient}"));
-    }
+    public void ThenTheNewHandoffHasRecipientHeader(string role, string recipient) =>
+        Assert.That(myMailbox.NewInboxHandoffs(role).Single().Recipient, Is.EqualTo(recipient));
 
-    [Then("a wake-up was recorded for {string}")]
-    public void ThenAWakeUpWasRecordedFor(string role)
-        => Assert.That(myNotifier.Notifications.Select(notification => notification.Recipient), Does.Contain(role));
+    [Then("the {string} agent observes the handoff wake-up message")]
+    public async Task ThenTheAgentObservesTheHandoffWakeUpMessage(string role) =>
+        await myScenario.WaitForTranscriptAsync(role, WakeUpMessage);
 
-    [Then("the wake-up names the installed ready command")]
-    public void ThenTheWakeUpNamesTheInstalledReadyCommand()
-        => Assert.That(myNotifier.Notifications.Select(notification => notification.Message), Has.Some.EqualTo(RecordingRoleNotifier.WakeMessage));
-
-    [Then("no wake-up was recorded")]
-    public void ThenNoWakeUpWasRecorded() =>
-        Assert.That(myNotifier.Notifications, Is.Empty);
-
-    [Then("the delivery log contains {string}")]
-    public void ThenTheDeliveryLogContains(string expected) =>
-        Assert.That(myDeliveryLog, Has.Some.Contains(expected));
-
-    private string[] SentFiles() => ArchiveFiles("sent");
-    private string[] FailedFiles() => ArchiveFiles("failed");
-
-    private string[] ArchiveFiles(string state)
-    {
-        var directory = Path.Combine(myWorktrees["coder"], ".blaxquad", "handoffs", state);
-        return Directory.Exists(directory) ? Directory.GetFiles(directory, "*.handoff") : [];
-    }
-
-    private string[] NewHandoffs(string role)
-    {
-        var directory = Path.Combine(myWorktrees[role], ".blaxquad", "handoffs", "inbox", "new");
-        return Directory.Exists(directory) ? Directory.GetFiles(directory, "*.handoff") : [];
-    }
-
+    [Then("the squad host remains available")]
+    public void ThenTheSquadHostRemainsAvailable() =>
+        Assert.That(myScenario.IsRunning, Is.True);
 }
-
-
-

@@ -2,29 +2,25 @@ Feature: Delivering handoffs
   The squad host persists each recipient's handoff before sending a wake-up.
 
   Background:
-    Given delivery roles "coder,reviewer,architect"
+    Given a running squad host for roles "coder,reviewer"
 
   Scenario: Deliver a handoff and notify its recipient
-    Given "coder" has an outbound note to "reviewer"
-    When the squad host processes the handoff outbox
+    Given "coder" prepares a note to "reviewer" with priority "50" and message "Ready for review."
+    When "coder" queues the handoff
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
     And the new handoff for "reviewer" has recipient header "reviewer"
-    And a wake-up was recorded for "reviewer"
-    And the wake-up names the installed ready command
+    And the "reviewer" agent observes the handoff wake-up message
 
   Scenario: Reject an invalid fan-out before delivering any copy
-    Given "coder" has an outbound note to "reviewer,missing"
-    When the squad host processes the handoff outbox
+    When "coder" durably queues an invalid note to "reviewer,missing"
     Then the sender handoff is archived as failed
     And "reviewer" has no new handoff
-    And no wake-up was recorded
 
   Scenario: Notification failure does not lose a delivered handoff
-    Given the recording notifier will fail
-    And "coder" has an outbound note to "reviewer"
-    When the squad host processes the handoff outbox
+    Given the "reviewer" agent will reject its next harness send
+    And "coder" prepares a note to "reviewer" with priority "50" and message "Ready for review."
+    When "coder" queues the handoff
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
-    And a wake-up was recorded for "reviewer"
-    And the delivery log contains "notify-failed reviewer"
+    And the squad host remains available

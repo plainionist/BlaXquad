@@ -23,6 +23,7 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     private readonly FakeProviderControlClient? myControl;
     private TaskCompletionSource<string>? myPendingReply;
     private long myGeneration;
+    private bool myRejectNextHarness;
 
     public FakeAgentSession(string role, FakeProviderControlClient? control = null)
     {
@@ -65,15 +66,28 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     /// <summary>Publishes the real production <see cref="AgentHarnessMessageEvent"/> for host-authored context -
     /// the same way a real provider preserves it as a distinct harness message in the transcript - and, when a
     /// control transport is configured, reports it as a generic observation so a scenario can wait for it directly
-    /// across the pipe.</summary>
+    /// across the pipe. When <see cref="RejectNextHarness"/> armed this session to reject its next harness send,
+    /// throws instead of publishing anything - simulating a real provider connection that never accepts the
+    /// host-authored message, exactly once.</summary>
     public async Task SendHarnessAsync(string prompt, CancellationToken cancellationToken = default)
     {
+        if (myRejectNextHarness)
+        {
+            myRejectNextHarness = false;
+            throw new InvalidOperationException("The fake provider rejected this harness send.");
+        }
+
         myEvents.Publish(new AgentHarnessMessageEvent(DateTimeOffset.UtcNow, prompt));
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(Role, SessionId, "harness-message", new { content = prompt }, cancellationToken);
         }
     }
+
+    /// <summary>Arms this session to reject its very next harness send with an exception instead of publishing or
+    /// reporting it - a test-only control (not a production <c>AgentEvent</c>) used to prove that a single failed
+    /// notification does not lose durable delivery state or destabilize the host.</summary>
+    public void RejectNextHarness() => myRejectNextHarness = true;
 
     /// <summary>Reports, when a control transport is configured, that the host aborted this session's current
     /// operation.</summary>
@@ -200,6 +214,9 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                 return null;
             case "idle":
                 myEvents.Publish(new AgentIdleEvent(now));
+                return null;
+            case "reject-next-harness":
+                RejectNextHarness();
                 return null;
             case "complete-session":
                 myEvents.Publish(new AgentStoppedEvent(now));
