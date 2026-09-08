@@ -67,7 +67,7 @@ Acceptance criteria:
 - A failed harness send still leaves exactly one recipient copy and one sent sender artifact while headquarters remains
   available.
 
-### Slice 2 - Idempotent delivery and restart recovery (in progress)
+### Slice 2 - Idempotent delivery and restart recovery (complete)
 
 **Status: complete (71f903f147)**
 
@@ -86,7 +86,7 @@ Acceptance criteria:
 - Both `new` and `in_process` work survive a real headquarters stop/restart unchanged.
 - The replacement fake session receives one recovery wake-up after its normal initial harness instruction.
 
-### Slice 3 - Busy and unavailable recipients; obsolete-spec cleanup (queued)
+### Slice 3 - Busy and unavailable recipients; obsolete-spec cleanup (in progress)
 
 - Move the process-visible intent of the in-process polling scenarios from `ViewModel.feature` into delivery/recovery
   features. Keep a recipient busy with a real UI prompt and delayed fake-agent reply, queue a handoff through `squad`,
