@@ -88,6 +88,8 @@ Acceptance:
 
 ### Slice 3: Batch queue
 
+**Status: complete (f82afcb714)**
+
 - Reuse the task mailbox fixture and observer from slice 2 to arrange and inspect batch state without exposing durable
   representation in steps.
 - Run batch `ready-for-next` and `done-with-current` actions through the published `squad` executable from the batch
