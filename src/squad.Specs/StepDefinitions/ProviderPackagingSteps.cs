@@ -68,4 +68,25 @@ public sealed class ProviderPackagingSteps
         Assert.That(File.Exists(Path.Combine(myOptOutPublishDirectory!, "GitHub.Copilot.SDK.dll")), Is.False);
         Assert.That(Directory.Exists(Path.Combine(myOptOutPublishDirectory!, "runtimes")), Is.False);
     }
+
+    [Then("the published backend-spec output contains the squad-hq executable")]
+    public void ThenPublishedBackendSpecOutputContainsTheSquadHqExecutable()
+    {
+        var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "squad-hq.exe" : "squad-hq";
+        var backendSpecDir = Path.Combine(AppContext.BaseDirectory, "squad-tools-backend-spec");
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, executableName)), Is.True);
+    }
+
+    [Then("the published backend-spec output contains no Copilot provider assembly, dependency, or runtime asset")]
+    public void ThenPublishedBackendSpecOutputContainsNoCopilotAssets()
+    {
+        var backendSpecDir = Path.Combine(AppContext.BaseDirectory, "squad-tools-backend-spec");
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, "squad.CopilotSdk.dll")), Is.False);
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, "GitHub.Copilot.SDK.dll")), Is.False);
+        Assert.That(Directory.Exists(Path.Combine(backendSpecDir, "runtimes")), Is.False);
+
+        var depsJsonPath = Path.Combine(backendSpecDir, "squad-hq.deps.json");
+        Assert.That(File.Exists(depsJsonPath), Is.True, $"Expected published dependency manifest at '{depsJsonPath}'.");
+        Assert.That(File.ReadAllText(depsJsonPath), Does.Not.Contain("squad.CopilotSdk"));
+    }
 }

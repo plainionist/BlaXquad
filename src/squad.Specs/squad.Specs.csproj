@@ -47,4 +47,15 @@
     <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
   </Target>
 
+  <!-- Publishes a second, provider-free squad-hq into its own test-output directory so backend
+       specifications can prove the architectural target of running headquarters without ever
+       loading squad.CopilotSdk. The production-like squad-tools publication above stays unchanged. -->
+  <Target Name="PublishBackendSpecTools" BeforeTargets="VSTest">
+    <PropertyGroup>
+      <BackendSpecToolsDir>$(TargetDir)squad-tools-backend-spec</BackendSpecToolsDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(BackendSpecToolsDir)" />
+    <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(BackendSpecToolsDir)&quot; --property:IncludeCopilotSdkProvider=false --nologo --verbosity quiet" />
+  </Target>
+
 </Project>

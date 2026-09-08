@@ -13,3 +13,7 @@ Feature: Agent provider packaging
   Scenario: An opt-out publish omits the Copilot provider entirely
     When squad-hq is published with the Copilot provider opted out
     Then the opt-out publish output contains no Copilot provider assembly or runtime assets
+
+  Scenario: The backend-spec publication is a provider-free squad-hq
+    Then the published backend-spec output contains the squad-hq executable
+    And the published backend-spec output contains no Copilot provider assembly, dependency, or runtime asset
