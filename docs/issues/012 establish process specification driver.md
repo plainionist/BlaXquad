@@ -80,6 +80,8 @@ product protocol DTOs private to the client.
 
 ### Slice 4: Compose startup and normal shutdown in `BackendScenario`
 
+**Status: complete (a15c6acb0e)**
+
 Introduce `BackendScenario` as the test-owned lifetime and composition root for workspace, CLI, UI, and process
 support. `StartAsync` launches the provider-free headquarters with `--ui stdio` and an explicit existing test provider,
 completes `ui.ready`, and returns only after observable readiness. Normal shutdown must use the real
