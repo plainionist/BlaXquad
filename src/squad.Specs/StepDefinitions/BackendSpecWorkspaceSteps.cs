@@ -19,6 +19,13 @@ public sealed class BackendSpecWorkspaceSteps
         myRoleWorktrees = myWorkspace.ConfigureProject(role);
     }
 
+    [Given("a configured project with roles {string}")]
+    public void GivenAConfiguredProjectWithRoles(string commaSeparatedRoles)
+    {
+        var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        myRoleWorktrees = myWorkspace.ConfigureProject(roles);
+    }
+
     [When("the {string} role worktree requests shutdown from the backend-spec squad-hq publication")]
     public void WhenTheRoleWorktreeRequestsShutdownFromTheBackendSpecSquadHqPublication(string role) =>
         myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root], workingDirectory: myRoleWorktrees[role]);

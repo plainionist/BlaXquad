@@ -30,9 +30,25 @@ public sealed class ScenarioWorkspace : IDisposable
 
     public T Get<T>(string key) => (T)myValues[key];
 
-    public void WriteFile(string relativePath, string content)
+    public void WriteFile(string relativePath, string content) => WriteFileUnder(Root, relativePath, content);
+
+    /// <summary>
+    /// Writes a file into a role's worktree recorded by <see cref="ConfigureProject"/>, so specifications can seed
+    /// role-owned content (for example an agent's own working-tree change) without resolving or retaining the
+    /// worktree path themselves.
+    /// </summary>
+    public void WriteFileInRoleWorktree(string role, string relativePath, string content) =>
+        WriteFileUnder(myRoleWorktrees[role], relativePath, content);
+
+    /// <summary>
+    /// The worktree path recorded for a role by <see cref="ConfigureProject"/>, exposed so test-owned support (never
+    /// step definitions) can locate role-scoped durable state such as a mailbox.
+    /// </summary>
+    public string RoleWorktreePath(string role) => myRoleWorktrees[role];
+
+    private static void WriteFileUnder(string root, string relativePath, string content)
     {
-        var path = PathInWorkspace(relativePath.Split('/'));
+        var path = Path.Combine(root, Path.Combine(relativePath.Split('/')));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var normalized = content.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
         File.WriteAllText(path, normalized);
@@ -183,6 +199,13 @@ public sealed class ScenarioWorkspace : IDisposable
 
     public CommandResult RunGit(params string[] arguments) =>
         Run("git", arguments, workingDirectory: Root);
+
+    /// <summary>
+    /// Runs Git inside a role's worktree recorded by <see cref="ConfigureProject"/>, so a role's own commits are
+    /// made on its branch and worktree rather than the shared repository root.
+    /// </summary>
+    public CommandResult RunRoleGit(string role, params string[] arguments) =>
+        Run("git", arguments, workingDirectory: myRoleWorktrees[role]);
 
     public void InitializeGitRepository()
     {

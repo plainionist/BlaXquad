@@ -5,131 +5,123 @@ namespace squad.Specs.StepDefinitions;
 [Binding]
 public sealed class HandoffSteps
 {
-    private const string DraftKey = "draft";
+    private const string DraftPathKey = "handoffDraftPath";
+    private const string SenderRoleKey = "handoffSenderRole";
+    private const string CommitKey = "commit";
     private readonly ScenarioWorkspace myWorkspace;
+    private readonly HandoffDraftWriter myDrafts;
+    private readonly HandoffMailboxObserver myMailbox;
 
     public HandoffSteps(ScenarioWorkspace workspace)
     {
         myWorkspace = workspace;
-    }
-
-    [Given("a Git project with roles {string}")]
-    public void GivenAGitProjectWithRoles(string commaSeparatedRoles)
-    {
-        myWorkspace.InitializeGitRepository();
-        var roles = commaSeparatedRoles
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var worktrees = roles.ToDictionary(
-            role => role,
-            role => role == roles[0]
-                ? myWorkspace.Root
-                : myWorkspace.PathInWorkspace(".worktrees", role),
-            StringComparer.Ordinal);
-
-        foreach (var role in roles.Skip(1))
-        {
-            Assert.That(
-                myWorkspace.RunGit("worktree", "add", "--quiet", "-b", $"squad-{role}", worktrees[role]).ExitCode,
-                Is.Zero);
-        }
-
-        var rolesJson = string.Join(",\n", roles.Select((role, index) =>
-            $"{{ \"name\": \"{role}\", \"worktree\": \"{(index == 0 ? "master" : role)}\", \"agent\": {{}} }}"));
-        myWorkspace.WriteFile("blaxquad/squad.json", $"{{\n  \"roles\": [\n{rolesJson}\n  ]\n}}\n");
-        myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow constitution.\n");
-        foreach (var role in roles)
-        {
-            myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as {role}.\n");
-        }
+        myDrafts = new HandoffDraftWriter(workspace);
+        myMailbox = new HandoffMailboxObserver(workspace);
     }
 
     [Given("{string} has a committed change")]
     public void GivenRoleHasACommittedChange(string role)
     {
-        myWorkspace.WriteFile($"{role}-change.txt", "completed\n");
-        Assert.That(myWorkspace.RunGit("add", $"{role}-change.txt").ExitCode, Is.Zero);
-        Assert.That(myWorkspace.RunGit("commit", "--quiet", "-m", $"{role} change").ExitCode, Is.Zero);
-        var result = myWorkspace.RunGit("rev-parse", "--short=10", "HEAD");
+        myWorkspace.WriteFileInRoleWorktree(role, $"{role}-change.txt", "completed\n");
+        Assert.That(myWorkspace.RunRoleGit(role, "add", $"{role}-change.txt").ExitCode, Is.Zero);
+        Assert.That(myWorkspace.RunRoleGit(role, "commit", "--quiet", "-m", $"{role} change").ExitCode, Is.Zero);
+        var result = myWorkspace.RunRoleGit(role, "rev-parse", "--short=10", "HEAD");
         Assert.That(result.ExitCode, Is.Zero);
-        myWorkspace.Set("commit", result.StdOut.Trim());
+        myWorkspace.Set(CommitKey, result.StdOut.Trim());
     }
 
     [Given("{string} prepares a Git handoff to {string} with priority {string} and task {string}")]
-    public void GivenRolePreparesAGitHandoff(string role, string recipient, string priority, string task)
+    public void GivenRolePreparesAGitHandoff(string role, string recipients, string priority, string task)
     {
-        WriteDraft(
-            $"type: git_handoff\nto: {recipient}\npriority: {priority}\ntask: {task}\ncommit: {myWorkspace.Get<string>("commit")}\n");
+        myWorkspace.Set(SenderRoleKey, role);
+        myWorkspace.Set(
+            DraftPathKey,
+            myDrafts.WriteGitHandoffDraft(role, recipients, priority, task, myWorkspace.Get<string>(CommitKey)));
     }
 
     [Given("{string} prepares a note to {string} with priority {string} and message {string}")]
     public void GivenRolePreparesANote(string role, string recipients, string priority, string message)
     {
-        WriteDraft($"type: note\nto: {recipients}\npriority: {priority}\nmessage: {message}\n");
+        myWorkspace.Set(SenderRoleKey, role);
+        myWorkspace.Set(DraftPathKey, myDrafts.WriteNoteDraft(role, recipients, priority, message));
     }
 
     [Given("{string} prepares this handoff draft:")]
     public void GivenRolePreparesThisHandoffDraft(string role, string draft)
     {
-        WriteDraft(draft + "\n");
+        myWorkspace.Set(SenderRoleKey, role);
+        myWorkspace.Set(DraftPathKey, myDrafts.WriteRawDraft(role, draft));
     }
 
     [When("{string} queues the handoff")]
-    public void WhenRoleQueuesTheHandoff(string role)
-    {
-        myWorkspace.RunTool("squad", ["handoff", myWorkspace.Get<string>(DraftKey)]);
-    }
+    public void WhenRoleQueuesTheHandoff(string role) =>
+        myWorkspace.RunRoleTool(role, "squad", ["handoff", myWorkspace.Get<string>(DraftPathKey)]);
 
     [Then("the draft is removed")]
     public void ThenTheDraftIsRemoved() =>
-        Assert.That(File.Exists(myWorkspace.Get<string>(DraftKey)), Is.False);
+        Assert.That(File.Exists(myWorkspace.Get<string>(DraftPathKey)), Is.False);
 
     [Then("the draft remains")]
     public void ThenTheDraftRemains() =>
-        Assert.That(File.Exists(myWorkspace.Get<string>(DraftKey)), Is.True);
+        Assert.That(File.Exists(myWorkspace.Get<string>(DraftPathKey)), Is.True);
 
     [Then("one handoff is queued")]
     public void ThenOneHandoffIsQueued() =>
-        Assert.That(QueuedHandoffs(), Has.Length.EqualTo(1));
+        Assert.That(myMailbox.QueuedHandoffs(CurrentSender()), Has.Exactly(1).Items);
 
     [Then("no handoff is queued")]
     public void ThenNoHandoffIsQueued() =>
-        Assert.That(QueuedHandoffs(), Is.Empty);
+        Assert.That(myMailbox.QueuedHandoffs(CurrentSender()), Is.Empty);
 
-    [Then("the queued handoff has header {string} with value {string}")]
-    public void ThenTheQueuedHandoffHasHeader(string field, string expected)
+    [Then("the queued handoff was sent by {string} to {string}")]
+    public void ThenTheQueuedHandoffWasSentByTo(string sender, string recipients)
     {
-        var headers = ReadHandoff().Split("\n\n", 2)[0].Split('\n');
-        Assert.That(headers, Does.Contain($"{field}: {expected}"));
+        var handoff = SingleQueuedHandoff();
+        Assert.Multiple(() =>
+        {
+            Assert.That(handoff.Sender, Is.EqualTo(sender));
+            Assert.That(string.Join(",", handoff.Recipients), Is.EqualTo(recipients));
+        });
     }
 
-    [Then("the queued handoff payload starts with {string}")]
-    public void ThenTheQueuedHandoffPayloadStartsWith(string expected) =>
-        Assert.That(HandoffBody(), Does.StartWith(expected));
+    [Then("the queued handoff has priority {string}")]
+    public void ThenTheQueuedHandoffHasPriority(string priority) =>
+        Assert.That(SingleQueuedHandoff().Priority, Is.EqualTo(priority));
 
-    [Then("the queued handoff payload is {string}")]
-    public void ThenTheQueuedHandoffPayloadIs(string expected) =>
-        Assert.That(HandoffBody().TrimEnd(), Is.EqualTo(expected));
-
-    private void WriteDraft(string content)
+    [Then("the queued handoff is a Git handoff for task {string}")]
+    public void ThenTheQueuedHandoffIsAGitHandoffForTask(string task)
     {
-        var path = myWorkspace.PathInWorkspace("handoff-draft.txt");
-        myWorkspace.WriteFile("handoff-draft.txt", content);
-        myWorkspace.Set(DraftKey, path);
+        var handoff = SingleQueuedHandoff();
+        Assert.Multiple(() =>
+        {
+            Assert.That(handoff.Type, Is.EqualTo("git_handoff"));
+            Assert.That(handoff.Task, Is.EqualTo(task));
+        });
     }
 
-    private string[] QueuedHandoffs()
+    [Then("the queued handoff instructs merging the committed change")]
+    public void ThenTheQueuedHandoffInstructsMergingTheCommittedChange()
     {
-        var outbox = myWorkspace.PathInWorkspace(".blaxquad", "handoffs", "outbox");
-        return Directory.Exists(outbox)
-            ? Directory.GetFiles(outbox, "*.handoff", SearchOption.TopDirectoryOnly)
-            : [];
+        var handoff = SingleQueuedHandoff();
+        Assert.That(
+            handoff.InstructsMergingCommit(CurrentSender(), myWorkspace.Get<string>(CommitKey)),
+            Is.True,
+            () => $"Payload did not instruct merging the committed change: {handoff.Payload}");
     }
 
-    private string ReadHandoff() =>
-        File.ReadAllText(QueuedHandoffs().Single()).Replace("\r\n", "\n");
+    [Then("the queued handoff is a note with message {string}")]
+    public void ThenTheQueuedHandoffIsANoteWithMessage(string message)
+    {
+        var handoff = SingleQueuedHandoff();
+        Assert.Multiple(() =>
+        {
+            Assert.That(handoff.Type, Is.EqualTo("note"));
+            Assert.That(handoff.Message, Is.EqualTo(message));
+            Assert.That(handoff.Payload, Is.EqualTo(message));
+        });
+    }
 
-    private string HandoffBody() => ReadHandoff().Split("\n\n", 2)[1];
+    private QueuedHandoff SingleQueuedHandoff() => myMailbox.SingleQueuedHandoff(CurrentSender());
+
+    private string CurrentSender() => myWorkspace.Get<string>(SenderRoleKey);
 }
-
-
-
