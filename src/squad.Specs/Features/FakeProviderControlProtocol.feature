@@ -41,3 +41,15 @@ Feature: Fake-provider control transport protocol validation and concurrency
     When the client reports a session started and then disposed for role "coder" and session "session-1"
     And the server replies to role "coder" with content "hello"
     Then the server reports a protocol error mentioning "disposed"
+
+  Scenario: A session that started but was never disposed is reported by the server's teardown diagnostic
+    Given a fake-provider control server is listening
+    And an authenticated fake-provider control client is connected
+    When the client reports a session started for role "coder" and session "session-leaked"
+    Then the server's undisposed-session diagnostic mentions role "coder" and session "session-leaked"
+
+  Scenario: A session that started and was disposed is absent from the server's teardown diagnostic
+    Given a fake-provider control server is listening
+    And an authenticated fake-provider control client is connected
+    When the client reports a session started and then disposed for role "coder" and session "session-1"
+    Then the server's undisposed-session diagnostic is empty

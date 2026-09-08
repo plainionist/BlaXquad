@@ -67,6 +67,26 @@ public sealed class FakeProviderControlProtocolSteps
     public void WhenTheClientReportsASessionStartedAndThenDisposedForRoleAndSession(string role, string sessionId) =>
         Await(ReportStartedThenDisposedAsync(role, sessionId));
 
+    [When("the client reports a session started for role {string} and session {string}")]
+    public void WhenTheClientReportsASessionStartedForRoleAndSession(string role, string sessionId) =>
+        Await(myClient!.NotifySessionStartedAsync(role, sessionId));
+
+    [Then("the server's undisposed-session diagnostic mentions role {string} and session {string}")]
+    public void ThenTheServersUndisposedSessionDiagnosticMentionsRoleAndSession(string role, string sessionId)
+    {
+        var diagnostic = myServer!.DescribeUndisposedSessions();
+        Assert.That(diagnostic, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostic, Does.Contain(role));
+            Assert.That(diagnostic, Does.Contain(sessionId));
+        });
+    }
+
+    [Then("the server's undisposed-session diagnostic is empty")]
+    public void ThenTheServersUndisposedSessionDiagnosticIsEmpty() =>
+        Assert.That(myServer!.DescribeUndisposedSessions(), Is.Null);
+
     [When("the server replies to role {string} with content {string}")]
     public void WhenTheServerRepliesToRoleWithContent(string role, string content) => Await(ReplyAndCaptureAsync(role, content));
 

@@ -19,6 +19,16 @@ public sealed class BackendScenarioSteps
         myScenario = new BackendScenario(workspace);
     }
 
+    /// <summary>
+    /// Disposes the scenario's <see cref="BackendScenario"/> after every scenario - not just the ones that reach a
+    /// normal host-control shutdown. This is the teardown path that actually runs for every process-driver
+    /// scenario (Reqnroll disposes the injected <see cref="ScenarioWorkspace"/> automatically, but never this
+    /// manually constructed composition root), so it is the only place a leaked, never-disposed session can be
+    /// reported.
+    /// </summary>
+    [AfterScenario]
+    public void CleanUp() => myScenario.Dispose();
+
     [Given("a backend scenario configured with a {string} role")]
     public void GivenABackendScenarioConfiguredWithARole(string role) => myScenario.ConfigureRole(role);
 
