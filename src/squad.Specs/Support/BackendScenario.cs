@@ -17,6 +17,7 @@ public sealed class BackendScenario : IDisposable
     private readonly ScenarioWorkspace myWorkspace;
     private System.Diagnostics.Process? myProcess;
     private HeadlessUiClient? myUi;
+    private FakeProviderControlServer? myControl;
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -47,20 +48,47 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Enables the private fake-provider control transport for the next <see cref="StartAsync{TProviderFactory}"/>
+    /// call: a uniquely named local pipe and a random per-scenario token that only reach the launched process
+    /// through environment variables the fake provider itself reads - never a command-line argument or file.
+    /// Returns the server so step definitions can wait for session-start and session-disposal observations.
+    /// </summary>
+    public FakeProviderControlServer EnableFakeProviderControl()
+    {
+        myControl = FakeProviderControlServer.Create();
+        return myControl;
+    }
+
+    /// <summary>
     /// Launches the published, provider-free squad-hq with "--ui stdio" and the given test-owned provider fixture,
-    /// completes the real "ui.ready" handshake, and returns only once the process has observably become ready.
+    /// completes the real "ui.ready" handshake, and returns only once the process has observably become ready. If
+    /// <see cref="EnableFakeProviderControl"/> was called first, also passes its pipe name and token through
+    /// environment variables and waits for the fake provider to connect - which happens after "ui.ready", once
+    /// the production runtime actually starts establishing sessions.
     /// </summary>
     public async Task StartAsync<TProviderFactory>(TimeSpan? timeout = null)
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
         var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        IReadOnlyDictionary<string, string?>? environment = myControl is null
+            ? null
+            : new Dictionary<string, string?>
+            {
+                [FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName,
+                [FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token,
+            };
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
             ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            environment,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);
         await myUi.CompleteReadyHandshakeAsync(timeout);
         IsReady = true;
+        if (myControl is not null)
+        {
+            await myControl.WaitForConnectionAsync(timeout);
+        }
     }
 
     /// <summary>
@@ -76,6 +104,27 @@ public sealed class BackendScenario : IDisposable
 
         return myUi.WaitForRoleStatusAsync(role, status, timeout);
     }
+
+    /// <summary>
+    /// Waits until the fake provider has reported, across the private control pipe, that the given role's
+    /// session started - proving the session lifecycle from inside the provider process itself, independent of
+    /// the UI protocol's own state.snapshot projection. Requires <see cref="EnableFakeProviderControl"/> to have
+    /// been called before <see cref="StartAsync{TProviderFactory}"/>.
+    /// </summary>
+    public Task WaitForRoleSessionStartedAsync(string role, TimeSpan? timeout = null) =>
+        RequireControl().WaitForSessionStartedAsync(role, timeout);
+
+    /// <summary>
+    /// Waits until the fake provider has reported, across the private control pipe, that the given role's
+    /// session was disposed. Requires <see cref="EnableFakeProviderControl"/> to have been called before
+    /// <see cref="StartAsync{TProviderFactory}"/>.
+    /// </summary>
+    public Task WaitForRoleSessionDisposedAsync(string role, TimeSpan? timeout = null) =>
+        RequireControl().WaitForSessionDisposedAsync(role, timeout);
+
+    private FakeProviderControlServer RequireControl() =>
+        myControl ?? throw new InvalidOperationException(
+            $"{nameof(EnableFakeProviderControl)} must be called before starting the backend scenario.");
 
     /// <summary>
     /// Requests shutdown through the real "squad-hq shutdown" host-control command and awaits the launched
@@ -110,6 +159,15 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public void Dispose()
     {
+        try
+        {
+            DisposeControl();
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"BackendScenario cleanup: control pipe disposal failed: {exception.Message}");
+        }
+
         if (myProcess is not { HasExited: false } process)
         {
             return;
@@ -135,6 +193,14 @@ public sealed class BackendScenario : IDisposable
         catch (Exception exception)
         {
             Console.Error.WriteLine($"BackendScenario cleanup: forced termination failed: {exception.Message}");
+        }
+    }
+
+    private void DisposeControl()
+    {
+        if (myControl is not null)
+        {
+            myControl.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 }

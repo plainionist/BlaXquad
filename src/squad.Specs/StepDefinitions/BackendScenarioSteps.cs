@@ -20,6 +20,10 @@ public sealed class BackendScenarioSteps
     [Given("a backend scenario configured with a {string} role")]
     public void GivenABackendScenarioConfiguredWithARole(string role) => myScenario.ConfigureRole(role);
 
+    [Given("the backend scenario has enabled the fake-provider control transport")]
+    public void GivenTheBackendScenarioHasEnabledTheFakeProviderControlTransport() =>
+        myScenario.EnableFakeProviderControl();
+
     [When("the backend scenario starts squad-hq with the echo provider fixture")]
     public void WhenTheBackendScenarioStartsSquadHqWithTheEchoProviderFixture() =>
         Await(myScenario.StartAsync<EchoAgentProviderFactory>());
@@ -35,6 +39,14 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes role {string} at status {string}")]
     public void ThenTheBackendScenarioObservesRoleAtStatus(string role, string status) =>
         Await(myScenario.WaitForRoleStatusAsync(role, status));
+
+    [Then("the backend scenario observes a session started for role {string} across the control pipe")]
+    public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
+        Await(myScenario.WaitForRoleSessionStartedAsync(role));
+
+    [Then("the backend scenario observes a session disposed for role {string} across the control pipe")]
+    public void ThenTheBackendScenarioObservesASessionDisposedForRoleAcrossTheControlPipe(string role) =>
+        Await(myScenario.WaitForRoleSessionDisposedAsync(role));
 
     [When("the backend scenario requests a host-control shutdown")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdown() =>

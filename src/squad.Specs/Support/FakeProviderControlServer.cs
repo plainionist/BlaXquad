@@ -1,0 +1,220 @@
+using System.IO.Pipes;
+using System.Security.Cryptography;
+using System.Text.Json;
+
+namespace squad.Specs.Support;
+
+/// <summary>
+/// Test-runner end of the private fake-provider control transport: a uniquely named local named pipe whose name
+/// and random per-scenario authentication token travel to the launched squad-hq process only through the
+/// <see cref="PipeNameEnvironmentVariable"/> and <see cref="TokenEnvironmentVariable"/> environment variables -
+/// squad-hq itself never parses, forwards, or otherwise knows about this channel. Every exchange is one typed,
+/// versioned, newline-delimited JSON envelope carrying a correlation id; the shared <see cref="ControlPipeDuplex"/>
+/// gives this endpoint exactly one background dispatch loop, so concurrent session observations and their
+/// acknowledgements can never compete to read the pipe.
+/// </summary>
+public sealed class FakeProviderControlServer : IAsyncDisposable
+{
+    public const string PipeNameEnvironmentVariable = "BLAXQUAD_FAKE_CONTROL_PIPE";
+    public const string TokenEnvironmentVariable = "BLAXQUAD_FAKE_CONTROL_TOKEN";
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
+
+    private readonly NamedPipeServerStream myPipe;
+    private readonly object myStateLock = new();
+    private readonly List<(string Role, string Type, string SessionId)> myObservations = [];
+    private readonly List<string> myProtocolErrors = [];
+    private ControlPipeDuplex? myDuplex;
+    private bool myAuthenticated;
+
+    private FakeProviderControlServer(string pipeName, string token)
+    {
+        PipeName = pipeName;
+        Token = token;
+        myPipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+    }
+
+    /// <summary>The unique per-scenario pipe name, published to the launched process only via
+    /// <see cref="PipeNameEnvironmentVariable"/>.</summary>
+    public string PipeName { get; }
+
+    /// <summary>The random per-scenario authentication token every connecting client must present on
+    /// "connect", published to the launched process only via <see cref="TokenEnvironmentVariable"/>.</summary>
+    public string Token { get; }
+
+    /// <summary>Creates one server bound to a freshly generated, globally unique pipe name and a random token.</summary>
+    public static FakeProviderControlServer Create() =>
+        new($"blaxquad-fake-control-{Guid.NewGuid():N}", Convert.ToHexString(RandomNumberGenerator.GetBytes(16)));
+
+    /// <summary>Waits for the provider-process client to connect and starts the one background dispatch loop
+    /// that owns every subsequent read from the pipe.</summary>
+    public async Task WaitForConnectionAsync(TimeSpan? timeout = null)
+    {
+        using var timeoutCancellation = new CancellationTokenSource(timeout ?? DefaultTimeout);
+        await myPipe.WaitForConnectionAsync(timeoutCancellation.Token);
+        myDuplex = new ControlPipeDuplex(myPipe, HandleUnsolicitedAsync);
+        myDuplex.StartDispatching();
+    }
+
+    /// <summary>Waits until the connected client has reported (and this server has acknowledged) that the given
+    /// role's session started.</summary>
+    public Task WaitForSessionStartedAsync(string role, TimeSpan? timeout = null) =>
+        WaitForObservationAsync(role, "session-started", timeout);
+
+    /// <summary>Waits until the connected client has reported (and this server has acknowledged) that the given
+    /// role's session was disposed.</summary>
+    public Task WaitForSessionDisposedAsync(string role, TimeSpan? timeout = null) =>
+        WaitForObservationAsync(role, "session-disposed", timeout);
+
+    private async Task WaitForObservationAsync(string role, string type, TimeSpan? timeout)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            lock (myStateLock)
+            {
+                if (myObservations.Any(observation => observation.Role == role && observation.Type == type))
+                {
+                    return;
+                }
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new FakeProviderControlTimeoutException(
+                    $"role '{role}' to report '{type}' across the fake-provider control pipe", DescribeDiagnostics());
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
+    private string DescribeDiagnostics()
+    {
+        lock (myStateLock)
+        {
+            var observations = myObservations.Count == 0
+                ? "(none)"
+                : string.Join('\n', myObservations.Select(observation =>
+                    $"{observation.Type} role='{observation.Role}' session='{observation.SessionId}'"));
+            var protocolErrors = myProtocolErrors.Count == 0 ? "(none)" : string.Join('\n', myProtocolErrors);
+            return $"""
+                Observations:
+                {observations}
+                Protocol errors:
+                {protocolErrors}
+                """;
+        }
+    }
+
+    private async Task HandleUnsolicitedAsync(JsonElement envelope, CancellationToken cancellationToken)
+    {
+        var correlationId = envelope.TryGetProperty("correlationId", out var correlationElement)
+            && correlationElement.ValueKind == JsonValueKind.String
+            ? correlationElement.GetString()
+            : null;
+
+        if (string.IsNullOrEmpty(correlationId))
+        {
+            await ReplyProtocolErrorAsync(correlationId ?? "", "Missing or empty correlation id.", cancellationToken);
+            return;
+        }
+
+        if (!envelope.TryGetProperty("version", out var versionElement)
+            || versionElement.ValueKind != JsonValueKind.Number
+            || versionElement.GetInt32() != ControlPipeDuplex.ProtocolVersion)
+        {
+            await ReplyProtocolErrorAsync(
+                correlationId, $"Unsupported protocol version. Expected {ControlPipeDuplex.ProtocolVersion}.", cancellationToken);
+            return;
+        }
+
+        var type = envelope.TryGetProperty("type", out var typeElement) ? typeElement.GetString() : null;
+        var payload = envelope.TryGetProperty("payload", out var payloadElement) ? payloadElement : default;
+
+        switch (type)
+        {
+            case "connect":
+                await HandleConnectAsync(correlationId, payload, cancellationToken);
+                break;
+            case "session-started":
+            case "session-disposed":
+                await HandleObservationAsync(type, correlationId, payload, cancellationToken);
+                break;
+            default:
+                await ReplyProtocolErrorAsync(correlationId, $"Unknown command '{type}'.", cancellationToken);
+                break;
+        }
+    }
+
+    private async Task HandleConnectAsync(string correlationId, JsonElement payload, CancellationToken cancellationToken)
+    {
+        var token = payload.ValueKind == JsonValueKind.Object
+            && payload.TryGetProperty("token", out var tokenElement)
+            && tokenElement.ValueKind == JsonValueKind.String
+            ? tokenElement.GetString()
+            : null;
+        if (!string.Equals(token, Token, StringComparison.Ordinal))
+        {
+            await ReplyProtocolErrorAsync(correlationId, "Invalid authentication token.", cancellationToken);
+            return;
+        }
+
+        lock (myStateLock)
+        {
+            myAuthenticated = true;
+        }
+        await myDuplex!.SendAsync("connected", correlationId, null, cancellationToken);
+    }
+
+    private async Task HandleObservationAsync(string type, string correlationId, JsonElement payload, CancellationToken cancellationToken)
+    {
+        bool authenticated;
+        lock (myStateLock)
+        {
+            authenticated = myAuthenticated;
+        }
+        if (!authenticated)
+        {
+            await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
+            return;
+        }
+
+        var role = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("role", out var roleElement)
+            ? roleElement.GetString()
+            : null;
+        var sessionId = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("sessionId", out var sessionIdElement)
+            ? sessionIdElement.GetString()
+            : null;
+        if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId))
+        {
+            await ReplyProtocolErrorAsync(correlationId, $"'{type}' requires a role and a session id.", cancellationToken);
+            return;
+        }
+
+        lock (myStateLock)
+        {
+            myObservations.Add((role, type, sessionId));
+        }
+        await myDuplex!.SendAsync("ack", correlationId, new { type }, cancellationToken);
+    }
+
+    private async Task ReplyProtocolErrorAsync(string correlationId, string message, CancellationToken cancellationToken)
+    {
+        lock (myStateLock)
+        {
+            myProtocolErrors.Add(message);
+        }
+        await myDuplex!.SendAsync("protocol-error", correlationId, new { message }, cancellationToken);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (myDuplex is not null)
+        {
+            await myDuplex.DisposeAsync();
+        }
+        else
+        {
+            await myPipe.DisposeAsync();
+        }
+    }
+}
