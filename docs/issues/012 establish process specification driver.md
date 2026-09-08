@@ -98,6 +98,8 @@ completes `ui.ready`, and returns only after observable readiness. Normal shutdo
 
 ### Slice 5: Make scenario cleanup bounded, diagnostic, and isolated
 
+**Status: complete (6cbfb7eb9e)**
+
 Centralize bounded waits and diagnostics across workspace, CLI, UI, and lifecycle support. Disposal first requests
 normal host-control shutdown, then waits for a bounded interval, and only then terminates the exact scenario-owned
 child. Preserve the primary scenario failure while attaching cleanup diagnostics. Do not add arbitrary synchronization
