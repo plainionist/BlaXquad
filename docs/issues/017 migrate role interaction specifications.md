@@ -139,7 +139,7 @@ interactions" and "Pending interaction context remains retained" were intentiona
 Slice 3's broader session-failure scope, and the latter asserts genuine transcript-retention behavior rather than
 pending-interaction collection retention.
 
-### Slice 3 (pending): Abort sequencing and terminal role failure
+### Slice 3 (in progress): Abort sequencing and terminal role failure
 
 - Extend the fake-agent API with deterministic, acknowledged controls for an abort that is pending, completes, or
   fails, without adding product test hooks or arbitrary sleeps.
