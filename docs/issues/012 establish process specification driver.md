@@ -28,90 +28,154 @@ contain the production default provider for existing specifications. Load the fa
 
 ## Implementation plan
 
-### Slice 1: Establish the provider-free process scenario facade
+Implement these slices in order. Keep exactly one slice in progress, and submit each slice for review before starting
+the next one.
 
-1. Add a dedicated backend-spec publication target to `squad.Specs` that publishes the real `squad-hq` with
-   `IncludeCopilotSdkProvider=false` into its own test-output directory. Keep the existing production-like
-   `squad-tools` publication unchanged for specifications that exercise the default Copilot package. The proof
-   executable and dependency manifest must not reference or contain `squad.CopilotSdk`, its SDK dependency, or native
-   runtime assets.
-2. Introduce `BackendScenario` as the test-owned lifetime/composition root. Give workspace support semantic operations
-   for creating a uniquely rooted configured Git project and locating role worktrees; give CLI support operations for
-   running the exact published `squad` and provider-free `squad-hq` executables with captured exit code, stdout, and
-   stderr. Do not resolve tools from `PATH`, launch against the checkout, or inspect ambient headquarters processes.
-3. Extract a headless UI client that owns one launched process's standard-input writer, concurrent stdout/stderr
-   readers, versioned envelope serialization, and the minimum protocol state required to wait for snapshots and
-   transcript messages. Expose semantic commands and observations such as ready, send prompt, wait for role status,
-   and wait for transcript content; do not expose raw JSON or product protocol DTOs to steps.
-4. Make `BackendScenario.StartAsync` launch headquarters with `--ui stdio` and an explicitly supplied test provider,
-   complete the real `ui.ready` handshake, and return only after the requested observable readiness condition.
-   Expose lifecycle operations for normal shutdown through the real `squad-hq shutdown` command and clean process
-   exit.
-5. Centralize bounded waits and diagnostics. A timeout must report the command/process state plus captured stdout,
-   stderr, and parsed UI state. Disposal requests normal host-control shutdown first, waits for a bounded interval,
-   and only then terminates the exact scenario-owned child process. Preserve the primary scenario failure while
-   appending cleanup diagnostics; do not use arbitrary synchronization sleeps.
-6. Add a focused black-box Gherkin scenario that uses only the new facade to create a configured role, start the
-   provider-free headquarters with the existing echo fixture, complete readiness, and shut down cleanly. Keep the
-   existing stdio and provider-packaging specifications running unchanged while the new canonical driver is
-   established.
+### Slice 1: Publish a provider-free headquarters for backend specifications
+
+Add a dedicated `squad.Specs` publication target that publishes the real `squad-hq` with
+`IncludeCopilotSdkProvider=false` into a separate test-output directory. Preserve the existing production-like
+`squad-tools` publication unchanged. Add focused packaging coverage for both outputs.
 
 **Slice acceptance**
 
-- One user-oriented facade owns workspace, CLI, UI, and lifecycle capabilities without exposing child-process or
-  protocol plumbing to its step definitions.
-- The proof launches an exact, separately published `squad-hq` whose output and dependency manifest contain no
-  `squad.CopilotSdk` reference or assets; normal production-like test publication still includes the default provider.
-- The facade completes the real stdio ready handshake and requests shutdown through the actual host-control command.
-- Every wait is bounded by observable process/protocol state and emits captured diagnostics on failure.
-- Cleanup affects only the scenario-owned process and temporary project, even when another headquarters process is
-  running.
+- The backend-spec output contains the real `squad-hq` executable but no `squad.CopilotSdk` assembly, SDK dependency,
+  native SDK asset, or dependency-manifest reference.
+- The existing `squad-tools` output still contains the production default provider.
+- Existing provider-packaging specifications pass without being weakened or replaced.
 
-### Slice 2: Add the fake provider channel and complete the vertical proof
+### Slice 2: Add exact published-tool and temporary-workspace support
 
-
-1. Add one public fake `IAgentProviderFactory` in `squad.Specs` and provider-side backend, runtime, and session
-   implementations in separate source files. Load that factory into the provider-free headquarters through the
-   production `--provider` descriptor. Keep all fake behavior out of production assemblies and preserve the normal
-   headquarters provider/runtime/session lifecycle.
-2. Add a uniquely named, per-scenario local named-pipe endpoint and random token passed only through a test-owned
-   environment variable. Headquarters must not parse, forward, or understand the channel. Use typed, versioned
-   newline-delimited JSON messages with correlation identifiers so one reader can dispatch observations and command
-   acknowledgements without competing reads.
-3. Report provider observations for session start/disposal, prompts, harness messages, aborts, and interaction
-   responses. Accept acknowledged commands that emit the provider-neutral event families needed by backend
-   specifications, including assistant/reasoning/tool output, readiness and usage, interaction requests, idle,
-   operation/session completion, and failures. Route by role and session identity and reject unknown commands or
-   sessions with explicit diagnostics rather than silently acknowledging them.
-4. Expose the test-process side as `scenario.Agent(role)` (or an equivalently narrow role controller) with semantic
-   operations such as waiting for a prompt, replying, requesting an interaction, reporting usage, going idle, and
-   failing or completing a session. Neither this API nor Gherkin steps may construct provider `AgentEvent` records or
-   control-channel DTOs.
-5. Integrate provider state into the facade's common bounded-wait and failure reporting. Startup must observe the
-   configured role session through the control channel; teardown must close the channel, observe or report session
-   disposal, request normal headquarters shutdown, and use bounded scenario-owned emergency cleanup if either side
-   fails.
-6. Add the complete black-box architectural proof in Gherkin: create a configured fake role, start the real
-   provider-free headquarters, complete `ui.ready`, observe normal session startup, send a prompt through the real UI
-   protocol, observe it through the fake-agent API, emit an assistant reply through that API, observe the real
-   transcript protocol message, request shutdown through the real command, and confirm clean exit. Step definitions
-   use only the scenario facade's semantic workspace, UI, agent, CLI, and lifecycle operations.
-7. Run the focused process-driver proof and the complete acceptance suite. Existing specifications remain in
-   `squad.Specs`; do not migrate or remove unrelated white-box scenarios as part of establishing this API.
+Add test-owned support that creates a uniquely rooted configured Git project, locates role worktrees, and runs the
+exact published `squad` and provider-free `squad-hq` executables. Capture command line, exit code, stdout, stderr, and
+process lifetime. Do not resolve tools from `PATH`, run binaries from the checkout, or inspect ambient headquarters
+processes.
 
 **Slice acceptance**
 
-- The fake provider and both ends of its private control channel live only in `squad.Specs`, implement the production
-  provider SPI, and are loaded into the real provider-free headquarters process.
-- A configured role starts through the normal lifecycle, and the controller observes its session without product test
-  hooks.
-- A prompt sent through the real UI JSON protocol reaches the semantic fake-agent API.
-- A semantic assistant reply crosses the named pipe, becomes a provider-neutral event, and appears as a real
-  transcript protocol message.
-- Commands and observations have deterministic acknowledgements, bounded timeouts, role/session routing, and useful
-  UI/provider/process diagnostics.
-- Host-control shutdown exits cleanly, failed scenarios perform bounded cleanup, and no step definition sees raw
-  provider events, protocol envelopes, pipe messages, child processes, or product objects.
+- A focused specification creates a configured temporary project through the support API and successfully invokes
+  the exact backend-spec publication.
+- Command failures report the executable, arguments, working directory, exit code, stdout, and stderr.
+- All created paths and processes are scenario-owned and safe for parallel scenarios.
+
+### Slice 3: Add the semantic headless UI client
+
+Add a client for one launched `--ui stdio` process. It owns stdin, concurrent stdout/stderr collection,
+newline-delimited versioned-envelope framing, and only the received state needed for semantic waits. Initially expose
+readiness, prompt sending, role-status waiting, transcript waiting, and protocol-error reporting. Keep raw JSON and
+product protocol DTOs private to the client.
+
+**Slice acceptance**
+
+- Focused black-box coverage completes the real `ui.ready` exchange against a published headquarters process.
+- Reads and writes cannot deadlock because stdout and stderr are drained concurrently.
+- Every semantic wait is bounded and reports captured process output plus parsed UI state on timeout.
+- No step definition handles protocol envelopes, raw JSON, streams, or child processes.
+
+### Slice 4: Compose startup and normal shutdown in `BackendScenario`
+
+Introduce `BackendScenario` as the test-owned lifetime and composition root for workspace, CLI, UI, and process
+support. `StartAsync` launches the provider-free headquarters with `--ui stdio` and an explicit existing test provider,
+completes `ui.ready`, and returns only after observable readiness. Normal shutdown must use the real
+`squad-hq shutdown` command and await clean process exit.
+
+**Slice acceptance**
+
+- A focused Gherkin scenario uses only `BackendScenario` semantic operations to create one configured role, start
+  headquarters with the existing echo fixture, become ready, request host-control shutdown, and observe exit code
+  zero.
+- Step definitions do not expose paths beyond user-supplied inputs, process handles, protocol DTOs, or product object
+  graphs.
+- Existing stdio specifications continue to pass unchanged.
+
+### Slice 5: Make scenario cleanup bounded, diagnostic, and isolated
+
+Centralize bounded waits and diagnostics across workspace, CLI, UI, and lifecycle support. Disposal first requests
+normal host-control shutdown, then waits for a bounded interval, and only then terminates the exact scenario-owned
+child. Preserve the primary scenario failure while attaching cleanup diagnostics. Do not add arbitrary synchronization
+sleeps.
+
+**Slice acceptance**
+
+- Focused coverage proves timeout diagnostics include command/process state, stdout, stderr, and parsed UI state.
+- Focused coverage proves emergency cleanup targets only the process launched by that scenario, even while another
+  headquarters process is running.
+- Temporary workspace cleanup is bounded and a cleanup failure cannot replace the original scenario failure.
+
+### Slice 6: Load a minimal fake provider through the production SPI
+
+Add one public fake `IAgentProviderFactory` to `squad.Specs`, with provider-side backend, runtime, and session
+implementations in separate files. Load it into the provider-free headquarters through the production `--provider`
+descriptor. At this stage the fake only needs to establish and dispose a configured role session through the normal
+provider lifecycle.
+
+**Slice acceptance**
+
+- The published provider-free headquarters loads the factory from `squad.Specs.dll` by explicit descriptor and starts
+  a configured role session.
+- Session creation and disposal use the production provider/runtime/session lifecycle.
+- All fake behavior remains in `squad.Specs`; no product test hook, extra test assembly, or `squad.CopilotSdk`
+  dependency is introduced.
+
+### Slice 7: Establish the private fake-provider control transport
+
+Add the test-runner and provider-process ends of a uniquely named local named pipe. Pass its endpoint and random
+per-scenario token only through a test-owned environment variable. Use typed, versioned, newline-delimited JSON
+messages with correlation identifiers and one dispatching reader per endpoint. Initially support authenticated
+connection, session-started observation, session-disposed observation, command acknowledgement, and explicit protocol
+errors.
+
+**Slice acceptance**
+
+- A focused process specification observes session start and disposal across the pipe.
+- Invalid tokens, message versions, correlation identifiers, and unknown commands fail with explicit diagnostics.
+- Concurrent observations and acknowledgements cannot compete for reads.
+- Headquarters does not parse, forward, or otherwise know about the control channel.
+
+### Slice 8: Expose prompts and assistant replies through a role controller
+
+Extend the control protocol to report received prompts and to accept an acknowledged semantic assistant-reply command.
+Route all traffic by role and session identity and reject unknown or disposed sessions. Expose the test-process API as
+`scenario.Agent(role)` (or an equivalently narrow controller) with `WaitForPromptAsync` and `ReplyAsync`; keep control
+DTOs and provider `AgentEvent` values behind that API.
+
+**Slice acceptance**
+
+- A prompt sent through the real UI protocol is observed through the semantic role controller.
+- A semantic reply crosses the pipe, is translated to the production provider-neutral assistant event, and is
+  acknowledged deterministically.
+- Unknown roles, sessions, commands, and replies after disposal produce bounded, actionable failures.
+- Gherkin steps construct neither control messages nor provider events.
+
+### Slice 9: Complete the vertical architectural proof
+
+Add one black-box Gherkin scenario that creates a configured fake role, starts the real provider-free headquarters,
+completes `ui.ready`, observes the role session, sends a prompt through the real UI protocol, observes it through the
+role controller, emits an assistant reply, observes the resulting real transcript message, requests shutdown through
+the real command, and confirms clean exit.
+
+**Slice acceptance**
+
+- The scenario crosses every required process and protocol boundary without accessing a product object graph.
+- Its step definitions use only semantic workspace, UI, agent, CLI, and lifecycle operations from the scenario facade.
+- The proof has no arbitrary sleeps and all waits produce combined process, UI, and provider diagnostics.
+- The focused process-driver proof passes repeatedly and remains safe to run in parallel.
+
+### Slice 10: Complete the reusable fake-agent event surface
+
+Extend the private channel and semantic role controller with the remaining event families required by the documented
+backend test API: harness messages, aborts, interaction responses, reasoning/tool output, readiness, usage,
+interaction requests, idle, operation/session completion, and failures. Add focused black-box scenarios only for
+meaningful supported behavior needed to prove each family and its acknowledgement/routing semantics.
+
+**Slice acceptance**
+
+- Each supported observation and command has a typed semantic role-controller operation, deterministic
+  acknowledgement, bounded timeout, and role/session routing.
+- Provider state is included in common scenario diagnostics and teardown reports missing session disposal.
+- No public test API or step definition exposes provider events, pipe messages, child processes, or product objects.
+- The complete existing acceptance suite passes; unrelated white-box scenarios are not migrated or removed in this
+  issue.
 
 ## Goal
 
