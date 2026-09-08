@@ -50,27 +50,35 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
 
     /// <summary>Waits for the provider-process client to connect and starts the one background dispatch loop
     /// that owns every subsequent read from the pipe.</summary>
-    public async Task WaitForConnectionAsync(TimeSpan? timeout = null)
+    public async Task WaitForConnectionAsync(TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         using var timeoutCancellation = new CancellationTokenSource(timeout ?? DefaultTimeout);
-        await myPipe.WaitForConnectionAsync(timeoutCancellation.Token);
+        try
+        {
+            await myPipe.WaitForConnectionAsync(timeoutCancellation.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCancellation.IsCancellationRequested)
+        {
+            throw new FakeProviderControlTimeoutException(
+                "a client to connect to the fake-provider control pipe", DescribeDiagnostics(additionalDiagnostics));
+        }
         myDuplex = new ControlPipeDuplex(myPipe, HandleUnsolicitedAsync);
         myDuplex.StartDispatching();
     }
 
     /// <summary>Waits until the connected client has reported (and this server has acknowledged) that the given
     /// role's session started.</summary>
-    public Task WaitForSessionStartedAsync(string role, TimeSpan? timeout = null) =>
-        WaitForObservationAsync(role, "session-started", timeout);
+    public Task WaitForSessionStartedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForObservationAsync(role, "session-started", timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported (and this server has acknowledged) that the given
     /// role's session was disposed.</summary>
-    public Task WaitForSessionDisposedAsync(string role, TimeSpan? timeout = null) =>
-        WaitForObservationAsync(role, "session-disposed", timeout);
+    public Task WaitForSessionDisposedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForObservationAsync(role, "session-disposed", timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported a prompt sent to the given role, and returns its
     /// content.</summary>
-    public async Task<string> WaitForPromptAsync(string role, TimeSpan? timeout = null)
+    public async Task<string> WaitForPromptAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
@@ -85,7 +93,8 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             if (DateTime.UtcNow >= deadline)
             {
                 throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report a prompt across the fake-provider control pipe", DescribeDiagnostics());
+                    $"role '{role}' to report a prompt across the fake-provider control pipe",
+                    DescribeDiagnostics(additionalDiagnostics));
             }
             await Task.Delay(PollInterval);
         }
@@ -95,9 +104,11 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// Sends a semantic assistant reply for the given role's session across the pipe and awaits the client's
     /// acknowledgement - or throws a <see cref="FakeProviderControlProtocolException"/> immediately if no session
     /// has ever been observed for that role, or with the client's own explicit diagnostic if the client rejects
-    /// the reply (for example because the session has since been disposed).
+    /// the reply (for example because the session has since been disposed), or a
+    /// <see cref="FakeProviderControlTimeoutException"/> carrying this server's combined diagnostics if the client
+    /// never acknowledges within the given timeout.
     /// </summary>
-    public async Task ReplyAsync(string role, string content, TimeSpan? timeout = null)
+    public async Task ReplyAsync(string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         string sessionId;
         lock (myStateLock)
@@ -109,12 +120,21 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             }
         }
 
-        var response = await myDuplex!.SendAndAwaitAsync(
-            "reply", new { role, sessionId, content }, timeout ?? DefaultTimeout, CancellationToken.None);
+        JsonElement response;
+        try
+        {
+            response = await myDuplex!.SendAndAwaitAsync(
+                "reply", new { role, sessionId, content }, timeout ?? DefaultTimeout, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
+        {
+            throw new FakeProviderControlTimeoutException(
+                $"the client to acknowledge a reply for role '{role}'", DescribeDiagnostics(additionalDiagnostics));
+        }
         ControlPipeDuplex.EnsureNotProtocolError(response, "reply");
     }
 
-    private async Task WaitForObservationAsync(string role, string type, TimeSpan? timeout)
+    private async Task WaitForObservationAsync(string role, string type, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
@@ -129,13 +149,22 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             if (DateTime.UtcNow >= deadline)
             {
                 throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report '{type}' across the fake-provider control pipe", DescribeDiagnostics());
+                    $"role '{role}' to report '{type}' across the fake-provider control pipe",
+                    DescribeDiagnostics(additionalDiagnostics));
             }
             await Task.Delay(PollInterval);
         }
     }
 
-    private string DescribeDiagnostics()
+    /// <summary>
+    /// Builds a diagnostics snapshot of every session-lifecycle observation, latest prompt per role, and
+    /// protocol error this server has seen, so a caller beyond this server's own semantic waits (for example
+    /// <see cref="BackendScenario"/> combining this with process and UI protocol diagnostics) can report the
+    /// same bounded-wait diagnostics without inspecting raw control-pipe traffic by hand.
+    /// </summary>
+    public string DescribeDiagnostics() => DescribeDiagnostics(additionalDiagnostics: null);
+
+    private string DescribeDiagnostics(Func<string>? additionalDiagnostics)
     {
         lock (myStateLock)
         {
@@ -143,13 +172,19 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
                 ? "(none)"
                 : string.Join('\n', myObservations.Select(observation =>
                     $"{observation.Type} role='{observation.Role}' session='{observation.SessionId}'"));
+            var prompts = myLatestPromptByRole.Count == 0
+                ? "(none)"
+                : string.Join('\n', myLatestPromptByRole.Select(entry => $"role='{entry.Key}' prompt='{entry.Value}'"));
             var protocolErrors = myProtocolErrors.Count == 0 ? "(none)" : string.Join('\n', myProtocolErrors);
-            return $"""
+            var provider = $"""
                 Observations:
                 {observations}
+                Latest prompts:
+                {prompts}
                 Protocol errors:
                 {protocolErrors}
                 """;
+            return additionalDiagnostics is null ? provider : $"{provider}\n{additionalDiagnostics()}";
         }
     }
 

@@ -83,11 +83,11 @@ public sealed class BackendScenario : IDisposable
             environment,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);
-        await myUi.CompleteReadyHandshakeAsync(timeout);
+        await myUi.CompleteReadyHandshakeAsync(timeout, DescribeControlDiagnostics());
         IsReady = true;
         if (myControl is not null)
         {
-            await myControl.WaitForConnectionAsync(timeout);
+            await myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
         }
     }
 
@@ -102,7 +102,7 @@ public sealed class BackendScenario : IDisposable
             throw new InvalidOperationException("The backend process has not been started.");
         }
 
-        return myUi.WaitForRoleStatusAsync(role, status, timeout);
+        return myUi.WaitForRoleStatusAsync(role, status, timeout, DescribeControlDiagnostics());
     }
 
     /// <summary>Sends a prompt to the given role through the real UI protocol - the same path a real user
@@ -127,7 +127,7 @@ public sealed class BackendScenario : IDisposable
             throw new InvalidOperationException("The backend process has not been started.");
         }
 
-        return myUi.WaitForTranscriptAsync(role, content, timeout);
+        return myUi.WaitForTranscriptAsync(role, content, timeout, DescribeControlDiagnostics());
     }
 
     /// <summary>
@@ -136,7 +136,7 @@ public sealed class BackendScenario : IDisposable
     /// behind this API. Requires <see cref="EnableFakeProviderControl"/> to have been called before
     /// <see cref="StartAsync{TProviderFactory}"/>.
     /// </summary>
-    public BackendScenarioAgent Agent(string role) => new(RequireControl(), role);
+    public BackendScenarioAgent Agent(string role) => new(RequireControl(), role, DescribeUiDiagnostics());
 
     /// <summary>
     /// Waits until the fake provider has reported, across the private control pipe, that the given role's
@@ -145,7 +145,7 @@ public sealed class BackendScenario : IDisposable
     /// been called before <see cref="StartAsync{TProviderFactory}"/>.
     /// </summary>
     public Task WaitForRoleSessionStartedAsync(string role, TimeSpan? timeout = null) =>
-        RequireControl().WaitForSessionStartedAsync(role, timeout);
+        RequireControl().WaitForSessionStartedAsync(role, timeout, DescribeUiDiagnostics());
 
     /// <summary>
     /// Waits until the fake provider has reported, across the private control pipe, that the given role's
@@ -153,11 +153,21 @@ public sealed class BackendScenario : IDisposable
     /// <see cref="StartAsync{TProviderFactory}"/>.
     /// </summary>
     public Task WaitForRoleSessionDisposedAsync(string role, TimeSpan? timeout = null) =>
-        RequireControl().WaitForSessionDisposedAsync(role, timeout);
+        RequireControl().WaitForSessionDisposedAsync(role, timeout, DescribeUiDiagnostics());
 
     private FakeProviderControlServer RequireControl() =>
         myControl ?? throw new InvalidOperationException(
             $"{nameof(EnableFakeProviderControl)} must be called before starting the backend scenario.");
+
+    /// <summary>Describes this scenario's control-pipe observations, for callers waiting on the UI protocol side
+    /// so a timeout reports process, UI, and provider state in one block - or null if no control transport was
+    /// enabled, so a UI-only wait's diagnostics are not misleadingly padded with an empty provider section.</summary>
+    private Func<string>? DescribeControlDiagnostics() => myControl is null ? null : myControl.DescribeDiagnostics;
+
+    /// <summary>Describes this scenario's process and UI protocol state, for callers waiting on the control-pipe
+    /// side so a timeout reports process, UI, and provider state in one block - or null before the backend process
+    /// has started.</summary>
+    private Func<string>? DescribeUiDiagnostics() => myUi is null ? null : myUi.DescribeDiagnostics;
 
     /// <summary>
     /// Requests shutdown through the real "squad-hq shutdown" host-control command and awaits the launched
@@ -177,7 +187,7 @@ public sealed class BackendScenario : IDisposable
         {
             throw new HeadlessUiWaitTimeoutException(
                 "the backend process to exit after requesting shutdown",
-                myUi.DescribeDiagnostics());
+                myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
         }
 
         return Task.FromResult(myProcess.ExitCode);

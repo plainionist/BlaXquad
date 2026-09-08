@@ -23,3 +23,13 @@ Feature: The vertical architectural proof of the process-level backend specifica
     Then the backend scenario observes the transcript for role "coder" containing "Build the driver."
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
+
+  Scenario: A bounded wait used by the vertical proof reports combined process, UI protocol, and provider diagnostics on timeout
+    Given a backend scenario configured with a "coder" role
+    And the backend scenario has enabled the fake-provider control transport
+    When the backend scenario starts squad-hq with the fake provider fixture
+    Then the backend scenario observes a session started for role "coder" across the control pipe
+    When the backend scenario waits 1 seconds for role "coder" at status "bogus-status-that-never-happens"
+    Then the wait fails with a diagnostics block naming the process, the UI protocol state, and the provider observations
+    When the backend scenario requests a host-control shutdown
+    Then the backend scenario observes an exit code of zero

@@ -11,6 +11,7 @@ public sealed class BackendScenarioSteps
 {
     private readonly BackendScenario myScenario;
     private int myExitCode;
+    private Exception? myLastWaitException;
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
     {
@@ -71,6 +72,36 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes an exit code of zero")]
     public void ThenTheBackendScenarioObservesAnExitCodeOfZero() =>
         Assert.That(myExitCode, Is.Zero);
+
+    [When("the backend scenario waits {int} seconds for role {string} at status {string}")]
+    public void WhenTheBackendScenarioWaitsSecondsForRoleAtStatus(int seconds, string role, string status) =>
+        Await(WaitAndCaptureAsync(role, status, TimeSpan.FromSeconds(seconds)));
+
+    [Then("the wait fails with a diagnostics block naming the process, the UI protocol state, and the provider observations")]
+    public void ThenTheWaitFailsWithCombinedDiagnostics()
+    {
+        Assert.That(myLastWaitException, Is.Not.Null);
+        var message = myLastWaitException!.Message;
+        Assert.Multiple(() =>
+        {
+            Assert.That(message, Does.Contain("Process:"));
+            Assert.That(message, Does.Contain("Last known UI state:"));
+            Assert.That(message, Does.Contain("Observations:"));
+        });
+    }
+
+    private async Task WaitAndCaptureAsync(string role, string status, TimeSpan timeout)
+    {
+        myLastWaitException = null;
+        try
+        {
+            await myScenario.WaitForRoleStatusAsync(role, status, timeout);
+        }
+        catch (Exception exception)
+        {
+            myLastWaitException = exception;
+        }
+    }
 
     private static void Await(Task task) => task.GetAwaiter().GetResult();
 

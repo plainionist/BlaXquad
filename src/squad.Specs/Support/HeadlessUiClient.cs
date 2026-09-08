@@ -31,33 +31,36 @@ public sealed class HeadlessUiClient
     /// Sends "ui.ready" and waits for the real handshake response - the initial "state.snapshot" message - proving
     /// the process completed startup and began publishing protocol state.
     /// </summary>
-    public Task CompleteReadyHandshakeAsync(TimeSpan? timeout = null)
+    public Task CompleteReadyHandshakeAsync(TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         SendEnvelope("ui.ready");
-        return WaitForMessageAsync(IsStateSnapshot, "the ui.ready handshake to produce a state.snapshot message", timeout);
+        return WaitForMessageAsync(
+            IsStateSnapshot, "the ui.ready handshake to produce a state.snapshot message", timeout, additionalDiagnostics);
     }
 
     /// <summary>Sends a prompt for the given role through the real "prompt.send" command.</summary>
     public void SendPrompt(string role, string prompt) => SendEnvelope("prompt.send", role, new { prompt });
 
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
-    public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null) =>
+    public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
             element => IsStateSnapshot(element) && RoleHasStatus(element, role, status),
             $"role '{role}' to report status '{status}'",
-            timeout);
+            timeout,
+            additionalDiagnostics);
 
     /// <summary>Waits until a "transcript.update" message reports the given content for the given role.</summary>
-    public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null) =>
+    public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
             element => IsTranscriptUpdate(element, role, content),
             $"a transcript update for role '{role}' with content '{content}'",
-            timeout);
+            timeout,
+            additionalDiagnostics);
 
     /// <summary>Waits for a "protocol.error" message and returns its human-readable message.</summary>
     public async Task<string> WaitForProtocolErrorAsync(TimeSpan? timeout = null)
     {
-        var element = await WaitForMessageAsync(IsProtocolError, "a protocol.error message", timeout);
+        var element = await WaitForMessageAsync(IsProtocolError, "a protocol.error message", timeout, additionalDiagnostics: null);
         return GetPayload(element).TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
             ? message.GetString()!
             : throw new InvalidOperationException("The protocol.error message did not include a message.");
@@ -69,7 +72,12 @@ public sealed class HeadlessUiClient
     /// client's own semantic waits (for example lifecycle cleanup awaiting process exit) can report the same
     /// bounded-wait diagnostics without exposing the process, raw JSON, or protocol envelopes themselves.
     /// </summary>
-    public string DescribeDiagnostics() => DescribeDiagnostics(CopyLines(myStdOutLines));
+    public string DescribeDiagnostics() => DescribeDiagnostics(CopyLines(myStdOutLines), additionalDiagnostics: null);
+
+    /// <summary>Same as the parameterless overload, but appends the given caller-supplied diagnostics (for
+    /// example combined provider/control-pipe observations) to the same single diagnostics block.</summary>
+    public string DescribeDiagnostics(Func<string>? additionalDiagnostics) =>
+        DescribeDiagnostics(CopyLines(myStdOutLines), additionalDiagnostics);
 
     private void SendEnvelope(string type, string? role = null, object? payload = null)
     {
@@ -98,7 +106,8 @@ public sealed class HeadlessUiClient
             }
         });
 
-    private async Task<JsonElement> WaitForMessageAsync(Func<JsonElement, bool> predicate, string description, TimeSpan? timeout)
+    private async Task<JsonElement> WaitForMessageAsync(
+        Func<JsonElement, bool> predicate, string description, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
@@ -114,23 +123,26 @@ public sealed class HeadlessUiClient
             }
             if (DateTime.UtcNow >= deadline)
             {
-                throw new HeadlessUiWaitTimeoutException(description, DescribeDiagnostics(stdOut));
+                throw new HeadlessUiWaitTimeoutException(description, DescribeDiagnostics(stdOut, additionalDiagnostics));
             }
             await Task.Delay(PollInterval);
         }
     }
 
-    private string DescribeDiagnostics(List<string> capturedStdOut) =>
-        $"""
-        Process:
-        {ProcessDiagnostics.Describe(myProcess)}
-        Last known UI state:
-        {SummarizeUiState(capturedStdOut)}
-        StdOut:
-        {string.Join('\n', capturedStdOut)}
-        StdErr:
-        {string.Join('\n', CopyLines(myStdErrLines))}
-        """;
+    private string DescribeDiagnostics(List<string> capturedStdOut, Func<string>? additionalDiagnostics)
+    {
+        var core = $"""
+            Process:
+            {ProcessDiagnostics.Describe(myProcess)}
+            Last known UI state:
+            {SummarizeUiState(capturedStdOut)}
+            StdOut:
+            {string.Join('\n', capturedStdOut)}
+            StdErr:
+            {string.Join('\n', CopyLines(myStdErrLines))}
+            """;
+        return additionalDiagnostics is null ? core : $"{core}\n{additionalDiagnostics()}";
+    }
 
     private List<string> CopyLines(List<string> lines)
     {
