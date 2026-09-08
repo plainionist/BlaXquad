@@ -44,6 +44,8 @@ delivery-retry scenario in `Recovery.feature`.
 
 ### Slice 1: Outbound handoffs
 
+**Status: complete (35bf5c506d)**
+
 - Move `Handoffs.feature` onto the shared configured-project fixture so each role has a realistic Git worktree.
 - Run every `handoff` action through the published `squad` executable from the sender's role worktree.
 - Introduce a test-owned mailbox observer with semantic results for queued handoffs. Confine directory enumeration and
