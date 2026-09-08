@@ -111,6 +111,23 @@ public sealed class ScenarioWorkspace : IDisposable
         return StartProcess(ResolveTool(toolName, "squad-tools"), arguments, environment, workingDirectory, redirectStandardInput);
     }
 
+    /// <summary>
+    /// Launches the published squad-hq with "--ui stdio" and the given test-owned provider fixture, and returns a
+    /// <see cref="HeadlessUiClient"/> already attached to it. Test support - never step definitions - selects the
+    /// published tool, builds the provider descriptor, starts and owns the child process, and constructs the
+    /// client, matching the architectural split between workspace/CLI support and the semantic UI client.
+    /// </summary>
+    public HeadlessUiClient StartHeadlessUiClient<TProviderFactory>()
+        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
+    {
+        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        var process = StartTool(
+            "squad-hq",
+            ["launch", "--provider", descriptor, "--ui", "stdio", Root],
+            redirectStandardInput: true);
+        return new HeadlessUiClient(process);
+    }
+
     public System.Diagnostics.Process StartProcess(
         string executable,
         IReadOnlyList<string>? arguments = null,

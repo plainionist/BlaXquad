@@ -20,15 +20,8 @@ public sealed class HeadlessUiClientSteps
     }
 
     [Given("the published squad-hq is launched with \"--ui stdio\"")]
-    public void GivenThePublishedSquadHqIsLaunchedWithUiStdio()
-    {
-        var descriptor = $"{typeof(EchoAgentProviderFactory).Assembly.Location};{typeof(EchoAgentProviderFactory).FullName}";
-        var process = myWorkspace.StartTool(
-            "squad-hq",
-            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
-            redirectStandardInput: true);
-        myClient = new HeadlessUiClient(process);
-    }
+    public void GivenThePublishedSquadHqIsLaunchedWithUiStdio() =>
+        myClient = myWorkspace.StartHeadlessUiClient<EchoAgentProviderFactory>();
 
     [Given("the ui client has completed the ready handshake")]
     [When("the ui client completes the ready handshake")]
