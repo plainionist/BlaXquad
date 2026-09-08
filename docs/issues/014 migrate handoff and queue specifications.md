@@ -65,6 +65,8 @@ Acceptance:
 
 ### Slice 2: Single-task queue and task recovery
 
+**Status: changes requested (7d0d271470)**
+
 - Move task-role setup onto the shared configured-project fixture while retaining receive-mode, unrelated-directory,
   and ambiguous-worktree arrangements as semantic workspace operations.
 - Replace raw task-file creation and lookup in step definitions with test-owned mailbox fixture and observer operations
@@ -83,6 +85,37 @@ Acceptance:
 - A current task remains current across a new command invocation, and an archive collision fails without losing it.
 - The task scenarios in `TaskQueue.feature` and `Recovery.feature` pass without constructing configuration rows,
   workspace context, queue objects, or command implementations.
+
+#### Review findings on 7d0d271470
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Specs/StepDefinitions/QueueSteps.cs` (`GivenANestedDirectoryExists`,
+  `WhenTheNestedDirectoryChecksForWork`), `src/squad.Specs/Features/TaskQueue.feature` (unrelated nested directory
+  scenario).
+- **Violated behavior:** Slice 2 must keep the unrelated-directory outcome covered as a semantic workspace operation,
+  distinct from an empty queue, and must run that scenario from a location that is not the task role's worktree.
+  Step definitions must not inspect `RoleWorktreePath`.
+- **Root cause:** Task-role setup now uses `ConfigureProject`, so the role lives at `.worktrees/reviewer`. A nested
+  directory under the main checkout would no longer match that worktree. The steps create `nested/current` inside
+  `RoleWorktreePath("reviewer")` so `ready-for-next` still resolves the role and returns `NO_TASK`. That is the empty
+  queue already covered by "An empty queue has no task", not an unrelated location.
+- **Required outcome:** Arrange the unrelated directory through a semantic workspace operation that does not expose
+  worktree paths or hard-code the role name in step definitions. The scenario must fail if the command resolves the
+  task role from that location. Do not place the directory inside the role worktree merely to keep empty-queue
+  `NO_TASK` green.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/StepDefinitions/QueueSteps.cs` (`GivenAGitProjectWithRoleAndAnEmptyReceiveMode`,
+  `GivenAGitProjectWithTwoRolesSharingTheCurrentWorktree`).
+- **Violated behavior:** Receive-mode and ambiguous-worktree arrangements must be semantic workspace operations.
+  Step definitions must not write `squad.json` or other durable configuration representation.
+- **Root cause:** After moving the happy-path task role onto `ConfigureProject`, these two Givens still embed the
+  squad configuration document (role names, `worktree`, `receiveMode`) in the step class instead of a workspace
+  operation comparable to `ConfigureProject`.
+- **Required outcome:** Empty receive mode and two roles sharing the current worktree are arranged by test-owned
+  workspace APIs. Step definitions name the arrangement; they do not serialize configuration.
 
 ### Slice 3: Batch queue
 
