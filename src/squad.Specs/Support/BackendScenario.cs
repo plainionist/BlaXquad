@@ -4,14 +4,19 @@ namespace squad.Specs.Support;
 /// Test-owned lifetime and composition root for one backend-process specification. It wires together the Git
 /// workspace, the published, provider-free squad-hq CLI, and the headless UI protocol client so step definitions
 /// only ever see semantic, backend-agnostic operations - never a file-system path beyond a user-supplied role
-/// name, a process handle, a protocol DTO, or any other product object graph.
+/// name, a process handle, a protocol DTO, or any other product object graph. Implements <see cref="IDisposable"/>
+/// as an emergency-only cleanup path: normal specifications call <see cref="ShutdownAsync"/> explicitly, and
+/// disposal only forcibly terminates the exact process this instance itself launched - never any other process,
+/// even one launched by another concurrently running <see cref="BackendScenario"/>.
 /// </summary>
-public sealed class BackendScenario
+public sealed class BackendScenario : IDisposable
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan ShutdownGracePeriod = TimeSpan.FromSeconds(5);
 
     private readonly ScenarioWorkspace myWorkspace;
     private System.Diagnostics.Process? myProcess;
+    private HeadlessUiClient? myUi;
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -20,6 +25,9 @@ public sealed class BackendScenario
 
     /// <summary>Whether the backend process has completed the real "ui.ready" handshake.</summary>
     public bool IsReady { get; private set; }
+
+    /// <summary>Whether the launched backend process has not (yet) exited.</summary>
+    public bool IsRunning => myProcess is { HasExited: false };
 
     /// <summary>Creates one Git project configured with a single role at the project root worktree.</summary>
     public void ConfigureRole(string role)
@@ -50,8 +58,8 @@ public sealed class BackendScenario
             myWorkspace.BackendSpecSquadHqExecutablePath,
             ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
             redirectStandardInput: true);
-        var ui = new HeadlessUiClient(myProcess);
-        await ui.CompleteReadyHandshakeAsync(timeout);
+        myUi = new HeadlessUiClient(myProcess);
+        await myUi.CompleteReadyHandshakeAsync(timeout);
         IsReady = true;
     }
 
@@ -61,7 +69,7 @@ public sealed class BackendScenario
     /// </summary>
     public Task<int> ShutdownAsync(TimeSpan? timeout = null)
     {
-        if (myProcess is null)
+        if (myProcess is null || myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
         }
@@ -71,9 +79,48 @@ public sealed class BackendScenario
         var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
         if (!myProcess.WaitForExit(deadlineMilliseconds))
         {
-            throw new TimeoutException("Timed out waiting for the backend process to exit after requesting shutdown.");
+            throw new HeadlessUiWaitTimeoutException(
+                "the backend process to exit after requesting shutdown",
+                myUi.DescribeDiagnostics());
         }
 
         return Task.FromResult(myProcess.ExitCode);
+    }
+
+    /// <summary>
+    /// Emergency cleanup for a scenario that never reached, or never completed, a normal host-control shutdown.
+    /// Requests shutdown one more time on a best-effort basis, waits a bounded grace period for the exact process
+    /// this scenario launched to exit on its own, and only then forcibly terminates that same process - never any
+    /// other process, even one launched by another concurrently running scenario. Never throws, so a cleanup
+    /// failure here can never replace a scenario's real failure.
+    /// </summary>
+    public void Dispose()
+    {
+        if (myProcess is not { HasExited: false } process)
+        {
+            return;
+        }
+
+        try
+        {
+            myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root]);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"BackendScenario cleanup: best-effort shutdown request failed: {exception.Message}");
+        }
+
+        try
+        {
+            if (!process.WaitForExit((int)ShutdownGracePeriod.TotalMilliseconds))
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit((int)DefaultTimeout.TotalMilliseconds);
+            }
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"BackendScenario cleanup: forced termination failed: {exception.Message}");
+        }
     }
 }

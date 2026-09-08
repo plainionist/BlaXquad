@@ -6,6 +6,9 @@ namespace squad.Specs.Support;
 public sealed class ScenarioWorkspace : IDisposable
 {
     private static readonly Regex AnsiEscape = new(@"\x1B\[[0-?]*[ -/]*[@-~]", RegexOptions.Compiled);
+    private static readonly TimeSpan ProcessExitTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan WorkspaceCleanupTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan WorkspaceCleanupPollInterval = TimeSpan.FromMilliseconds(100);
     private readonly Dictionary<string, object> myValues = new(StringComparer.Ordinal);
     private readonly List<System.Diagnostics.Process> myRunningProcesses = [];
 
@@ -207,16 +210,32 @@ public sealed class ScenarioWorkspace : IDisposable
         return LastResult;
     }
 
+    /// <summary>
+    /// Stops every process this workspace started and removes its temporary directory. Each step is bounded and
+    /// isolated: a process that will not stop, or a directory entry that will not delete, is logged and skipped
+    /// rather than left to hang or to throw out of <see cref="Dispose"/> - a cleanup failure here must never
+    /// replace a scenario's real failure.
+    /// </summary>
     public void Dispose()
     {
         foreach (var process in myRunningProcesses)
         {
-            if (!process.HasExited)
+            try
             {
-                process.Kill(entireProcessTree: true);
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                process.WaitForExit((int)ProcessExitTimeout.TotalMilliseconds);
             }
-            process.WaitForExit();
-            process.Dispose();
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine($"ScenarioWorkspace cleanup: failed to stop a child process: {exception.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
         }
 
         if (!Directory.Exists(Root))
@@ -224,7 +243,20 @@ public sealed class ScenarioWorkspace : IDisposable
             return;
         }
 
-        foreach (var path in EnumeratePaths(Root).OrderByDescending(path => path.Length))
+        try
+        {
+            RemoveReparsePoints(Root);
+            DeleteDirectoryWithBoundedRetries(Root);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"ScenarioWorkspace cleanup: failed to remove temporary workspace '{Root}': {exception.Message}");
+        }
+    }
+
+    private static void RemoveReparsePoints(string root)
+    {
+        foreach (var path in EnumeratePaths(root).OrderByDescending(path => path.Length))
         {
             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
             {
@@ -241,11 +273,33 @@ public sealed class ScenarioWorkspace : IDisposable
                 File.Delete(path);
             }
         }
-        foreach (var path in EnumeratePaths(Root))
+    }
+
+    /// <summary>
+    /// Deletes the directory tree, retrying for a bounded window when a file is still transiently locked (for
+    /// example immediately after killing a process whose handles have not yet released) instead of failing on the
+    /// first attempt or retrying forever.
+    /// </summary>
+    private static void DeleteDirectoryWithBoundedRetries(string root)
+    {
+        foreach (var path in EnumeratePaths(root))
         {
             File.SetAttributes(path, FileAttributes.Normal);
         }
-        Directory.Delete(Root, recursive: true);
+
+        var deadline = DateTime.UtcNow + WorkspaceCleanupTimeout;
+        while (true)
+        {
+            try
+            {
+                Directory.Delete(root, recursive: true);
+                return;
+            }
+            catch (Exception exception) when ((exception is IOException or UnauthorizedAccessException) && DateTime.UtcNow < deadline)
+            {
+                Thread.Sleep(WorkspaceCleanupPollInterval);
+            }
+        }
     }
 
     private static string Normalize(string value) =>

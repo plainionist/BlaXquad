@@ -63,6 +63,14 @@ public sealed class HeadlessUiClient
             : throw new InvalidOperationException("The protocol.error message did not include a message.");
     }
 
+    /// <summary>
+    /// Builds a diagnostics snapshot of the launched process's command/lifecycle state, its captured standard
+    /// output and standard error, and the most recently observed UI state. Exposed so callers beyond this
+    /// client's own semantic waits (for example lifecycle cleanup awaiting process exit) can report the same
+    /// bounded-wait diagnostics without exposing the process, raw JSON, or protocol envelopes themselves.
+    /// </summary>
+    public string DescribeDiagnostics() => DescribeDiagnostics(CopyLines(myStdOutLines));
+
     private void SendEnvelope(string type, string? role = null, object? payload = null)
     {
         var envelope = new Dictionary<string, object?> { ["version"] = ProtocolVersion, ["type"] = type };
@@ -106,11 +114,23 @@ public sealed class HeadlessUiClient
             }
             if (DateTime.UtcNow >= deadline)
             {
-                throw new HeadlessUiWaitTimeoutException(description, stdOut, CopyLines(myStdErrLines), SummarizeUiState(stdOut));
+                throw new HeadlessUiWaitTimeoutException(description, DescribeDiagnostics(stdOut));
             }
             await Task.Delay(PollInterval);
         }
     }
+
+    private string DescribeDiagnostics(List<string> capturedStdOut) =>
+        $"""
+        Process:
+        {ProcessDiagnostics.Describe(myProcess)}
+        Last known UI state:
+        {SummarizeUiState(capturedStdOut)}
+        StdOut:
+        {string.Join('\n', capturedStdOut)}
+        StdErr:
+        {string.Join('\n', CopyLines(myStdErrLines))}
+        """;
 
     private List<string> CopyLines(List<string> lines)
     {

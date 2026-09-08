@@ -52,6 +52,8 @@ public sealed class HeadlessUiClientSteps
         Assert.Multiple(() =>
         {
             Assert.That(exception!.Message, Does.Contain($"role '{role}' to report status '{status}'"));
+            Assert.That(exception.Message, Does.Contain("Process:"));
+            Assert.That(exception.Message, Does.Contain("State: running"));
             Assert.That(exception.Message, Does.Contain("Last known UI state:"));
             Assert.That(exception.Message, Does.Contain("StdOut:"));
             Assert.That(exception.Message, Does.Contain("StdErr:"));
