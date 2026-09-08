@@ -41,7 +41,7 @@ existing `BackendScenario` test facade rather than adding a second process drive
 real `squad-hq` process, fake-provider control channel, and bounded waits, while `ScenarioWorkspace` and mailbox support
 hide filesystem formats and real `squad` command invocation from step definitions.
 
-### Slice 1 - Process-level handoff delivery (in progress)
+### Slice 1 - Process-level handoff delivery (complete)
 
 **Status: complete (bbcdea4919)**
 
@@ -67,7 +67,7 @@ Acceptance criteria:
 - A failed harness send still leaves exactly one recipient copy and one sent sender artifact while headquarters remains
   available.
 
-### Slice 2 - Idempotent delivery and restart recovery (queued)
+### Slice 2 - Idempotent delivery and restart recovery (in progress)
 
 - Migrate the duplicate-delivery scenario in `Recovery.feature` to the process facade. Queue the outbound handoff through
   `squad`, seed a matching already-persisted recipient copy through mailbox support, run headquarters, and prove retry
