@@ -25,11 +25,7 @@ public sealed class RecordingAgentSession : IAgentSession
     public string SessionId { get; }
     public Task Completion => myCompletion.Task;
     public ConcurrentQueue<string> Sends { get; } = new();
-    public ConcurrentQueue<(string RequestId, AgentPermissionResponse Response)> PermissionResponses { get; } = new();
-    public ConcurrentQueue<(string RequestId, AgentInputResponse Response)> InputResponses { get; } = new();
-    public ConcurrentQueue<(string RequestId, AgentElicitationResponse Response)> ElicitationResponses { get; } = new();
     public int AbortCount { get; private set; }
-    public int PendingInteractionCancellationCount { get; private set; }
     public TimeSpan SendDelay { get; set; }
     public bool BlockAbort { get; set; }
     public bool FailAbort { get; set; }
@@ -102,28 +98,24 @@ public sealed class RecordingAgentSession : IAgentSession
     public Task RespondToPermissionAsync(string requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        PermissionResponses.Enqueue((requestId, response));
         return Task.CompletedTask;
     }
 
     public Task RespondToInputAsync(string requestId, AgentInputResponse response, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        InputResponses.Enqueue((requestId, response));
         return Task.CompletedTask;
     }
 
     public Task RespondToElicitationAsync(string requestId, AgentElicitationResponse response, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ElicitationResponses.Enqueue((requestId, response));
         return Task.CompletedTask;
     }
 
     public Task CancelPendingInteractionsAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        PendingInteractionCancellationCount++;
         return Task.CompletedTask;
     }
 

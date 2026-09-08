@@ -64,9 +64,21 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
         control.WaitForInputResponseAsync(role, timeout, uiDiagnostics);
 
     /// <summary>Waits until this role's session has reported a response to an elicitation request it emitted, and
-    /// returns the request id and the chosen action.</summary>
-    public Task<(string RequestId, string Action)> WaitForElicitationResponseAsync(TimeSpan? timeout = null) =>
+    /// returns the request id, the chosen action, and the accepted content (or null if none was given).</summary>
+    public Task<(string RequestId, string Action, System.Text.Json.JsonElement? Content)> WaitForElicitationResponseAsync(TimeSpan? timeout = null) =>
         control.WaitForElicitationResponseAsync(role, timeout, uiDiagnostics);
+
+    /// <summary>Returns whether this role's session has already reported a response to a permission request it
+    /// emitted, without waiting - used to prove a response addressed to another role never reached this one.</summary>
+    public bool HasReceivedPermissionResponse() => control.HasObservation(role, "permission-response");
+
+    /// <summary>Returns whether this role's session has already reported a response to an input request it
+    /// emitted, without waiting - used to prove a response addressed to another role never reached this one.</summary>
+    public bool HasReceivedInputResponse() => control.HasObservation(role, "input-response");
+
+    /// <summary>Returns whether this role's session has already reported a response to an elicitation request it
+    /// emitted, without waiting - used to prove a response addressed to another role never reached this one.</summary>
+    public bool HasReceivedElicitationResponse() => control.HasObservation(role, "elicitation-response");
 
     /// <summary>Emits a reasoning update for this role's session, awaiting the real production
     /// <c>AgentReasoningEvent</c> to be published.</summary>

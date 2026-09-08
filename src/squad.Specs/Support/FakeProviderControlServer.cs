@@ -222,12 +222,27 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     }
 
     /// <summary>Waits until the connected client has reported a response to an elicitation request this role's
-    /// session emitted, and returns the request id and the chosen action.</summary>
-    public async Task<(string RequestId, string Action)> WaitForElicitationResponseAsync(
+    /// session emitted, and returns the request id, the chosen action, and the accepted content (or null if none
+    /// was given).</summary>
+    public async Task<(string RequestId, string Action, JsonElement? Content)> WaitForElicitationResponseAsync(
         string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         var data = await WaitForObservationDataAsync(role, "elicitation-response", timeout, additionalDiagnostics);
-        return (data.GetProperty("requestId").GetString()!, data.GetProperty("action").GetString()!);
+        return (
+            data.GetProperty("requestId").GetString()!,
+            data.GetProperty("action").GetString()!,
+            data.TryGetProperty("content", out var content) && content.ValueKind != JsonValueKind.Null ? content : null);
+    }
+
+    /// <summary>Returns whether the connected client has reported a response to a permission, input, or
+    /// elicitation request this role's session emitted, without waiting - a snapshot read used to prove another
+    /// role's owning session never observed a response addressed to a different role.</summary>
+    public bool HasObservation(string role, string kind)
+    {
+        lock (myStateLock)
+        {
+            return myLatestObservationByRoleAndKind.ContainsKey((role, kind));
+        }
     }
 
     /// <summary>Emits a reasoning update for the given role's session, awaiting the client's acknowledgement that

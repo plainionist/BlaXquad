@@ -32,6 +32,10 @@ public sealed class BackendScenarioSteps
     [Given("a backend scenario configured with a {string} role")]
     public void GivenABackendScenarioConfiguredWithARole(string role) => myScenario.ConfigureRole(role);
 
+    [Given("a backend scenario configured with roles {string}")]
+    public void GivenABackendScenarioConfiguredWithRoles(string commaSeparatedRoles) =>
+        myScenario.ConfigureRoles(commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
     [Given("the backend scenario has enabled the fake-provider control transport")]
     public void GivenTheBackendScenarioHasEnabledTheFakeProviderControlTransport() =>
         myScenario.EnableFakeProviderControl();
@@ -116,6 +120,11 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentRequestsInputWithPrompt(string role, string requestId, string prompt) =>
         Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt));
 
+    [When("the {string} agent requests input {string} with prompt {string} and choices {string} and freeform {string}")]
+    public void WhenTheAgentRequestsInputWithPromptAndChoicesAndFreeform(
+        string role, string requestId, string prompt, string commaSeparatedChoices, string allowFreeform) =>
+        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt, ParseChoices(commaSeparatedChoices), bool.Parse(allowFreeform)));
+
     [When("the backend scenario responds to input {string} for role {string} with answer {string}")]
     public void WhenTheBackendScenarioRespondsToInputForRoleWithAnswer(string requestId, string role, string answer) =>
         myScenario.RespondToInput(role, requestId, answer);
@@ -135,9 +144,18 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentRequestsElicitationWithPromptAndMode(string role, string requestId, string prompt, string mode) =>
         Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, mode));
 
+    [When("the {string} agent requests URL elicitation {string} with prompt {string} and url {string}")]
+    public void WhenTheAgentRequestsUrlElicitationWithPromptAndUrl(string role, string requestId, string prompt, string url) =>
+        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, "url", url));
+
     [When("the backend scenario responds to elicitation {string} for role {string} with action {string}")]
     public void WhenTheBackendScenarioRespondsToElicitationForRoleWithAction(string requestId, string role, string action) =>
         myScenario.RespondToElicitation(role, requestId, action);
+
+    [When("the backend scenario responds to elicitation {string} for role {string} with action {string} and form value {string}")]
+    public void WhenTheBackendScenarioRespondsToElicitationForRoleWithActionAndFormValue(
+        string requestId, string role, string action, string formValue) =>
+        myScenario.RespondToElicitation(role, requestId, action, new { answer = formValue });
 
     [Then("the {string} agent observes an elicitation response for {string} with action {string}")]
     public void ThenTheAgentObservesAnElicitationResponseForWithAction(string role, string requestId, string action)
@@ -149,6 +167,58 @@ public sealed class BackendScenarioSteps
             Assert.That(response.Action, Is.EqualTo(action));
         });
     }
+
+    [Then("the {string} agent observes an elicitation response for {string} with action {string} and form value {string}")]
+    public void ThenTheAgentObservesAnElicitationResponseForWithActionAndFormValue(
+        string role, string requestId, string action, string formValue)
+    {
+        var response = Await(myScenario.Agent(role).WaitForElicitationResponseAsync());
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.RequestId, Is.EqualTo(requestId));
+            Assert.That(response.Action, Is.EqualTo(action));
+            Assert.That(response.Content?.GetProperty("answer").GetString(), Is.EqualTo(formValue));
+        });
+    }
+
+    [Then("the {string} agent has not observed a permission response")]
+    public void ThenTheAgentHasNotObservedAPermissionResponse(string role) =>
+        Assert.That(myScenario.Agent(role).HasReceivedPermissionResponse(), Is.False);
+
+    [Then("the {string} agent has not observed an input response")]
+    public void ThenTheAgentHasNotObservedAnInputResponse(string role) =>
+        Assert.That(myScenario.Agent(role).HasReceivedInputResponse(), Is.False);
+
+    [Then("the {string} agent has not observed an elicitation response")]
+    public void ThenTheAgentHasNotObservedAnElicitationResponse(string role) =>
+        Assert.That(myScenario.Agent(role).HasReceivedElicitationResponse(), Is.False);
+
+    [Then("the backend scenario observes a pending permission {string} for role {string} with description {string}")]
+    public void ThenTheBackendScenarioObservesAPendingPermissionForRoleWithDescription(string requestId, string role, string description) =>
+        Await(myScenario.WaitForPendingPermissionAsync(role, requestId, description));
+
+    [Then("the backend scenario observes a pending input {string} for role {string} with prompt {string} and choices {string} and freeform {string}")]
+    public void ThenTheBackendScenarioObservesAPendingInputForRoleWithPromptAndChoicesAndFreeform(
+        string requestId, string role, string prompt, string commaSeparatedChoices, string allowFreeform) =>
+        Await(myScenario.WaitForPendingInputAsync(role, requestId, prompt, ParseChoices(commaSeparatedChoices), bool.Parse(allowFreeform)));
+
+    [Then("the backend scenario observes a pending elicitation {string} for role {string} with prompt {string} and mode {string}")]
+    public void ThenTheBackendScenarioObservesAPendingElicitationForRoleWithPromptAndMode(
+        string requestId, string role, string prompt, string mode) =>
+        Await(myScenario.WaitForPendingElicitationAsync(role, requestId, prompt, mode));
+
+    [Then("the backend scenario observes a pending elicitation {string} for role {string} with prompt {string} and mode {string} and url {string}")]
+    public void ThenTheBackendScenarioObservesAPendingElicitationForRoleWithPromptAndModeAndUrl(
+        string requestId, string role, string prompt, string mode, string url) =>
+        Await(myScenario.WaitForPendingElicitationAsync(role, requestId, prompt, mode, url));
+
+    [Then("the backend scenario observes a protocol error mentioning {string}")]
+    public void ThenTheBackendScenarioObservesAProtocolErrorMentioning(string text)
+    {
+        var message = Await(myScenario.WaitForProtocolErrorAsync());
+        Assert.That(message, Does.Contain(text));
+    }
+
 
     [When("the {string} agent emits the reasoning {string}")]
     public void WhenTheAgentEmitsTheReasoning(string role, string content) =>
@@ -229,4 +299,9 @@ public sealed class BackendScenarioSteps
     private static void Await(Task task) => task.GetAwaiter().GetResult();
 
     private static T Await<T>(Task<T> task) => task.GetAwaiter().GetResult();
+
+    /// <summary>Splits a comma-separated choices column into a list, or null for an empty column - representing
+    /// an input request published or observed without any choices at all, rather than an empty choices list.</summary>
+    private static IReadOnlyList<string>? ParseChoices(string commaSeparatedChoices) =>
+        commaSeparatedChoices.Length == 0 ? null : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries);
 }

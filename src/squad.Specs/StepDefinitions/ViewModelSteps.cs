@@ -44,7 +44,6 @@ public sealed class ViewModelSteps
     private RunResult? myApplicationRunResult;
     private Exception? myApplicationLifecycleFailure;
     private readonly List<string> mySdkInstructionsSentAfterRegistration = [];
-    private Exception? myInteractionCompletionFailure;
     private Task? myAbortTask;
     private Exception? myAbortFailure;
     private Task? myPendingPrompt;
@@ -1030,10 +1029,6 @@ public sealed class ViewModelSteps
     public async Task WhenTheRecordingSessionRequestsInput(string role, string requestId) =>
         await myViewModel.RequestInputAsync(new AgentInputRequest(DateTimeOffset.UtcNow, requestId, role, "What value?"));
 
-    [When("the recording {string} session requests input {string} with choices {string}")]
-    public async Task WhenTheRecordingSessionRequestsInputWithChoices(string role, string requestId, string choices) =>
-        await myViewModel.RequestInputAsync(new AgentInputRequest(DateTimeOffset.UtcNow, requestId, role, "Choose", choices.Split(','), false));
-
     [When("the recording {string} session requests elicitation {string}")]
     public async Task WhenTheRecordingSessionRequestsElicitation(string role, string requestId) =>
         await myViewModel.RequestElicitationAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, requestId, role, "Choose", "form"));
@@ -1041,32 +1036,6 @@ public sealed class ViewModelSteps
     [When("the recording {string} session requests URL elicitation {string}")]
     public async Task WhenTheRecordingSessionRequestsUrlElicitation(string role, string requestId) =>
         await myViewModel.RequestElicitationAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, requestId, role, "Complete sign-in", "url", null, "https://example.test/authorize"));
-
-    [When("permission {string} is completed")]
-    public async Task WhenPermissionIsCompleted(string requestId) =>
-        await CompleteInteractionAsync(() => myViewModel.CompletePermissionAsync(requestId));
-
-    [When("permission {string} is rejected for {string}")]
-    public async Task WhenPermissionIsRejectedFor(string requestId, string role) =>
-        await CompleteInteractionAsync(() => myViewModel.CompletePermissionAsync(role, requestId, false));
-
-    [When("permission {string} is approved for {string}")]
-    public async Task WhenPermissionIsApprovedFor(string requestId, string role) =>
-        await CompleteInteractionAsync(() => myViewModel.CompletePermissionAsync(role, requestId, true));
-
-    [When("input {string} is answered {string} for {string}")]
-    public async Task WhenInputIsAnsweredFor(string requestId, string answer, string role) =>
-        await CompleteInteractionAsync(() => myViewModel.CompleteInputAsync(role, requestId, answer, true));
-
-    [When("elicitation {string} is accepted for {string} with form value {string}")]
-    public async Task WhenElicitationIsAcceptedFor(string requestId, string role, string value)
-    {
-        var content = JsonSerializer.SerializeToElement(new Dictionary<string, string> { ["answer"] = value });
-        await CompleteInteractionAsync(() => myViewModel.CompleteElicitationAsync(role, requestId, "accept", content));
-    }
-
-    [When("the ViewModel stops")]
-    public async Task WhenTheViewModelStops() => await myViewModel.StopAsync();
 
     [When("the recording {string} session emits tool start {string}")]
     public void WhenTheRecordingSessionEmitsToolStart(string role, string tool) =>
@@ -2087,57 +2056,6 @@ public sealed class ViewModelSteps
     private static string NormalizeLineEndings(string value) =>
         value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
 
-    [Then("ViewModel has one pending permission {string}")]
-    public void ThenViewModelHasOnePendingPermission(string requestId) => Assert.That(myViewModel.PendingPermissions.Single().RequestId, Is.EqualTo(requestId));
-
-    [Then("ViewModel has {int} pending permissions {string}")]
-    public void ThenViewModelHasNPendingPermissions(int count, string requestId) =>
-        Assert.That(myViewModel.PendingPermissions.Count(permission => permission.RequestId == requestId), Is.EqualTo(count));
-
-    [Then("ViewModel has no pending permission")]
-    public void ThenViewModelHasNoPendingPermission() => Assert.That(myViewModel.PendingPermissions, Is.Empty);
-
-    [Then("ViewModel has one pending input {string}")]
-    public void ThenViewModelHasOnePendingInput(string requestId) => Assert.That(myViewModel.PendingInputs.Single().RequestId, Is.EqualTo(requestId));
-
-    [Then("ViewModel input {string} has choices {string}")]
-    public void ThenViewModelInputHasChoices(string requestId, string choices) =>
-        Assert.That(myViewModel.PendingInputs.Single(input => input.RequestId == requestId).Choices, Is.EqualTo(choices.Split(',')));
-
-    [Then("ViewModel has one pending elicitation {string}")]
-    public void ThenViewModelHasOnePendingElicitation(string requestId) => Assert.That(myViewModel.PendingElicitations.Single().RequestId, Is.EqualTo(requestId));
-
-    [Then("ViewModel elicitation {string} has mode {string}")]
-    public void ThenViewModelElicitationHasMode(string requestId, string mode) =>
-        Assert.That(myViewModel.PendingElicitations.Single(elicitation => elicitation.RequestId == requestId).Mode, Is.EqualTo(mode));
-
-    [Then("ViewModel elicitation {string} has URL {string}")]
-    public void ThenViewModelElicitationHasUrl(string requestId, string url) =>
-        Assert.That(myViewModel.PendingElicitations.Single(elicitation => elicitation.RequestId == requestId).Url, Is.EqualTo(url));
-
-    [Then("interaction completion is rejected")]
-    public void ThenInteractionCompletionIsRejected() => Assert.That(myInteractionCompletionFailure, Is.TypeOf<InvalidOperationException>());
-
-    [Then("the recording {string} session received approved permission {string}")]
-    public void ThenRecordingSessionReceivedApprovedPermission(string role, string requestId) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).PermissionResponses.Any(response => response.RequestId == requestId && response.Response.Approved), Is.True);
-
-    [Then("the recording {string} session received rejected permission {string}")]
-    public void ThenRecordingSessionReceivedRejectedPermission(string role, string requestId) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).PermissionResponses.Any(response => response.RequestId == requestId && !response.Response.Approved), Is.True);
-
-    [Then("the recording {string} session received input {string} with answer {string}")]
-    public void ThenRecordingSessionReceivedInput(string role, string requestId, string answer) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).InputResponses.Any(response => response.RequestId == requestId && response.Response.Answer == answer && response.Response.WasFreeform), Is.True);
-
-    [Then("the recording {string} session received accepted elicitation {string} with form value {string}")]
-    public void ThenRecordingSessionReceivedAcceptedElicitation(string role, string requestId, string value) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).ElicitationResponses.Any(response => response.RequestId == requestId && response.Response.Action == "accept" && response.Response.Content!.Value.GetProperty("answer").GetString() == value), Is.True);
-
-    [Then("the recording {string} session cancelled pending interactions")]
-    public void ThenRecordingSessionCancelledPendingInteractions(string role) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).PendingInteractionCancellationCount, Is.GreaterThan(0));
-
     [Then("ViewModel role {string} has active tool {string}")]
     public void ThenViewModelRoleHasActiveTool(string role, string tool) => Assert.That(myViewModel.Roles[role].ActiveTool, Is.EqualTo(tool));
 
@@ -2151,19 +2069,6 @@ public sealed class ViewModelSteps
     [Then("the recording {string} session received prompt {string}")]
     public void ThenRecordingSessionReceivedPrompt(string role, string prompt) =>
         Assert.That(myBackend.Sessions.Single(session => session.Role == role).Sends, Has.Some.EqualTo(prompt));
-
-    private async Task CompleteInteractionAsync(Func<Task> complete)
-    {
-        myInteractionCompletionFailure = null;
-        try
-        {
-            await complete();
-        }
-        catch (Exception exception)
-        {
-            myInteractionCompletionFailure = exception;
-        }
-    }
 
     [Then("the recording {string} session has one abort")]
     public void ThenRecordingSessionHasOneAbort(string role) => Assert.That(myBackend.Sessions.Single(session => session.Role == role).AbortCount, Is.EqualTo(1));

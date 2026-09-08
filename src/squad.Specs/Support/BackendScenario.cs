@@ -143,9 +143,33 @@ public sealed class BackendScenario : IDisposable
         RequireUi().RespondToInput(role, requestId, answer, wasFreeform);
 
     /// <summary>Responds to an elicitation request through the real UI protocol's "elicitation.respond"
-    /// command.</summary>
-    public void RespondToElicitation(string role, string requestId, string action) =>
-        RequireUi().RespondToElicitation(role, requestId, action);
+    /// command, optionally carrying accepted content (for example a form value) alongside the chosen
+    /// action.</summary>
+    public void RespondToElicitation(string role, string requestId, string action, object? content = null) =>
+        RequireUi().RespondToElicitation(role, requestId, action, content);
+
+    /// <summary>Waits until a "state.snapshot" message publishes a pending permission request with the given
+    /// role, request id, and description - proving every supported field of the published interaction.</summary>
+    public Task WaitForPendingPermissionAsync(string role, string requestId, string description, TimeSpan? timeout = null) =>
+        RequireUi().WaitForPendingPermissionAsync(role, requestId, description, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Waits until a "state.snapshot" message publishes a pending input request with the given role,
+    /// request id, prompt, choices, and freeform support - proving every supported field of the published
+    /// interaction.</summary>
+    public Task WaitForPendingInputAsync(
+        string role, string requestId, string prompt, IReadOnlyList<string>? choices, bool allowFreeform, TimeSpan? timeout = null) =>
+        RequireUi().WaitForPendingInputAsync(role, requestId, prompt, choices, allowFreeform, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Waits until a "state.snapshot" message publishes a pending elicitation request with the given
+    /// role, request id, prompt, mode, and URL - proving every supported field of the published
+    /// interaction.</summary>
+    public Task WaitForPendingElicitationAsync(
+        string role, string requestId, string prompt, string mode, string? url = null, TimeSpan? timeout = null) =>
+        RequireUi().WaitForPendingElicitationAsync(role, requestId, prompt, mode, url, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Waits for a "protocol.error" message and returns its human-readable message - the observable
+    /// outcome of a wrong-role, duplicate, or late interaction response.</summary>
+    public Task<string> WaitForProtocolErrorAsync(TimeSpan? timeout = null) => RequireUi().WaitForProtocolErrorAsync(timeout);
 
     /// <summary>Waits until the given role's real transcript, projected from production provider events, contains
     /// the given content - proving a reply crossed all the way from the provider into the observable UI state.

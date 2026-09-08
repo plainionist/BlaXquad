@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Linq;
 
 namespace squad.Specs.Support;
 
@@ -53,9 +54,10 @@ public sealed class HeadlessUiClient
     public void RespondToInput(string role, string requestId, string? answer, bool wasFreeform) =>
         SendEnvelope("input.respond", role, new { answer, wasFreeform }, requestId);
 
-    /// <summary>Responds to an elicitation request through the real "elicitation.respond" command.</summary>
-    public void RespondToElicitation(string role, string requestId, string action) =>
-        SendEnvelope("elicitation.respond", role, new { action }, requestId);
+    /// <summary>Responds to an elicitation request through the real "elicitation.respond" command, optionally
+    /// carrying accepted content (for example a form value) alongside the chosen action.</summary>
+    public void RespondToElicitation(string role, string requestId, string action, object? content = null) =>
+        SendEnvelope("elicitation.respond", role, new { action, content }, requestId);
 
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
     public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
@@ -79,6 +81,38 @@ public sealed class HeadlessUiClient
         WaitForMessageAsync(
             element => IsTranscriptUpdate(element, role, content),
             $"a transcript update for role '{role}' with content '{content}'",
+            timeout,
+            additionalDiagnostics);
+
+    /// <summary>Waits until a "state.snapshot" message publishes a pending permission request with the given
+    /// role, request id, and description.</summary>
+    public Task WaitForPendingPermissionAsync(
+        string role, string requestId, string description, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element) && HasPendingPermission(element, role, requestId, description),
+            $"a pending permission '{requestId}' for role '{role}' with description '{description}'",
+            timeout,
+            additionalDiagnostics);
+
+    /// <summary>Waits until a "state.snapshot" message publishes a pending input request with the given role,
+    /// request id, prompt, choices, and freeform support.</summary>
+    public Task WaitForPendingInputAsync(
+        string role, string requestId, string prompt, IReadOnlyList<string>? choices, bool allowFreeform,
+        TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element) && HasPendingInput(element, role, requestId, prompt, choices, allowFreeform),
+            $"a pending input '{requestId}' for role '{role}' with prompt '{prompt}'",
+            timeout,
+            additionalDiagnostics);
+
+    /// <summary>Waits until a "state.snapshot" message publishes a pending elicitation request with the given
+    /// role, request id, prompt, mode, and URL (or null if the mode does not carry one).</summary>
+    public Task WaitForPendingElicitationAsync(
+        string role, string requestId, string prompt, string mode, string? url = null,
+        TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element) && HasPendingElicitation(element, role, requestId, prompt, mode, url),
+            $"a pending elicitation '{requestId}' for role '{role}' with prompt '{prompt}' and mode '{mode}'",
             timeout,
             additionalDiagnostics);
 
@@ -248,6 +282,90 @@ public sealed class HeadlessUiClient
         }
         return false;
     }
+
+    private static bool HasPendingPermission(JsonElement element, string role, string requestId, string description)
+    {
+        if (!GetPayload(element).TryGetProperty("permissions", out var permissions) || permissions.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var permission in permissions.EnumerateArray())
+        {
+            if (MatchesRoleAndRequestId(permission, role, requestId)
+                && permission.TryGetProperty("description", out var descriptionElement)
+                && descriptionElement.GetString() == description)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool HasPendingInput(
+        JsonElement element, string role, string requestId, string prompt, IReadOnlyList<string>? choices, bool allowFreeform)
+    {
+        if (!GetPayload(element).TryGetProperty("inputs", out var inputs) || inputs.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var input in inputs.EnumerateArray())
+        {
+            if (!MatchesRoleAndRequestId(input, role, requestId)
+                || !input.TryGetProperty("prompt", out var promptElement)
+                || promptElement.GetString() != prompt
+                || !input.TryGetProperty("allowFreeform", out var allowFreeformElement)
+                || allowFreeformElement.GetBoolean() != allowFreeform)
+            {
+                continue;
+            }
+            if (!MatchesChoices(input, choices))
+            {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static bool MatchesChoices(JsonElement input, IReadOnlyList<string>? choices)
+    {
+        var hasChoicesProperty = input.TryGetProperty("choices", out var choicesElement)
+            && choicesElement.ValueKind == JsonValueKind.Array;
+        if (choices is null)
+        {
+            return !hasChoicesProperty || choicesElement.GetArrayLength() == 0;
+        }
+        if (!hasChoicesProperty)
+        {
+            return false;
+        }
+        return choicesElement.EnumerateArray().Select(entry => entry.GetString()).SequenceEqual(choices);
+    }
+
+    private static bool HasPendingElicitation(
+        JsonElement element, string role, string requestId, string prompt, string mode, string? url)
+    {
+        if (!GetPayload(element).TryGetProperty("elicitations", out var elicitations) || elicitations.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var elicitation in elicitations.EnumerateArray())
+        {
+            if (MatchesRoleAndRequestId(elicitation, role, requestId)
+                && elicitation.TryGetProperty("prompt", out var promptElement) && promptElement.GetString() == prompt
+                && elicitation.TryGetProperty("mode", out var modeElement) && modeElement.GetString() == mode
+                && elicitation.TryGetProperty("url", out var urlElement)
+                && (url is null ? urlElement.ValueKind == JsonValueKind.Null : urlElement.GetString() == url))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool MatchesRoleAndRequestId(JsonElement element, string role, string requestId) =>
+        element.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role
+            && element.TryGetProperty("requestId", out var requestIdElement) && requestIdElement.GetString() == requestId;
 
     private static bool IsType(JsonElement element, string type) =>
         element.TryGetProperty("type", out var typeElement) && typeElement.GetString() == type;

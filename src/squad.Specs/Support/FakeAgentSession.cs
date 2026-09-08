@@ -142,7 +142,8 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
-                Role, SessionId, "elicitation-response", new { requestId, action = response.Action }, cancellationToken);
+                Role, SessionId, "elicitation-response",
+                new { requestId, action = response.Action, content = response.Content }, cancellationToken);
         }
     }
 
