@@ -64,7 +64,7 @@ Acceptance criteria:
 - Readiness follows provider idle/busy work and remains correct for independently starting role sessions.
 - All new steps use only `BackendScenario` UI, agent, CLI, and lifecycle APIs.
 
-**Status: resolved.** `src/squad.Specs/Features/PromptIsolationAndReadiness.feature` now covers all four acceptance
+**Status: complete (c62ec142c5).** `src/squad.Specs/Features/PromptIsolationAndReadiness.feature` now covers all four acceptance
 criteria through the process boundary: prompt isolation, same-role serialization (order, no overlap), a second
 role's independent progress while a first role's prompt is still outstanding, and both readiness scenarios.
 `StdioWindowHost`'s input pump was changed to dispatch each received line's `UiProtocolSession.ReceiveMessageAsync`
