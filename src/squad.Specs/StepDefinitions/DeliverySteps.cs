@@ -49,8 +49,13 @@ public sealed class DeliverySteps
         myMailbox.SeedInvalidOutboundNote(role, recipients, "Ready for review.");
 
     [Given("the {string} agent will reject its next harness send")]
-    public async Task GivenTheAgentWillRejectItsNextHarnessSend(string role) =>
+    public async Task GivenTheAgentWillRejectItsNextHarnessSend(string role)
+    {
+        // Wait for the session-start harness instruction first, so the armed rejection targets the next harness
+        // send after it (the delivery wake-up) rather than racing that very first instruction.
+        await myScenario.Agent(role).WaitForHarnessMessageAsync();
         await myScenario.Agent(role).RejectNextHarnessAsync();
+    }
 
     [Then("the sender handoff is archived as sent")]
     public void ThenTheSenderHandoffIsArchivedAsSent()
@@ -90,6 +95,15 @@ public sealed class DeliverySteps
     [Then("the {string} agent has not observed the handoff wake-up message")]
     public void ThenTheAgentHasNotObservedTheHandoffWakeUpMessage(string role) =>
         Assert.That(myScenario.Agent(role).LatestHarnessMessage(), Is.Not.EqualTo(WakeUpMessage));
+
+    [Then("the {string} agent's rejected harness send proves no wake-up was delivered")]
+    public async Task ThenTheAgentsRejectedHarnessSendProvesNoWakeUpWasDelivered(string role)
+    {
+        // Wait for the host to have observably attempted (and failed) the harness send, proving absence rather
+        // than merely snapshotting state before the host got around to attempting the notification.
+        await myScenario.Agent(role).WaitForHarnessRejectedAsync();
+        Assert.That(myScenario.Agent(role).LatestHarnessMessage(), Is.Not.EqualTo(WakeUpMessage));
+    }
 
     [Then("the squad host remains available")]
     public void ThenTheSquadHostRemainsAvailable() =>

@@ -24,5 +24,5 @@ Feature: Delivering handoffs
     When "coder" queues the handoff
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
-    And the "reviewer" agent has not observed the handoff wake-up message
+    And the "reviewer" agent's rejected harness send proves no wake-up was delivered
     And the squad host remains available

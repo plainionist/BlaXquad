@@ -67,13 +67,19 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     /// the same way a real provider preserves it as a distinct harness message in the transcript - and, when a
     /// control transport is configured, reports it as a generic observation so a scenario can wait for it directly
     /// across the pipe. When <see cref="RejectNextHarness"/> armed this session to reject its next harness send,
-    /// throws instead of publishing anything - simulating a real provider connection that never accepts the
+    /// reports the rejected attempt as its own generic observation (so a scenario can wait for the host to have
+    /// observably attempted and failed the send, rather than merely snapshotting the absence of a successful one)
+    /// and throws instead of publishing anything - simulating a real provider connection that never accepts the
     /// host-authored message, exactly once.</summary>
     public async Task SendHarnessAsync(string prompt, CancellationToken cancellationToken = default)
     {
         if (myRejectNextHarness)
         {
             myRejectNextHarness = false;
+            if (myControl is not null)
+            {
+                await myControl.NotifyObservationAsync(Role, SessionId, "harness-rejected", new { content = prompt }, cancellationToken);
+            }
             throw new InvalidOperationException("The fake provider rejected this harness send.");
         }
 

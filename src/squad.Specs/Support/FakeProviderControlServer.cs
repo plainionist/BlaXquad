@@ -148,6 +148,15 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         }
     }
 
+    /// <summary>Waits until the connected client has reported this role's session rejecting a harness send (armed
+    /// by a prior test-only "reject next harness" control), and returns its content - proving the host has
+    /// observably attempted and failed that send, rather than only that a successful one was never observed.</summary>
+    public async Task<string> WaitForHarnessRejectedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var data = await WaitForObservationDataAsync(role, "harness-rejected", timeout, additionalDiagnostics);
+        return data.GetProperty("content").GetString()!;
+    }
+
     /// <summary>Waits until the connected client has reported the host aborting this role's current operation.</summary>
     public async Task WaitForAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         await WaitForObservationDataAsync(role, "abort", timeout, additionalDiagnostics);

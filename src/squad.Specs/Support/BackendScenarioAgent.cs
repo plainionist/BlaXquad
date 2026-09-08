@@ -29,6 +29,12 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     public Task<string> WaitForHarnessMessageAsync(Func<string, bool> matches, TimeSpan? timeout = null) =>
         control.WaitForHarnessMessageAsync(role, matches, timeout, uiDiagnostics);
 
+    /// <summary>Waits until this role's session has reported rejecting a harness send (armed by
+    /// <see cref="RejectNextHarnessAsync"/>), and returns its content - proving the host has observably attempted
+    /// and failed that send.</summary>
+    public Task<string> WaitForHarnessRejectedAsync(TimeSpan? timeout = null) =>
+        control.WaitForHarnessRejectedAsync(role, timeout, uiDiagnostics);
+
     /// <summary>Returns the content of the most recent harness message this role's session has reported, or null
     /// if none has been reported yet - a snapshot read used to prove the absence of a later harness message.</summary>
     public string? LatestHarnessMessage() => control.LatestHarnessMessage(role);
