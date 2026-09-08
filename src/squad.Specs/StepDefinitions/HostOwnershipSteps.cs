@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using squad.Host.Control;
 using squad.Specs.Support;
 
 namespace squad.Specs.StepDefinitions;
@@ -10,19 +9,11 @@ public sealed class HostOwnershipSteps
     private const string HostRole = "architect";
 
     private readonly ScenarioWorkspace myWorkspace;
-    private HostLease? myLease;
-    private Task? myReleaseAfterShutdown;
     private BackendScenario? myScenario;
     private BackendScenario? myReplacementScenario;
-    private System.Diagnostics.Process? myWaitProcess;
-    private Task<string>? myWaitOutput;
-    private Task<string>? myWaitError;
-    private int myReadinessQueries;
-    private bool myAgentReady;
+    private BackendScenarioCommand? myWaitCommand;
     private string? myLinkedWorktree;
-    private CleanupLease? myOrphanedHostLock;
     private TimeSpan myWaitElapsed;
-    private Exception? myWaitFailure;
 
     public HostOwnershipSteps(ScenarioWorkspace workspace)
     {
@@ -37,33 +28,26 @@ public sealed class HostOwnershipSteps
         await myScenario.StartAsync<EchoAgentProviderFactory>();
     }
 
-    [Given("the project host lease is acquired")]
-    public void GivenTheProjectHostLeaseIsAcquired()
+    [Given("a Git project host with a ready {string} agent")]
+    public async Task GivenAGitProjectHostWithAReadyAgent(string role)
     {
-        myLease = HostLease.Acquire(myWorkspace.Root);
-        myReleaseAfterShutdown = Task.Run(async () =>
-        {
-            await myLease.ShutdownRequested;
-            await myLease.DisposeAsync();
-        });
+        myScenario = new BackendScenario(myWorkspace);
+        myScenario.ConfigureRole(role);
+        myScenario.EnableFakeProviderControl();
+        await myScenario.StartAsync<FakeAgentProviderFactory>();
+        await myScenario.WaitForRoleSessionStartedAsync(role);
+        await myScenario.Agent(role).EmitIdleAsync();
     }
 
-    [Given("a Git project host with a ready {string} agent")]
-    public void GivenAGitProjectHostWithAReadyAgent(string role)
+    [Given("a Git project host with a busy {string} agent")]
+    public async Task GivenAGitProjectHostWithABusyAgent(string role)
     {
-        myWorkspace.InitializeGitRepository();
-        myWorkspace.WriteFile(
-            "blaxquad/squad.json",
-            $$"""
-            {
-              "roles": [
-                { "name": "{{role}}", "worktree": "master", "agent": {} }
-              ]
-            }
-            """ + "\n");
-        GivenTheProjectHostLeaseIsAcquired();
-        myLease!.SetAgentReadinessProvider(
-            (requestedRole, _) => Task.FromResult<bool?>(requestedRole == role ? true : null));
+        myScenario = new BackendScenario(myWorkspace);
+        myScenario.ConfigureRole(role);
+        myScenario.EnableFakeProviderControl();
+        await myScenario.StartAsync<FakeAgentProviderFactory>();
+        await myScenario.WaitForRoleSessionStartedAsync(role);
+        await myScenario.Agent(role).EmitReadinessAsync("busy");
     }
 
     [Given("an {string} linked worktree")]
@@ -109,48 +93,28 @@ public sealed class HostOwnershipSteps
     [Then("the executable shutdown succeeds")]
     public void ThenTheExecutableShutdownSucceeds() => Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
 
-    [Given("the {string} agent is not ready")]
-    public void GivenTheAgentIsNotReady(string role)
-    {
-        myAgentReady = false;
-        myLease!.SetAgentReadinessProvider((requestedRole, _) =>
-        {
-            Interlocked.Increment(ref myReadinessQueries);
-            return Task.FromResult<bool?>(
-                requestedRole == role ? Volatile.Read(ref myAgentReady) : null);
-        });
-    }
-
     [When("the executable begins waiting for the {string} agent")]
-    public void WhenTheExecutableBeginsWaitingForTheAgent(string role)
-    {
-        myWaitProcess = myWorkspace.StartTool(
-            "squad-hq",
-            ["wait-for-agent", role, "--timeout", "5", myWorkspace.Root]);
-        myWaitOutput = myWaitProcess.StandardOutput.ReadToEndAsync();
-        myWaitError = myWaitProcess.StandardError.ReadToEndAsync();
-    }
+    public void WhenTheExecutableBeginsWaitingForTheAgent(string role) =>
+        myWaitCommand = myScenario!.StartWaitForAgent(role, TimeSpan.FromSeconds(5));
 
     [Then("the executable remains waiting for agent readiness")]
     public void ThenTheExecutableRemainsWaitingForAgentReadiness()
     {
-        myWorkspace.WaitUntil(
-            () => Volatile.Read(ref myReadinessQueries) > 0,
-            "the readiness query to reach the host");
-        Assert.That(myWaitProcess!.HasExited, Is.False);
+        Thread.Sleep(200);
+        Assert.That(myWaitCommand!.IsRunning, Is.True);
     }
 
     [When("the {string} agent becomes ready")]
-    public void WhenTheAgentBecomesReady(string role) => Volatile.Write(ref myAgentReady, true);
+    public async Task WhenTheAgentBecomesReady(string role) => await myScenario!.Agent(role).EmitIdleAsync();
 
     [Then("the agent readiness wait succeeds")]
     public async Task ThenTheAgentReadinessWaitSucceeds()
     {
-        await myWaitProcess!.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        var result = await myWaitCommand!.WaitForCompletionAsync(TimeSpan.FromSeconds(10));
         Assert.Multiple(() =>
         {
-            Assert.That(myWaitProcess.ExitCode, Is.Zero, () => myWaitError!.GetAwaiter().GetResult());
-            Assert.That(myWaitOutput!.GetAwaiter().GetResult(), Does.Contain("is ready"));
+            Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
+            Assert.That(result.StdOut, Does.Contain("is ready"));
         });
     }
 
@@ -217,7 +181,7 @@ public sealed class HostOwnershipSteps
 
     [When("the executable waits with a zero timeout for {string}")]
     public void WhenTheExecutableWaitsWithAZeroTimeout(string role) =>
-        myWorkspace.RunTool("squad-hq", ["wait-for-agent", role, "--timeout", "0"]);
+        myWorkspace.RunBackendSpecSquadHq(["wait-for-agent", role, "--timeout", "0"]);
 
     [Then("the zero readiness timeout is rejected")]
     public void ThenTheZeroReadinessTimeoutIsRejected()
@@ -230,41 +194,16 @@ public sealed class HostOwnershipSteps
         });
     }
 
-    [Given("the project host lock is held without a control server")]
-    public void GivenTheProjectHostLockIsHeldWithoutAControlServer()
-    {
-        var stateDirectory = myWorkspace.PathInWorkspace(".blaxquad");
-        Directory.CreateDirectory(stateDirectory);
-        Assert.That(HostLease.TryAcquireCleanupLease(myWorkspace.Root, out myOrphanedHostLock), Is.True);
-    }
-
-    [Then("the unavailable control wait respects the deadline")]
-    public void ThenTheUnavailableControlWaitRespectsTheDeadline()
+    [Then("the readiness wait reports the host as unavailable")]
+    public void ThenTheReadinessWaitReportsTheHostAsUnavailable()
     {
         Assert.Multiple(() =>
         {
-            Assert.That(myWaitFailure, Is.TypeOf<TimeoutException>());
-            Assert.That(myWaitFailure?.Message, Does.Contain("squad control endpoint unavailable"));
-            Assert.That(myWaitElapsed, Is.LessThan(TimeSpan.FromSeconds(0.5)));
+            Assert.That(myWorkspace.LastResult?.ExitCode, Is.Not.Zero);
+            Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("did not become ready"));
+            Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("squad host unavailable"));
+            Assert.That(myWaitElapsed, Is.LessThan(TimeSpan.FromSeconds(3)));
         });
-    }
-
-    [When("the host client waits {double} seconds for the {string} agent")]
-    public async Task WhenTheHostClientWaitsForTheAgent(double timeoutSeconds, string role)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            await HostControlClient.WaitForAgentAsync(
-                myWorkspace.Root,
-                role,
-                TimeSpan.FromSeconds(timeoutSeconds));
-        }
-        catch (Exception exception)
-        {
-            myWaitFailure = exception;
-        }
-        myWaitElapsed = stopwatch.Elapsed;
     }
 
     [When("the executable attempts a duplicate launch")]
@@ -277,23 +216,6 @@ public sealed class HostOwnershipSteps
         Assert.That(myWorkspace.LastResult?.ExitCode, Is.Not.Zero);
         Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("A squad host is already running"));
         Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Unhandled exception"));
-    }
-
-    [AfterScenario]
-    public async Task ReleaseHostLease()
-    {
-        if (myOrphanedHostLock is not null)
-        {
-            myOrphanedHostLock.Dispose();
-        }
-        if (myReleaseAfterShutdown is { IsCompleted: true })
-        {
-            await myReleaseAfterShutdown;
-        }
-        else if (myLease is not null)
-        {
-            await myLease.DisposeAsync();
-        }
     }
 
     [AfterScenario]
@@ -321,7 +243,7 @@ public sealed class HostOwnershipSteps
             arguments.Add(projectRoot);
         }
         var stopwatch = Stopwatch.StartNew();
-        myWorkspace.RunTool("squad-hq", arguments, workingDirectory: workingDirectory);
+        myWorkspace.RunBackendSpecSquadHq(arguments, workingDirectory: workingDirectory);
         myWaitElapsed = stopwatch.Elapsed;
     }
 }

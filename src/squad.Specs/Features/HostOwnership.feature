@@ -29,22 +29,19 @@ Feature: Squad host ownership
     Then a new host can be started for the same project
 
   Scenario: Waiting for an agent blocks until the live host reports it ready
-    Given the project host lease is acquired
-    And the "architect" agent is not ready
+    Given a Git project host with a busy "architect" agent
     When the executable begins waiting for the "architect" agent
     Then the executable remains waiting for agent readiness
     When the "architect" agent becomes ready
     Then the agent readiness wait succeeds
 
   Scenario: Waiting for a busy agent times out clearly
-    Given the project host lease is acquired
-    And the "architect" agent is not ready
+    Given a Git project host with a busy "architect" agent
     When the executable waits 3.0 seconds for the "architect" agent
     Then the agent readiness wait times out
 
   Scenario: Waiting for an unknown agent fails clearly
-    Given the project host lease is acquired
-    And the "architect" agent is not ready
+    Given a Git project host with a ready "architect" agent
     When the executable waits 1 seconds for the "reviewer" agent
     Then the agent readiness wait reports an unknown role
 
@@ -74,10 +71,11 @@ Feature: Squad host ownership
     When the executable waits with a zero timeout for "architect"
     Then the zero readiness timeout is rejected
 
-  Scenario: An unavailable host control endpoint respects the readiness deadline
-    Given the project host lock is held without a control server
-    When the host client waits 0.1 seconds for the "architect" agent
-    Then the unavailable control wait respects the deadline
+  Scenario: Waiting after the host has terminated respects the readiness deadline
+    Given a squad host is running
+    When the host process is abruptly terminated
+    And the executable waits 1 seconds for the "architect" agent
+    Then the readiness wait reports the host as unavailable
 
   Scenario: Shutdown is idempotent for an empty project
     Given an empty project

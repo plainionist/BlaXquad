@@ -217,6 +217,26 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Starts "squad-hq wait-for-agent" for the given role as a separate real child process addressing this
+    /// scenario's project, using the same published, provider-free executable as the launched host, and returns a
+    /// semantic handle so a specification can observe whether the command remains blocked or await its bounded
+    /// completion and captured output - never the raw process itself.
+    /// </summary>
+    public BackendScenarioCommand StartWaitForAgent(string role, TimeSpan timeout)
+    {
+        var process = myWorkspace.StartProcess(
+            myWorkspace.BackendSpecSquadHqExecutablePath,
+            [
+                "wait-for-agent",
+                role,
+                "--timeout",
+                timeout.TotalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                myWorkspace.Root,
+            ]);
+        return new BackendScenarioCommand(process);
+    }
+
+    /// <summary>
     /// Abruptly terminates the exact squad-hq process this scenario launched - simulating a real host crash
     /// instead of a normal "squad-hq shutdown" - and waits until it has actually exited, so a specification can
     /// prove stale-ownership recovery starts from a genuinely terminated process rather than fabricated metadata.
