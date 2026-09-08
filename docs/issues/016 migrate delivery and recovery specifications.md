@@ -43,7 +43,7 @@ hide filesystem formats and real `squad` command invocation from step definition
 
 ### Slice 1 - Process-level handoff delivery (in progress)
 
-**Status: changes requested (e5a46f1e77)**
+**Status: complete (bbcdea4919)**
 
 - Rewrite `Delivery.feature` around configured Git worktrees, the published `squad` and provider-free `squad-hq`
   executables, stdio UI startup, and the fake-provider control pipe.
@@ -66,59 +66,6 @@ Acceptance criteria:
 - Invalid fan-out produces a failed sender artifact with no partial recipient copy and no delivery wake-up.
 - A failed harness send still leaves exactly one recipient copy and one sent sender artifact while headquarters remains
   available.
-
-#### Review findings on d7643b4350
-
-**Finding 1 — high**
-
-- **Location:** `src/squad.Specs/StepDefinitions/DeliverySteps.cs`
-  (`ThenTheSenderHandoffIsArchivedAsSent`), `src/squad.Specs/Features/Delivery.feature`
-  (Deliver a handoff and notify its recipient; Notification failure does not lose a delivered handoff).
-- **Violated behavior:** Slice 1 requires a failed harness send to leave exactly one sent sender artifact. The Then
-  "the sender handoff is archived as sent" must distinguish sent from failed.
-- **Root cause:** The step waits until `SentHandoffs + FailedHandoffs == 1` and returns. The matching failed step then
-  asserts `FailedHandoffs` has exactly one item; the sent step never asserts `SentHandoffs`. The pre-migration step
-  asserted a sent archive of length 1. A delivery that archives as failed can satisfy this named step.
-- **Required outcome:** After waiting for the outbound artifact to leave the outbox, assert exactly one sent handoff
-  and no failed archive for that sender.
-
-**Finding 2 — high**
-
-- **Location:** `src/squad.Specs/StepDefinitions/DeliverySteps.cs`
-  (`ThenTheAgentObservesTheHandoffWakeUpMessage`), `src/squad.Specs/Features/Delivery.feature` (all three scenarios).
-- **Violated behavior:** The happy path's recipient fake session must observe the installed `ready-for-next` wake-up
-  harness message. Invalid fan-out must produce no delivery wake-up. A failed harness send must be proven as a
-  notification failure without inspecting the delivery log or notifier calls. Scenarios observe fake-agent input.
-- **Root cause:** The happy path waits on `WaitForTranscriptAsync` (UI protocol) instead of the recipient fake
-  session's harness-message observation. Invalid fan-out and notification-failure assert only mailbox state and host
-  liveness. Notification-failure assertions are a subset of the happy path, so a no-op `reject-next-harness` still
-  passes. The original wake-up presence/absence coverage was not replaced with fake-session observation.
-- **Required outcome:** On the happy path, wait for the recipient fake session's harness-message observation and
-  assert it is the installed `ready-for-next` wake-up. After invalid fan-out, prove that session did not observe a
-  delivery wake-up. After a rejected harness send, prove that session did not observe the wake-up while still
-  asserting one sent artifact, one recipient copy, and headquarters remaining available.
-
-#### Review findings on e5a46f1e77
-
-**Finding 1 — high**
-
-- **Location:** `src/squad.Specs/StepDefinitions/DeliverySteps.cs`
-  (`GivenTheAgentWillRejectItsNextHarnessSend`, `ThenTheAgentHasNotObservedTheHandoffWakeUpMessage`),
-  `src/squad.Specs/Features/Delivery.feature` (Notification failure does not lose a delivered handoff),
-  `src/squad.Specs/Support/FakeAgentRuntime.cs` (`StartAsync` sends the initial instruction after
-  `session-started`).
-- **Violated behavior:** A failed harness send must be proven as a notification failure of the delivery wake-up:
-  one sent artifact, one recipient copy, no wake-up on the recipient fake session, headquarters still available.
-- **Root cause:** `WaitForRoleSessionStartedAsync` returns before `FakeAgentRuntime` sends the session-start
-  harness instruction, so `RejectNextHarness` can consume that instruction instead of the delivery wake-up.
-  Delivery then notifies successfully. Independently, "has not observed the handoff wake-up" is a snapshot of
-  `LatestHarnessMessage` after the sent archive; `HandoffDeliveryService` notifies only after moving to `sent`,
-  so the snapshot can pass before the host attempts the wake-up. A no-op or mis-aimed reject still satisfies the
-  scenario.
-- **Required outcome:** Arm rejection only after the recipient fake session has observed its session-start harness
-  instruction, so the next rejected send is the delivery wake-up. Prove the wake-up was not observed only after
-  the host has observably attempted that harness send (the fake session must report the rejected attempt), not
-  from a snapshot taken when the sender artifact is archived.
 
 ### Slice 2 - Idempotent delivery and restart recovery (queued)
 
