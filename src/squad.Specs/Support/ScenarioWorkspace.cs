@@ -11,6 +11,7 @@ public sealed class ScenarioWorkspace : IDisposable
     private static readonly TimeSpan WorkspaceCleanupPollInterval = TimeSpan.FromMilliseconds(100);
     private readonly Dictionary<string, object> myValues = new(StringComparer.Ordinal);
     private readonly List<System.Diagnostics.Process> myRunningProcesses = [];
+    private readonly Dictionary<string, string> myRoleWorktrees = new(StringComparer.Ordinal);
 
     public ScenarioWorkspace()
     {
@@ -69,8 +70,9 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
-    /// Creates a uniquely rooted, configured Git project with one linked worktree per role and
-    /// returns each role's worktree path, so specifications do not duplicate project bootstrap.
+    /// Creates a uniquely rooted, configured Git project with one linked worktree per role,
+    /// records each role's worktree path behind this workspace (see <see cref="RunRoleTool"/>),
+    /// and also returns those paths so specifications do not duplicate project bootstrap.
     /// </summary>
     public IReadOnlyDictionary<string, string> ConfigureProject(params string[] roles)
     {
@@ -82,13 +84,12 @@ public sealed class ScenarioWorkspace : IDisposable
         InitializeGitRepository();
         WriteFile("blaxquad/constitution.prompt", "Follow the project constitution.\n");
 
-        var worktreePaths = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var role in roles)
         {
             WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
             var worktreePath = PathInWorkspace(".worktrees", role);
             AssertSuccessful(RunGit("worktree", "add", "--quiet", "-b", $"squad-{role}", worktreePath));
-            worktreePaths[role] = worktreePath;
+            myRoleWorktrees[role] = worktreePath;
         }
 
         var rolesJson = string.Join(",\n", roles.Select(role =>
@@ -101,8 +102,19 @@ public sealed class ScenarioWorkspace : IDisposable
             }
             """ + "\n");
 
-        return worktreePaths;
+        return myRoleWorktrees;
     }
+
+    /// <summary>
+    /// Runs the exact published tool for a role's worktree recorded by <see cref="ConfigureProject"/>, so step
+    /// definitions invoke role-scoped commands without retaining or inspecting worktree paths themselves.
+    /// </summary>
+    public CommandResult RunRoleTool(
+        string role,
+        string toolName,
+        IReadOnlyList<string>? arguments = null,
+        IReadOnlyDictionary<string, string?>? environment = null) =>
+        RunTool(toolName, arguments, environment, myRoleWorktrees[role]);
 
     public System.Diagnostics.Process StartTool(
         string toolName,
