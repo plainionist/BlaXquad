@@ -178,6 +178,18 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
                     data.AgentDisplayName,
                     data.Model?.ToString()));
                 break;
+            case SessionCompactionStartEvent:
+                agentSession.Publish(new AgentSystemMessageEvent(occurredAt, "Compacting context..."));
+                break;
+            case SessionCompactionCompleteEvent { Data.Success: true }:
+                agentSession.Publish(new AgentSystemMessageEvent(occurredAt, "Context compacted."));
+                break;
+            case SessionCompactionCompleteEvent { Data: { } data }:
+                var failureMessage = string.IsNullOrWhiteSpace(data.Error)
+                    ? "Context compaction failed."
+                    : $"Context compaction failed: {data.Error}";
+                agentSession.Publish(new AgentSystemMessageEvent(occurredAt, failureMessage));
+                break;
             case SessionIdleEvent:
                 agentSession.Publish(new AgentIdleEvent(occurredAt));
                 break;
