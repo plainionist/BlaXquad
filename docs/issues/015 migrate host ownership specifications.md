@@ -63,7 +63,7 @@ Slice acceptance:
 
 ### Slice 2: Migrate readiness and timeout diagnostics
 
-**Status: changes requested (b25f8d21b3)**
+**Status: complete (144dbc6411)**
 
 1. Drive readiness through a real `squad-hq` host using the controllable fake provider. Start `wait-for-agent` as a
    separate CLI process while the configured role is busy, prove the command remains blocked, emit the provider event
@@ -90,21 +90,3 @@ Slice acceptance:
   not access `PipeName`, and does not inspect the host metadata file.
 - The complete `HostOwnership.feature` passes through the existing black-box acceptance suite on every supported
   platform without arbitrary synchronization sleeps.
-
-#### Review findings on b25f8d21b3
-
-**Finding 1 — high**
-
-- **Location:** `src/squad.Specs/StepDefinitions/HostOwnershipSteps.cs`
-  (`ThenTheExecutableRemainsWaitingForAgentReadiness`),
-  `src/squad.Specs/Features/HostOwnership.feature` (Waiting for an agent blocks until the live host reports it ready).
-- **Violated behavior:** Slice 2 must start `wait-for-agent` as a separate CLI process while the role is busy, prove
-  the command remains blocked, then emit the provider event that makes the role ready. The complete feature must pass
-  without arbitrary synchronization sleeps.
-- **Root cause:** After `StartWaitForAgent`, the Then sleeps 200 ms and asserts `IsRunning`. That does not wait for an
-  observable that the command has reached the live host, and it is the same class of fixed sleep the slice forbids.
-  A command that never contacts the host, or that succeeds in under 200 ms, is not distinguished from a command blocked
-  on busy readiness.
-- **Required outcome:** Prove `wait-for-agent` remains blocked using a bounded wait on an observable (the command is
-  still running after it has contacted the live busy host). Then emit idle and assert success. Do not use
-  `Thread.Sleep`.
