@@ -16,6 +16,7 @@ Feature: Delivering handoffs
     When "coder" durably queues an invalid note to "reviewer,missing"
     Then the sender handoff is archived as failed
     And "reviewer" has no new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
 
   Scenario: Notification failure does not lose a delivered handoff
     Given the "reviewer" agent will reject its next harness send
@@ -23,4 +24,5 @@ Feature: Delivering handoffs
     When "coder" queues the handoff
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
     And the squad host remains available

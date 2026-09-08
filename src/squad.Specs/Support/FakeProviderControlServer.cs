@@ -109,6 +109,45 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         return data.GetProperty("content").GetString()!;
     }
 
+    /// <summary>Waits until the connected client has reported this role's session receiving a harness message
+    /// whose content satisfies the given predicate. Unlike <see cref="WaitForHarnessMessageAsync(string,TimeSpan?,Func{string}?)"/>,
+    /// this keeps polling past an already-observed harness message that does not satisfy the predicate (such as
+    /// the role's own initial instruction, sent once at session start), so a caller can distinguish a later,
+    /// distinct harness message - for example a delivery wake-up - from that earlier one.</summary>
+    public async Task<string> WaitForHarnessMessageAsync(
+        string role, Func<string, bool> matches, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            var content = LatestHarnessMessage(role);
+            if (content is not null && matches(content))
+            {
+                return content;
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new FakeProviderControlTimeoutException(
+                    $"role '{role}' to report a matching harness message across the fake-provider control pipe",
+                    DescribeDiagnostics(additionalDiagnostics));
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
+    /// <summary>Returns the content of the most recent harness message this role's session has reported across
+    /// the control pipe, or null if none has been reported yet - a snapshot read (no waiting) used to prove the
+    /// absence of a later harness message rather than the presence of one.</summary>
+    public string? LatestHarnessMessage(string role)
+    {
+        lock (myStateLock)
+        {
+            return myLatestObservationByRoleAndKind.TryGetValue((role, "harness-message"), out var data)
+                ? data.GetProperty("content").GetString()
+                : null;
+        }
+    }
+
     /// <summary>Waits until the connected client has reported the host aborting this role's current operation.</summary>
     public async Task WaitForAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         await WaitForObservationDataAsync(role, "abort", timeout, additionalDiagnostics);

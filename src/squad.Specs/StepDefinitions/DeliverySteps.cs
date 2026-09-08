@@ -5,8 +5,8 @@ namespace squad.Specs.StepDefinitions;
 /// <summary>
 /// Drives handoff delivery scenarios exclusively across the real process/protocol boundary: a real "squad handoff"
 /// (or, for an otherwise-uncreatable invalid prerequisite, a seeded durable artifact) queued into a role's own
-/// worktree, a real squad-hq host polling and delivering it, and the recipient's fake session observing the
-/// resulting wake-up harness message through the real transcript. Never constructs
+/// worktree, a real squad-hq host polling and delivering it, and the recipient's own fake session reporting the
+/// resulting wake-up harness message across the fake-provider control pipe. Never constructs
 /// <c>InProcessHandoffPoller</c>, <c>HandoffDeliveryService</c>, <c>IRoleNotifier</c>, or a role-row product type.
 /// </summary>
 [Binding]
@@ -53,10 +53,14 @@ public sealed class DeliverySteps
         await myScenario.Agent(role).RejectNextHarnessAsync();
 
     [Then("the sender handoff is archived as sent")]
-    public void ThenTheSenderHandoffIsArchivedAsSent() =>
+    public void ThenTheSenderHandoffIsArchivedAsSent()
+    {
         myWorkspace.WaitUntil(
             () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffs(SenderRole).Count == 1,
             "the host to archive the outbound handoff");
+        Assert.That(myMailbox.SentHandoffs(SenderRole), Has.Exactly(1).Items);
+        Assert.That(myMailbox.FailedHandoffs(SenderRole), Is.Empty);
+    }
 
     [Then("the sender handoff is archived as failed")]
     public void ThenTheSenderHandoffIsArchivedAsFailed()
@@ -81,7 +85,11 @@ public sealed class DeliverySteps
 
     [Then("the {string} agent observes the handoff wake-up message")]
     public async Task ThenTheAgentObservesTheHandoffWakeUpMessage(string role) =>
-        await myScenario.WaitForTranscriptAsync(role, WakeUpMessage);
+        await myScenario.Agent(role).WaitForHarnessMessageAsync(content => content == WakeUpMessage);
+
+    [Then("the {string} agent has not observed the handoff wake-up message")]
+    public void ThenTheAgentHasNotObservedTheHandoffWakeUpMessage(string role) =>
+        Assert.That(myScenario.Agent(role).LatestHarnessMessage(), Is.Not.EqualTo(WakeUpMessage));
 
     [Then("the squad host remains available")]
     public void ThenTheSquadHostRemainsAvailable() =>

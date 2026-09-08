@@ -23,6 +23,16 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     public Task<string> WaitForHarnessMessageAsync(TimeSpan? timeout = null) =>
         control.WaitForHarnessMessageAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Waits until this role's session has reported a harness message whose content satisfies the given
+    /// predicate, distinguishing it from an already-observed earlier harness message (such as this role's own
+    /// initial instruction) by content rather than mere presence.</summary>
+    public Task<string> WaitForHarnessMessageAsync(Func<string, bool> matches, TimeSpan? timeout = null) =>
+        control.WaitForHarnessMessageAsync(role, matches, timeout, uiDiagnostics);
+
+    /// <summary>Returns the content of the most recent harness message this role's session has reported, or null
+    /// if none has been reported yet - a snapshot read used to prove the absence of a later harness message.</summary>
+    public string? LatestHarnessMessage() => control.LatestHarnessMessage(role);
+
     /// <summary>Waits until this role's session has reported the host aborting its current operation.</summary>
     public Task WaitForAbortAsync(TimeSpan? timeout = null) => control.WaitForAbortAsync(role, timeout, uiDiagnostics);
 
