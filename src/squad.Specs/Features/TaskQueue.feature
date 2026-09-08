@@ -12,8 +12,8 @@ Feature: Single-task queue
   Scenario: A role cannot be resolved from an unrelated nested directory
     Given a nested directory exists
     When the nested directory checks for work
-    Then the command succeeds
-    And standard output contains "NO_TASK"
+    Then the command fails
+    And standard error contains "Could not resolve the current role from its worktree."
 
   Scenario: Ambiguous worktree identity is rejected without legacy fallback
     Given a Git project with two roles sharing the current worktree

@@ -39,15 +39,7 @@ public sealed class QueueSteps
 
     [Given("a Git project with role {string} and an empty receive mode")]
     public void GivenAGitProjectWithRoleAndAnEmptyReceiveMode(string role) =>
-        myWorkspace.WriteFile(
-            "blaxquad/squad.json",
-            $$"""
-            {
-              "roles": [
-                { "name": "{{role}}", "worktree": "{{role}}", "receiveMode": "", "agent": {} }
-              ]
-            }
-            """ + "\n");
+        myWorkspace.SetRoleReceiveMode(role, "");
 
     [Given("{string} has these queued tasks:")]
     [Given("{string} has this queued task:")]
@@ -97,30 +89,18 @@ public sealed class QueueSteps
 
     [Given("a nested directory exists")]
     public void GivenANestedDirectoryExists() =>
-        Directory.CreateDirectory(Path.Combine(myWorkspace.RoleWorktreePath("reviewer"), "nested", "current"));
+        Directory.CreateDirectory(myWorkspace.PathInWorkspace("nested", "current"));
 
     [When("the nested directory checks for work")]
     public void WhenTheNestedDirectoryChecksForWork() =>
         myWorkspace.RunTool(
             "squad",
             ["ready-for-next"],
-            workingDirectory: Path.Combine(myWorkspace.RoleWorktreePath("reviewer"), "nested", "current"));
+            workingDirectory: myWorkspace.PathInWorkspace("nested", "current"));
 
     [Given("a Git project with two roles sharing the current worktree")]
-    public void GivenAGitProjectWithTwoRolesSharingTheCurrentWorktree()
-    {
-        myWorkspace.InitializeGitRepository();
-        myWorkspace.WriteFile(
-            "blaxquad/squad.json",
-            """
-            {
-              "roles": [
-                { "name": "coder", "worktree": "master", "agent": {} },
-                { "name": "reviewer", "worktree": "master", "agent": {} }
-              ]
-            }
-            """ + "\n");
-    }
+    public void GivenAGitProjectWithTwoRolesSharingTheCurrentWorktree() =>
+        myWorkspace.ConfigureProjectWithRolesSharingWorktree("coder", "reviewer");
 
     [When("the ambiguous current worktree checks for work")]
     public void WhenTheAmbiguousCurrentWorktreeChecksForWork() =>

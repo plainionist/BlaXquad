@@ -130,6 +130,40 @@ public sealed class ScenarioWorkspace : IDisposable
     public void RegisterRoleWorktree(string role, string worktreePath) => myRoleWorktrees[role] = worktreePath;
 
     /// <summary>
+    /// Rewrites a single role already configured by <see cref="ConfigureProject"/> to the given receive mode,
+    /// including an empty string, while keeping its existing worktree mapping. Lets scenarios that arrange an
+    /// unsupported or missing receive mode do so as a semantic workspace operation instead of serializing
+    /// configuration in step definitions.
+    /// </summary>
+    public void SetRoleReceiveMode(string role, string receiveMode) =>
+        WriteFile("blaxquad/squad.json", $$"""
+            {
+              "roles": [
+                { "name": "{{role}}", "worktree": "{{role}}", "receiveMode": "{{receiveMode}}", "agent": {} }
+              ]
+            }
+            """ + "\n");
+
+    /// <summary>
+    /// Creates a Git project where every named role maps onto the same repository root (a "master" worktree)
+    /// instead of <see cref="ConfigureProject"/>'s one-worktree-per-role layout, for scenarios that arrange an
+    /// ambiguous current-worktree identity as a semantic workspace operation.
+    /// </summary>
+    public void ConfigureProjectWithRolesSharingWorktree(params string[] roles)
+    {
+        InitializeGitRepository();
+        var rolesJson = string.Join(",\n", roles.Select(role =>
+            $$"""    { "name": "{{role}}", "worktree": "master", "agent": {} }"""));
+        WriteFile("blaxquad/squad.json", $$"""
+            {
+              "roles": [
+            {{rolesJson}}
+              ]
+            }
+            """ + "\n");
+    }
+
+    /// <summary>
     /// Runs the exact published tool for a role's worktree recorded by <see cref="ConfigureProject"/>, so step
     /// definitions invoke role-scoped commands without retaining or inspecting worktree paths themselves.
     /// </summary>
