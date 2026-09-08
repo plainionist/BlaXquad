@@ -7,8 +7,8 @@ namespace squad.Specs.Support;
 /// standard output and standard error concurrently with two independent background readers so a full stderr pipe
 /// can never block a pending stdout read (or vice versa), and privately frames the newline-delimited, versioned UI
 /// protocol envelopes. Step definitions see only readiness, prompt sending, abort/interaction-response sending,
-/// role-status/usage waiting, transcript waiting, and protocol-error reporting - never raw JSON, envelopes,
-/// streams, or the child process itself.
+/// role-status/usage waiting, transcript waiting, protocol-error reporting, process completion, and deliberate
+/// termination - never raw JSON, envelopes, streams, or the child process itself.
 /// </summary>
 public sealed class HeadlessUiClient
 {
@@ -41,6 +41,16 @@ public sealed class HeadlessUiClient
 
     /// <summary>Sends a prompt for the given role through the real "prompt.send" command.</summary>
     public void SendPrompt(string role, string prompt) => SendEnvelope("prompt.send", role, new { prompt });
+
+    /// <summary>
+    /// Deliberately terminates the underlying process and its tree, simulating an abrupt crash rather than a
+    /// normal `squad-hq shutdown`, so specifications can exercise stale-ownership recovery without ever
+    /// referencing the process itself.
+    /// </summary>
+    public void Terminate() => myProcess.Kill(entireProcessTree: true);
+
+    /// <summary>Waits up to the given timeout for the underlying process to exit, without exposing the process.</summary>
+    public bool WaitForExit(TimeSpan timeout) => myProcess.WaitForExit((int)timeout.TotalMilliseconds);
 
     /// <summary>Aborts the given role's current operation through the real "role.abort" command.</summary>
     public void SendAbort(string role) => SendEnvelope("role.abort", role);

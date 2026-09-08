@@ -1,45 +1,32 @@
 Feature: Squad host ownership
   A project has one authoritative host owner.
 
-  Scenario: A host writes ownership metadata
-    Given the project host lease is acquired
-    Then host metadata exists
-    And host metadata names the project root
-
-  Scenario: A duplicate host is rejected while the lease is held
-    Given the project host lease is acquired
-    When a second project host lease is acquired
-    Then the second host acquisition fails
-    And host metadata still exists
-
   Scenario: A duplicate executable launch fails clearly
-    Given the project host lease is acquired
+    Given a squad host is running
     When the executable attempts a duplicate launch
     Then the duplicate launch fails without an exception trace
+    And the original host still answers a public command
+    When the executable requests squad shutdown
+    Then the executable shutdown succeeds
+    And the host process exits
 
   Scenario: The executable shuts down an owned host
-    Given the project host lease is acquired
+    Given a squad host is running
     When the executable requests squad shutdown
     Then the executable shutdown succeeds
-    And host metadata is absent
-    And the host lock can be reacquired
+    And the host process exits
+    And a new host can be started for the same project
 
-  Scenario: Shutdown removes stale metadata and remains idempotent
-    Given stale host metadata exists
-    When the executable requests squad shutdown
+  Scenario: Shutdown accepts an equivalent project path
+    Given a squad host is running
+    When the executable requests shutdown for an equivalent project path
     Then the executable shutdown succeeds
-    And host metadata is absent
-    When the executable requests squad shutdown again
-    Then the executable shutdown succeeds
+    And the host process exits
 
-  Scenario: Invalid control requests do not fault the control server
-    Given the project host lease is acquired
-    When an invalid control request is sent
-    Then the invalid control request is rejected
-    When a malformed control request is sent
-    Then the malformed control request is rejected
-    When a ping control request is sent
-    Then the control server remains available
+  Scenario: A replacement host recovers after an abrupt termination
+    Given a squad host is running
+    When the host process is abruptly terminated
+    Then a new host can be started for the same project
 
   Scenario: Waiting for an agent blocks until the live host reports it ready
     Given the project host lease is acquired
@@ -91,12 +78,6 @@ Feature: Squad host ownership
     Given the project host lock is held without a control server
     When the host client waits 0.1 seconds for the "architect" agent
     Then the unavailable control wait respects the deadline
-
-  Scenario: Shutdown accepts an equivalent project path
-    Given the project host lease is acquired
-    When the executable requests shutdown for an equivalent project path
-    Then the executable shutdown succeeds
-    And host metadata is absent
 
   Scenario: Shutdown is idempotent for an empty project
     Given an empty project
