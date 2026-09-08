@@ -41,7 +41,7 @@ Keep the specification boundary in `squad.Specs`: the published `squad-hq` proce
 capability. Raw UI envelopes, fake-provider control messages, process handles, and production object graphs remain
 hidden from step definitions.
 
-### Slice 1 (in progress): Prompt isolation, serialization, and readiness
+### Slice 1 (done): Prompt isolation, serialization, and readiness
 
 - Add process-level role-interaction scenarios for a project with two live fake-provider roles.
 - Send prompts through `prompt.send` and observe them through the selected role's fake-agent API, including an
@@ -64,18 +64,18 @@ Acceptance criteria:
 - Readiness follows provider idle/busy work and remains correct for independently starting role sessions.
 - All new steps use only `BackendScenario` UI, agent, CLI, and lifecycle APIs.
 
-**Status / open finding:** `src/squad.Specs/Features/PromptIsolationAndReadiness.feature` covers prompt isolation,
-same-role serialization (order, no overlap), and both readiness scenarios through the process boundary. The
-"another role continues independently" half of the second acceptance criterion is **not yet covered** there:
-`StdioWindowHost`'s input pump reads one UI-protocol line at a time and `await`s each command's full round trip
-(`UiCommandHandler.HandleAsync` awaits `ISquadUi.SendAsync` to completion) before reading the next line. Since
-`SquadViewModel.DispatchPromptAsync` only returns once the addressed role's provider operation completes, a second
-role's `prompt.send` cannot be read - let alone dispatched - while an earlier role's prompt is still outstanding
-across this transport. This is a real behavior difference from the white-box `ViewModel.feature` scenario it
-replaces (which called `SquadViewModel.SendAsync` directly for both roles, bypassing the stdio command loop
-entirely) - at the process boundary, only one role's manual prompt can be in flight at a time, system-wide.
-The original scenario, `Slow sends do not block another role`, remains in `ViewModel.feature` until the transport
-change below is implemented.
+**Status: resolved.** `src/squad.Specs/Features/PromptIsolationAndReadiness.feature` now covers all four acceptance
+criteria through the process boundary: prompt isolation, same-role serialization (order, no overlap), a second
+role's independent progress while a first role's prompt is still outstanding, and both readiness scenarios.
+`StdioWindowHost`'s input pump was changed to dispatch each received line's `UiProtocolSession.ReceiveMessageAsync`
+call without awaiting its completion before reading the next line, so no role's outstanding prompt can block
+another role's command from being admitted - matching the visual UI's behavior. Dispatched commands are tracked and
+drained (with cancellation-and-snapshot performed under one lock to close the admit/drain race) before the session
+is disposed on shutdown, and every dispatched task is observed so a fault can never escape unobserved.
+`src/squad.Specs/Features/StdioTransportConcurrentDispatchAndShutdown.feature` adds focused stdio-transport coverage
+proving a host-control shutdown drains a still in-flight prompt dispatch instead of hanging or crashing. The
+original scenario, `Slow sends do not block another role`, has been removed from `ViewModel.feature` now that the
+process-boundary scenario covers the same guarantee.
 
 **Architecture decision:** preserve the independent-role acceptance criterion. `StdioWindowHost` must not impose
 global command serialization that does not exist in the visual UI. Its input pump owns framing and admission only:

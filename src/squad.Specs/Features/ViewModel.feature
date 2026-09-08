@@ -775,16 +775,6 @@ Feature: Squad ViewModel
     When the recording "coder" session emits tool completion "git status"
     Then ViewModel role "coder" has no active tool
 
-  # This scenario tests ViewModel-level cross-role dispatch concurrency directly. It could not be migrated to a
-  # process-boundary spec: the real stdio host reads UI commands one line at a time and awaits each role's full
-  # prompt round trip before reading the next command, so a second role's prompt cannot be observed to progress
-  # through that transport while a first role's prompt is still outstanding. See issue 017 for the open follow-up.
-  Scenario: Slow sends do not block another role
-    Given a ViewModel with recording roles "coder,reviewer"
-    When a slow prompt is sent to "coder" while a prompt is sent to "reviewer" concurrently
-    Then the recording "reviewer" session received prompt "fast"
-    And the reviewer prompt completed before the coder prompt
-
   Scenario: Abort is routed to the matching role
     Given a ViewModel with recording roles "coder,reviewer"
     When the recording "coder" session emits an idle event

@@ -43,7 +43,6 @@ public sealed class RecordingAgentSession : IAgentSession
     public bool EventStreamLeftOpen { get; private set; }
     public int DisposeCount { get; private set; }
     public int ActiveSendCountAtDispose { get; private set; }
-    public ConcurrentQueue<string> SendOrder { get; } = new();
     public Action? OnDispose { get; set; }
     public Action? OnDisposeObserved { get; set; }
     public Action<string>? OnSend { get; set; }
@@ -62,7 +61,6 @@ public sealed class RecordingAgentSession : IAgentSession
         try
         {
             Sends.Enqueue(prompt);
-            SendOrder.Enqueue(prompt);
             OnSend?.Invoke(prompt);
             if (SendDelay > TimeSpan.Zero)
             {

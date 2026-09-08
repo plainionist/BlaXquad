@@ -24,7 +24,6 @@ public sealed class ViewModelSteps
     private RecordingAgentBackend myBackend = null!;
     private SquadApplication? myApplication;
     private string myApplicationRoot = "";
-    private bool myFastCompletedBeforeSlow;
     private RecordingWindowHost? myRecordingWindow;
     private Exception? myApplicationStartFailure;
     private HostLease? myApplicationLease;
@@ -1201,17 +1200,6 @@ public sealed class ViewModelSteps
         await Task.WhenAll(slow, other);
     }
 
-    [When("a slow prompt is sent to {string} while a prompt is sent to {string} concurrently")]
-    public async Task WhenASlowPromptIsSentWhileAnotherPromptIsSentConcurrently(string slowRole, string otherRole)
-    {
-        myBackend.Sessions.Single(session => session.Role == slowRole).SendDelay = TimeSpan.FromMilliseconds(250);
-        var slow = myViewModel.SendAsync(slowRole, "slow");
-        var fast = myViewModel.SendAsync(otherRole, "fast");
-        await fast.WaitAsync(TimeSpan.FromMilliseconds(100));
-        myFastCompletedBeforeSlow = !slow.IsCompleted;
-        await slow;
-    }
-
     [When("{string} is aborted")]
     public async Task WhenRoleIsAborted(string role) => await myViewModel.AbortAsync(role);
 
@@ -2163,14 +2151,6 @@ public sealed class ViewModelSteps
     [Then("the recording {string} session received prompt {string}")]
     public void ThenRecordingSessionReceivedPrompt(string role, string prompt) =>
         Assert.That(myBackend.Sessions.Single(session => session.Role == role).Sends, Has.Some.EqualTo(prompt));
-
-    [Then("the reviewer prompt completed before the coder prompt")]
-    public void ThenTheReviewerPromptCompletedBeforeTheCoderPrompt() =>
-        Assert.Multiple(() =>
-        {
-            Assert.That(myBackend.Sessions.Single(session => session.Role == "reviewer").SendOrder, Is.EqualTo(new[] { "fast" }));
-            Assert.That(myFastCompletedBeforeSlow, Is.True);
-        });
 
     private async Task CompleteInteractionAsync(Func<Task> complete)
     {

@@ -54,7 +54,11 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
         var pendingReply = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         myPendingReply = pendingReply;
         await myControl.NotifyPromptAsync(Role, SessionId, prompt, cancellationToken);
-        var content = await pendingReply.Task;
+        // A real provider's send observes its cancellation token instead of blocking forever once the host
+        // decides to give up on this round trip (for example during shutdown); mirror that here so a scenario
+        // can prove the host itself remains well-behaved under a still-outstanding prompt, without this fixture
+        // manufacturing an unrealistic, uncancelable wait no real provider would exhibit.
+        var content = await pendingReply.Task.WaitAsync(cancellationToken);
         myEvents.Publish(new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, content, IsDelta: false));
         myEvents.Publish(new AgentIdleEvent(DateTimeOffset.UtcNow));
     }
