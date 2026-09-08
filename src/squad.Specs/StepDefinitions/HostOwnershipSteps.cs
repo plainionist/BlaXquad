@@ -12,6 +12,7 @@ public sealed class HostOwnershipSteps
     private BackendScenario? myScenario;
     private BackendScenario? myReplacementScenario;
     private BackendScenarioCommand? myWaitCommand;
+    private string? myWaitRole;
     private string? myLinkedWorktree;
     private TimeSpan myWaitElapsed;
 
@@ -94,13 +95,24 @@ public sealed class HostOwnershipSteps
     public void ThenTheExecutableShutdownSucceeds() => Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
 
     [When("the executable begins waiting for the {string} agent")]
-    public void WhenTheExecutableBeginsWaitingForTheAgent(string role) =>
+    public void WhenTheExecutableBeginsWaitingForTheAgent(string role)
+    {
+        myWaitRole = role;
         myWaitCommand = myScenario!.StartWaitForAgent(role, TimeSpan.FromSeconds(5));
+    }
 
     [Then("the executable remains waiting for agent readiness")]
-    public void ThenTheExecutableRemainsWaitingForAgentReadiness()
+    public async Task ThenTheExecutableRemainsWaitingForAgentReadiness()
     {
-        Thread.Sleep(200);
+        // A short, independently bounded probe against the same live host proves the role is genuinely busy and
+        // the host is reachable right now: it must poll the host for its own full timeout before concluding
+        // "not ready", so its completion proves at least that much real wall-clock time has already passed for
+        // the longer-lived wait-for-agent command started just before it, which follows the identical
+        // connect-then-poll path. That makes "still running" below evidence of a live, contacted, busy host -
+        // not a guess about how long a fixed sleep should be.
+        var probe = myScenario!.StartWaitForAgent(myWaitRole!, TimeSpan.FromSeconds(1));
+        var probeResult = await probe.WaitForCompletionAsync(TimeSpan.FromSeconds(5));
+        Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);
         Assert.That(myWaitCommand!.IsRunning, Is.True);
     }
 
