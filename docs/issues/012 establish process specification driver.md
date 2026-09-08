@@ -64,7 +64,7 @@ processes.
 
 ### Slice 3: Add the semantic headless UI client
 
-**Status: changes requested (d16c5f29ff)**
+**Status: complete (341dc3e8d4)**
 
 Add a client for one launched `--ui stdio` process. It owns stdin, concurrent stdout/stderr collection,
 newline-delimited versioned-envelope framing, and only the received state needed for semantic waits. Initially expose
@@ -77,17 +77,6 @@ product protocol DTOs private to the client.
 - Reads and writes cannot deadlock because stdout and stderr are drained concurrently.
 - Every semantic wait is bounded and reports captured process output plus parsed UI state on timeout.
 - No step definition handles protocol envelopes, raw JSON, streams, or child processes.
-
-**Review findings**
-
-1. **Severity:** Medium
-   **Location:** `src/squad.Specs/StepDefinitions/HeadlessUiClientSteps.cs` (`GivenThePublishedSquadHqIsLaunchedWithUiStdio`)
-   **Violated behavior:** Slice 3 acceptance requires that no step definition handles child processes. Workspace/CLI
-   support owns child processes; step definitions may use only the client's semantic operations.
-   **Root cause:** The launch step starts `squad-hq` through `StartTool`, builds a `--provider` descriptor from types,
-   and passes `System.Diagnostics.Process` into `HeadlessUiClient`.
-   **Required outcome:** Launching the published `--ui stdio` process and constructing `HeadlessUiClient` must live in
-   test support. Steps must not start, hold, or pass the child process.
 
 ### Slice 4: Compose startup and normal shutdown in `BackendScenario`
 
