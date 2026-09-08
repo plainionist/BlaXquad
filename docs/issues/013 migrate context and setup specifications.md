@@ -30,7 +30,7 @@ Implement this issue as one independently reviewable slice.
 
 ### Slice 1: Migrate context specifications and remove empty setup fixtures
 
-**Status: in progress**
+**Status: complete (6a63831504)**
 
 1. Extend `ScenarioWorkspace` so one configured-project operation creates the real Git repository and all requested
    role worktrees, records their locations behind the workspace API, and can run the exact published `squad`
