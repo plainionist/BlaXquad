@@ -181,6 +181,8 @@ the real command, and confirms clean exit.
 
 ### Slice 10: Complete the reusable fake-agent event surface
 
+**Status: changes requested (79ef84f7bd)**
+
 Extend the private channel and semantic role controller with the remaining event families required by the documented
 backend test API: harness messages, aborts, interaction responses, reasoning/tool output, readiness, usage,
 interaction requests, idle, operation/session completion, and failures. Add focused black-box scenarios only for
@@ -194,6 +196,19 @@ meaningful supported behavior needed to prove each family and its acknowledgemen
 - No public test API or step definition exposes provider events, pipe messages, child processes, or product objects.
 - The complete existing acceptance suite passes; unrelated white-box scenarios are not migrated or removed in this
   issue.
+
+**Review findings**
+
+1. **Severity:** High
+   **Location:** `src/squad.Specs/Support/BackendScenario.cs` (`Dispose` / `DisposeControl`) vs
+   `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (no `AfterScenario` / `IDisposable`)
+   **Violated behavior:** Teardown must report sessions that started but were never disposed.
+   **Root cause:** `DescribeUndisposedSessions` runs only from `BackendScenario.Dispose`. The process-driver
+   composition root constructs `BackendScenario` inside `BackendScenarioSteps` and never disposes it. Reqnroll
+   instead disposes the injected `ScenarioWorkspace`, which kills the child process and never inspects control-pipe
+   session observations. Failed process-driver scenarios therefore never report missing session disposal.
+   **Required outcome:** The teardown path that actually runs for process-driver scenarios must report every
+   session that was observed to start and never observed to dispose.
 
 ## Goal
 
