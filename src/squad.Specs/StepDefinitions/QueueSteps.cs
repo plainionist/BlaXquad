@@ -5,40 +5,74 @@ namespace squad.Specs.StepDefinitions;
 [Binding]
 public sealed class QueueSteps
 {
+    private const string CurrentRoleKey = "queueCurrentRole";
     private readonly ScenarioWorkspace myWorkspace;
+    private readonly TaskMailboxFixture myTaskMailbox;
+    private readonly TaskMailboxObserver myTaskObserver;
     private int mySequence;
 
     public QueueSteps(ScenarioWorkspace workspace)
     {
         myWorkspace = workspace;
+        myTaskMailbox = new TaskMailboxFixture(workspace);
+        myTaskObserver = new TaskMailboxObserver(workspace);
     }
 
     [Given("a Git project with task role {string}")]
-    public void GivenAGitProjectWithTaskRole(string role) => CreateQueueProject(role, "task");
+    public void GivenAGitProjectWithTaskRole(string role) => myWorkspace.ConfigureProject(role);
 
     [Given("a Git project with batch role {string}")]
-    public void GivenAGitProjectWithBatchRole(string role) => CreateQueueProject(role, "batch");
+    public void GivenAGitProjectWithBatchRole(string role)
+    {
+        myWorkspace.InitializeGitRepository();
+        myWorkspace.WriteFile(
+            "blaxquad/squad.json",
+            $$"""
+            {
+              "roles": [
+                { "name": "{{role}}", "worktree": "master", "receiveMode": "batch", "agent": {} }
+              ]
+            }
+            """ + "\n");
+        myWorkspace.RegisterRoleWorktree(role, myWorkspace.Root);
+    }
 
     [Given("a Git project with role {string} and an empty receive mode")]
-    public void GivenAGitProjectWithRoleAndAnEmptyReceiveMode(string role) => CreateQueueProject(role, "");
+    public void GivenAGitProjectWithRoleAndAnEmptyReceiveMode(string role) =>
+        myWorkspace.WriteFile(
+            "blaxquad/squad.json",
+            $$"""
+            {
+              "roles": [
+                { "name": "{{role}}", "worktree": "{{role}}", "receiveMode": "", "agent": {} }
+              ]
+            }
+            """ + "\n");
 
     [Given("{string} has these queued tasks:")]
     [Given("{string} has this queued task:")]
     public void GivenRoleHasQueuedTasks(string role, DataTable tasks)
     {
+        myWorkspace.Set(CurrentRoleKey, role);
         foreach (var row in tasks.Rows)
         {
-            WriteTask("new", row["from"], row["priority"], row["task"]);
+            myTaskMailbox.QueueTask(role, row["from"], row["priority"], row["task"]);
         }
     }
 
     [Given("{string} is processing task {string} from {string}")]
-    public void GivenRoleIsProcessingTask(string role, string task, string sender) =>
-        WriteTask("in_process", sender, "10", task);
+    public void GivenRoleIsProcessingTask(string role, string task, string sender)
+    {
+        myWorkspace.Set(CurrentRoleKey, role);
+        myTaskMailbox.PutTaskInProcess(role, sender, "10", task);
+    }
 
     [Given("{string} is also processing task {string} from {string}")]
-    public void GivenRoleIsAlsoProcessingTask(string role, string task, string sender) =>
-        WriteTask("in_process", sender, "20", task);
+    public void GivenRoleIsAlsoProcessingTask(string role, string task, string sender)
+    {
+        myWorkspace.Set(CurrentRoleKey, role);
+        myTaskMailbox.PutTaskInProcess(role, sender, "20", task);
+    }
 
     [Given("{string} is processing this batch:")]
     public void GivenRoleIsProcessingThisBatch(string role, DataTable tasks)
@@ -46,31 +80,31 @@ public sealed class QueueSteps
         var batchName = "batch_20260822T120000Z_000001";
         foreach (var row in tasks.Rows)
         {
-            WriteTask($"in_process/{batchName}", row["from"], row["priority"], row["task"]);
+            WriteBatchItem(row["from"], row["priority"], row["task"], batchName);
         }
     }
 
     [Given("the completion archive already contains that task")]
-    public void GivenTheCompletionArchiveAlreadyContainsThatTask()
-    {
-        var inProcess = myWorkspace.PathInWorkspace(".blaxquad", "handoffs", "inbox", "in_process");
-        var source = Directory.GetFiles(inProcess, "*.handoff").Single();
-        var target = myWorkspace.PathInWorkspace(
-            ".blaxquad", "handoffs", "inbox", "completed", Path.GetFileName(source));
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        File.Copy(source, target);
-    }
+    public void GivenTheCompletionArchiveAlreadyContainsThatTask() =>
+        myTaskMailbox.DuplicateCurrentTaskIntoCompletedArchive(myWorkspace.Get<string>(CurrentRoleKey));
 
     [When("{string} checks for work")]
-    public void WhenRoleChecksForWork(string role) => RunForRole("ready_for_next", role);
+    public void WhenRoleChecksForWork(string role)
+    {
+        myWorkspace.Set(CurrentRoleKey, role);
+        myWorkspace.RunRoleTool(role, "squad", ["ready-for-next"]);
+    }
 
     [Given("a nested directory exists")]
     public void GivenANestedDirectoryExists() =>
-        Directory.CreateDirectory(myWorkspace.PathInWorkspace("nested", "current"));
+        Directory.CreateDirectory(Path.Combine(myWorkspace.RoleWorktreePath("reviewer"), "nested", "current"));
 
     [When("the nested directory checks for work")]
     public void WhenTheNestedDirectoryChecksForWork() =>
-        myWorkspace.RunTool("squad", ["ready-for-next"], workingDirectory: myWorkspace.PathInWorkspace("nested", "current"));
+        myWorkspace.RunTool(
+            "squad",
+            ["ready-for-next"],
+            workingDirectory: Path.Combine(myWorkspace.RoleWorktreePath("reviewer"), "nested", "current"));
 
     [Given("a Git project with two roles sharing the current worktree")]
     public void GivenAGitProjectWithTwoRolesSharingTheCurrentWorktree()
@@ -93,58 +127,33 @@ public sealed class QueueSteps
         myWorkspace.RunTool("squad", ["ready-for-next"]);
 
     [When("{string} completes the current work")]
-    public void WhenRoleCompletesTheCurrentWork(string role) => RunForRole("done_with_current", role);
+    public void WhenRoleCompletesTheCurrentWork(string role)
+    {
+        myWorkspace.Set(CurrentRoleKey, role);
+        myWorkspace.RunRoleTool(role, "squad", ["done-with-current"]);
+    }
 
     [Then("task {string} is in process")]
     public void ThenTaskIsInProcess(string task) =>
-        Assert.That(FindTask("in_process", task), Is.Not.Null);
+        Assert.That(myTaskObserver.IsTaskInProcess(CurrentRole(), task), Is.True);
 
     [Then("task {string} remains queued")]
     public void ThenTaskRemainsQueued(string task) =>
-        Assert.That(FindTask("new", task), Is.Not.Null);
+        Assert.That(myTaskObserver.IsTaskQueued(CurrentRole(), task), Is.True);
 
     [Then("task {string} is completed")]
     public void ThenTaskIsCompleted(string task) =>
-        Assert.That(FindTask("completed", task), Is.Not.Null);
+        Assert.That(myTaskObserver.IsTaskCompleted(CurrentRole(), task), Is.True);
 
-    private void CreateQueueProject(string role, string receiveMode)
-    {
-        myWorkspace.InitializeGitRepository();
-        myWorkspace.WriteFile(
-            "blaxquad/squad.json",
-            $$"""
-            {
-              "roles": [
-                { "name": "{{role}}", "worktree": "master", "receiveMode": "{{receiveMode}}", "agent": {} }
-              ]
-            }
-            """ + "\n");
-    }
+    private string CurrentRole() => myWorkspace.Get<string>(CurrentRoleKey);
 
-    private void RunForRole(string script, string role)
-    {
-        myWorkspace.RunTool("squad", [script.Replace('_', '-')]);
-    }
-
-    private void WriteTask(string state, string sender, string priority, string task)
+    private void WriteBatchItem(string sender, string priority, string task, string batchName)
     {
         mySequence++;
         var filename = $"{priority}_20260822T120000Z_{mySequence:D6}_from_{sender}_to_reviewer.handoff";
         myWorkspace.WriteFile(
-            $".blaxquad/handoffs/inbox/{state}/{filename}",
+            $".blaxquad/handoffs/inbox/in_process/{batchName}/{filename}",
             $"id: test-{mySequence}\nfrom: {sender}\nto: reviewer\nrecipient: reviewer\npriority: {priority}\ntype: git_handoff\ntask: {task}\ncommit: 0123456789\n\nmerge_and_process {sender} 0123456789\n");
-    }
-
-    private string? FindTask(string state, string task)
-    {
-        var directory = myWorkspace.PathInWorkspace(".blaxquad", "handoffs", "inbox", state);
-        if (!Directory.Exists(directory))
-        {
-            return null;
-        }
-
-        return Directory.EnumerateFiles(directory, "*.handoff", SearchOption.AllDirectories)
-            .SingleOrDefault(path => File.ReadLines(path).Contains($"task: {task}"));
     }
 }
 

@@ -122,6 +122,14 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
+    /// Records a role's worktree path without creating a linked worktree, for scenarios that map a role directly
+    /// onto the repository root (a "master" worktree) rather than <see cref="ConfigureProject"/>'s per-role
+    /// layout. Lets <see cref="RunRoleTool"/> stay the single way to invoke a role-scoped command regardless of
+    /// which fixture set the role up.
+    /// </summary>
+    public void RegisterRoleWorktree(string role, string worktreePath) => myRoleWorktrees[role] = worktreePath;
+
+    /// <summary>
     /// Runs the exact published tool for a role's worktree recorded by <see cref="ConfigureProject"/>, so step
     /// definitions invoke role-scoped commands without retaining or inspecting worktree paths themselves.
     /// </summary>
