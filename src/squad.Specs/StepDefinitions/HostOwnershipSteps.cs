@@ -12,7 +12,8 @@ public sealed class HostOwnershipSteps
     private readonly ScenarioWorkspace myWorkspace;
     private HostLease? myLease;
     private Task? myReleaseAfterShutdown;
-    private HeadlessUiClient? myHostClient;
+    private BackendScenario? myScenario;
+    private BackendScenario? myReplacementScenario;
     private System.Diagnostics.Process? myWaitProcess;
     private Task<string>? myWaitOutput;
     private Task<string>? myWaitError;
@@ -31,8 +32,9 @@ public sealed class HostOwnershipSteps
     [Given("a squad host is running")]
     public async Task GivenASquadHostIsRunning()
     {
-        myWorkspace.ConfigureProject(HostRole);
-        myHostClient = await myWorkspace.StartSquadHqHostAsync();
+        myScenario = new BackendScenario(myWorkspace);
+        myScenario.ConfigureRole(HostRole);
+        await myScenario.StartAsync<EchoAgentProviderFactory>();
     }
 
     [Given("the project host lease is acquired")]
@@ -73,37 +75,36 @@ public sealed class HostOwnershipSteps
     }
 
     [When("the executable requests squad shutdown")]
-    public void WhenTheExecutableRequestsSquadShutdown() =>
-        myWorkspace.RunTool("squad-hq", ["shutdown", myWorkspace.Root]);
+    public async Task WhenTheExecutableRequestsSquadShutdown() => await myScenario!.ShutdownAsync();
 
     [When("the executable requests shutdown for an equivalent project path")]
     public void WhenTheExecutableRequestsShutdownForAnEquivalentProjectPath() =>
-        myWorkspace.RunTool("squad-hq", ["shutdown", myWorkspace.Root + Path.DirectorySeparatorChar]);
+        myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root + Path.DirectorySeparatorChar]);
 
     [When("the executable requests shutdown for the empty project")]
     public void WhenTheExecutableRequestsShutdownForTheEmptyProject() =>
         myWorkspace.RunTool("squad-hq", ["shutdown", myWorkspace.Root]);
 
     [When("the host process is abruptly terminated")]
-    public void WhenTheHostProcessIsAbruptlyTerminated()
-    {
-        myHostClient!.Terminate();
-        Assert.That(myHostClient.WaitForExit(TimeSpan.FromSeconds(5)), Is.True);
-    }
+    public void WhenTheHostProcessIsAbruptlyTerminated() => myScenario!.Terminate();
 
     [Then("the host process exits")]
     public void ThenTheHostProcessExits() =>
-        Assert.That(myHostClient!.WaitForExit(TimeSpan.FromSeconds(10)), Is.True);
+        myWorkspace.WaitUntil(() => !myScenario!.IsRunning, "the host process to exit");
 
     [Then("the original host still answers a public command")]
     public async Task ThenTheOriginalHostStillAnswersAPublicCommand()
     {
-        myHostClient!.SendPrompt(HostRole, "still there?");
-        await myHostClient.WaitForTranscriptAsync(HostRole, "echo: still there?");
+        myScenario!.SendPrompt(HostRole, "still there?");
+        await myScenario.WaitForTranscriptAsync(HostRole, "echo: still there?");
     }
 
     [Then("a new host can be started for the same project")]
-    public async Task ThenANewHostCanBeStartedForTheSameProject() => await myWorkspace.StartSquadHqHostAsync();
+    public async Task ThenANewHostCanBeStartedForTheSameProject()
+    {
+        myReplacementScenario = new BackendScenario(myWorkspace);
+        await myReplacementScenario.StartAsync<EchoAgentProviderFactory>();
+    }
 
     [Then("the executable shutdown succeeds")]
     public void ThenTheExecutableShutdownSucceeds() => Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
@@ -293,6 +294,13 @@ public sealed class HostOwnershipSteps
         {
             await myLease.DisposeAsync();
         }
+    }
+
+    [AfterScenario]
+    public void DisposeBackendScenarios()
+    {
+        myScenario?.Dispose();
+        myReplacementScenario?.Dispose();
     }
 
     private void RunTimedWait(

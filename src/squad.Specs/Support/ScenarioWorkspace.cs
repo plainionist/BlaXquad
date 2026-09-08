@@ -193,21 +193,6 @@ public sealed class ScenarioWorkspace : IDisposable
         return new HeadlessUiClient(process);
     }
 
-    /// <summary>
-    /// Starts the real, published squad-hq process for this workspace's project with a stdio UI and the echo
-    /// provider fixture (so it needs neither a visual window nor squad.CopilotSdk), and completes the real
-    /// UI-ready handshake so callers know the process finished startup - including acquiring host ownership,
-    /// which happens before the UI itself begins accepting commands. Returns the same semantic client used
-    /// elsewhere so callers can address the host with normal squad-hq CLI commands, observe its completion, or
-    /// deliberately terminate it to exercise stale-ownership recovery.
-    /// </summary>
-    public async Task<HeadlessUiClient> StartSquadHqHostAsync()
-    {
-        var client = StartHeadlessUiClient<EchoAgentProviderFactory>();
-        await client.CompleteReadyHandshakeAsync();
-        return client;
-    }
-
     public System.Diagnostics.Process StartProcess(
         string executable,
         IReadOnlyList<string>? arguments = null,

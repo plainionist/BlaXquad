@@ -217,6 +217,28 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Abruptly terminates the exact squad-hq process this scenario launched - simulating a real host crash
+    /// instead of a normal "squad-hq shutdown" - and waits until it has actually exited, so a specification can
+    /// prove stale-ownership recovery starts from a genuinely terminated process rather than fabricated metadata.
+    /// </summary>
+    public void Terminate(TimeSpan? timeout = null)
+    {
+        if (myProcess is not { HasExited: false } process)
+        {
+            throw new InvalidOperationException("The backend process has not been started, or has already exited.");
+        }
+
+        process.Kill(entireProcessTree: true);
+        var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
+        if (!process.WaitForExit(deadlineMilliseconds))
+        {
+            throw new HeadlessUiWaitTimeoutException(
+                "the backend process to exit after deliberate termination",
+                myUi?.DescribeDiagnostics(DescribeControlDiagnostics()) ?? ProcessDiagnostics.Describe(process));
+        }
+    }
+
+    /// <summary>
     /// Emergency cleanup for a scenario that never reached, or never completed, a normal host-control shutdown.
     /// Requests shutdown one more time on a best-effort basis, waits a bounded grace period for the exact process
     /// this scenario launched to exit on its own, and only then forcibly terminates that same process - never any
