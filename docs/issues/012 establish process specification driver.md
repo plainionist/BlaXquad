@@ -114,7 +114,7 @@ sleeps.
 
 ### Slice 6: Load a minimal fake provider through the production SPI
 
-**Status: changes requested (2ce988ab54)**
+**Status: complete (60c9d7633d)**
 
 Add one public fake `IAgentProviderFactory` to `squad.Specs`, with provider-side backend, runtime, and session
 implementations in separate files. Load it into the provider-free headquarters through the production `--provider`
@@ -128,23 +128,6 @@ provider lifecycle.
 - Session creation and disposal use the production provider/runtime/session lifecycle.
 - All fake behavior remains in `squad.Specs`; no product test hook, extra test assembly, or `squad.CopilotSdk`
   dependency is introduced.
-
-**Review findings**
-
-1. **Severity:** High
-   **Location:** `src/squad.Specs/Features/MinimalFakeProvider.feature`;
-   `src/squad.Specs/Support/BackendScenario.cs` (`StartAsync`);
-   `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
-   **Violated behavior:** Slice 6 must prove the provider-free headquarters starts a configured role session through
-   the production lifecycle. `SquadApplication` completes `WindowHost.StartAsync` (the `ui.ready` handshake) before
-   `RuntimeController` creates sessions. `BackendScenario.StartAsync` returns after the first `state.snapshot`, which
-   is published during that handshake while roles can still be `"starting"` and no `FakeAgentSession` exists yet.
-   **Root cause:** The focused scenario treats UI-ready plus process exit 0 as proof of session create/dispose. It never
-   waits for an observable session-started signal (role status `"running"` or transcript `"Session started."`), so it
-   can pass without a session starting.
-   **Required outcome:** After starting with the fake provider, the scenario must wait through a `BackendScenario`
-   semantic operation until a configured role session has observably started, then shut down. Ready and exit code 0
-   alone are not enough.
 
 ### Slice 7: Establish the private fake-provider control transport
 
