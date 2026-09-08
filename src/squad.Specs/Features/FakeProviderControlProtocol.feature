@@ -29,3 +29,15 @@ Feature: Fake-provider control transport protocol validation and concurrency
     And an authenticated fake-provider control client is connected
     When the client concurrently reports 20 session starts and disposals
     Then the server observes all 20 session starts and disposals
+
+  Scenario: A reply to a role with no observed session fails fast with an explicit diagnostic
+    Given a fake-provider control server is listening
+    When the server replies to role "no-such-role" with content "hello"
+    Then the server reports a protocol error mentioning "role"
+
+  Scenario: A reply to a session that has since been disposed is rejected with an explicit diagnostic
+    Given a fake-provider control server is listening
+    And an authenticated fake-provider control client is connected
+    When the client reports a session started and then disposed for role "coder" and session "session-1"
+    And the server replies to role "coder" with content "hello"
+    Then the server reports a protocol error mentioning "disposed"

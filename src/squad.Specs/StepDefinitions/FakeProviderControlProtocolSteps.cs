@@ -20,6 +20,8 @@ public sealed class FakeProviderControlProtocolSteps
     private RawControlPipeClient? myRawClient;
     private FakeProviderControlClient? myClient;
     private JsonElement myLastResponse;
+    private readonly HashSet<(string Role, string SessionId)> myDisposedSessions = new();
+    private string? myLastServerExceptionMessage;
 
     [Given("a fake-provider control server is listening")]
     public void GivenAFakeProviderControlServerIsListening()
@@ -61,6 +63,20 @@ public sealed class FakeProviderControlProtocolSteps
     [Then("the server observes all {int} session starts and disposals")]
     public void ThenTheServerObservesAllSessionStartsAndDisposals(int count) => Await(VerifyObservedAsync(count));
 
+    [When("the client reports a session started and then disposed for role {string} and session {string}")]
+    public void WhenTheClientReportsASessionStartedAndThenDisposedForRoleAndSession(string role, string sessionId) =>
+        Await(ReportStartedThenDisposedAsync(role, sessionId));
+
+    [When("the server replies to role {string} with content {string}")]
+    public void WhenTheServerRepliesToRoleWithContent(string role, string content) => Await(ReplyAndCaptureAsync(role, content));
+
+    [Then("the server reports a protocol error mentioning {string}")]
+    public void ThenTheServerReportsAProtocolErrorMentioning(string expectedSubstring)
+    {
+        Assert.That(myLastServerExceptionMessage, Is.Not.Null);
+        Assert.That(myLastServerExceptionMessage, Does.Contain(expectedSubstring).IgnoreCase);
+    }
+
     [AfterScenario]
     public async Task CleanUpAsync()
     {
@@ -80,9 +96,34 @@ public sealed class FakeProviderControlProtocolSteps
 
     private async Task ConnectAuthenticatedClientAsync()
     {
-        var clientConnecting = FakeProviderControlClient.ConnectAsync(myServer!.PipeName, myServer.Token);
+        var clientConnecting = FakeProviderControlClient.ConnectAsync(
+            myServer!.PipeName, myServer.Token,
+            (role, sessionId, _, _) => Task.FromResult<string?>(
+                myDisposedSessions.Contains((role, sessionId))
+                    ? $"Session '{sessionId}' for role '{role}' has been disposed."
+                    : null));
         await myConnectionTask!;
         myClient = await clientConnecting;
+    }
+
+    private async Task ReportStartedThenDisposedAsync(string role, string sessionId)
+    {
+        await myClient!.NotifySessionStartedAsync(role, sessionId);
+        await myClient!.NotifySessionDisposedAsync(role, sessionId);
+        myDisposedSessions.Add((role, sessionId));
+    }
+
+    private async Task ReplyAndCaptureAsync(string role, string content)
+    {
+        myLastServerExceptionMessage = null;
+        try
+        {
+            await myServer!.ReplyAsync(role, content, ObservationTimeout);
+        }
+        catch (FakeProviderControlProtocolException exception)
+        {
+            myLastServerExceptionMessage = exception.Message;
+        }
     }
 
     private async Task ReportConcurrentlyAsync(int count)

@@ -48,6 +48,22 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesASessionDisposedForRoleAcrossTheControlPipe(string role) =>
         Await(myScenario.WaitForRoleSessionDisposedAsync(role));
 
+    [When("the backend scenario sends the prompt {string} to role {string}")]
+    public void WhenTheBackendScenarioSendsThePromptToRole(string prompt, string role) =>
+        myScenario.SendPrompt(role, prompt);
+
+    [Then("the {string} agent observes the prompt {string}")]
+    public void ThenTheAgentObservesThePrompt(string role, string expectedPrompt) =>
+        Assert.That(Await(myScenario.Agent(role).WaitForPromptAsync()), Is.EqualTo(expectedPrompt));
+
+    [When("the {string} agent replies with {string}")]
+    public void WhenTheAgentRepliesWith(string role, string content) =>
+        Await(myScenario.Agent(role).ReplyAsync(content));
+
+    [Then("the backend scenario observes the transcript for role {string} containing {string}")]
+    public void ThenTheBackendScenarioObservesTheTranscriptForRoleContaining(string role, string content) =>
+        Await(myScenario.WaitForTranscriptAsync(role, content));
+
     [When("the backend scenario requests a host-control shutdown")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdown() =>
         myExitCode = Await(myScenario.ShutdownAsync());

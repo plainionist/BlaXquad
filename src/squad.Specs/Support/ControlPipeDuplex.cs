@@ -84,6 +84,22 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
         }
     }
 
+    /// <summary>Throws <see cref="FakeProviderControlProtocolException"/> if the given reply to a
+    /// <paramref name="requestType"/> request is an explicit protocol-error envelope, for either endpoint to
+    /// interpret its own <see cref="SendAndAwaitAsync"/> replies consistently.</summary>
+    public static void EnsureNotProtocolError(JsonElement response, string requestType)
+    {
+        if (!response.TryGetProperty("type", out var typeElement) || typeElement.GetString() != "protocol-error")
+        {
+            return;
+        }
+        var message = response.TryGetProperty("payload", out var payload)
+            && payload.TryGetProperty("message", out var messageElement)
+            ? messageElement.GetString()
+            : "(no message)";
+        throw new FakeProviderControlProtocolException($"The fake-provider control pipe rejected '{requestType}': {message}");
+    }
+
     private async Task RunDispatchLoopAsync()
     {
         while (true)

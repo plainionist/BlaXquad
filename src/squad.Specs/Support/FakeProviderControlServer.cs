@@ -24,6 +24,8 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     private readonly object myStateLock = new();
     private readonly List<(string Role, string Type, string SessionId)> myObservations = [];
     private readonly List<string> myProtocolErrors = [];
+    private readonly Dictionary<string, string> myActiveSessionByRole = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> myLatestPromptByRole = new(StringComparer.Ordinal);
     private ControlPipeDuplex? myDuplex;
     private bool myAuthenticated;
 
@@ -65,6 +67,52 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// role's session was disposed.</summary>
     public Task WaitForSessionDisposedAsync(string role, TimeSpan? timeout = null) =>
         WaitForObservationAsync(role, "session-disposed", timeout);
+
+    /// <summary>Waits until the connected client has reported a prompt sent to the given role, and returns its
+    /// content.</summary>
+    public async Task<string> WaitForPromptAsync(string role, TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            lock (myStateLock)
+            {
+                if (myLatestPromptByRole.TryGetValue(role, out var prompt))
+                {
+                    return prompt;
+                }
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new FakeProviderControlTimeoutException(
+                    $"role '{role}' to report a prompt across the fake-provider control pipe", DescribeDiagnostics());
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
+    /// <summary>
+    /// Sends a semantic assistant reply for the given role's session across the pipe and awaits the client's
+    /// acknowledgement - or throws a <see cref="FakeProviderControlProtocolException"/> immediately if no session
+    /// has ever been observed for that role, or with the client's own explicit diagnostic if the client rejects
+    /// the reply (for example because the session has since been disposed).
+    /// </summary>
+    public async Task ReplyAsync(string role, string content, TimeSpan? timeout = null)
+    {
+        string sessionId;
+        lock (myStateLock)
+        {
+            if (!myActiveSessionByRole.TryGetValue(role, out sessionId!))
+            {
+                throw new FakeProviderControlProtocolException(
+                    $"No fake-provider session has been observed for role '{role}'.");
+            }
+        }
+
+        var response = await myDuplex!.SendAndAwaitAsync(
+            "reply", new { role, sessionId, content }, timeout ?? DefaultTimeout, CancellationToken.None);
+        ControlPipeDuplex.EnsureNotProtocolError(response, "reply");
+    }
 
     private async Task WaitForObservationAsync(string role, string type, TimeSpan? timeout)
     {
@@ -139,6 +187,9 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             case "session-disposed":
                 await HandleObservationAsync(type, correlationId, payload, cancellationToken);
                 break;
+            case "prompt":
+                await HandlePromptAsync(correlationId, payload, cancellationToken);
+                break;
             default:
                 await ReplyProtocolErrorAsync(correlationId, $"Unknown command '{type}'.", cancellationToken);
                 break;
@@ -193,8 +244,47 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         lock (myStateLock)
         {
             myObservations.Add((role, type, sessionId));
+            if (type == "session-started")
+            {
+                myActiveSessionByRole[role] = sessionId;
+            }
         }
         await myDuplex!.SendAsync("ack", correlationId, new { type }, cancellationToken);
+    }
+
+    private async Task HandlePromptAsync(string correlationId, JsonElement payload, CancellationToken cancellationToken)
+    {
+        bool authenticated;
+        lock (myStateLock)
+        {
+            authenticated = myAuthenticated;
+        }
+        if (!authenticated)
+        {
+            await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
+            return;
+        }
+
+        var role = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("role", out var roleElement)
+            ? roleElement.GetString()
+            : null;
+        var sessionId = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("sessionId", out var sessionIdElement)
+            ? sessionIdElement.GetString()
+            : null;
+        var prompt = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("prompt", out var promptElement)
+            ? promptElement.GetString()
+            : null;
+        if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId) || prompt is null)
+        {
+            await ReplyProtocolErrorAsync(correlationId, "'prompt' requires a role, a session id, and prompt text.", cancellationToken);
+            return;
+        }
+
+        lock (myStateLock)
+        {
+            myLatestPromptByRole[role] = prompt;
+        }
+        await myDuplex!.SendAsync("ack", correlationId, new { type = "prompt" }, cancellationToken);
     }
 
     private async Task ReplyProtocolErrorAsync(string correlationId, string message, CancellationToken cancellationToken)

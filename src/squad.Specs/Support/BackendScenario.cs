@@ -105,6 +105,39 @@ public sealed class BackendScenario : IDisposable
         return myUi.WaitForRoleStatusAsync(role, status, timeout);
     }
 
+    /// <summary>Sends a prompt to the given role through the real UI protocol - the same path a real user
+    /// interface uses, never a shortcut into the provider.</summary>
+    public void SendPrompt(string role, string prompt)
+    {
+        if (myUi is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        myUi.SendPrompt(role, prompt);
+    }
+
+    /// <summary>Waits until the given role's real transcript, projected from production provider events, contains
+    /// the given content - proving a reply crossed all the way from the provider into the observable UI state.
+    /// </summary>
+    public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null)
+    {
+        if (myUi is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        return myUi.WaitForTranscriptAsync(role, content, timeout);
+    }
+
+    /// <summary>
+    /// Returns the narrow, semantic role controller for the given role: the only surface step definitions use to
+    /// observe prompts and send replies, keeping every control-pipe DTO and provider <c>AgentEvent</c> value
+    /// behind this API. Requires <see cref="EnableFakeProviderControl"/> to have been called before
+    /// <see cref="StartAsync{TProviderFactory}"/>.
+    /// </summary>
+    public BackendScenarioAgent Agent(string role) => new(RequireControl(), role);
+
     /// <summary>
     /// Waits until the fake provider has reported, across the private control pipe, that the given role's
     /// session started - proving the session lifecycle from inside the provider process itself, independent of

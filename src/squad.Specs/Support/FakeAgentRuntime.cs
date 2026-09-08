@@ -17,11 +17,11 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
 
     public async Task StartAsync(Func<IAgentSession, Task> sessionStarted, CancellationToken cancellationToken = default)
     {
-        myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(cancellationToken);
+        myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(HandleReplyAsync, cancellationToken);
 
         foreach (var role in context.Roles)
         {
-            var session = new FakeAgentSession(role.Role);
+            var session = new FakeAgentSession(role.Role, myControl);
             mySessions.Add(session);
             await sessionStarted(session);
             if (myControl is not null)
@@ -29,6 +29,24 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
                 await myControl.NotifySessionStartedAsync(session.Role, session.SessionId, cancellationToken);
             }
         }
+    }
+
+    /// <summary>Routes one "reply" pushed across the control pipe to whichever live session it names, returning
+    /// an explicit diagnostic instead if no such session exists or it has already been disposed.</summary>
+    private Task<string?> HandleReplyAsync(string role, string sessionId, string content, CancellationToken cancellationToken)
+    {
+        var session = mySessions.FirstOrDefault(candidate => candidate.Role == role && candidate.SessionId == sessionId);
+        if (session is null)
+        {
+            return Task.FromResult<string?>($"No session '{sessionId}' for role '{role}' exists.");
+        }
+        if (session.IsDisposed)
+        {
+            return Task.FromResult<string?>($"Session '{sessionId}' for role '{role}' has been disposed.");
+        }
+
+        session.DeliverReply(content);
+        return Task.FromResult<string?>(null);
     }
 
     public async ValueTask DisposeAsync()
