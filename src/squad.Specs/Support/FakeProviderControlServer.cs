@@ -26,6 +26,7 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     private readonly List<string> myProtocolErrors = [];
     private readonly Dictionary<string, string> myActiveSessionByRole = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> myLatestPromptByRole = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Role, string Kind), JsonElement> myLatestObservationByRoleAndKind = new();
     private ControlPipeDuplex? myDuplex;
     private bool myAuthenticated;
 
@@ -100,6 +101,127 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         }
     }
 
+    /// <summary>Waits until the connected client has reported the host sending this role's session its initial
+    /// harness instruction, and returns its content.</summary>
+    public async Task<string> WaitForHarnessMessageAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var data = await WaitForObservationDataAsync(role, "harness-message", timeout, additionalDiagnostics);
+        return data.GetProperty("content").GetString()!;
+    }
+
+    /// <summary>Waits until the connected client has reported the host aborting this role's current operation.</summary>
+    public async Task WaitForAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        await WaitForObservationDataAsync(role, "abort", timeout, additionalDiagnostics);
+
+    /// <summary>Waits until the connected client has reported a response to a permission request this role's
+    /// session emitted, and returns the request id and whether it was approved.</summary>
+    public async Task<(string RequestId, bool Approved)> WaitForPermissionResponseAsync(
+        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var data = await WaitForObservationDataAsync(role, "permission-response", timeout, additionalDiagnostics);
+        return (data.GetProperty("requestId").GetString()!, data.GetProperty("approved").GetBoolean());
+    }
+
+    /// <summary>Waits until the connected client has reported a response to an input request this role's session
+    /// emitted, and returns the request id, the answer (or null if none was given), and whether it was
+    /// freeform.</summary>
+    public async Task<(string RequestId, string? Answer, bool WasFreeform)> WaitForInputResponseAsync(
+        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var data = await WaitForObservationDataAsync(role, "input-response", timeout, additionalDiagnostics);
+        return (
+            data.GetProperty("requestId").GetString()!,
+            data.TryGetProperty("answer", out var answer) && answer.ValueKind != JsonValueKind.Null ? answer.GetString() : null,
+            data.GetProperty("wasFreeform").GetBoolean());
+    }
+
+    /// <summary>Waits until the connected client has reported a response to an elicitation request this role's
+    /// session emitted, and returns the request id and the chosen action.</summary>
+    public async Task<(string RequestId, string Action)> WaitForElicitationResponseAsync(
+        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var data = await WaitForObservationDataAsync(role, "elicitation-response", timeout, additionalDiagnostics);
+        return (data.GetProperty("requestId").GetString()!, data.GetProperty("action").GetString()!);
+    }
+
+    /// <summary>Emits a reasoning update for the given role's session, awaiting the client's acknowledgement that
+    /// it published the real production <c>AgentReasoningEvent</c>.</summary>
+    public Task EmitReasoningAsync(
+        string role, string content, bool isDelta = false, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "reasoning", new { content, isDelta }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits a tool-started update for the given role's session.</summary>
+    public Task EmitToolStartedAsync(
+        string role, string toolCallId, string toolName, string? arguments = null, string? toolKind = null,
+        string? workingDirectory = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "tool-started", new { toolCallId, toolName, arguments, toolKind, workingDirectory }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits a tool-progress update for the given role's session.</summary>
+    public Task EmitToolProgressAsync(
+        string role, string toolCallId, string progress, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "tool-progress", new { toolCallId, progress }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits a tool-output-changed update for the given role's session.</summary>
+    public Task EmitToolOutputChangedAsync(
+        string role, string toolCallId, string output, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "tool-output-changed", new { toolCallId, output }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits a tool-completed update for the given role's session.</summary>
+    public Task EmitToolCompletedAsync(
+        string role, string toolCallId, string toolName, bool succeeded, string? displayOutputFallback = null,
+        string? contentFallback = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(
+            role, "tool-completed",
+            new { toolCallId, toolName, succeeded, displayOutputFallback, contentFallback },
+            timeout, additionalDiagnostics);
+
+    /// <summary>Emits a readiness update for the given role's session.</summary>
+    public Task EmitReadinessAsync(
+        string role, string state, string? error = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "readiness", new { state, error }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits an AI-credit usage update for the given role's session.</summary>
+    public Task EmitUsageAsync(
+        string role, decimal aicUsed, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "usage", new { aicUsed }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits a context-token usage update for the given role's session.</summary>
+    public Task EmitContextUsageAsync(
+        string role, long usedTokens, long limitTokens, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "context-usage", new { usedTokens, limitTokens }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits a permission request for the given role's session.</summary>
+    public Task RequestPermissionAsync(
+        string role, string requestId, string description, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "permission-request", new { requestId, description }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits an input request for the given role's session.</summary>
+    public Task RequestInputAsync(
+        string role, string requestId, string prompt, IReadOnlyList<string>? choices = null, bool allowFreeform = true,
+        TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "input-request", new { requestId, prompt, choices, allowFreeform }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits an elicitation request for the given role's session.</summary>
+    public Task RequestElicitationAsync(
+        string role, string requestId, string prompt, string mode, string? url = null, TimeSpan? timeout = null,
+        Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "elicitation-request", new { requestId, prompt, mode, url }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits an explicit idle transition for the given role's session.</summary>
+    public Task EmitIdleAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "idle", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Completes the given role's session gracefully, as production
+    /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
+    public Task CompleteSessionAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "complete-session", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Fails the given role's session with the given message, as production
+    /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> faulting.</summary>
+    public Task FailSessionAsync(
+        string role, string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "fail-session", new { message }, timeout, additionalDiagnostics);
+
     /// <summary>
     /// Sends a semantic assistant reply for the given role's session across the pipe and awaits the client's
     /// acknowledgement - or throws a <see cref="FakeProviderControlProtocolException"/> immediately if no session
@@ -132,6 +254,84 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
                 $"the client to acknowledge a reply for role '{role}'", DescribeDiagnostics(additionalDiagnostics));
         }
         ControlPipeDuplex.EnsureNotProtocolError(response, "reply");
+    }
+
+    /// <summary>
+    /// Sends one "emit" command of the given kind for the given role's session across the pipe and awaits the
+    /// client's acknowledgement that it published the corresponding real production <c>AgentEvent</c> (or
+    /// completed/failed the session) - or throws a <see cref="FakeProviderControlProtocolException"/> immediately
+    /// if no session has ever been observed for that role, or with the client's own explicit diagnostic if the
+    /// client rejects the command, or a <see cref="FakeProviderControlTimeoutException"/> carrying this server's
+    /// combined diagnostics if the client never acknowledges within the given timeout.
+    /// </summary>
+    private async Task EmitAsync(string role, string kind, object data, TimeSpan? timeout, Func<string>? additionalDiagnostics)
+    {
+        string sessionId;
+        lock (myStateLock)
+        {
+            if (!myActiveSessionByRole.TryGetValue(role, out sessionId!))
+            {
+                throw new FakeProviderControlProtocolException(
+                    $"No fake-provider session has been observed for role '{role}'.");
+            }
+        }
+
+        JsonElement response;
+        try
+        {
+            response = await myDuplex!.SendAndAwaitAsync(
+                "emit", new { role, sessionId, kind, data }, timeout ?? DefaultTimeout, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
+        {
+            throw new FakeProviderControlTimeoutException(
+                $"the client to acknowledge '{kind}' for role '{role}'", DescribeDiagnostics(additionalDiagnostics));
+        }
+        ControlPipeDuplex.EnsureNotProtocolError(response, kind);
+    }
+
+    /// <summary>Waits until the connected client has reported a generic observation of the given kind for the
+    /// given role, and returns its kind-specific data.</summary>
+    private async Task<JsonElement> WaitForObservationDataAsync(
+        string role, string kind, TimeSpan? timeout, Func<string>? additionalDiagnostics)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            lock (myStateLock)
+            {
+                if (myLatestObservationByRoleAndKind.TryGetValue((role, kind), out var data))
+                {
+                    return data.Clone();
+                }
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new FakeProviderControlTimeoutException(
+                    $"role '{role}' to report '{kind}' across the fake-provider control pipe",
+                    DescribeDiagnostics(additionalDiagnostics));
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
+    /// <summary>Describes every role whose session was observed to start but never observed to be disposed, or
+    /// null if none - so a scenario's emergency teardown can flag a leaked session instead of silently discarding
+    /// it.</summary>
+    public string? DescribeUndisposedSessions()
+    {
+        lock (myStateLock)
+        {
+            var started = myObservations.Where(observation => observation.Type == "session-started")
+                .Select(observation => (observation.Role, observation.SessionId));
+            var disposed = myObservations.Where(observation => observation.Type == "session-disposed")
+                .Select(observation => (observation.Role, observation.SessionId))
+                .ToHashSet();
+            var leaked = started.Where(session => !disposed.Contains(session)).ToList();
+            return leaked.Count == 0
+                ? null
+                : string.Join('\n', leaked.Select(session => $"role='{session.Role}' session='{session.SessionId}'"));
+        }
     }
 
     private async Task WaitForObservationAsync(string role, string type, TimeSpan? timeout, Func<string>? additionalDiagnostics)
@@ -175,12 +375,18 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             var prompts = myLatestPromptByRole.Count == 0
                 ? "(none)"
                 : string.Join('\n', myLatestPromptByRole.Select(entry => $"role='{entry.Key}' prompt='{entry.Value}'"));
+            var genericObservations = myLatestObservationByRoleAndKind.Count == 0
+                ? "(none)"
+                : string.Join('\n', myLatestObservationByRoleAndKind.Select(entry =>
+                    $"role='{entry.Key.Role}' kind='{entry.Key.Kind}' data={entry.Value}"));
             var protocolErrors = myProtocolErrors.Count == 0 ? "(none)" : string.Join('\n', myProtocolErrors);
             var provider = $"""
                 Observations:
                 {observations}
                 Latest prompts:
                 {prompts}
+                Latest generic observations:
+                {genericObservations}
                 Protocol errors:
                 {protocolErrors}
                 """;
@@ -224,6 +430,9 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
                 break;
             case "prompt":
                 await HandlePromptAsync(correlationId, payload, cancellationToken);
+                break;
+            case "observe":
+                await HandleObserveAsync(correlationId, payload, cancellationToken);
                 break;
             default:
                 await ReplyProtocolErrorAsync(correlationId, $"Unknown command '{type}'.", cancellationToken);
@@ -320,6 +529,44 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             myLatestPromptByRole[role] = prompt;
         }
         await myDuplex!.SendAsync("ack", correlationId, new { type = "prompt" }, cancellationToken);
+    }
+
+    private async Task HandleObserveAsync(string correlationId, JsonElement payload, CancellationToken cancellationToken)
+    {
+        bool authenticated;
+        lock (myStateLock)
+        {
+            authenticated = myAuthenticated;
+        }
+        if (!authenticated)
+        {
+            await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
+            return;
+        }
+
+        var role = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("role", out var roleElement)
+            ? roleElement.GetString()
+            : null;
+        var sessionId = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("sessionId", out var sessionIdElement)
+            ? sessionIdElement.GetString()
+            : null;
+        var kind = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("kind", out var kindElement)
+            ? kindElement.GetString()
+            : null;
+        var data = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("data", out var dataElement)
+            ? dataElement
+            : default;
+        if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId) || string.IsNullOrEmpty(kind))
+        {
+            await ReplyProtocolErrorAsync(correlationId, "'observe' requires a role, a session id, and a kind.", cancellationToken);
+            return;
+        }
+
+        lock (myStateLock)
+        {
+            myLatestObservationByRoleAndKind[(role, kind)] = data.Clone();
+        }
+        await myDuplex!.SendAsync("ack", correlationId, new { type = "observe", kind }, cancellationToken);
     }
 
     private async Task ReplyProtocolErrorAsync(string correlationId, string message, CancellationToken cancellationToken)

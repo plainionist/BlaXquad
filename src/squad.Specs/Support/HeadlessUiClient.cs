@@ -6,8 +6,9 @@ namespace squad.Specs.Support;
 /// Semantic client for one launched "squad-hq --ui stdio" process. It owns the process's standard input, drains
 /// standard output and standard error concurrently with two independent background readers so a full stderr pipe
 /// can never block a pending stdout read (or vice versa), and privately frames the newline-delimited, versioned UI
-/// protocol envelopes. Step definitions see only readiness, prompt sending, role-status waiting, transcript
-/// waiting, and protocol-error reporting - never raw JSON, envelopes, streams, or the child process itself.
+/// protocol envelopes. Step definitions see only readiness, prompt sending, abort/interaction-response sending,
+/// role-status/usage waiting, transcript waiting, and protocol-error reporting - never raw JSON, envelopes,
+/// streams, or the child process itself.
 /// </summary>
 public sealed class HeadlessUiClient
 {
@@ -41,11 +42,35 @@ public sealed class HeadlessUiClient
     /// <summary>Sends a prompt for the given role through the real "prompt.send" command.</summary>
     public void SendPrompt(string role, string prompt) => SendEnvelope("prompt.send", role, new { prompt });
 
+    /// <summary>Aborts the given role's current operation through the real "role.abort" command.</summary>
+    public void SendAbort(string role) => SendEnvelope("role.abort", role);
+
+    /// <summary>Responds to a permission request through the real "permission.respond" command.</summary>
+    public void RespondToPermission(string role, string requestId, bool approved) =>
+        SendEnvelope("permission.respond", role, new { approved }, requestId);
+
+    /// <summary>Responds to an input request through the real "input.respond" command.</summary>
+    public void RespondToInput(string role, string requestId, string? answer, bool wasFreeform) =>
+        SendEnvelope("input.respond", role, new { answer, wasFreeform }, requestId);
+
+    /// <summary>Responds to an elicitation request through the real "elicitation.respond" command.</summary>
+    public void RespondToElicitation(string role, string requestId, string action) =>
+        SendEnvelope("elicitation.respond", role, new { action }, requestId);
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
     public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
             element => IsStateSnapshot(element) && RoleHasStatus(element, role, status),
             $"role '{role}' to report status '{status}'",
+            timeout,
+            additionalDiagnostics);
+
+    /// <summary>Waits until a "state.snapshot" message reports the given role at the given AI-credit usage.</summary>
+    public Task WaitForRoleUsageAsync(
+        string role, decimal aicUsed, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element) && RoleHasAicUsed(element, role, aicUsed),
+            $"role '{role}' to report AI-credit usage '{aicUsed}'",
             timeout,
             additionalDiagnostics);
 
@@ -79,12 +104,16 @@ public sealed class HeadlessUiClient
     public string DescribeDiagnostics(Func<string>? additionalDiagnostics) =>
         DescribeDiagnostics(CopyLines(myStdOutLines), additionalDiagnostics);
 
-    private void SendEnvelope(string type, string? role = null, object? payload = null)
+    private void SendEnvelope(string type, string? role = null, object? payload = null, string? requestId = null)
     {
         var envelope = new Dictionary<string, object?> { ["version"] = ProtocolVersion, ["type"] = type };
         if (role is not null)
         {
             envelope["role"] = role;
+        }
+        if (requestId is not null)
+        {
+            envelope["requestId"] = requestId;
         }
         if (payload is not null)
         {
@@ -194,6 +223,25 @@ public sealed class HeadlessUiClient
         {
             if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role
                 && roleElement.TryGetProperty("status", out var statusElement) && statusElement.GetString() == status)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool RoleHasAicUsed(JsonElement element, string role, decimal aicUsed)
+    {
+        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role
+                && roleElement.TryGetProperty("aicUsed", out var aicUsedElement)
+                && aicUsedElement.ValueKind == JsonValueKind.Number
+                && aicUsedElement.GetDecimal() == aicUsed)
             {
                 return true;
             }

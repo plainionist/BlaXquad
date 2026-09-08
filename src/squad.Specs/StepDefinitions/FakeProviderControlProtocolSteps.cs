@@ -101,7 +101,8 @@ public sealed class FakeProviderControlProtocolSteps
             (role, sessionId, _, _) => Task.FromResult<string?>(
                 myDisposedSessions.Contains((role, sessionId))
                     ? $"Session '{sessionId}' for role '{role}' has been disposed."
-                    : null));
+                    : null),
+            (_, _, _, _, _) => Task.FromResult<string?>(null));
         await myConnectionTask!;
         myClient = await clientConnecting;
     }

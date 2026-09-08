@@ -117,6 +117,22 @@ public sealed class BackendScenario : IDisposable
         myUi.SendPrompt(role, prompt);
     }
 
+    /// <summary>Aborts the given role's current operation through the real UI protocol's "role.abort" command.</summary>
+    public void RequestAbort(string role) => RequireUi().SendAbort(role);
+
+    /// <summary>Responds to a permission request through the real UI protocol's "permission.respond" command.</summary>
+    public void RespondToPermission(string role, string requestId, bool approved) =>
+        RequireUi().RespondToPermission(role, requestId, approved);
+
+    /// <summary>Responds to an input request through the real UI protocol's "input.respond" command.</summary>
+    public void RespondToInput(string role, string requestId, string? answer, bool wasFreeform = true) =>
+        RequireUi().RespondToInput(role, requestId, answer, wasFreeform);
+
+    /// <summary>Responds to an elicitation request through the real UI protocol's "elicitation.respond"
+    /// command.</summary>
+    public void RespondToElicitation(string role, string requestId, string action) =>
+        RequireUi().RespondToElicitation(role, requestId, action);
+
     /// <summary>Waits until the given role's real transcript, projected from production provider events, contains
     /// the given content - proving a reply crossed all the way from the provider into the observable UI state.
     /// </summary>
@@ -129,6 +145,13 @@ public sealed class BackendScenario : IDisposable
 
         return myUi.WaitForTranscriptAsync(role, content, timeout, DescribeControlDiagnostics());
     }
+
+    /// <summary>Waits until a "state.snapshot" message reports the given role at the given AI-credit usage.</summary>
+    public Task WaitForRoleUsageAsync(string role, decimal aicUsed, TimeSpan? timeout = null) =>
+        RequireUi().WaitForRoleUsageAsync(role, aicUsed, timeout, DescribeControlDiagnostics());
+
+    private HeadlessUiClient RequireUi() =>
+        myUi ?? throw new InvalidOperationException("The backend process has not been started.");
 
     /// <summary>
     /// Returns the narrow, semantic role controller for the given role: the only surface step definitions use to
@@ -241,9 +264,16 @@ public sealed class BackendScenario : IDisposable
 
     private void DisposeControl()
     {
-        if (myControl is not null)
+        if (myControl is null)
         {
-            myControl.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            return;
         }
+
+        var undisposed = myControl.DescribeUndisposedSessions();
+        if (undisposed is not null)
+        {
+            Console.Error.WriteLine($"BackendScenario cleanup: sessions started but never disposed:\n{undisposed}");
+        }
+        myControl.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

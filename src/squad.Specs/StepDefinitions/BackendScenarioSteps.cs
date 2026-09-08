@@ -12,6 +12,7 @@ public sealed class BackendScenarioSteps
     private readonly BackendScenario myScenario;
     private int myExitCode;
     private Exception? myLastWaitException;
+    private string? myObservedHarnessMessage;
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
     {
@@ -64,6 +65,118 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes the transcript for role {string} containing {string}")]
     public void ThenTheBackendScenarioObservesTheTranscriptForRoleContaining(string role, string content) =>
         Await(myScenario.WaitForTranscriptAsync(role, content));
+
+    [Then("the {string} agent observes a harness message")]
+    public void ThenTheAgentObservesAHarnessMessage(string role) =>
+        myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
+
+    [Then("the observed harness message appears in the transcript for role {string}")]
+    public void ThenTheObservedHarnessMessageAppearsInTheTranscriptForRole(string role)
+    {
+        Assert.That(myObservedHarnessMessage, Is.Not.Null);
+        Await(myScenario.WaitForTranscriptAsync(role, myObservedHarnessMessage!));
+    }
+
+    [When("the backend scenario requests an abort for role {string}")]
+    public void WhenTheBackendScenarioRequestsAnAbortForRole(string role) => myScenario.RequestAbort(role);
+
+    [Then("the {string} agent observes an abort")]
+    public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());
+
+    [When("the {string} agent requests permission {string} with description {string}")]
+    public void WhenTheAgentRequestsPermissionWithDescription(string role, string requestId, string description) =>
+        Await(myScenario.Agent(role).RequestPermissionAsync(requestId, description));
+
+    [When("the backend scenario responds to permission {string} for role {string} with approved {string}")]
+    public void WhenTheBackendScenarioRespondsToPermissionForRoleWithApproved(string requestId, string role, string approved) =>
+        myScenario.RespondToPermission(role, requestId, bool.Parse(approved));
+
+    [Then("the {string} agent observes a permission response for {string} approved {string}")]
+    public void ThenTheAgentObservesAPermissionResponseForApproved(string role, string requestId, string approved)
+    {
+        var response = Await(myScenario.Agent(role).WaitForPermissionResponseAsync());
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.RequestId, Is.EqualTo(requestId));
+            Assert.That(response.Approved, Is.EqualTo(bool.Parse(approved)));
+        });
+    }
+
+    [When("the {string} agent requests input {string} with prompt {string}")]
+    public void WhenTheAgentRequestsInputWithPrompt(string role, string requestId, string prompt) =>
+        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt));
+
+    [When("the backend scenario responds to input {string} for role {string} with answer {string}")]
+    public void WhenTheBackendScenarioRespondsToInputForRoleWithAnswer(string requestId, string role, string answer) =>
+        myScenario.RespondToInput(role, requestId, answer);
+
+    [Then("the {string} agent observes an input response for {string} with answer {string}")]
+    public void ThenTheAgentObservesAnInputResponseForWithAnswer(string role, string requestId, string answer)
+    {
+        var response = Await(myScenario.Agent(role).WaitForInputResponseAsync());
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.RequestId, Is.EqualTo(requestId));
+            Assert.That(response.Answer, Is.EqualTo(answer));
+        });
+    }
+
+    [When("the {string} agent requests elicitation {string} with prompt {string} and mode {string}")]
+    public void WhenTheAgentRequestsElicitationWithPromptAndMode(string role, string requestId, string prompt, string mode) =>
+        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, mode));
+
+    [When("the backend scenario responds to elicitation {string} for role {string} with action {string}")]
+    public void WhenTheBackendScenarioRespondsToElicitationForRoleWithAction(string requestId, string role, string action) =>
+        myScenario.RespondToElicitation(role, requestId, action);
+
+    [Then("the {string} agent observes an elicitation response for {string} with action {string}")]
+    public void ThenTheAgentObservesAnElicitationResponseForWithAction(string role, string requestId, string action)
+    {
+        var response = Await(myScenario.Agent(role).WaitForElicitationResponseAsync());
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.RequestId, Is.EqualTo(requestId));
+            Assert.That(response.Action, Is.EqualTo(action));
+        });
+    }
+
+    [When("the {string} agent emits the reasoning {string}")]
+    public void WhenTheAgentEmitsTheReasoning(string role, string content) =>
+        Await(myScenario.Agent(role).EmitReasoningAsync(content));
+
+    [When("the {string} agent emits a full tool lifecycle for tool call {string} named {string}")]
+    public void WhenTheAgentEmitsAFullToolLifecycleForToolCallNamed(string role, string toolCallId, string toolName) =>
+        Await(EmitFullToolLifecycleAsync(role, toolCallId, toolName));
+
+    [When("the {string} agent emits idle")]
+    public void WhenTheAgentEmitsIdle(string role) => Await(myScenario.Agent(role).EmitIdleAsync());
+
+    [When("the {string} agent emits readiness {string}")]
+    public void WhenTheAgentEmitsReadiness(string role, string state) => Await(myScenario.Agent(role).EmitReadinessAsync(state));
+
+    [When("the {string} agent emits usage {string}")]
+    public void WhenTheAgentEmitsUsage(string role, string aicUsed) =>
+        Await(myScenario.Agent(role).EmitUsageAsync(decimal.Parse(aicUsed)));
+
+    [Then("the backend scenario observes role {string} at AI-credit usage {string}")]
+    public void ThenTheBackendScenarioObservesRoleAtAiCreditUsage(string role, string aicUsed) =>
+        Await(myScenario.WaitForRoleUsageAsync(role, decimal.Parse(aicUsed)));
+
+    [When("the {string} agent completes its session")]
+    public void WhenTheAgentCompletesItsSession(string role) => Await(myScenario.Agent(role).CompleteSessionAsync());
+
+    [When("the {string} agent fails its session with message {string}")]
+    public void WhenTheAgentFailsItsSessionWithMessage(string role, string message) =>
+        Await(myScenario.Agent(role).FailSessionAsync(message));
+
+    private async Task EmitFullToolLifecycleAsync(string role, string toolCallId, string toolName)
+    {
+        var agent = myScenario.Agent(role);
+        await agent.EmitToolStartedAsync(toolCallId, toolName);
+        await agent.EmitToolProgressAsync(toolCallId, "Running...");
+        await agent.EmitToolOutputChangedAsync(toolCallId, "partial output");
+        await agent.EmitToolCompletedAsync(toolCallId, toolName, succeeded: true);
+    }
 
     [When("the backend scenario requests a host-control shutdown")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdown() =>

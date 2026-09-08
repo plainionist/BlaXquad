@@ -1,4 +1,5 @@
 using squad.AgentProvider.Abstractions;
+using System.Text.Json;
 
 namespace squad.Specs.Support;
 
@@ -8,7 +9,9 @@ namespace squad.Specs.Support;
 /// normal production <see cref="IAgentRuntime"/> lifecycle this slice needs to prove. When the environment names a
 /// fake-provider control pipe (<see cref="FakeProviderControlServer.PipeNameEnvironmentVariable"/>), also connects
 /// to it and reports every session start and disposal across it; otherwise behaves exactly as it did before the
-/// control transport existed.
+/// control transport existed. Mirrors the real <c>squad.CopilotSdk</c> runtime by sending each role's configured
+/// initial instruction as a harness message once its session starts, so the "harness messages" event family is
+/// observable through the same real session lifecycle a production provider uses - never a product test hook.
 /// </summary>
 internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRuntime
 {
@@ -17,7 +20,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
 
     public async Task StartAsync(Func<IAgentSession, Task> sessionStarted, CancellationToken cancellationToken = default)
     {
-        myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(HandleReplyAsync, cancellationToken);
+        myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(HandleReplyAsync, HandleEmitAsync, cancellationToken);
 
         foreach (var role in context.Roles)
         {
@@ -28,6 +31,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
             {
                 await myControl.NotifySessionStartedAsync(session.Role, session.SessionId, cancellationToken);
             }
+            await session.SendHarnessAsync(role.InitialInstruction, cancellationToken);
         }
     }
 
@@ -35,18 +39,39 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
     /// an explicit diagnostic instead if no such session exists or it has already been disposed.</summary>
     private Task<string?> HandleReplyAsync(string role, string sessionId, string content, CancellationToken cancellationToken)
     {
+        var session = FindSession(role, sessionId, out var error);
+        if (session is null)
+        {
+            return Task.FromResult(error);
+        }
+        session.DeliverReply(content);
+        return Task.FromResult<string?>(null);
+    }
+
+    /// <summary>Routes one "emit" pushed across the control pipe to whichever live session it names, returning an
+    /// explicit diagnostic instead if no such session exists, it has already been disposed, or the given kind is
+    /// unsupported.</summary>
+    private Task<string?> HandleEmitAsync(string role, string sessionId, string kind, JsonElement data, CancellationToken cancellationToken)
+    {
+        var session = FindSession(role, sessionId, out var error);
+        return Task.FromResult(session is null ? error : session.Emit(kind, data));
+    }
+
+    private FakeAgentSession? FindSession(string role, string sessionId, out string? error)
+    {
         var session = mySessions.FirstOrDefault(candidate => candidate.Role == role && candidate.SessionId == sessionId);
         if (session is null)
         {
-            return Task.FromResult<string?>($"No session '{sessionId}' for role '{role}' exists.");
+            error = $"No session '{sessionId}' for role '{role}' exists.";
+            return null;
         }
         if (session.IsDisposed)
         {
-            return Task.FromResult<string?>($"Session '{sessionId}' for role '{role}' has been disposed.");
+            error = $"Session '{sessionId}' for role '{role}' has been disposed.";
+            return null;
         }
-
-        session.DeliverReply(content);
-        return Task.FromResult<string?>(null);
+        error = null;
+        return session;
     }
 
     public async ValueTask DisposeAsync()
@@ -65,3 +90,4 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
         }
     }
 }
+
