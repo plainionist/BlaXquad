@@ -47,6 +47,54 @@ public sealed class HandoffMailboxObserver
             $"id: seed-{Guid.NewGuid():N}\nfrom: {senderRole}\nto: {recipients}\npriority: 50\ntype: note\nmessage: {message}\n\n{message}\n");
     }
 
+    /// <summary>
+    /// Seeds a durable recipient inbox copy under the exact file name of a role's sole queued outbound handoff -
+    /// the identity production delivery reuses unmodified for the recipient's artifact - with test-owned marker
+    /// content that a fresh delivery would never render. Lets a scenario prove a retried delivery preserves this
+    /// pre-existing "already persisted" copy byte-for-byte instead of overwriting it.
+    /// </summary>
+    public void SeedExistingRecipientCopy(string senderRole, string recipientRole, string markerContent)
+    {
+        var fileName = SingleQueuedHandoffFileName(senderRole);
+        var target = Path.Combine(myWorkspace.RoleWorktreePath(recipientRole), ".blaxquad", "handoffs", "inbox", "new", fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        File.WriteAllText(target, markerContent);
+    }
+
+    /// <summary>The raw content of the sole handoff durably delivered into a role's new-inbox bucket, unparsed -
+    /// so a scenario can assert it remains byte-for-byte identical to a previously seeded marker.</summary>
+    public string SingleNewInboxRawContent(string recipientRole)
+    {
+        var newDir = Path.Combine(myWorkspace.RoleWorktreePath(recipientRole), ".blaxquad", "handoffs", "inbox", "new");
+        return File.ReadAllText(Directory.GetFiles(newDir, "*.handoff", SearchOption.TopDirectoryOnly).Single());
+    }
+
+    /// <summary>
+    /// Raw content of every durable artifact across a role's "new" and "in_process" inbox state directories, keyed
+    /// by file name, so a scenario can assert recovery preserves entries exactly rather than merely checking
+    /// counts.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> InboxContentSnapshot(string role)
+    {
+        var handoffs = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox");
+        return new[] { "new", "in_process" }
+            .SelectMany(state =>
+            {
+                var directory = Path.Combine(handoffs, state);
+                return Directory.Exists(directory)
+                    ? Directory.GetFiles(directory, "*.handoff", SearchOption.TopDirectoryOnly)
+                    : [];
+            })
+            .ToDictionary(path => Path.Combine(Path.GetFileName(Path.GetDirectoryName(path)!), Path.GetFileName(path)), File.ReadAllText, StringComparer.Ordinal);
+    }
+
+    /// <summary>The file name of the sole handoff currently queued in a role's outbox.</summary>
+    private string SingleQueuedHandoffFileName(string senderRole)
+    {
+        var outbox = Path.Combine(myWorkspace.RoleWorktreePath(senderRole), ".blaxquad", "handoffs", "outbox");
+        return Path.GetFileName(Directory.GetFiles(outbox, "*.handoff", SearchOption.TopDirectoryOnly).Single());
+    }
+
     private IReadOnlyList<QueuedHandoff> ListHandoffs(string role, string relativeDirectory)
     {
         var directory = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", relativeDirectory);

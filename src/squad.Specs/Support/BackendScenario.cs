@@ -72,9 +72,12 @@ public sealed class BackendScenario : IDisposable
     /// completes the real "ui.ready" handshake, and returns only once the process has observably become ready. If
     /// <see cref="EnableFakeProviderControl"/> was called first, also passes its pipe name and token through
     /// environment variables and waits for the fake provider to connect - which happens after "ui.ready", once
-    /// the production runtime actually starts establishing sessions.
+    /// the production runtime actually starts establishing sessions. Unless <paramref name="continueLaunch"/> is
+    /// set, a plain launch resets configured worktrees and clears existing handoff queues, matching a genuine
+    /// first launch; <paramref name="continueLaunch"/> passes the real "--continue" flag so a scenario can resume
+    /// against durable state a prior launch (or test fixture) already left on disk, exactly like a real restart.
     /// </summary>
-    public async Task StartAsync<TProviderFactory>(TimeSpan? timeout = null)
+    public async Task StartAsync<TProviderFactory>(TimeSpan? timeout = null, bool continueLaunch = false)
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
         var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
@@ -85,9 +88,12 @@ public sealed class BackendScenario : IDisposable
                 [FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName,
                 [FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token,
             };
+        IReadOnlyList<string> launchArguments = continueLaunch
+            ? ["launch", "--continue", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root]
+            : ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root];
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
-            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            launchArguments,
             environment,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);

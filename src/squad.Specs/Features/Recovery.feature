@@ -16,6 +16,7 @@ Feature: Recovering durable work
     When the squad host processes the handoff outbox
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
+    And "reviewer"'s recipient copy is unchanged
 
   Scenario: An archive collision cannot lose the current task
     Given a Git project with task role "reviewer"
@@ -25,3 +26,15 @@ Feature: Recovering durable work
     Then the command exits with code 2
     And standard error contains "completed file already exists"
     And task "repair-delivery" is in process
+
+  Scenario: Existing inbox work survives a headquarters restart unchanged
+    Given delivery roles "reviewer"
+    And "reviewer" has existing new inbox work "recovery-check-new" from "coder"
+    And "reviewer" has existing in-process inbox work "recovery-check-in-process" from "coder"
+    And the existing inbox work for "reviewer" is recorded
+    When the squad host starts
+    Then the "reviewer" agent observes a recovery wake-up message
+    And the existing inbox work for "reviewer" remains unchanged
+    When the squad host restarts with a replacement session
+    Then the "reviewer" agent observes a recovery wake-up message
+    And the existing inbox work for "reviewer" remains unchanged
