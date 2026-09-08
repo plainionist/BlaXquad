@@ -69,6 +69,8 @@ Acceptance criteria:
 
 ### Slice 2 - Idempotent delivery and restart recovery (in progress)
 
+**Status: complete (71f903f147)**
+
 - Migrate the duplicate-delivery scenario in `Recovery.feature` to the process facade. Queue the outbound handoff through
   `squad`, seed a matching already-persisted recipient copy through mailbox support, run headquarters, and prove retry
   archives the sender copy without creating or mutating a second recipient copy.
