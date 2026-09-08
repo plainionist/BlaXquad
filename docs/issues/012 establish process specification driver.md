@@ -165,7 +165,7 @@ DTOs and provider `AgentEvent` values behind that API.
 
 ### Slice 9: Complete the vertical architectural proof
 
-**Status: changes requested (10af7f0dd4)**
+**Status: complete (85bc15f28c)**
 
 Add one black-box Gherkin scenario that creates a configured fake role, starts the real provider-free headquarters,
 completes `ui.ready`, observes the role session, sends a prompt through the real UI protocol, observes it through the
@@ -178,21 +178,6 @@ the real command, and confirms clean exit.
 - Its step definitions use only semantic workspace, UI, agent, CLI, and lifecycle operations from the scenario facade.
 - The proof has no arbitrary sleeps and all waits produce combined process, UI, and provider diagnostics.
 - The focused process-driver proof passes repeatedly and remains safe to run in parallel.
-
-**Review findings**
-
-1. **Severity:** High
-   **Location:** `src/squad.Specs/Features/ProcessSpecificationDriver.feature` waits, via
-   `BackendScenario.StartAsync` / `WaitForRoleStatusAsync` / `WaitForRoleSessionStartedAsync` /
-   `WaitForTranscriptAsync` / `ShutdownAsync` and `BackendScenarioAgent.WaitForPromptAsync` / `ReplyAsync`
-   **Violated behavior:** Every wait in the vertical proof must fail with combined process, UI, and provider
-   diagnostics - one snapshot a reader can use without re-running the scenario.
-   **Root cause:** This slice only added the Gherkin scenario. The waits it reuses each report a single source:
-   UI waits throw `HeadlessUiWaitTimeoutException` (process + UI, no provider); control waits throw
-   `FakeProviderControlTimeoutException` (observations only) or `OperationCanceledException` /
-   `TimeoutException` with no snapshot (`WaitForConnectionAsync`, `ControlPipeDuplex.SendAndAwaitAsync`).
-   **Required outcome:** Every wait used by the proof must fail with one diagnostic block that includes process
-   lifecycle, UI protocol state, and provider/control observations.
 
 ### Slice 10: Complete the reusable fake-agent event surface
 
