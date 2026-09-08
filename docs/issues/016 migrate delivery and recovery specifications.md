@@ -88,6 +88,8 @@ Acceptance criteria:
 
 ### Slice 3 - Busy and unavailable recipients; obsolete-spec cleanup (in progress)
 
+**Status: complete (e82a4c3ea3)**
+
 - Move the process-visible intent of the in-process polling scenarios from `ViewModel.feature` into delivery/recovery
   features. Keep a recipient busy with a real UI prompt and delayed fake-agent reply, queue a handoff through `squad`,
   and prove the durable delivery exists before the serialized wake-up reaches the recipient after its prompt completes.
