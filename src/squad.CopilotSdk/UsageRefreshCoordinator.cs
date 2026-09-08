@@ -1,9 +1,9 @@
 namespace squad.CopilotSdk;
 
 /// <summary>
-/// Owns the fixed five-second, event-aware usage refresh policy for one Copilot SDK session. SDK activity marks
+/// Owns the fixed five-second, event-aware AIC usage refresh policy for one Copilot SDK session. SDK activity marks
 /// the session dirty and ensures one refresh cycle is scheduled per window; a session-idle transition stops active
-/// scheduling and runs one final refresh per metric, retaining that final request when a metric refresh is already
+/// scheduling and runs one final refresh, retaining that final request when a refresh is already
 /// in flight rather than discarding it. Metric work always runs on the coordinator's own lifetime token, never the
 /// per-window scheduling token, so an idle race can never cancel a refresh that is already under way or retained
 /// for final delivery; only <see cref="DisposeAsync"/> (session teardown or failure) stops that work. The interval
@@ -13,7 +13,6 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
 {
     private static readonly TimeSpan myRefreshInterval = TimeSpan.FromSeconds(5);
 
-    private readonly MetricRefresher myContext;
     private readonly MetricRefresher myUsage;
     private readonly CancellationTokenSource myLifetime = new();
     private readonly object myLock = new();
@@ -23,9 +22,8 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
     private Task? myWindowLoop;
     private bool myDisposed;
 
-    public UsageRefreshCoordinator(Func<CancellationToken, Task> refreshContext, Func<CancellationToken, Task> refreshUsage)
+    public UsageRefreshCoordinator(Func<CancellationToken, Task> refreshUsage)
     {
-        myContext = new MetricRefresher(refreshContext);
         myUsage = new MetricRefresher(refreshUsage);
     }
 
@@ -36,7 +34,6 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
         {
             return;
         }
-        myContext.Run(myLifetime.Token);
         myUsage.Run(myLifetime.Token);
     }
 
@@ -60,7 +57,7 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
     }
 
     /// <summary>
-    /// Stops active refresh scheduling and requests one final refresh of both metrics. A metric refresh already in
+    /// Stops active refresh scheduling and requests one final refresh. A refresh already in
     /// flight retains this request and runs it once the in-flight call completes.
     /// </summary>
     public void NotifyIdle()
@@ -78,7 +75,6 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
             myWindowCancellation = null;
         }
         windowCancellation?.Cancel();
-        myContext.RunFinal(myLifetime.Token);
         myUsage.RunFinal(myLifetime.Token);
     }
 
@@ -110,7 +106,6 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
             }
         }
 
-        await myContext.WaitForCompletionAsync().ConfigureAwait(false);
         await myUsage.WaitForCompletionAsync().ConfigureAwait(false);
         myLifetime.Dispose();
     }
@@ -138,7 +133,6 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
                 {
                     // Metric work runs on the coordinator lifetime token, not the window token: cancelling this
                     // window (e.g. an idle race) must never cancel a refresh already under way.
-                    myContext.Run(myLifetime.Token);
                     myUsage.Run(myLifetime.Token);
                 }
             }

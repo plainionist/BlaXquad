@@ -12,7 +12,7 @@ internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
     public CopilotSdkRuntimeSession(CopilotSession session)
     {
         mySession = session;
-        myContextLimit = CreateContextLimitCache(GetContextLimitAsync);
+        myContextLimit = CreateContextLimitCache(ResolveContextLimitAsync);
     }
 
     public string SessionId => mySession.SessionId;
@@ -23,16 +23,7 @@ internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
     public Task AbortAsync(CancellationToken cancellationToken = default) =>
         mySession.AbortAsync(cancellationToken);
 
-    internal void StartContextWindowResolution() => _ = myContextLimit.Value;
-
-    public async Task<(long UsedTokens, long LimitTokens)?> GetContextUsageAsync(CancellationToken cancellationToken = default)
-    {
-        var contextLimit = myContextLimit.Value;
-        var attribution = await mySession.Rpc.Metadata.GetContextAttributionAsync(cancellationToken);
-        var context = attribution?.ContextAttribution;
-        var limit = await contextLimit;
-        return limit is > 0 ? (context?.TotalTokens ?? 0, limit.Value) : null;
-    }
+    internal Task<long?> GetContextLimitAsync() => myContextLimit.Value;
 
     public async Task<decimal> GetAicUsageAsync(CancellationToken cancellationToken = default)
     {
@@ -54,7 +45,7 @@ internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
     internal static Lazy<Task<T>> CreateContextLimitCache<T>(Func<Task<T>> lookup) =>
         new(lookup, LazyThreadSafetyMode.ExecutionAndPublication);
 
-    private async Task<long?> GetContextLimitAsync()
+    private async Task<long?> ResolveContextLimitAsync()
     {
         var currentModel = await mySession.Rpc.Model.GetCurrentAsync(CancellationToken.None);
 

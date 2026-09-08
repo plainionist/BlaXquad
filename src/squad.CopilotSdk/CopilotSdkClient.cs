@@ -165,6 +165,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
             case SessionUsageCheckpointEvent { Data: { } data }:
                 agentSession.Publish(new AgentSessionUsageEvent(occurredAt, Convert.ToDecimal((object?)data.TotalNanoAiu) / 1_000_000_000m));
                 break;
+            case SessionUsageInfoEvent { Data: { } data }:
+                agentSession.NotifyContextUsage(data.CurrentTokens);
+                break;
             case SessionSkillsLoadedEvent:
                 PublishDiscoveredSkills(sessionEvent, agentSession, occurredAt);
                 break;

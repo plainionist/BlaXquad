@@ -16,6 +16,7 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private readonly Action<Exception>? myEscalateTeardownFailure;
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object myInteractionLock = new();
+    private readonly object myContextUsageLock = new();
     private readonly Dictionary<string, TaskCompletionSource<AgentPermissionResponse>> myPendingPermissions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TaskCompletionSource<AgentInputResponse>> myPendingInputs = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TaskCompletionSource<AgentElicitationResponse>> myPendingElicitations = new(StringComparer.Ordinal);
@@ -23,6 +24,9 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private readonly TaskCompletionSource myFailureTeardown = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CopilotSdkRuntimeSession? myRuntimeSession;
     private UsageRefreshCoordinator? myUsageRefresh;
+    private Task myContextLimitResolution = Task.CompletedTask;
+    private long? myContextUsedTokens;
+    private long? myContextLimitTokens;
     private Exception? myFailure;
     private bool myDisposed;
 
@@ -46,8 +50,8 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     internal void Attach(CopilotSdkRuntimeSession runtimeSession)
     {
         myRuntimeSession = runtimeSession;
-        runtimeSession.StartContextWindowResolution();
-        myUsageRefresh = new UsageRefreshCoordinator(RefreshContextUsageAsync, RefreshUsageAsync);
+        myContextLimitResolution = ResolveContextLimitAsync(runtimeSession);
+        myUsageRefresh = new UsageRefreshCoordinator(RefreshUsageAsync);
         myUsageRefresh.RunInitialRefresh();
     }
 
@@ -98,6 +102,19 @@ public sealed class CopilotSdkAgentSession : IAgentSession
         else
         {
             myUsageRefresh?.NotifyActivity();
+        }
+    }
+
+    internal void NotifyContextUsage(long currentTokens)
+    {
+        lock (myContextUsageLock)
+        {
+            if (myDisposed || myFailure is not null)
+            {
+                return;
+            }
+            myContextUsedTokens = currentTokens;
+            PublishContextUsage();
         }
     }
 
@@ -170,6 +187,7 @@ public sealed class CopilotSdkAgentSession : IAgentSession
             {
                 await myUsageRefresh.DisposeAsync();
             }
+            await myContextLimitResolution;
             if (myFailure is not null)
             {
                 await myFailureTeardown.Task;
@@ -197,17 +215,31 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private CopilotSdkRuntimeSession RequireRuntimeSession() =>
         myRuntimeSession ?? throw new InvalidOperationException("Copilot session has not been created");
 
-    private async Task RefreshContextUsageAsync(CancellationToken cancellationToken)
+    private async Task ResolveContextLimitAsync(CopilotSdkRuntimeSession runtimeSession)
     {
-        var runtimeSession = myRuntimeSession;
-        if (runtimeSession is null || myDisposed || myFailure is not null)
+        try
         {
-            return;
+            var contextLimit = await runtimeSession.GetContextLimitAsync().ConfigureAwait(false);
+            lock (myContextUsageLock)
+            {
+                if (myDisposed || myFailure is not null || contextLimit is not > 0)
+                {
+                    return;
+                }
+                myContextLimitTokens = contextLimit;
+                PublishContextUsage();
+            }
         }
-        var usage = await runtimeSession.GetContextUsageAsync(cancellationToken);
-        if (usage is { } contextUsage && contextUsage.LimitTokens > 0 && !myDisposed && myFailure is null)
+        catch
         {
-            Publish(new AgentContextUsageEvent(DateTimeOffset.UtcNow, contextUsage.UsedTokens, contextUsage.LimitTokens));
+        }
+    }
+
+    private void PublishContextUsage()
+    {
+        if (myContextUsedTokens is { } usedTokens && myContextLimitTokens is { } limitTokens)
+        {
+            Publish(new AgentContextUsageEvent(DateTimeOffset.UtcNow, usedTokens, limitTokens));
         }
     }
 
@@ -278,6 +310,7 @@ public sealed class CopilotSdkAgentSession : IAgentSession
         {
             await myUsageRefresh.DisposeAsync().ConfigureAwait(false);
         }
+        await myContextLimitResolution.ConfigureAwait(false);
 
         if (teardownRuntimeSession)
         {
