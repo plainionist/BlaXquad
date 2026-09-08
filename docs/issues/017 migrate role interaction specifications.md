@@ -90,7 +90,7 @@ publication. Add focused stdio transport coverage for concurrent command dispatc
 the process-level two-role prompt scenario and remove `Slow sends do not block another role` from
 `ViewModel.feature`.
 
-### Slice 2 (in progress): Published interactions and response ownership
+### Slice 2 (done): Published interactions and response ownership
 
 - Add semantic headless-UI observations for pending permission, input, and elicitation state, including input choices,
   freeform support, elicitation mode, URL, and accepted content where those are part of the protocol.
@@ -110,6 +110,26 @@ Acceptance criteria:
 - Wrong-role, duplicate, late, aborted, failed-session, and shutdown responses retain their documented protocol
   errors or cancellation outcomes.
 - Equal request IDs in two roles never collide.
+
+**Status: complete (c0a3816be2).** `src/squad.Specs/Features/PublishedInteractionsAndResponseOwnership.feature`
+now covers all four acceptance criteria through the process boundary: a two-role backend scenario publishes and
+observes every supported permission/input/elicitation field (including input choices, freeform, elicitation mode,
+URL, and accepted form content), asserts a successful response reaches only the owning fake role session, exercises
+wrong-role/duplicate/late rejection (surfaced as the existing `protocol.error` UI message from
+`PendingInteractionRegistry.Remove`) without disturbing the owner's still-pending request, proves identical request
+IDs stay independent across two roles, and proves abort, session failure, and headquarters shutdown each cancel a
+role's pending interaction so a late response is rejected. `HeadlessUiClient`/`BackendScenario` gained
+`WaitForPendingPermission/Input/ElicitationAsync` (polling `state.snapshot`) and `WaitForProtocolErrorAsync`;
+`FakeAgentSession`/`FakeProviderControlServer`/`BackendScenarioAgent` gained response-content plumbing and
+no-wait `HasReceivedXResponse()`/`HasObservation()` checks used to prove a role never received another role's
+response. The five migrated scenarios ("Interaction requests are visible and can be completed", "Interaction
+responses are routed to their owning role", "Interaction responses reject wrong-role and late completions", "Abort
+and shutdown cancel pending interactions", "The same request ID can be pending for two roles independently") were
+removed from `ViewModel.feature`, along with their now-orphaned step methods in `ViewModelSteps.cs` and the
+now-unused response-tracking queues on `RecordingAgentSession`. "Failed role state is terminal and clears its
+pending interactions" and "Pending interaction context remains retained" were intentionally kept: the former belongs
+to Slice 3's broader session-failure scope, and the latter asserts genuine transcript-retention behavior rather than
+pending-interaction collection retention.
 
 ### Slice 3 (pending): Abort sequencing and terminal role failure
 
