@@ -148,6 +148,8 @@ errors.
 
 ### Slice 8: Expose prompts and assistant replies through a role controller
 
+**Status: complete (b54c5c3432)**
+
 Extend the control protocol to report received prompts and to accept an acknowledged semantic assistant-reply command.
 Route all traffic by role and session identity and reject unknown or disposed sessions. Expose the test-process API as
 `scenario.Agent(role)` (or an equivalently narrow controller) with `WaitForPromptAsync` and `ReplyAsync`; keep control
