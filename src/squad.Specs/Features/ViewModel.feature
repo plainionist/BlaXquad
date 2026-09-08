@@ -683,34 +683,6 @@ Feature: Squad ViewModel
     Then ViewModel role "coder" transcript has a "system" entry "Discovered skill: C:\\skills\\analyze-issue\\SKILL.md"
     And ViewModel role "coder" transcript has no entry "Read C:\\skills\\analyze-issue\\SKILL.md"
 
-  Scenario: Prompt dispatch remains active until the SDK reports idle
-    Given a ViewModel with recording roles "coder"
-    When a prompt "question" is sent to "coder"
-    Then ViewModel role "coder" is working
-    When the recording "coder" session emits an idle event
-    Then ViewModel role "coder" has status "idle"
-    And ViewModel role "coder" is not working
-
-  Scenario: Agent readiness requires idle state without active work
-    Given a ViewModel with recording roles "coder"
-    Then ViewModel role "coder" is not ready for a prompt
-    When the recording "coder" session emits an idle event
-    Then ViewModel role "coder" is ready for a prompt
-    When the recording "coder" session emits a user message "new work"
-    Then ViewModel role "coder" is not ready for a prompt
-    When the recording "coder" session emits an idle event
-    And the ViewModel begins stopping
-    Then ViewModel role "coder" is not ready for a prompt
-
-  Scenario: Readiness remains safe while sessions register sequentially
-    Given a leased application blocked before registering its "reviewer" session
-    When the host client begins waiting for the "reviewer" agent
-    Then the host client remains waiting for agent readiness
-    When the pending session registration completes
-    Then the host client readiness wait succeeds
-    When the application window closes
-    And the application waits for window closure
-
   Scenario: Final assistant messages preserve prior transcript history
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session emits a user message "question"
@@ -803,12 +775,10 @@ Feature: Squad ViewModel
     When the recording "coder" session emits tool completion "git status"
     Then ViewModel role "coder" has no active tool
 
-  Scenario: Manual prompts are serialized per role
-    Given a ViewModel with recording roles "coder"
-    When overlapping prompts "first,second" are sent to "coder"
-    Then the recording "coder" session received prompts "first,second"
-    And the recording "coder" session had no overlapping sends
-
+  # This scenario tests ViewModel-level cross-role dispatch concurrency directly. It could not be migrated to a
+  # process-boundary spec: the real stdio host reads UI commands one line at a time and awaits each role's full
+  # prompt round trip before reading the next command, so a second role's prompt cannot be observed to progress
+  # through that transport while a first role's prompt is still outstanding. See issue 017 for the open follow-up.
   Scenario: Slow sends do not block another role
     Given a ViewModel with recording roles "coder,reviewer"
     When a slow prompt is sent to "coder" while a prompt is sent to "reviewer" concurrently

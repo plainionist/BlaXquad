@@ -13,6 +13,17 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     /// observations.</summary>
     public Task<string> WaitForPromptAsync(TimeSpan? timeout = null) => control.WaitForPromptAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Waits until this role's session has reported a prompt across the control pipe whose content
+    /// satisfies the given predicate, distinguishing it from an already-observed earlier prompt for this role -
+    /// for example one still serialized behind an in-flight prompt - by content rather than mere presence.</summary>
+    public Task<string> WaitForPromptAsync(Func<string, bool> matches, TimeSpan? timeout = null) =>
+        control.WaitForPromptAsync(role, matches, timeout, uiDiagnostics);
+
+    /// <summary>Returns the content of the most recent prompt this role's session has reported across the control
+    /// pipe, or null if none has been reported yet - a snapshot read used to prove the absence of a prompt for
+    /// this role, or that it has not yet advanced past an earlier one.</summary>
+    public string? LatestPrompt() => control.LatestPrompt(role);
+
     /// <summary>Sends a semantic assistant reply for this role's session, awaiting the real production transcript
     /// projection to happen inside the launched process before returning. On timeout, reports one diagnostics
     /// block combining process, UI protocol, and provider/control observations.</summary>

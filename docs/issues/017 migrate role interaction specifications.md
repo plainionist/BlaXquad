@@ -64,6 +64,20 @@ Acceptance criteria:
 - Readiness follows provider idle/busy work and remains correct for independently starting role sessions.
 - All new steps use only `BackendScenario` UI, agent, CLI, and lifecycle APIs.
 
+**Status / open finding:** `src/squad.Specs/Features/PromptIsolationAndReadiness.feature` covers prompt isolation,
+same-role serialization (order, no overlap), and both readiness scenarios through the process boundary. The
+"another role continues independently" half of the second acceptance criterion is **not yet covered** there:
+`StdioWindowHost`'s input pump reads one UI-protocol line at a time and `await`s each command's full round trip
+(`UiCommandHandler.HandleAsync` awaits `ISquadUi.SendAsync` to completion) before reading the next line. Since
+`SquadViewModel.DispatchPromptAsync` only returns once the addressed role's provider operation completes, a second
+role's `prompt.send` cannot be read - let alone dispatched - while an earlier role's prompt is still outstanding
+across this transport. This is a real behavior difference from the white-box `ViewModel.feature` scenario it
+replaces (which called `SquadViewModel.SendAsync` directly for both roles, bypassing the stdio command loop
+entirely) - at the process boundary, only one role's manual prompt can be in flight at a time, system-wide.
+The original scenario, `Slow sends do not block another role`, remains in `ViewModel.feature` pending a decision on
+how to resolve this (e.g. changing the stdio host to stop awaiting full completion before reading the next command,
+or reframing the acceptance criterion to match observable process-boundary behavior).
+
 ### Slice 2 (pending): Published interactions and response ownership
 
 - Add semantic headless-UI observations for pending permission, input, and elicitation state, including input choices,

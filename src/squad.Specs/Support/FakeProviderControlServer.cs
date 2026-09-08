@@ -101,6 +101,44 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         }
     }
 
+    /// <summary>Waits until the connected client has reported a prompt sent to the given role whose content
+    /// satisfies the given predicate, and returns it. Unlike <see cref="WaitForPromptAsync(string,TimeSpan?,Func{string}?)"/>,
+    /// this keeps polling past an already-observed prompt that does not satisfy the predicate (such as an earlier
+    /// prompt for the same role, sent before this one was serialized behind it), so a caller can distinguish a
+    /// later, distinct prompt from that earlier one.</summary>
+    public async Task<string> WaitForPromptAsync(
+        string role, Func<string, bool> matches, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            var prompt = LatestPrompt(role);
+            if (prompt is not null && matches(prompt))
+            {
+                return prompt;
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new FakeProviderControlTimeoutException(
+                    $"role '{role}' to report a matching prompt across the fake-provider control pipe",
+                    DescribeDiagnostics(additionalDiagnostics));
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
+    /// <summary>Returns the content of the most recent prompt this role's session has reported across the control
+    /// pipe, or null if none has been reported yet - a snapshot read (no waiting) used to prove the absence of a
+    /// prompt, or that a role's latest observed prompt has not yet advanced past an earlier one, rather than the
+    /// presence of a later one.</summary>
+    public string? LatestPrompt(string role)
+    {
+        lock (myStateLock)
+        {
+            return myLatestPromptByRole.TryGetValue(role, out var prompt) ? prompt : null;
+        }
+    }
+
     /// <summary>Waits until the connected client has reported the host sending this role's session its initial
     /// harness instruction, and returns its content.</summary>
     public async Task<string> WaitForHarnessMessageAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)

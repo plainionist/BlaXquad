@@ -49,7 +49,6 @@ public sealed class ViewModelSteps
     private Task? myAbortTask;
     private Exception? myAbortFailure;
     private Task? myPendingPrompt;
-    private Task? myAgentReadinessWait;
     private readonly List<TranscriptUpdate> myTranscriptUpdates = [];
     private readonly CopilotToolOutputNormalizer myToolOutputNormalizer = new();
     private readonly Dictionary<string, string> myActiveToolCallIds = new(StringComparer.Ordinal);
@@ -505,50 +504,6 @@ public sealed class ViewModelSteps
 
     [Given("the SDK-shaped backend fails after its first session")]
     public void GivenTheSdkShapedBackendFailsAfterItsFirstSession() => myBackend.FailAfterCreatingSessionCount = 1;
-
-    [Given("a leased application blocked before registering its {string} session")]
-    public async Task GivenALeasedApplicationBlockedBeforeRegisteringItsSession(string role)
-    {
-        GivenASquadApplicationWithRecordingRoles("coder,reviewer");
-        myBackend.BlockBeforeSessionIndex = myBackend.Sessions
-            .Select((session, index) => (session, index))
-            .Single(item => item.session.Role == role)
-            .index;
-        myBackend.Sessions.Single(session => session.Role == role)
-            .Emit(new AgentIdleEvent(DateTimeOffset.UtcNow));
-        AttachHostLease();
-        StartApplicationRun();
-        await myBackend.RegistrationBlocked.WaitAsync(TimeSpan.FromSeconds(2));
-    }
-
-    [When("the pending session registration completes")]
-    public async Task WhenThePendingSessionRegistrationCompletes()
-    {
-        myBackend.ReleaseRegistration();
-        while (myApplicationReadyCount == 0 && !myApplicationRun!.IsCompleted)
-        {
-            await Task.Delay(10);
-        }
-        Assert.That(myApplicationReadyCount, Is.EqualTo(1));
-    }
-
-    [When("the host client begins waiting for the {string} agent")]
-    public void WhenTheHostClientBeginsWaitingForTheAgent(string role) =>
-        myAgentReadinessWait = HostControlClient.WaitForAgentAsync(
-            myApplicationRoot,
-            role,
-            TimeSpan.FromSeconds(5));
-
-    [Then("the host client remains waiting for agent readiness")]
-    public async Task ThenTheHostClientRemainsWaitingForAgentReadiness()
-    {
-        await Task.Delay(200);
-        Assert.That(myAgentReadinessWait!.IsCompleted, Is.False);
-    }
-
-    [Then("the host client readiness wait succeeds")]
-    public async Task ThenTheHostClientReadinessWaitSucceeds() =>
-        await myAgentReadinessWait!.WaitAsync(TimeSpan.FromSeconds(2));
 
     [When("the application start fails")]
     public async Task WhenTheApplicationStartFails()
@@ -1236,13 +1191,6 @@ public sealed class ViewModelSteps
 
     [When("a prompt {string} is sent to {string}")]
     public async Task WhenAPromptIsSentTo(string prompt, string role) => await myViewModel.SendAsync(role, prompt);
-
-    [When("overlapping prompts {string} are sent to {string}")]
-    public async Task WhenOverlappingPromptsAreSentTo(string prompts, string role)
-    {
-        myBackend.Sessions.Single(session => session.Role == role).SendDelay = TimeSpan.FromMilliseconds(50);
-        await Task.WhenAll(prompts.Split(',').Select(prompt => myViewModel.SendAsync(role, prompt)));
-    }
 
     [When("a slow prompt is sent to {string} while a prompt is sent to {string}")]
     public async Task WhenASlowPromptIsSentWhileAnotherPromptIsSent(string slowRole, string otherRole)
@@ -2112,9 +2060,6 @@ public sealed class ViewModelSteps
     [Then("ViewModel role {string} is not ready for a prompt")]
     public void ThenViewModelRoleIsNotReadyForAPrompt(string role) => Assert.That(myViewModel!.GetRoleReadiness(role), Is.False);
 
-    [When("the ViewModel begins stopping")]
-    public void WhenTheViewModelBeginsStopping() => myViewModel.BeginStopping();
-
     [Then("ViewModel role {string} transcript has a {string} entry {string}")]
     public void ThenViewModelRoleTranscriptHasEntry(string role, string source, string content) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Source == source && entry.Content == content), Is.True);
@@ -2218,10 +2163,6 @@ public sealed class ViewModelSteps
     [Then("the recording {string} session received prompt {string}")]
     public void ThenRecordingSessionReceivedPrompt(string role, string prompt) =>
         Assert.That(myBackend.Sessions.Single(session => session.Role == role).Sends, Has.Some.EqualTo(prompt));
-
-    [Then("the recording {string} session had no overlapping sends")]
-    public void ThenRecordingSessionHadNoOverlappingSends(string role) =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == role).OverlappedSend, Is.False);
 
     [Then("the reviewer prompt completed before the coder prompt")]
     public void ThenTheReviewerPromptCompletedBeforeTheCoderPrompt() =>
