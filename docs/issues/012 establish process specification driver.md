@@ -33,6 +33,8 @@ the next one.
 
 ### Slice 1: Publish a provider-free headquarters for backend specifications
 
+**Status: complete (6c195cc457)**
+
 Add a dedicated `squad.Specs` publication target that publishes the real `squad-hq` with
 `IncludeCopilotSdkProvider=false` into a separate test-output directory. Preserve the existing production-like
 `squad-tools` publication unchanged. Add focused packaging coverage for both outputs.
