@@ -122,14 +122,6 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
-    /// Records a role's worktree path without creating a linked worktree, for scenarios that map a role directly
-    /// onto the repository root (a "master" worktree) rather than <see cref="ConfigureProject"/>'s per-role
-    /// layout. Lets <see cref="RunRoleTool"/> stay the single way to invoke a role-scoped command regardless of
-    /// which fixture set the role up.
-    /// </summary>
-    public void RegisterRoleWorktree(string role, string worktreePath) => myRoleWorktrees[role] = worktreePath;
-
-    /// <summary>
     /// Rewrites a single role already configured by <see cref="ConfigureProject"/> to the given receive mode,
     /// including an empty string, while keeping its existing worktree mapping. Lets scenarios that arrange an
     /// unsupported or missing receive mode do so as a semantic workspace operation instead of serializing

@@ -9,7 +9,6 @@ public sealed class QueueSteps
     private readonly ScenarioWorkspace myWorkspace;
     private readonly TaskMailboxFixture myTaskMailbox;
     private readonly TaskMailboxObserver myTaskObserver;
-    private int mySequence;
 
     public QueueSteps(ScenarioWorkspace workspace)
     {
@@ -24,17 +23,8 @@ public sealed class QueueSteps
     [Given("a Git project with batch role {string}")]
     public void GivenAGitProjectWithBatchRole(string role)
     {
-        myWorkspace.InitializeGitRepository();
-        myWorkspace.WriteFile(
-            "blaxquad/squad.json",
-            $$"""
-            {
-              "roles": [
-                { "name": "{{role}}", "worktree": "master", "receiveMode": "batch", "agent": {} }
-              ]
-            }
-            """ + "\n");
-        myWorkspace.RegisterRoleWorktree(role, myWorkspace.Root);
+        myWorkspace.ConfigureProject(role);
+        myWorkspace.SetRoleReceiveMode(role, "batch");
     }
 
     [Given("a Git project with role {string} and an empty receive mode")]
@@ -69,11 +59,8 @@ public sealed class QueueSteps
     [Given("{string} is processing this batch:")]
     public void GivenRoleIsProcessingThisBatch(string role, DataTable tasks)
     {
-        var batchName = "batch_20260822T120000Z_000001";
-        foreach (var row in tasks.Rows)
-        {
-            WriteBatchItem(row["from"], row["priority"], row["task"], batchName);
-        }
+        myWorkspace.Set(CurrentRoleKey, role);
+        myTaskMailbox.PutBatchInProcess(role, tasks.Rows.Select(row => (row["from"], row["priority"], row["task"])));
     }
 
     [Given("the completion archive already contains that task")]
@@ -126,15 +113,6 @@ public sealed class QueueSteps
         Assert.That(myTaskObserver.IsTaskCompleted(CurrentRole(), task), Is.True);
 
     private string CurrentRole() => myWorkspace.Get<string>(CurrentRoleKey);
-
-    private void WriteBatchItem(string sender, string priority, string task, string batchName)
-    {
-        mySequence++;
-        var filename = $"{priority}_20260822T120000Z_{mySequence:D6}_from_{sender}_to_reviewer.handoff";
-        myWorkspace.WriteFile(
-            $".blaxquad/handoffs/inbox/in_process/{batchName}/{filename}",
-            $"id: test-{mySequence}\nfrom: {sender}\nto: reviewer\nrecipient: reviewer\npriority: {priority}\ntype: git_handoff\ntask: {task}\ncommit: 0123456789\n\nmerge_and_process {sender} 0123456789\n");
-    }
 }
 
 

@@ -1,10 +1,10 @@
 namespace squad.Specs.Support;
 
 /// <summary>
-/// Arranges durable inbound task state directly on disk for a role's worktree, for prerequisite queue state that
-/// cannot be produced through a supported command (several competing queued tasks, an already in-process task, or
-/// a pre-existing completion-archive collision). Confines the on-disk task file layout and serialization so step
-/// definitions never construct or parse it directly.
+/// Arranges durable inbound task and batch state directly on disk for a role's worktree, for prerequisite queue
+/// state that cannot be produced through a supported command (several competing queued tasks, an already
+/// in-process task or batch, or a pre-existing completion-archive collision). Confines the on-disk task file layout
+/// and serialization so step definitions never construct or parse it directly.
 /// </summary>
 public sealed class TaskMailboxFixture
 {
@@ -25,6 +25,20 @@ public sealed class TaskMailboxFixture
         Write(role, "in_process", sender, priority, task);
 
     /// <summary>
+    /// Seeds a batch of tasks already accepted as the role's current in-process work, sharing one batch folder so a
+    /// batch role's "done-with-current" completes and inspects them together.
+    /// </summary>
+    public void PutBatchInProcess(string role, IEnumerable<(string Sender, string Priority, string Task)> items)
+    {
+        mySequence++;
+        var batchName = $"batch_20260822T120000Z_{mySequence:D6}";
+        foreach (var item in items)
+        {
+            Write(role, "in_process", item.Sender, item.Priority, item.Task, batchName);
+        }
+    }
+
+    /// <summary>
     /// Copies the role's sole in-process task file into its completion archive, simulating a pre-existing archive
     /// collision without disturbing the current in-process task itself.
     /// </summary>
@@ -38,13 +52,14 @@ public sealed class TaskMailboxFixture
         File.Copy(source, target);
     }
 
-    private void Write(string role, string state, string sender, string priority, string task)
+    private void Write(string role, string state, string sender, string priority, string task, string? batchName = null)
     {
         mySequence++;
         var filename = $"{priority}_20260822T120000Z_{mySequence:D6}_from_{sender}_to_{role}.handoff";
         var content =
             $"id: test-{mySequence}\nfrom: {sender}\nto: {role}\nrecipient: {role}\npriority: {priority}\ntype: git_handoff\ntask: {task}\ncommit: 0123456789\n\nmerge_and_process {sender} 0123456789\n";
-        var path = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", state, filename);
+        var stateDir = batchName is null ? state : Path.Combine(state, batchName);
+        var path = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", stateDir, filename);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content.Replace("\n", Environment.NewLine));
     }
