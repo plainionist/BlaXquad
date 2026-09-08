@@ -43,7 +43,7 @@ hide filesystem formats and real `squad` command invocation from step definition
 
 ### Slice 1 - Process-level handoff delivery (in progress)
 
-**Status: changes requested (d7643b4350)**
+**Status: changes requested (e5a46f1e77)**
 
 - Rewrite `Delivery.feature` around configured Git worktrees, the published `squad` and provider-free `squad-hq`
   executables, stdio UI startup, and the fake-provider control pipe.
@@ -97,6 +97,28 @@ Acceptance criteria:
   assert it is the installed `ready-for-next` wake-up. After invalid fan-out, prove that session did not observe a
   delivery wake-up. After a rejected harness send, prove that session did not observe the wake-up while still
   asserting one sent artifact, one recipient copy, and headquarters remaining available.
+
+#### Review findings on e5a46f1e77
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Specs/StepDefinitions/DeliverySteps.cs`
+  (`GivenTheAgentWillRejectItsNextHarnessSend`, `ThenTheAgentHasNotObservedTheHandoffWakeUpMessage`),
+  `src/squad.Specs/Features/Delivery.feature` (Notification failure does not lose a delivered handoff),
+  `src/squad.Specs/Support/FakeAgentRuntime.cs` (`StartAsync` sends the initial instruction after
+  `session-started`).
+- **Violated behavior:** A failed harness send must be proven as a notification failure of the delivery wake-up:
+  one sent artifact, one recipient copy, no wake-up on the recipient fake session, headquarters still available.
+- **Root cause:** `WaitForRoleSessionStartedAsync` returns before `FakeAgentRuntime` sends the session-start
+  harness instruction, so `RejectNextHarness` can consume that instruction instead of the delivery wake-up.
+  Delivery then notifies successfully. Independently, "has not observed the handoff wake-up" is a snapshot of
+  `LatestHarnessMessage` after the sent archive; `HandoffDeliveryService` notifies only after moving to `sent`,
+  so the snapshot can pass before the host attempts the wake-up. A no-op or mis-aimed reject still satisfies the
+  scenario.
+- **Required outcome:** Arm rejection only after the recipient fake session has observed its session-start harness
+  instruction, so the next rejected send is the delivery wake-up. Prove the wake-up was not observed only after
+  the host has observably attempted that harness send (the fake session must report the rejected attempt), not
+  from a snapshot taken when the sender artifact is archived.
 
 ### Slice 2 - Idempotent delivery and restart recovery (queued)
 
