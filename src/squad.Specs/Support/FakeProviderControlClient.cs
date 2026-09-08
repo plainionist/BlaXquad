@@ -27,7 +27,9 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
     /// <summary>
     /// Reads the pipe name and token from the environment, connects, and authenticates - or returns null if the
     /// environment does not name a control pipe, so the fake provider keeps working exactly as it did before this
-    /// slice when no scenario has enabled the control transport.
+    /// slice when no scenario has enabled the control transport. Only the launched squad-hq process itself should
+    /// ever read these variables from its own environment: use <see cref="ConnectAsync"/> directly for in-process
+    /// specifications, which must never set these variables on the shared test process.
     /// </summary>
     public static async Task<FakeProviderControlClient?> ConnectIfConfiguredAsync(CancellationToken cancellationToken = default)
     {
@@ -38,6 +40,13 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
             return null;
         }
 
+        return await ConnectAsync(pipeName, token, cancellationToken);
+    }
+
+    /// <summary>Connects to the given pipe and authenticates with the given token directly - no environment
+    /// variable involved - for in-process specifications of the control transport itself.</summary>
+    public static async Task<FakeProviderControlClient> ConnectAsync(string pipeName, string token, CancellationToken cancellationToken = default)
+    {
         var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         await pipe.ConnectAsync(cancellationToken);
         var duplex = new ControlPipeDuplex(

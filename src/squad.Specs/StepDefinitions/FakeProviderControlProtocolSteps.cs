@@ -64,8 +64,6 @@ public sealed class FakeProviderControlProtocolSteps
     [AfterScenario]
     public async Task CleanUpAsync()
     {
-        Environment.SetEnvironmentVariable(FakeProviderControlServer.PipeNameEnvironmentVariable, null);
-        Environment.SetEnvironmentVariable(FakeProviderControlServer.TokenEnvironmentVariable, null);
         if (myClient is not null)
         {
             await myClient.DisposeAsync();
@@ -82,9 +80,7 @@ public sealed class FakeProviderControlProtocolSteps
 
     private async Task ConnectAuthenticatedClientAsync()
     {
-        Environment.SetEnvironmentVariable(FakeProviderControlServer.PipeNameEnvironmentVariable, myServer!.PipeName);
-        Environment.SetEnvironmentVariable(FakeProviderControlServer.TokenEnvironmentVariable, myServer.Token);
-        var clientConnecting = FakeProviderControlClient.ConnectIfConfiguredAsync();
+        var clientConnecting = FakeProviderControlClient.ConnectAsync(myServer!.PipeName, myServer.Token);
         await myConnectionTask!;
         myClient = await clientConnecting;
     }
