@@ -74,9 +74,21 @@ role's `prompt.send` cannot be read - let alone dispatched - while an earlier ro
 across this transport. This is a real behavior difference from the white-box `ViewModel.feature` scenario it
 replaces (which called `SquadViewModel.SendAsync` directly for both roles, bypassing the stdio command loop
 entirely) - at the process boundary, only one role's manual prompt can be in flight at a time, system-wide.
-The original scenario, `Slow sends do not block another role`, remains in `ViewModel.feature` pending a decision on
-how to resolve this (e.g. changing the stdio host to stop awaiting full completion before reading the next command,
-or reframing the acceptance criterion to match observable process-boundary behavior).
+The original scenario, `Slow sends do not block another role`, remains in `ViewModel.feature` until the transport
+change below is implemented.
+
+**Architecture decision:** preserve the independent-role acceptance criterion. `StdioWindowHost` must not impose
+global command serialization that does not exist in the visual UI. Its input pump owns framing and admission only:
+after reading a complete line, it dispatches `UiProtocolSession.ReceiveMessageAsync` without delaying the next read
+until that command's domain operation completes. The application remains authoritative for per-role prompt and abort
+serialization.
+
+The stdio host must explicitly own the lifecycle of dispatched command tasks. It stops admitting lines on EOF or
+shutdown, observes every dispatched task, and drains them before disposing `UiProtocolSession`; no fire-and-forget
+faults or command/session disposal races are permitted. Preserve serialized stdout writes and protocol-error
+publication. Add focused stdio transport coverage for concurrent command dispatch and shutdown draining, then add
+the process-level two-role prompt scenario and remove `Slow sends do not block another role` from
+`ViewModel.feature`.
 
 ### Slice 2 (pending): Published interactions and response ownership
 
