@@ -32,6 +32,10 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioReportsTheProcessAsReady() =>
         Assert.That(myScenario.IsReady, Is.True);
 
+    [Then("the backend scenario observes role {string} at status {string}")]
+    public void ThenTheBackendScenarioObservesRoleAtStatus(string role, string status) =>
+        Await(myScenario.WaitForRoleStatusAsync(role, status));
+
     [When("the backend scenario requests a host-control shutdown")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdown() =>
         myExitCode = Await(myScenario.ShutdownAsync());

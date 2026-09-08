@@ -9,5 +9,6 @@ Feature: Minimal fake provider through the production SPI
     Given a backend scenario configured with a "coder" role
     When the backend scenario starts squad-hq with the fake provider fixture
     Then the backend scenario reports the process as ready
+    And the backend scenario observes role "coder" at status "running"
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero

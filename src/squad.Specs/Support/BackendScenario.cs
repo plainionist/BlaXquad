@@ -64,6 +64,20 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Waits until a "state.snapshot" message reports the given role at the given status, proving a lifecycle
+    /// transition (for example a session establishing or disposing) beyond mere process readiness or exit.
+    /// </summary>
+    public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null)
+    {
+        if (myUi is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        return myUi.WaitForRoleStatusAsync(role, status, timeout);
+    }
+
+    /// <summary>
     /// Requests shutdown through the real "squad-hq shutdown" host-control command and awaits the launched
     /// process's own clean exit, returning the exit code it observed - never the process itself.
     /// </summary>
