@@ -131,6 +131,8 @@ provider lifecycle.
 
 ### Slice 7: Establish the private fake-provider control transport
 
+**Status: changes requested (e02616d1e1)**
+
 Add the test-runner and provider-process ends of a uniquely named local named pipe. Pass its endpoint and random
 per-scenario token only through a test-owned environment variable. Use typed, versioned, newline-delimited JSON
 messages with correlation identifiers and one dispatching reader per endpoint. Initially support authenticated
@@ -143,6 +145,23 @@ errors.
 - Invalid tokens, message versions, correlation identifiers, and unknown commands fail with explicit diagnostics.
 - Concurrent observations and acknowledgements cannot compete for reads.
 - Headquarters does not parse, forward, or otherwise know about the control channel.
+
+**Review findings**
+
+1. **Severity:** High
+   **Location:** `src/squad.Specs/StepDefinitions/FakeProviderControlProtocolSteps.cs`
+   (`ConnectAuthenticatedClientAsync`, `CleanUpAsync`)
+   **Violated behavior:** Backend specifications must stay parallelizable. Each scenario gets a unique fake-provider
+   endpoint; fixtures must not share process-wide control-pipe identity. `squad.Specs` is `[assembly:
+   Parallelizable(ParallelScope.Fixtures)]`, so other features run at the same time as this one.
+   **Root cause:** The in-process protocol scenarios write `BLAXQUAD_FAKE_CONTROL_PIPE` and
+   `BLAXQUAD_FAKE_CONTROL_TOKEN` onto the test process with `Environment.SetEnvironmentVariable`. A parallel fixture
+   that launches `FakeAgentProviderFactory` without `EnableFakeProviderControl` inherits those variables into
+   `squad-hq` (`StartProcess` copies the parent environment when no override dictionary is passed). That child then
+   calls `ConnectIfConfiguredAsync` against this feature's pipe (max one connection).
+   **Required outcome:** In-process protocol clients must take pipe name and token as arguments. Only the launched
+   headquarters process may receive those values, and only through the per-child environment already set by
+   `BackendScenario.StartAsync`. The test process environment must not carry the control endpoint.
 
 ### Slice 8: Expose prompts and assistant replies through a role controller
 
