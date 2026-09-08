@@ -24,6 +24,10 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioStartsSquadHqWithTheEchoProviderFixture() =>
         Await(myScenario.StartAsync<EchoAgentProviderFactory>());
 
+    [When("the backend scenario starts squad-hq with the fake provider fixture")]
+    public void WhenTheBackendScenarioStartsSquadHqWithTheFakeProviderFixture() =>
+        Await(myScenario.StartAsync<FakeAgentProviderFactory>());
+
     [Then("the backend scenario reports the process as ready")]
     public void ThenTheBackendScenarioReportsTheProcessAsReady() =>
         Assert.That(myScenario.IsReady, Is.True);
