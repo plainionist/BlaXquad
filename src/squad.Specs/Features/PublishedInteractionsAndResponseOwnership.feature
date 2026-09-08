@@ -85,3 +85,4 @@ Feature: Published interactions and response ownership
     Then the backend scenario observes a pending input "input-1" for role "reviewer" with prompt "Which branch should I use?" and choices "" and freeform "true"
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
+    And the "reviewer" agent observes its pending interactions were cancelled

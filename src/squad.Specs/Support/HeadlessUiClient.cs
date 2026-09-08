@@ -116,10 +116,12 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
-    /// <summary>Waits for a "protocol.error" message and returns its human-readable message.</summary>
-    public async Task<string> WaitForProtocolErrorAsync(TimeSpan? timeout = null)
+    /// <summary>Waits for a "protocol.error" message and returns its human-readable message. <paramref name="skip"/>
+    /// skips that many earlier matching messages already observed, so a caller can require the next distinct
+    /// occurrence produced by a later command instead of re-matching an earlier one.</summary>
+    public async Task<string> WaitForProtocolErrorAsync(int skip = 0, TimeSpan? timeout = null)
     {
-        var element = await WaitForMessageAsync(IsProtocolError, "a protocol.error message", timeout, additionalDiagnostics: null);
+        var element = await WaitForMessageAsync(IsProtocolError, "a protocol.error message", timeout, additionalDiagnostics: null, skip);
         return GetPayload(element).TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
             ? message.GetString()!
             : throw new InvalidOperationException("The protocol.error message did not include a message.");
@@ -170,17 +172,23 @@ public sealed class HeadlessUiClient
         });
 
     private async Task<JsonElement> WaitForMessageAsync(
-        Func<JsonElement, bool> predicate, string description, TimeSpan? timeout, Func<string>? additionalDiagnostics)
+        Func<JsonElement, bool> predicate, string description, TimeSpan? timeout, Func<string>? additionalDiagnostics, int skip = 0)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
             var stdOut = CopyLines(myStdOutLines);
+            var remainingToSkip = skip;
             foreach (var line in stdOut)
             {
                 using var document = JsonDocument.Parse(line);
                 if (predicate(document.RootElement))
                 {
+                    if (remainingToSkip > 0)
+                    {
+                        remainingToSkip--;
+                        continue;
+                    }
                     return document.RootElement.Clone();
                 }
             }

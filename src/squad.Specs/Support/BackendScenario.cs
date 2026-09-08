@@ -168,8 +168,10 @@ public sealed class BackendScenario : IDisposable
         RequireUi().WaitForPendingElicitationAsync(role, requestId, prompt, mode, url, timeout, DescribeControlDiagnostics());
 
     /// <summary>Waits for a "protocol.error" message and returns its human-readable message - the observable
-    /// outcome of a wrong-role, duplicate, or late interaction response.</summary>
-    public Task<string> WaitForProtocolErrorAsync(TimeSpan? timeout = null) => RequireUi().WaitForProtocolErrorAsync(timeout);
+    /// outcome of a wrong-role, duplicate, or late interaction response. <paramref name="skip"/> skips that many
+    /// earlier protocol errors already observed, so a caller can prove a later command produced its own new error
+    /// instead of re-matching one already caused by an earlier command.</summary>
+    public Task<string> WaitForProtocolErrorAsync(int skip = 0, TimeSpan? timeout = null) => RequireUi().WaitForProtocolErrorAsync(skip, timeout);
 
     /// <summary>Waits until the given role's real transcript, projected from production provider events, contains
     /// the given content - proving a reply crossed all the way from the provider into the observable UI state.

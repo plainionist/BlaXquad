@@ -199,6 +199,11 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     public async Task WaitForAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         await WaitForObservationDataAsync(role, "abort", timeout, additionalDiagnostics);
 
+    /// <summary>Waits until the connected client has reported the host cancelling this role's pending
+    /// interactions (for example while stopping with a request still outstanding).</summary>
+    public async Task WaitForPendingInteractionsCancelledAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        await WaitForObservationDataAsync(role, "pending-interactions-cancelled", timeout, additionalDiagnostics);
+
     /// <summary>Waits until the connected client has reported a response to a permission request this role's
     /// session emitted, and returns the request id and whether it was approved.</summary>
     public async Task<(string RequestId, bool Approved)> WaitForPermissionResponseAsync(

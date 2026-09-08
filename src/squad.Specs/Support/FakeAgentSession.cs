@@ -147,7 +147,15 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
         }
     }
 
-    public Task CancelPendingInteractionsAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    /// <summary>Reports, when a control transport is configured, that the host cancelled this session's pending
+    /// interactions (for example while stopping with a request still outstanding).</summary>
+    public async Task CancelPendingInteractionsAsync(CancellationToken cancellationToken = default)
+    {
+        if (myControl is not null)
+        {
+            await myControl.NotifyObservationAsync(Role, SessionId, "pending-interactions-cancelled", new { }, cancellationToken);
+        }
+    }
 
     /// <summary>
     /// Publishes the real production <see cref="AgentEvent"/> (or completes/fails this session) named by an

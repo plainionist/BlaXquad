@@ -53,6 +53,11 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     /// <summary>Waits until this role's session has reported the host aborting its current operation.</summary>
     public Task WaitForAbortAsync(TimeSpan? timeout = null) => control.WaitForAbortAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Waits until this role's session has reported the host cancelling its pending interactions (for
+    /// example while stopping with a request still outstanding).</summary>
+    public Task WaitForPendingInteractionsCancelledAsync(TimeSpan? timeout = null) =>
+        control.WaitForPendingInteractionsCancelledAsync(role, timeout, uiDiagnostics);
+
     /// <summary>Waits until this role's session has reported a response to a permission request it emitted, and
     /// returns the request id and whether it was approved.</summary>
     public Task<(string RequestId, bool Approved)> WaitForPermissionResponseAsync(TimeSpan? timeout = null) =>

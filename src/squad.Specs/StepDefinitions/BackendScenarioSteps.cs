@@ -13,6 +13,7 @@ public sealed class BackendScenarioSteps
     private int myExitCode;
     private Exception? myLastWaitException;
     private string? myObservedHarnessMessage;
+    private int myProtocolErrorsObserved;
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
     {
@@ -96,6 +97,10 @@ public sealed class BackendScenarioSteps
 
     [Then("the {string} agent observes an abort")]
     public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());
+
+    [Then("the {string} agent observes its pending interactions were cancelled")]
+    public void ThenTheAgentObservesItsPendingInteractionsWereCancelled(string role) =>
+        Await(myScenario.Agent(role).WaitForPendingInteractionsCancelledAsync());
 
     [When("the {string} agent requests permission {string} with description {string}")]
     public void WhenTheAgentRequestsPermissionWithDescription(string role, string requestId, string description) =>
@@ -215,7 +220,8 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes a protocol error mentioning {string}")]
     public void ThenTheBackendScenarioObservesAProtocolErrorMentioning(string text)
     {
-        var message = Await(myScenario.WaitForProtocolErrorAsync());
+        var message = Await(myScenario.WaitForProtocolErrorAsync(skip: myProtocolErrorsObserved));
+        myProtocolErrorsObserved++;
         Assert.That(message, Does.Contain(text));
     }
 
