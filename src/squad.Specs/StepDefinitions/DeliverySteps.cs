@@ -48,6 +48,19 @@ public sealed class DeliverySteps
     public void WhenRoleDurablyQueuesAnInvalidNoteTo(string role, string recipients) =>
         myMailbox.SeedInvalidOutboundNote(role, recipients, "Ready for review.");
 
+    [Given("{string} is busy with a prompt")]
+    public async Task GivenRoleIsBusyWithAPrompt(string role)
+    {
+        myScenario.SendPrompt(role, "busy");
+        // Wait for the fake session to report the prompt: proof the per-role prompt lock production shares
+        // between manual prompts and harness sends is already held, so a delivery wake-up queued after this
+        // point cannot possibly race ahead of it.
+        await myScenario.Agent(role).WaitForPromptAsync();
+    }
+
+    [When("{string} finishes its prompt")]
+    public Task WhenRoleFinishesItsPrompt(string role) => myScenario.Agent(role).ReplyAsync("Done.");
+
     [Given("the {string} agent will reject its next harness send")]
     public async Task GivenTheAgentWillRejectItsNextHarnessSend(string role)
     {

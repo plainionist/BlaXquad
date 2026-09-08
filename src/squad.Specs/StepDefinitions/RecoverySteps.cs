@@ -58,6 +58,7 @@ public sealed class RecoverySteps
     }
 
     [Given("{string} has an outbound note to {string}")]
+    [When("{string} has an outbound note to {string}")]
     public void GivenRoleHasAnOutboundNoteTo(string role, string recipient)
     {
         var draftPath = myDrafts.WriteNoteDraft(role, recipient, "50", "Ready for review.");
@@ -79,6 +80,14 @@ public sealed class RecoverySteps
     [Given("the existing inbox work for {string} is recorded")]
     public void GivenTheExistingInboxWorkIsRecorded(string role) =>
         myWorkspace.Set(SnapshotKey, myMailbox.InboxContentSnapshot(role));
+
+    [When("{string}'s session {word}")]
+    public Task WhenRoleSSessionLifecycleEnds(string role, string lifecycle) => lifecycle switch
+    {
+        "stops" => myCurrentScenario!.Agent(role).CompleteSessionAsync(),
+        "fails" => myCurrentScenario!.Agent(role).FailSessionAsync("simulated session failure"),
+        _ => throw new ArgumentOutOfRangeException(nameof(lifecycle), lifecycle, "Expected 'stops' or 'fails'."),
+    };
 
     [When("the squad host processes the handoff outbox")]
     public Task WhenTheSquadHostProcessesTheHandoffOutbox() => StartCurrentScenarioAsync(myScenario!);

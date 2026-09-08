@@ -26,3 +26,13 @@ Feature: Delivering handoffs
     And "reviewer" has one new handoff
     And the "reviewer" agent's rejected harness send proves no wake-up was delivered
     And the squad host remains available
+
+  Scenario: A busy recipient's current prompt is not interrupted by a delivery wake-up
+    Given "reviewer" is busy with a prompt
+    And "coder" prepares a note to "reviewer" with priority "50" and message "Ready for review."
+    When "coder" queues the handoff
+    Then the sender handoff is archived as sent
+    And "reviewer" has one new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
+    When "reviewer" finishes its prompt
+    Then the "reviewer" agent observes the handoff wake-up message

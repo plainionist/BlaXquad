@@ -38,3 +38,18 @@ Feature: Recovering durable work
     When the squad host restarts with a replacement session
     Then the "reviewer" agent observes a recovery wake-up message
     And the existing inbox work for "reviewer" remains unchanged
+
+  Scenario Outline: Unavailable recipient work survives until a later session is available
+    Given delivery roles "coder,reviewer"
+    When the squad host starts
+    And "reviewer"'s session <lifecycle>
+    And "coder" has an outbound note to "reviewer"
+    Then the sender handoff is archived as sent
+    And "reviewer" has one new handoff
+    When the squad host restarts with a replacement session
+    Then the "reviewer" agent observes a recovery wake-up message
+
+    Examples:
+      | lifecycle |
+      | stops     |
+      | fails     |

@@ -5,7 +5,6 @@ using squad.Process;
 using squad.Configuration;
 using squad.CopilotSdk;
 using squad.Application;
-using squad.Handoffs.Delivery;
 using squad.Transcripts;
 using squad.Ui.Protocol;
 using squad.Ui.Abstractions;
@@ -13,7 +12,6 @@ using squadHQ.Commands;
 using squad.Workspaces;
 using squad.Host.Control;
 using squad.Host.Runtime;
-using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace squad.Specs.StepDefinitions;
@@ -46,10 +44,6 @@ public sealed class ViewModelSteps
     private TaskCompletionSource? myPreparationCanceled;
     private RunResult? myApplicationRunResult;
     private Exception? myApplicationLifecycleFailure;
-    private InProcessHandoffPoller? myInProcessHandoffPump;
-    private readonly ConcurrentQueue<string> myInProcessHandoffLog = [];
-    private bool myRecipientWasUnnotifiedBeforePolling;
-    private readonly List<(string Path, string Content)> myRecoveredInboxFiles = [];
     private readonly List<string> mySdkInstructionsSentAfterRegistration = [];
     private Exception? myInteractionCompletionFailure;
     private Task? myAbortTask;
@@ -512,45 +506,6 @@ public sealed class ViewModelSteps
     [Given("the SDK-shaped backend fails after its first session")]
     public void GivenTheSdkShapedBackendFailsAfterItsFirstSession() => myBackend.FailAfterCreatingSessionCount = 1;
 
-    [Given("a SquadApplication with an in-process handoff poller and a pending handoff")]
-    public void GivenASquadApplicationWithAnInProcessHandoffPollerAndAPendingHandoff()
-    {
-        ConfigureInProcessHandoffApplication();
-        var recipient = myBackend.Sessions.Single(session => session.Role == "reviewer");
-        recipient.SendDelay = TimeSpan.FromMilliseconds(100);
-        myRecordingWindow!.OnSessionsStarted = () =>
-        {
-            myRecipientWasUnnotifiedBeforePolling = recipient.Sends.IsEmpty;
-            myInFlightApplicationCommand = myApplication!.ViewModel.SendAsync("reviewer", "busy");
-        };
-        WritePendingHandoff();
-    }
-
-    [Given("a SquadApplication with an in-process handoff poller and a {word} recipient")]
-    public void GivenASquadApplicationWithAnInProcessHandoffPollerAndARecipient(string state)
-    {
-        ConfigureInProcessHandoffApplication(state);
-    }
-
-    [Given("the in-process poller has a pending handoff")]
-    public void GivenTheInProcessPollerHasAPendingHandoff() => WritePendingHandoff();
-
-    [Given("a SquadApplication with an in-process handoff poller and recovered inbox work")]
-    public void GivenASquadApplicationWithAnInProcessHandoffPollerAndRecoveredInboxWork()
-    {
-        ConfigureInProcessHandoffApplication();
-        myRecoveredInboxFiles.Clear();
-        WriteRecoveredInboxWork("new", "recovery-new.handoff");
-        WriteRecoveredInboxWork("in_process", "recovery-in-process.handoff");
-    }
-
-    [Given("a cancellable SquadApplication with an in-process handoff poller")]
-    public void GivenACancellableSquadApplicationWithAnInProcessHandoffPoller()
-    {
-        ConfigureInProcessHandoffApplication();
-        myApplicationCancellation = new CancellationTokenSource();
-    }
-
     [Given("a leased application blocked before registering its {string} session")]
     public async Task GivenALeasedApplicationBlockedBeforeRegisteringItsSession(string role)
     {
@@ -996,9 +951,6 @@ public sealed class ViewModelSteps
 
     [When("the application window closes")]
     public void WhenTheApplicationWindowCloses() => myRecordingWindow!.Close();
-
-    [When("in-process polling is canceled")]
-    public void WhenInProcessPollingIsCanceled() => myApplicationCancellation!.Cancel();
 
     [When("the controllable handoff pump fails")]
     public void WhenTheControllableHandoffPumpFails() => myRecordingPump!.Fail();
@@ -2145,43 +2097,6 @@ public sealed class ViewModelSteps
         myLifecycleTrace.AssertOrdered("backend.disposed", "window.stopped");
     }
 
-    [Then("the pending handoff wakes the registered recipient after terminal sessions start")]
-    public void ThenThePendingHandoffWakesTheRegisteredRecipientAfterTerminalSessionsStart()
-    {
-        var recipient = myBackend.Sessions.Single(session => session.Role == "reviewer");
-        myWorkspace.WaitUntil(() => recipient.Sends.Contains("You have new handoff mail. If idle, run squad ready-for-next."), "in-process recipient wake-up");
-        myWorkspace.WaitUntil(() => myApplication!.ViewModel.Roles["reviewer"].TranscriptEntries.Any(entry => entry.Source == "harness" && entry.Content == "You have new handoff mail. If idle, run squad ready-for-next."), "in-process recipient harness transcript");
-        Assert.Multiple(() =>
-        {
-            Assert.That(myRecipientWasUnnotifiedBeforePolling, Is.True);
-            Assert.That(recipient.SendOrder, Is.EqualTo(new[] { "busy", "You have new handoff mail. If idle, run squad ready-for-next." }));
-        });
-    }
-
-    [Then("the in-process recipient session had no overlapping sends")]
-    public void ThenTheInProcessRecipientSessionHadNoOverlappingSends() =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == "reviewer").OverlappedSend, Is.False);
-
-    [Then("the in-process handoff is archived and the notification failure is logged")]
-    public void ThenTheInProcessHandoffIsArchivedAndTheNotificationFailureIsLogged()
-    {
-        var sent = Path.Combine(myApplicationRoot, ".blaxquad", "handoffs", "sent");
-        myWorkspace.WaitUntil(() => Directory.Exists(sent) && Directory.EnumerateFiles(sent, "*.handoff").Any(), "in-process handoff archival");
-        myWorkspace.WaitUntil(() => myInProcessHandoffLog.Any(entry => entry.StartsWith("notify-failed reviewer ", StringComparison.Ordinal)), "in-process notification failure");
-    }
-
-    [Then("the recovered inbox work is unchanged and wakes its recipient once")]
-    public void ThenTheRecoveredInboxWorkIsUnchangedAndWakesItsRecipientOnce()
-    {
-        var recipient = myBackend.Sessions.Single(session => session.Role == "reviewer");
-        myWorkspace.WaitUntil(() => recipient.Sends.Count == 1, "recovery wake-up");
-        Assert.Multiple(() =>
-        {
-            Assert.That(myRecoveredInboxFiles.All(file => File.ReadAllText(file.Path) == file.Content), Is.True);
-            Assert.That(recipient.Sends, Is.EqualTo(new[] { "You have new handoff mail. If idle, run squad ready-for-next." }));
-        });
-    }
-
     [Then("ViewModel role {string} has no error")]
     public void ThenViewModelRoleHasNoError(string role) => Assert.That(myViewModel.Roles[role].Error, Is.Null);
 
@@ -2411,57 +2326,6 @@ public sealed class ViewModelSteps
             myRecordingSleep,
             viewModel: myApplication!.ViewModel,
             hostLease: (IHostLease?)myRecordingHostLease ?? (IHostLease?)myFaultingHostLease ?? myApplicationLease);
-    }
-
-    private void ConfigureInProcessHandoffApplication(string? unavailableRecipient = null)
-    {
-        GivenASquadApplicationWithRecordingRoles("coder,reviewer");
-        if (unavailableRecipient == "missing")
-        {
-            myBackend.RemoveRole("reviewer");
-        }
-        else if (unavailableRecipient != null && unavailableRecipient is not ("stopped" or "failed"))
-        {
-            throw new ArgumentOutOfRangeException(nameof(unavailableRecipient));
-        }
-
-        myInProcessHandoffLog.Clear();
-        var roles = myApplicationContext!.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray();
-        if (unavailableRecipient == "stopped")
-        {
-            myRecordingWindow!.OnSessionsStarted = () => myBackend.Sessions.Single(session => session.Role == "reviewer").DisposeAsync().GetAwaiter().GetResult();
-        }
-        if (unavailableRecipient == "failed")
-        {
-            myRecordingWindow!.OnSessionsStarted = () => myBackend.Sessions.Single(session => session.Role == "reviewer").Fail("recording session failed");
-        }
-
-        myApplication = SquadApplication.Create(
-            SquadStartupPlanFactory.ForWorkspace(myApplicationContext, new WorkspacePreparer(_ => { })),
-            new RecordingAgentProviderFactory(myBackend),
-            handoffPumpFactory: notifier => myInProcessHandoffPump = new InProcessHandoffPoller(
-                roles,
-                notifier,
-                parts => myInProcessHandoffLog.Enqueue(string.Join(" ", parts))),
-            myRecordingWindow!,
-            myRecordingSleep!,
-            viewModel: myApplication!.ViewModel);
-    }
-
-    private void WritePendingHandoff()
-    {
-        var path = Path.Combine(myApplicationRoot, ".blaxquad", "handoffs", "outbox", "pending.handoff");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, "id: pending\nfrom: coder\nto: reviewer\npriority: 50\ntype: note\nmessage: Pending.\n\nPending.\n");
-    }
-
-    private void WriteRecoveredInboxWork(string state, string fileName)
-    {
-        var path = Path.Combine(myApplicationRoot, ".blaxquad", "handoffs", "inbox", state, fileName);
-        var content = $"id: {fileName}\nfrom: coder\nto: reviewer\n\nRecovery work.\n";
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, content);
-        myRecoveredInboxFiles.Add((path, content));
     }
 
     private void AssertUiSnapshotInteraction(string collection, string requestId, string role)

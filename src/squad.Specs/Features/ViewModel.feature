@@ -270,45 +270,6 @@ Feature: Squad ViewModel
     And the application waits for window closure
     Then the recording application sessions are drained
 
-  Scenario: In-process polling waits for registration and serializes a busy recipient
-    Given a SquadApplication with an in-process handoff poller and a pending handoff
-    When the application lifecycle reaches readiness
-    Then the pending handoff wakes the registered recipient after terminal sessions start
-    And the in-process recipient session had no overlapping sends
-    When the application window closes
-    And the application waits for window closure
-    Then the recording application sessions are drained
-
-  Scenario Outline: In-process polling preserves delivery when a recipient is unavailable
-    Given a SquadApplication with an in-process handoff poller and a <state> recipient
-    And the in-process poller has a pending handoff
-    When the application lifecycle reaches readiness
-    Then the in-process handoff is archived and the notification failure is logged
-    When the application window closes
-    And the application waits for window closure
-    Then the recording application sessions are drained
-
-    Examples:
-      | state   |
-      | missing |
-      | stopped |
-      | failed  |
-
-  Scenario: In-process polling recovers inbox work without mutating it
-    Given a SquadApplication with an in-process handoff poller and recovered inbox work
-    When the application lifecycle reaches readiness
-    Then the recovered inbox work is unchanged and wakes its recipient once
-    When the application window closes
-    And the application waits for window closure
-    Then the recording application sessions are drained
-
-  Scenario: Caller cancellation stops in-process polling
-    Given a cancellable SquadApplication with an in-process handoff poller
-    When the application lifecycle reaches readiness
-    And in-process polling is canceled
-    Then the application lifecycle was canceled
-    And the recording application sessions are drained
-
   Scenario: Startup failure before the window is cleaned up
     Given a SquadApplication that fails before window startup
     When the application start fails

@@ -73,8 +73,6 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
         myInitialInstructions.Add(role.Role, initialInstruction);
     }
 
-    public void RemoveRole(string role) => mySessions.RemoveAll(session => session.Role == role);
-
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     public void ReleaseDispose() => myDisposeGate.TrySetResult();
