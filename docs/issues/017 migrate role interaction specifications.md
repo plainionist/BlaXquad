@@ -90,7 +90,7 @@ publication. Add focused stdio transport coverage for concurrent command dispatc
 the process-level two-role prompt scenario and remove `Slow sends do not block another role` from
 `ViewModel.feature`.
 
-### Slice 2 (pending): Published interactions and response ownership
+### Slice 2 (in progress): Published interactions and response ownership
 
 - Add semantic headless-UI observations for pending permission, input, and elicitation state, including input choices,
   freeform support, elicitation mode, URL, and accepted content where those are part of the protocol.
