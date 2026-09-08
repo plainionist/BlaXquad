@@ -90,7 +90,7 @@ publication. Add focused stdio transport coverage for concurrent command dispatc
 the process-level two-role prompt scenario and remove `Slow sends do not block another role` from
 `ViewModel.feature`.
 
-### Slice 2 (in progress): Published interactions and response ownership
+### Slice 2 (done): Published interactions and response ownership
 
 - Add semantic headless-UI observations for pending permission, input, and elicitation state, including input choices,
   freeform support, elicitation mode, URL, and accepted content where those are part of the protocol.
@@ -111,39 +111,33 @@ Acceptance criteria:
   errors or cancellation outcomes.
 - Equal request IDs in two roles never collide.
 
-**Status: changes requested (c0a3816be2)**
-
-#### Review findings on c0a3816be2
-
-**Finding 1 — high**
-
-- **Location:** `src/squad.Specs/Support/HeadlessUiClient.cs` (`WaitForProtocolErrorAsync`),
-  `src/squad.Specs/Features/PublishedInteractionsAndResponseOwnership.feature`
-  (Wrong-role, duplicate, and late responses are rejected without disturbing the owner's pending request).
-- **Violated behavior:** Duplicate and late responses must retain their documented `protocol.error` outcomes. After
-  the owner successfully completes `permission-1`, a second `permission.respond` for that role and request ID must
-  be proven as a protocol error caused by that command.
-- **Root cause:** `WaitForProtocolErrorAsync` returns the first `protocol.error` already in stdout. The scenario
-  already observed a wrong-role error mentioning `permission-1`. The later Then matches that earlier envelope
-  immediately, so a silent or hung duplicate completion still passes.
-- **Required outcome:** The duplicate/late Then must observe a `protocol.error` produced by that second respond
-  command (a new envelope after it is sent), not any earlier error that happens to mention the same request ID.
-
-**Finding 2 — high**
-
-- **Location:** `src/squad.Specs/Features/PublishedInteractionsAndResponseOwnership.feature`
-  (A host-control shutdown completes while an interaction remains pending),
-  `src/squad.Specs/Support/FakeAgentSession.cs` (`CancelPendingInteractionsAsync`).
-- **Violated behavior:** Slice 2 requires covering interaction cancellation caused by headquarters shutdown through
-  published UI state and fake-session observations. The removed ViewModel scenario proved the reviewer session's
-  pending interactions were cancelled on stop.
-- **Root cause:** The migrated scenario only asserts the process exits 0 while an input is still pending.
-  `FakeAgentSession.CancelPendingInteractionsAsync` reports nothing on the control pipe, so shutdown never observes
-  cancellation. A late response cannot be issued after exit, and the scenario does not wait for a provider-visible
-  cancel before the process dies.
-- **Required outcome:** Prove shutdown cancelled the pending interaction through a fake-session observation (the
-  session must report the host cancelling pending interactions) rather than only an exit code. Keep abort and
-  session-failure late-response rejection; do not treat process exit alone as that proof.
+**Status: complete (fc64fbbd31).** `src/squad.Specs/Features/PublishedInteractionsAndResponseOwnership.feature`
+covers all four acceptance criteria through the process boundary: a two-role backend scenario publishes and observes
+every supported permission/input/elicitation field (including input choices, freeform, elicitation mode, URL, and
+accepted form content), asserts a successful response reaches only the owning fake role session, exercises
+wrong-role/duplicate/late rejection (surfaced as the existing `protocol.error` UI message from
+`PendingInteractionRegistry.Remove`) without disturbing the owner's still-pending request, proves identical request
+IDs stay independent across two roles, and proves abort, session failure, and headquarters shutdown each cancel a
+role's pending interaction so a late response is rejected. `HeadlessUiClient`/`BackendScenario` gained
+`WaitForPendingPermission/Input/ElicitationAsync` (polling `state.snapshot`) and a `WaitForProtocolErrorAsync` that
+accepts a skip count so a caller can require the next *new* protocol error produced by a later command instead of
+re-matching an earlier one already in the buffer; `BackendScenarioSteps` tracks how many protocol errors a scenario
+has already observed and passes that count on every subsequent assertion, closing the review finding that the
+duplicate/late Then step could pass without the second `permission.respond` actually being rejected.
+`FakeAgentSession.CancelPendingInteractionsAsync` now reports a "pending-interactions-cancelled" observation across
+the control pipe (mirroring the existing `AbortAsync`/"abort" observation), and the shutdown scenario asserts that
+observation in addition to the exit code, closing the review finding that shutdown cancellation was previously
+proved only by a clean process exit rather than by any fake-session-visible signal. `FakeAgentSession`/
+`FakeProviderControlServer`/`BackendScenarioAgent` also gained response-content plumbing and no-wait
+`HasReceivedXResponse()`/`HasObservation()` checks used to prove a role never received another role's response.
+The five migrated scenarios ("Interaction requests are visible and can be completed", "Interaction responses are
+routed to their owning role", "Interaction responses reject wrong-role and late completions", "Abort and shutdown
+cancel pending interactions", "The same request ID can be pending for two roles independently") were removed from
+`ViewModel.feature`, along with their now-orphaned step methods in `ViewModelSteps.cs` and the now-unused
+response-tracking queues on `RecordingAgentSession`. "Failed role state is terminal and clears its pending
+interactions" and "Pending interaction context remains retained" were intentionally kept: the former belongs to
+Slice 3's broader session-failure scope, and the latter asserts genuine transcript-retention behavior rather than
+pending-interaction collection retention.
 
 ### Slice 3 (pending): Abort sequencing and terminal role failure
 
