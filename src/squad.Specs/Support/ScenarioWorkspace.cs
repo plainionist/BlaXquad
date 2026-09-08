@@ -45,6 +45,13 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
+    /// The exact executable path used by <see cref="RunBackendSpecSquadHq"/>, exposed so
+    /// specifications can prove a command ran that precise publication rather than PATH, a
+    /// checkout binary, or the production-like squad-tools publication.
+    /// </summary>
+    public string BackendSpecSquadHqExecutablePath => ResolveTool("squad-hq", "squad-tools-backend-spec");
+
+    /// <summary>
     /// Runs the exact published, provider-free squad-hq used by backend specifications (published
     /// with IncludeCopilotSdkProvider=false into its own test-output directory), never the
     /// production-like squad-tools publication, PATH, or a checkout binary.
@@ -54,7 +61,7 @@ public sealed class ScenarioWorkspace : IDisposable
         IReadOnlyDictionary<string, string?>? environment = null,
         string? workingDirectory = null)
     {
-        var executable = ResolveTool("squad-hq", "squad-tools-backend-spec");
+        var executable = BackendSpecSquadHqExecutablePath;
         return Run(executable, arguments ?? [], environment, workingDirectory);
     }
 

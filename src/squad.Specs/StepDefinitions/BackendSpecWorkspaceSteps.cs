@@ -28,8 +28,16 @@ public sealed class BackendSpecWorkspaceSteps
         myWorkspace.RunBackendSpecSquadHq(["not-a-real-command"], workingDirectory: myRoleWorktrees[role]);
 
     [Then("the backend-spec command succeeds")]
-    public void ThenTheBackendSpecCommandSucceeds() =>
-        Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero, () => myWorkspace.LastResult?.StdErr ?? string.Empty);
+    public void ThenTheBackendSpecCommandSucceeds()
+    {
+        var result = myWorkspace.LastResult!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
+            Assert.That(result.Executable, Is.EqualTo(myWorkspace.BackendSpecSquadHqExecutablePath),
+                "The command must have run the exact squad-tools-backend-spec squad-hq publication.");
+        });
+    }
 
     [Then("the backend-spec command fails")]
     public void ThenTheBackendSpecCommandFails() =>
@@ -39,10 +47,10 @@ public sealed class BackendSpecWorkspaceSteps
     public void ThenTheFailedCommandReportsFullDiagnostics()
     {
         var result = myWorkspace.LastResult!;
-        var expectedExecutableName = OperatingSystem.IsWindows() ? "squad-hq.exe" : "squad-hq";
         Assert.Multiple(() =>
         {
-            Assert.That(Path.GetFileName(result.Executable), Is.EqualTo(expectedExecutableName));
+            Assert.That(result.Executable, Is.EqualTo(myWorkspace.BackendSpecSquadHqExecutablePath),
+                "The command must have run the exact squad-tools-backend-spec squad-hq publication.");
             Assert.That(result.Arguments, Is.EqualTo(new[] { "not-a-real-command" }));
             Assert.That(result.WorkingDirectory, Is.EqualTo(myRoleWorktrees["architect"]));
         });
