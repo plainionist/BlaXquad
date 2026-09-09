@@ -20,6 +20,8 @@ public sealed class BackendScenario : IDisposable
     private FakeProviderControlServer? myControl;
     private string? myIsolatedTempDirectory;
     private int? myStartupGateAfterSessions;
+    private bool myFailProviderBeforeRuntime;
+    private int? myFailProviderAfterSessions;
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -132,6 +134,15 @@ public sealed class BackendScenario : IDisposable
             environmentOverrides[FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable] =
                 gateAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+        if (myFailProviderBeforeRuntime)
+        {
+            environmentOverrides[FakeProviderControlServer.FailBeforeRuntimeEnvironmentVariable] = "true";
+        }
+        if (myFailProviderAfterSessions is { } failAfterSessions)
+        {
+            environmentOverrides[FakeProviderControlServer.FailAfterSessionsEnvironmentVariable] =
+                failAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         IReadOnlyList<string> launchArguments = continueLaunch
             ? ["launch", "--continue", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root]
@@ -198,10 +209,14 @@ public sealed class BackendScenario : IDisposable
     /// Launches the published, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
     /// returns immediately once the process starts without ever completing the "ui.ready" handshake - for the
     /// specification proving standard input closed (or a host-control shutdown requested) before readiness still
-    /// terminates the process cleanly, rather than the ordinary ready-then-close sequence. Wires the same
-    /// fake-provider control-pipe and startup-gate environment as <see cref="StartAsync{TProviderFactory}"/> when
-    /// <see cref="EnableFakeProviderControl"/> or <see cref="GateProviderStartupAfterSessions"/> were called, so a
-    /// fake-provider launch through this seam can still be observed across the control pipe.
+    /// terminates the process cleanly, rather than the ordinary ready-then-close sequence, and for a provider
+    /// startup failure configured through <see cref="FailProviderBeforeRuntime"/> or
+    /// <see cref="FailProviderAfterSessions"/> - either of which prevents readiness from ever being reached.
+    /// Wires the same fake-provider control-pipe, startup-gate, and failure-mode environment as
+    /// <see cref="StartAsync{TProviderFactory}"/> when <see cref="EnableFakeProviderControl"/>,
+    /// <see cref="GateProviderStartupAfterSessions"/>, <see cref="FailProviderBeforeRuntime"/>, or
+    /// <see cref="FailProviderAfterSessions"/> were called, so a fake-provider launch through this seam can still
+    /// be observed across the control pipe.
     /// </summary>
     public void LaunchWithoutReadyHandshake<TProviderFactory>()
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
@@ -217,6 +232,15 @@ public sealed class BackendScenario : IDisposable
         {
             environmentOverrides[FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable] =
                 gateAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        if (myFailProviderBeforeRuntime)
+        {
+            environmentOverrides[FakeProviderControlServer.FailBeforeRuntimeEnvironmentVariable] = "true";
+        }
+        if (myFailProviderAfterSessions is { } failAfterSessions)
+        {
+            environmentOverrides[FakeProviderControlServer.FailAfterSessionsEnvironmentVariable] =
+                failAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         myProcess = myWorkspace.StartProcess(
@@ -273,6 +297,36 @@ public sealed class BackendScenario : IDisposable
         // (System.Diagnostics.Process.GetProcessById) never has .NET's own process handle cached merely from
         // observing WaitForExit, and ExitCode throws in that case even though the process has genuinely exited.
         return Task.FromResult(CancellableChildProcess.GetExitCode(myProcess));
+    }
+
+    /// <summary>
+    /// Waits until the launched process's captured standard error contains the given text, for specifications
+    /// proving a startup failure produced a clear CLI diagnostic there - never a raw ".NET Unhandled exception"
+    /// dump. Polls rather than snapshotting once, since the process's own exit and its background stderr reader
+    /// observing end-of-stream are two independent, unordered events.
+    /// </summary>
+    public async Task<string> WaitForStandardErrorContainingAsync(string text, TimeSpan? timeout = null)
+    {
+        if (myUi is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            var captured = myUi.CapturedStandardError();
+            if (captured.Contains(text, StringComparison.Ordinal))
+            {
+                return captured;
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new HeadlessUiWaitTimeoutException(
+                    $"standard error to contain '{text}'", myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
+            }
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+        }
     }
 
     /// <summary>
@@ -433,6 +487,15 @@ public sealed class BackendScenario : IDisposable
     public Task WaitForNoActiveToolAsync(string role, TimeSpan? timeout = null) =>
         RequireUi().WaitForNoActiveToolAsync(role, timeout, DescribeControlDiagnostics());
 
+    /// <summary>
+    /// A snapshot of everything captured on the launched process's standard error so far. Callers proving an
+    /// expected diagnostic reached standard error should use <see cref="WaitForStandardErrorContainingAsync"/>
+    /// instead, which polls out the race between process exit and its background stderr reader observing
+    /// end-of-stream; this snapshot exists for asserting the absence of unwanted text once that race has already
+    /// settled.
+    /// </summary>
+    public string CapturedStandardError() => RequireUi().CapturedStandardError();
+
     private HeadlessUiClient RequireUi() =>
         myUi ?? throw new InvalidOperationException("The backend process has not been started.");
 
@@ -576,6 +639,24 @@ public sealed class BackendScenario : IDisposable
     /// is independently observable across the control pipe rather than merely inferred from timing.
     /// </summary>
     public void GateProviderStartupAfterSessions(int count) => myStartupGateAfterSessions = count;
+
+    /// <summary>
+    /// Configures the next launch's fake provider to fail before its runtime becomes available at all - before any
+    /// session could possibly be created or connected across the control pipe - mirroring a real provider whose
+    /// runtime never becomes available. Must be launched through <see cref="LaunchWithoutReadyHandshake{TProviderFactory}"/>,
+    /// since readiness is never reached.
+    /// </summary>
+    public void FailProviderBeforeRuntime() => myFailProviderBeforeRuntime = true;
+
+    /// <summary>
+    /// Configures the next launch's fake provider to fail immediately after starting (and notifying the control
+    /// pipe about) the given number of sessions, mirroring a real provider whose runtime throws partway through
+    /// establishing role sessions. Must be launched through
+    /// <see cref="LaunchWithoutReadyHandshake{TProviderFactory}"/>, since readiness is never reached. Requires
+    /// <see cref="EnableFakeProviderControl"/> to have also been called, so the already-started session(s) and the
+    /// never-started remainder are both independently observable across the control pipe.
+    /// </summary>
+    public void FailProviderAfterSessions(int count) => myFailProviderAfterSessions = count;
 
     /// <summary>
     /// Requests shutdown through the real "squad-hq shutdown" host-control command as soon as it is reachable at

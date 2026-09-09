@@ -5,7 +5,6 @@ namespace squad.Specs.Support;
 public sealed class RecordingWindowHost : IWindowHost
 {
     private readonly TaskCompletionSource myClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    public int StartCount { get; private set; }
     public int StopCount { get; private set; }
     public int DisposeCount { get; private set; }
     public bool HasCloseSignal => myClosed.Task.IsCompletedSuccessfully;
@@ -16,13 +15,10 @@ public sealed class RecordingWindowHost : IWindowHost
     public Action? OnStart { get; set; }
     public Action? OnSessionsStarted { get; set; }
     public Action? OnStop { get; set; }
-    public LifecycleTrace? Trace { get; set; }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        StartCount++;
         OnStart?.Invoke();
-        Trace?.Record("window.started");
         if (FailOnStart)
         {
             throw new InvalidOperationException("recording window start failed");
@@ -32,7 +28,6 @@ public sealed class RecordingWindowHost : IWindowHost
 
     public Task SessionsStartedAsync(CancellationToken cancellationToken = default)
     {
-        Trace?.Record("window.sessionsStarted");
         if (FailOnSessionsStarted)
         {
             throw new InvalidOperationException("recording window sessions-started failed");
@@ -58,7 +53,6 @@ public sealed class RecordingWindowHost : IWindowHost
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
         StopCount++;
-        Trace?.Record("window.stopped");
         OnStop?.Invoke();
         return Task.CompletedTask;
     }
@@ -66,7 +60,6 @@ public sealed class RecordingWindowHost : IWindowHost
     public ValueTask DisposeAsync()
     {
         DisposeCount++;
-        Trace?.Record("window.disposed");
         return ValueTask.CompletedTask;
     }
 }

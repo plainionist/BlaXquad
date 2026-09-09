@@ -23,6 +23,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
         myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(HandleReplyAsync, HandleEmitAsync, cancellationToken);
 
         var gateAfterSessions = ReadStartupGateAfterSessions();
+        var failAfterSessions = ReadFailAfterSessions();
         var sessionIndex = 0;
         foreach (var role in context.Roles)
         {
@@ -45,6 +46,14 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
             }
             await session.SendHarnessAsync(role.InitialInstruction, cancellationToken);
             sessionIndex++;
+            if (failAfterSessions == sessionIndex)
+            {
+                // Mirrors a real provider runtime throwing partway through establishing sessions: every session
+                // already started above (and reported across the control pipe) stays registered with
+                // SquadApplication so its normal teardown still disposes it, while every role not yet reached is
+                // never started at all.
+                throw new InvalidOperationException($"fake provider failed after starting {sessionIndex} session(s)");
+            }
         }
     }
 
@@ -54,6 +63,15 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
     private static int? ReadStartupGateAfterSessions()
     {
         var raw = Environment.GetEnvironmentVariable(FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable);
+        return int.TryParse(raw, out var value) ? value : null;
+    }
+
+    /// <summary>Reads the test-owned failure position from the environment - the number of sessions that must
+    /// already be started before this runtime throws - or null if no failure was configured, matching ordinary
+    /// behavior exactly for every specification that never sets it.</summary>
+    private static int? ReadFailAfterSessions()
+    {
+        var raw = Environment.GetEnvironmentVariable(FakeProviderControlServer.FailAfterSessionsEnvironmentVariable);
         return int.TryParse(raw, out var value) ? value : null;
     }
 

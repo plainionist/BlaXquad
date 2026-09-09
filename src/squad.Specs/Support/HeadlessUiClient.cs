@@ -353,6 +353,13 @@ public sealed class HeadlessUiClient
     public string DescribeDiagnostics(Func<string>? additionalDiagnostics) =>
         DescribeDiagnostics(CopyLines(myStdOutLines), additionalDiagnostics);
 
+    /// <summary>
+    /// A snapshot of every standard-error line captured from the launched process so far, joined with newlines.
+    /// Exposed for specifications proving a clean CLI diagnostic reached standard error on a startup failure -
+    /// distinct from <see cref="DescribeDiagnostics()"/>, which exists only for test-failure reporting.
+    /// </summary>
+    public string CapturedStandardError() => string.Join('\n', CopyLines(myStdErrLines));
+
     private void SendEnvelope(string type, string? role = null, object? payload = null, string? requestId = null)
     {
         var envelope = new Dictionary<string, object?> { ["version"] = ProtocolVersion, ["type"] = type };

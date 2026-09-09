@@ -11,14 +11,12 @@ public sealed class RecordingHostLease : IHostLease
     public Task ServerFailure => myServerFailure.Task;
     public bool Disposed { get; private set; }
     public Func<string, CancellationToken, Task<bool?>>? AgentReadinessProvider { get; private set; }
-    public LifecycleTrace? Trace { get; set; }
 
     public void RequestShutdown() => myShutdown.TrySetResult();
     public void FailServer(Exception exception) => myServerFailure.TrySetException(exception);
     public void SetAgentReadinessProvider(Func<string, CancellationToken, Task<bool?>> provider)
     {
         AgentReadinessProvider = provider;
-        Trace?.Record("readinessProvider.installed");
     }
 
     public ValueTask DisposeAsync()

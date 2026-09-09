@@ -25,6 +25,23 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// every session already registered and terminates cleanly. Never read by any production assembly.
     /// </summary>
     public const string StartupGateAfterSessionsEnvironmentVariable = "BLAXQUAD_FAKE_STARTUP_GATE_AFTER_SESSIONS";
+    /// <summary>
+    /// Names the environment variable that tells the fake provider backend to fail before its runtime becomes
+    /// available at all - before any session could possibly be created or connected across the control pipe -
+    /// proving squad-hq reports a clean provider diagnostic and terminates without ever reaching readiness even
+    /// when the provider fails at the very earliest point production code calls into it. Never read by any
+    /// production assembly.
+    /// </summary>
+    public const string FailBeforeRuntimeEnvironmentVariable = "BLAXQUAD_FAKE_FAIL_BEFORE_RUNTIME";
+    /// <summary>
+    /// Names the environment variable that tells the fake provider runtime to fail immediately after starting
+    /// (and notifying the control pipe about) the given number of sessions, mirroring a real provider whose
+    /// runtime throws partway through establishing role sessions - so a specification can prove every session
+    /// already started is disposed, every session not yet reached is never started, and squad-hq still reports a
+    /// clean diagnostic and terminates rather than crashing with a raw unhandled exception. Never read by any
+    /// production assembly.
+    /// </summary>
+    public const string FailAfterSessionsEnvironmentVariable = "BLAXQUAD_FAKE_FAIL_AFTER_SESSIONS";
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 

@@ -36,7 +36,6 @@ public sealed class RecordingAgentSession : IAgentSession
     public Action? OnDispose { get; set; }
     public Action? OnDisposeObserved { get; set; }
     public Action<string>? OnSend { get; set; }
-    public LifecycleTrace? Trace { get; set; }
 
     public async Task SendAsync(string prompt, CancellationToken cancellationToken = default)
     {
@@ -121,7 +120,6 @@ public sealed class RecordingAgentSession : IAgentSession
         OnDisposeObserved?.Invoke();
         myDisposed = true;
         myCompletion.TrySetResult();
-        Trace?.Record($"session.{Role}.completionResolved");
         if (LeaveEventsOpenOnDispose)
         {
             EventStreamLeftOpen = true;

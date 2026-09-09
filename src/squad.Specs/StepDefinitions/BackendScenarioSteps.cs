@@ -60,6 +60,14 @@ public sealed class BackendScenarioSteps
     public void GivenTheBackendScenarioGatesProviderStartupAfterSessionHasStarted(int count) =>
         myScenario.GateProviderStartupAfterSessions(count);
 
+    [Given("the backend scenario configures the fake provider to fail before its runtime becomes available")]
+    public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailBeforeItsRuntimeBecomesAvailable() =>
+        myScenario.FailProviderBeforeRuntime();
+
+    [Given("the backend scenario configures the fake provider to fail after {int} session has started")]
+    public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailAfterSessionHasStarted(int count) =>
+        myScenario.FailProviderAfterSessions(count);
+
     [Given("the backend scenario isolates its temporary transcript directory")]
     public void GivenTheBackendScenarioIsolatesItsTemporaryTranscriptDirectory() =>
         myScenario.IsolateTemporaryDirectory();
@@ -932,6 +940,22 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes an exit code of zero")]
     public void ThenTheBackendScenarioObservesAnExitCodeOfZero() =>
         Assert.That(myExitCode, Is.Zero);
+
+    [When("the backend scenario waits for the process to exit on its own")]
+    public void WhenTheBackendScenarioWaitsForTheProcessToExitOnItsOwn() =>
+        myExitCode = Await(myScenario.WaitForProcessExitAsync());
+
+    [Then("the backend scenario observes a non-zero exit code")]
+    public void ThenTheBackendScenarioObservesANonZeroExitCode() =>
+        Assert.That(myExitCode, Is.Not.Zero);
+
+    [Then("the backend scenario observes standard error containing {string}")]
+    public void ThenTheBackendScenarioObservesStandardErrorContaining(string text) =>
+        Await(myScenario.WaitForStandardErrorContainingAsync(text));
+
+    [Then("the backend scenario observes standard error does not contain {string}")]
+    public void ThenTheBackendScenarioObservesStandardErrorDoesNotContain(string text) =>
+        Assert.That(myScenario.CapturedStandardError(), Does.Not.Contain(text));
 
     [Given("the backend scenario seeds {string} into role {string}'s worktree with content {string}")]
     public void GivenTheBackendScenarioSeedsIntoRoleSWorktreeWithContent(string relativePath, string role, string content) =>

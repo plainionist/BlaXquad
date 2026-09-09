@@ -20,7 +20,6 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     public IReadOnlyList<RecordingAgentSession> Sessions => mySessions;
     public bool RuntimeCreated { get; private set; }
     public bool FailDuringStart { get; set; }
-    public int FailAfterCreatingSessionCount { get; set; }
     public bool Disposed { get; private set; }
     public bool BlockDispose { get; set; }
     public Task DisposeEntered => myDisposeEntered.Task;
@@ -29,22 +28,18 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     public int BlockBeforeSessionIndex { get; set; } = -1;
     public Task RegistrationBlocked => myRegistrationBlocked.Task;
     public Task Failure => myFailure.Task;
-    public LifecycleTrace? Trace { get; set; }
 
     public Task<IAgentRuntime> CreateRuntimeAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         RuntimeCreated = true;
-        Trace?.Record("backend.runtimeCreated");
         IAgentRuntime runtime = new RecordingAgentRuntime(
             mySessions,
             myEarlyEvents,
             myInitialInstructions,
-            FailAfterCreatingSessionCount,
             FailDuringStart,
             BlockBeforeSessionIndex,
             BlockDispose,
-            Trace,
             onRegistrationBlocked: () => myRegistrationBlocked.TrySetResult(),
             registrationGate: myRegistrationGate.Task,
             onDisposeEntered: () =>

@@ -38,6 +38,11 @@ static class Launch
 
         void Fail(string message) => throw new CliExitException(1, message);
 
+        static string DescribeFailure(Exception exception) =>
+            exception is AggregateException aggregate
+                ? string.Join(" ", aggregate.Flatten().InnerExceptions.Select(inner => inner.Message))
+                : exception.Message;
+
         Ctx BuildContext(string workingDirArgument)
         {
             var layout = ProjectLayout.Create(workingDirArgument);
@@ -164,6 +169,10 @@ static class Launch
                 }
                 catch (OperationCanceledException) when (consoleCancellation.IsCancellationRequested)
                 {
+                }
+                catch (Exception exception) when (exception is not CliExitException)
+                {
+                    Fail($"{Red}Error:{Reset} Provider startup failed: {DescribeFailure(exception)}");
                 }
             }
             finally

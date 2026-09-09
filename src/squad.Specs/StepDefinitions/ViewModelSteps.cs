@@ -25,7 +25,6 @@ public sealed class ViewModelSteps
     private SquadApplication? myApplication;
     private string myApplicationRoot = "";
     private RecordingWindowHost? myRecordingWindow;
-    private Exception? myApplicationStartFailure;
     private HostLease? myApplicationLease;
     private Ctx? myApplicationContext;
     private Task<RunResult>? myApplicationRun;
@@ -44,7 +43,6 @@ public sealed class ViewModelSteps
     private readonly CopilotToolOutputNormalizer myToolOutputNormalizer = new();
     private readonly Dictionary<string, string> myActiveToolCallIds = new(StringComparer.Ordinal);
     private int myNextToolCallId;
-    private LifecycleTrace? myLifecycleTrace;
 
     public ViewModelSteps(ScenarioWorkspace workspace)
     {
@@ -121,31 +119,6 @@ public sealed class ViewModelSteps
         session.OnDispose = () => session.Emit(new AgentStartedEvent(DateTimeOffset.UtcNow));
     }
 
-    [Given("a SquadApplication with recording roles {string} and a lifecycle trace whose backend fails during startup")]
-    public void GivenASquadApplicationWithRecordingRolesAndALifecycleTraceWhoseBackendFailsDuringStartup(string roles)
-    {
-        GivenASquadApplicationWithRecordingRoles(roles);
-        WireLifecycleTrace();
-        myBackend.FailAfterCreatingSessionCount = 1;
-        // Inject the cleanup failure in a generation-scoped teardown step (the registered session's own disposal),
-        // which precedes backend, window, handoff pump, and sleep inhibitor cleanup, so the scenario proves that
-        // failure cannot skip the mandatory process-wide release that follows it.
-        myBackend.Sessions.Single(session => session.Role == "coder").FailOnDispose = true;
-    }
-
-    private void WireLifecycleTrace()
-    {
-        myLifecycleTrace = new LifecycleTrace();
-        myRecordingWindow!.Trace = myLifecycleTrace;
-        myBackend.Trace = myLifecycleTrace;
-        myRecordingPump!.Trace = myLifecycleTrace;
-        myRecordingSleep!.Trace = myLifecycleTrace;
-        foreach (var session in myBackend.Sessions)
-        {
-            session.Trace = myLifecycleTrace;
-        }
-    }
-
     [Given("a SquadApplication with recording roles and a host lease")]
     public void GivenASquadApplicationWithRecordingRolesAndAHostLease()
     {
@@ -185,48 +158,6 @@ public sealed class ViewModelSteps
     [When("the SquadApplication starts")]
     public async Task WhenTheSquadApplicationStarts() => await StartApplicationUntilReadyAsync();
 
-    [Given("a SquadApplication that fails before window startup")]
-    public void GivenASquadApplicationThatFailsBeforeWindowStartup()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder");
-        AttachHostLease();
-        myRecordingWindow!.FailOnStart = true;
-    }
-
-    [Given("a SquadApplication with a CLI startup failure")]
-    public void GivenASquadApplicationWithACliStartupFailure()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder");
-        AttachHostLease();
-        myApplication = new SquadApplication(
-            SquadStartupPlanFactory.ForWorkspace(
-                myApplicationContext!,
-                new WorkspacePreparer(_ => { }),
-                prepareContextAsync: _ => throw new CliExitException(1, "recording CLI startup failure")),
-            new RecordingAgentProviderFactory(myBackend),
-            myRecordingPump!,
-            myRecordingWindow!,
-            myRecordingSleep!,
-            viewModel: myApplication!.ViewModel,
-            hostLease: myApplicationLease);
-    }
-
-    [Given("a SquadApplication that fails after window startup")]
-    public void GivenASquadApplicationThatFailsAfterWindowStartup()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder");
-        AttachHostLease();
-        myRecordingWindow!.FailOnSessionsStarted = true;
-    }
-
-    [Given("a SquadApplication whose backend fails during startup")]
-    public void GivenASquadApplicationWhoseBackendFailsDuringStartup()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder,reviewer");
-        AttachHostLease();
-        myBackend.FailAfterCreatingSessionCount = 1;
-    }
-
     [Given("a SquadApplication with SDK-shaped recording roles {string}")]
     public void GivenASquadApplicationWithSdkShapedRecordingRoles(string roles)
     {
@@ -265,44 +196,6 @@ public sealed class ViewModelSteps
             viewModel: viewModel);
     }
 
-    [Given("the SDK-shaped backend fails after its first session")]
-    public void GivenTheSdkShapedBackendFailsAfterItsFirstSession() => myBackend.FailAfterCreatingSessionCount = 1;
-
-    [When("the application start fails")]
-    public async Task WhenTheApplicationStartFails()
-    {
-        try
-        {
-            await myApplication!.RunAsync(() => Task.CompletedTask);
-        }
-        catch (Exception exception)
-        {
-            myApplicationStartFailure = exception;
-        }
-    }
-
-    [Then("the application start failed")]
-    public void ThenTheApplicationStartFailed() => Assert.That(myApplicationStartFailure, Is.Not.Null);
-
-    [Then("the application start failed with a CLI exit exception")]
-    public void ThenTheApplicationStartFailedWithACliExitException() =>
-        Assert.That(myApplicationStartFailure, Is.TypeOf<CliExitException>());
-
-    [Then("the application cleaned up its startup resources")]
-    public void ThenTheApplicationCleanedUpItsStartupResources()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(myApplication!.Sessions, Is.Empty);
-            Assert.That(myRecordingWindow!.StopCount, Is.LessThanOrEqualTo(1));
-            Assert.That(myApplicationLease is null || HostLease.TryAcquireProbe(myApplicationRoot), Is.True);
-            // The backend runtime is only ever created once startup reaches session generation; if the
-            // failure happened earlier, no runtime was created and no sessions were ever owned/disposed.
-            var expectDisposed = myBackend.RuntimeCreated;
-            Assert.That(myBackend.Sessions, Is.All.Matches<RecordingAgentSession>(session => session.Disposed == expectDisposed));
-        });
-    }
-
     [Then("SDK-shaped sessions use distinct role worktrees")]
     public void ThenSdkShapedSessionsUseDistinctRoleWorktrees()
     {
@@ -331,23 +224,6 @@ public sealed class ViewModelSteps
     [Then("SDK-shaped sessions were disposed in reverse registration order")]
     public void ThenSdkShapedSessionsWereDisposedInReverseRegistrationOrder() =>
         Assert.That(myBackend.DisposeOrder, Is.EqualTo(myBackend.Sessions.Select(session => session.Role).Reverse()));
-
-    [Then("all SDK-shaped sessions were disposed")]
-    public void ThenAllSdkShapedSessionsWereDisposed() =>
-        Assert.That(myBackend.Sessions, Is.All.Matches<RecordingAgentSession>(session => session.Disposed));
-
-    [Then("the partial startup observer observed cancellation")]
-    public void ThenThePartialStartupObserverObservedCancellation() =>
-        Assert.That(myBackend.Sessions.Single(session => session.Role == "coder").EventCancellationObserved, Is.True);
-
-    [Then("the window host start was attempted")]
-    public void ThenTheWindowHostStartWasAttempted() => Assert.That(myRecordingWindow!.StartCount, Is.EqualTo(1));
-
-    [Then("the window host was stopped")]
-    public void ThenTheWindowHostWasStopped() => Assert.That(myRecordingWindow!.StopCount, Is.EqualTo(1));
-
-    [Then("the recording backend was disposed")]
-    public void ThenTheRecordingBackendWasDisposed() => Assert.That(myBackend.Disposed, Is.True);
 
     [Given("a controllable SquadApplication")]
     public void GivenAControllableSquadApplication() => ConfigureControllableApplication();
@@ -734,24 +610,6 @@ public sealed class ViewModelSteps
     [Then("the recording application sessions are drained")]
     public void ThenTheRecordingApplicationSessionsAreDrained() => Assert.That(myApplication!.Sessions, Is.Empty);
 
-    [Then("the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup failure")]
-    public void ThenTheLifecycleTraceShowsCleanupCompletedDespiteFailure()
-    {
-        Assert.Multiple(() =>
-        {
-            // Every session created for the partial start is disposed, including the unpublished "reviewer"
-            // session the backend never handed to SquadApplication.
-            Assert.That(myBackend.Sessions, Is.All.Matches<RecordingAgentSession>(session => session.Disposed));
-            Assert.That(myBackend.Disposed, Is.True);
-            Assert.That(myRecordingWindow!.StopCount, Is.EqualTo(1));
-            Assert.That(myRecordingWindow.DisposeCount, Is.EqualTo(1));
-            Assert.That(myRecordingPump!.Disposed, Is.True);
-            Assert.That(myRecordingSleep!.Disposed, Is.True);
-        });
-        myLifecycleTrace!.AssertOrdered("session.coder.completionResolved", "backend.disposed");
-        myLifecycleTrace.AssertOrdered("backend.disposed", "window.stopped");
-    }
-
     [Then("ViewModel role {string} has no error")]
     public void ThenViewModelRoleHasNoError(string role) => Assert.That(myViewModel.Roles[role].Error, Is.Null);
 
@@ -801,14 +659,6 @@ public sealed class ViewModelSteps
                 role.Model,
                 role.Effort)).ToArray(),
             new Dictionary<string, string>());
-
-
-
-    private void AttachHostLease()
-    {
-        myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), new RecordingAgentProviderFactory(myBackend), myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
-    }
 
     private void ConfigureControllableApplication(bool blockStartup = false, bool useRealLease = false, bool faultServer = false)
     {
@@ -868,7 +718,6 @@ public sealed class ViewModelSteps
 
     private Task AnnounceReadinessAsync()
     {
-        myLifecycleTrace?.Record("application.ready");
         myApplicationReadyCount++;
         return Task.CompletedTask;
     }

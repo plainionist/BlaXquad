@@ -44,14 +44,6 @@ Feature: Squad ViewModel
     And the application waits for window closure
     Then SDK-shaped sessions were disposed in reverse registration order
 
-  Scenario: SDK-shaped agent backend unwinds partial startup
-    Given a SquadApplication with SDK-shaped recording roles "coder,reviewer"
-    And the SDK-shaped backend fails after its first session
-    When the application start fails
-    Then the application start failed
-    And the application cleaned up its startup resources
-    And all SDK-shaped sessions were disposed
-
   Scenario: SDK-shaped session errors reach the ViewModel before shutdown
     Given a SquadApplication with SDK-shaped recording roles "coder"
     When the application lifecycle reaches readiness
@@ -73,42 +65,6 @@ Feature: Squad ViewModel
     And the application window closes
     And the application waits for window closure
     Then the recording application sessions are drained
-
-  Scenario: Startup failure before the window is cleaned up
-    Given a SquadApplication that fails before window startup
-    When the application start fails
-    Then the application start failed
-    And the application cleaned up its startup resources
-    And the window host start was attempted
-
-  Scenario: CLI startup failure retains its exit type
-    Given a SquadApplication with a CLI startup failure
-    When the application start fails
-    Then the application start failed with a CLI exit exception
-    And the application cleaned up its startup resources
-
-  Scenario: Startup failure after the window is cleaned up
-    Given a SquadApplication that fails after window startup
-    When the application start fails
-    Then the application start failed
-    And the application cleaned up its startup resources
-    And the window host was stopped
-    And the recording backend was disposed
-
-  Scenario: Partial backend startup failure is cleaned up
-    Given a SquadApplication whose backend fails during startup
-    When the application start fails
-    Then the application start failed
-    And the application cleaned up its startup resources
-    And the partial startup observer observed cancellation
-    And the window host was stopped
-    And the recording backend was disposed
-
-  Scenario: Partial-start failure rolls back through generation and process-wide cleanup
-    Given a SquadApplication with recording roles "coder,reviewer" and a lifecycle trace whose backend fails during startup
-    When the application lifecycle runs
-    Then the application lifecycle contains "recording backend failed after creating sessions" and "recording session disposal failed"
-    And the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup failure
 
   Scenario: Server failure during blocked startup remains primary
     Given a controllable SquadApplication with blocked startup and a faulting server
