@@ -119,14 +119,6 @@ Feature: Squad ViewModel
     Then ViewModel role "coder" transcript has a "assistant" entry "active"
     And ViewModel role "coder" retains at most 2 entries and 30 content characters
 
-  Scenario: Idle finalizes a reasoning stream
-    Given a ViewModel retaining 2 entries and 30 content characters
-    When the recording "coder" session emits reasoning delta "first"
-    And the recording "coder" session emits an idle event
-    And the recording "coder" session emits reasoning delta "second"
-    Then ViewModel role "coder" transcript has a "reasoning" entry "first"
-    And ViewModel role "coder" transcript has a "reasoning" entry "second"
-
   Scenario: Archived transcript history has an explicit disk bound
     Given a ViewModel retaining 2 entries and archiving 3 entries
     When the recording "coder" session emits 6 user messages
@@ -405,26 +397,6 @@ Feature: Squad ViewModel
     And ViewModel role "reviewer" has status "error"
     And ViewModel role "coder" has no error
 
-  Scenario: Streaming assistant messages aggregate in one transcript entry
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits assistant delta "Hello "
-    And the recording "coder" session emits assistant delta "world"
-    Then ViewModel role "coder" transcript has a "assistant" entry "Hello world"
-
-  Scenario: Snapshot materialization keeps assistant streaming active
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits assistant delta "Hello "
-    Then the UI snapshot contains an "assistant" transcript entry "Hello " for "coder"
-    When the recording "coder" session emits assistant delta "world"
-    Then ViewModel role "coder" transcript has a "assistant" entry "Hello world"
-
-  Scenario: Final reasoning replaces streamed reasoning
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits reasoning delta "draft"
-    And the recording "coder" session emits final reasoning "final"
-    Then ViewModel role "coder" transcript has a "reasoning" entry "final"
-    And ViewModel role "coder" transcript has no entry "draft"
-
   Scenario Outline: Subagent activity uses semantic transcript metadata
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session starts subagent "<agent>" displayed as "<description>" using model "<model>"
@@ -647,23 +619,6 @@ Feature: Squad ViewModel
     When the recording "coder" session emits system message "Discovered skill: C:\\skills\\analyze-issue\\SKILL.md"
     Then ViewModel role "coder" transcript has a "system" entry "Discovered skill: C:\\skills\\analyze-issue\\SKILL.md"
     And ViewModel role "coder" transcript has no entry "Read C:\\skills\\analyze-issue\\SKILL.md"
-
-  Scenario: Final assistant messages preserve prior transcript history
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits a user message "question"
-    And the recording "coder" session emits a final assistant message "answer"
-    Then ViewModel role "coder" transcript has a "user" entry "question"
-    And ViewModel role "coder" transcript has a "assistant" entry "answer"
-
-  Scenario: Final assistant messages replace streamed deltas
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits a user message "Q"
-    And the recording "coder" session emits assistant delta "H"
-    And the recording "coder" session emits assistant delta "i"
-    And the recording "coder" session emits a final assistant message "Hi"
-    Then ViewModel role "coder" transcript has a "user" entry "Q"
-    And ViewModel role "coder" transcript has a "assistant" entry "Hi"
-    And ViewModel role "coder" transcript has no entry "H"
 
   Scenario: Tool state is visible only while the tool is active
     Given a ViewModel with recording roles "coder"

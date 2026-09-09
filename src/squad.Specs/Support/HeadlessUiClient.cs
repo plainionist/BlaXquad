@@ -106,6 +106,26 @@ public sealed class HeadlessUiClient
         return ParseTranscriptUpdate(element);
     }
 
+    /// <summary>Waits until a "transcript.update" message reports the given operation for the given role - and,
+    /// unless null, the given content - and returns the dashboard protocol's typed fields. Unlike
+    /// <see cref="WaitForTranscriptUpdateAsync(string,string,string?,TimeSpan?,Func{string}?)"/> - which matches by
+    /// source and therefore only ever observes an appended or replaced entry - this resolves content from either
+    /// the appended/replaced entry or an "append-content" update's top-level delta fragment, so it can also
+    /// observe a streamed continuation that carries no source of its own.</summary>
+    public async Task<TranscriptUpdateObservation> WaitForTranscriptUpdateByOperationAsync(
+        string role, string operation, string? content = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var description = content is null
+            ? $"a transcript update for role '{role}' with operation '{operation}'"
+            : $"a transcript update for role '{role}' with operation '{operation}' and content '{content}'";
+        var element = await WaitForMessageAsync(
+            transcriptUpdate => IsMatchingTranscriptOperationUpdate(transcriptUpdate, role, operation, content),
+            description,
+            timeout,
+            additionalDiagnostics);
+        return ParseTranscriptUpdate(element);
+    }
+
     /// <summary>Waits until the most recently published "transcript.synchronize" message includes a role entry for
     /// the given role whose decoded entries satisfy the given predicate, and returns the dashboard protocol's typed
     /// <c>sequence</c> and indexed, sourced <c>entries</c> fields for that role.</summary>
@@ -362,6 +382,38 @@ public sealed class HeadlessUiClient
             || (entry.TryGetProperty("content", out var contentElement) && contentElement.GetString() == content);
     }
 
+    private static bool IsMatchingTranscriptOperationUpdate(JsonElement element, string role, string operation, string? content)
+    {
+        if (!IsType(element, "transcript.update"))
+        {
+            return false;
+        }
+        var payload = GetPayload(element);
+        if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role)
+        {
+            return false;
+        }
+        if (!payload.TryGetProperty("operation", out var operationElement) || operationElement.GetString() != operation)
+        {
+            return false;
+        }
+        return content is null || ResolveTranscriptUpdateContent(payload) == content;
+    }
+
+    private static string? ResolveTranscriptUpdateContent(JsonElement payload)
+    {
+        if (payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object
+            && entry.TryGetProperty("content", out var entryContentElement) && entryContentElement.ValueKind == JsonValueKind.String)
+        {
+            return entryContentElement.GetString();
+        }
+        if (payload.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String)
+        {
+            return contentElement.GetString();
+        }
+        return null;
+    }
+
     private static TranscriptUpdateObservation ParseTranscriptUpdate(JsonElement element)
     {
         var payload = GetPayload(element);
@@ -369,21 +421,11 @@ public sealed class HeadlessUiClient
         var sequence = payload.GetProperty("sequence").GetInt64();
         var operation = payload.GetProperty("operation").GetString()!;
         var entryIndex = payload.GetProperty("entryIndex").GetInt32();
-        string? source = null;
-        string? content = null;
-        if (payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object)
-        {
-            source = entry.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String
-                ? sourceElement.GetString()
-                : null;
-            content = entry.TryGetProperty("content", out var entryContentElement) && entryContentElement.ValueKind == JsonValueKind.String
-                ? entryContentElement.GetString()
-                : null;
-        }
-        else if (payload.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String)
-        {
-            content = contentElement.GetString();
-        }
+        var source = payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object
+            && entry.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String
+            ? sourceElement.GetString()
+            : null;
+        var content = ResolveTranscriptUpdateContent(payload);
         return new TranscriptUpdateObservation(role, sequence, operation, entryIndex, source, content);
     }
 

@@ -281,9 +281,21 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsTheReasoning(string role, string content) =>
         Await(myScenario.Agent(role).EmitReasoningAsync(content));
 
+    [When("the {string} agent emits a reasoning delta {string}")]
+    public void WhenTheAgentEmitsAReasoningDelta(string role, string content) =>
+        Await(myScenario.Agent(role).EmitReasoningAsync(content, isDelta: true));
+
     [When("the {string} agent emits a final reasoning message {string}")]
     public void WhenTheAgentEmitsAFinalReasoningMessage(string role, string content) =>
         Await(myScenario.Agent(role).EmitReasoningAsync(content, isDelta: false));
+
+    [When("the {string} agent emits an assistant delta {string}")]
+    public void WhenTheAgentEmitsAnAssistantDelta(string role, string content) =>
+        Await(myScenario.Agent(role).EmitAssistantAsync(content, isDelta: true));
+
+    [When("the {string} agent emits a final assistant message {string}")]
+    public void WhenTheAgentEmitsAFinalAssistantMessage(string role, string content) =>
+        Await(myScenario.Agent(role).EmitAssistantAsync(content, isDelta: false));
 
     [When("the {string} agent emits a system message {string}")]
     public void WhenTheAgentEmitsASystemMessage(string role, string content) =>
@@ -296,6 +308,31 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes a transcript update for role {string} with source {string} and content {string}")]
     public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSourceAndContent(string role, string source, string content) =>
         myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source, content)));
+
+    [Then("the backend scenario observes a transcript update for role {string} with operation {string} and content {string}")]
+    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithOperationAndContent(string role, string operation, string content) =>
+        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateByOperationAsync(role, operation, content)));
+
+    [Then("the most recently observed transcript updates for role {string} report the same entry index")]
+    public void ThenTheMostRecentlyObservedTranscriptUpdatesForRoleReportTheSameEntryIndex(string role)
+    {
+        var (previous, current) = TwoMostRecentlyObservedTranscriptUpdates(role);
+        Assert.That(current.EntryIndex, Is.EqualTo(previous.EntryIndex));
+    }
+
+    [Then("the most recently observed transcript updates for role {string} report different entry indices")]
+    public void ThenTheMostRecentlyObservedTranscriptUpdatesForRoleReportDifferentEntryIndices(string role)
+    {
+        var (previous, current) = TwoMostRecentlyObservedTranscriptUpdates(role);
+        Assert.That(current.EntryIndex, Is.Not.EqualTo(previous.EntryIndex));
+    }
+
+    private (TranscriptUpdateObservation Previous, TranscriptUpdateObservation Current) TwoMostRecentlyObservedTranscriptUpdates(string role)
+    {
+        var updatesForRole = myObservedTranscriptUpdates.Where(update => update.Role == role).ToList();
+        Assert.That(updatesForRole, Has.Count.GreaterThanOrEqualTo(2));
+        return (updatesForRole[^2], updatesForRole[^1]);
+    }
 
     [Then("every observed transcript update for role {string} reports a strictly increasing sequence and entry index")]
     public void ThenEveryObservedTranscriptUpdateForRoleReportsAStrictlyIncreasingSequenceAndEntryIndex(string role)
@@ -340,6 +377,35 @@ public sealed class BackendScenarioSteps
             Assert.That(entryIndices[index], Is.GreaterThan(entryIndices[index - 1]),
                 "Synchronization entries must report strictly increasing entry indices.");
         }
+    }
+
+    [Then("the transcript synchronization for role {string} includes an entry with source {string} and content {string}")]
+    public void ThenTheTranscriptSynchronizationForRoleIncludesAnEntryWithSourceAndContent(string role, string source, string content) =>
+        Await(myScenario.WaitForTranscriptSynchronizationAsync(
+            role, entries => entries.Any(entry => entry.Source == source && entry.Content == content)));
+
+    [Then("the transcript synchronization for role {string} includes exactly these entries:")]
+    public void ThenTheTranscriptSynchronizationForRoleIncludesExactlyTheseEntries(string role, Table expected)
+    {
+        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: row["content"])).ToList();
+        var expectedSources = expectedEntries.Select(entry => entry.Source).ToHashSet();
+
+        // Filtering the observed entries to the expected sources before comparing (rather than requiring an exact
+        // match across the whole snapshot) ignores unrelated automatic entries - such as the harness "Session
+        // started." entry every session publishes - while still proving no extra or missing entry exists among
+        // the sources this scenario cares about (for example a leftover streamed draft alongside its final
+        // replacement).
+        var synchronization = Await(myScenario.WaitForTranscriptSynchronizationAsync(
+            role,
+            entries => entries.Where(entry => expectedSources.Contains(entry.Source))
+                .Select(entry => (entry.Source, entry.Content))
+                .SequenceEqual(expectedEntries)));
+
+        var actualEntries = synchronization.Entries
+            .Where(entry => expectedSources.Contains(entry.Source))
+            .Select(entry => (entry.Source, entry.Content))
+            .ToList();
+        Assert.That(actualEntries, Is.EqualTo(expectedEntries));
     }
 
     [When("the {string} agent emits a full tool lifecycle for tool call {string} named {string}")]

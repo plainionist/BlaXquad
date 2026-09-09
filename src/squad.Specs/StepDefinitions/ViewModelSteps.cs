@@ -959,9 +959,6 @@ public sealed class ViewModelSteps
     [When("the recording {string} session emits reasoning delta {string}")]
     public void WhenTheRecordingSessionEmitsReasoningDelta(string role, string content) => Emit(role, new AgentReasoningEvent(DateTimeOffset.UtcNow, content, true));
 
-    [When("the recording {string} session emits final reasoning {string}")]
-    public void WhenTheRecordingSessionEmitsFinalReasoning(string role, string content) => Emit(role, new AgentReasoningEvent(DateTimeOffset.UtcNow, content, false));
-
     [When("the recording {string} session emits tool output {string}")]
     public void WhenTheRecordingSessionEmitsToolOutput(string role, string content)
     {
