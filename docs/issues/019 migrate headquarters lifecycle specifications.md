@@ -118,7 +118,7 @@ cancellation uses a dedicated `CancellableChildProcess` launcher only (ordinary 
 the slice decision. Covered ViewModel window-close, caller-cancellation, and synthetic window-close-failure
 scenarios were removed, along with the overlapping StdioUiProtocol end-of-input scenarios.
 
-### Slice 3: Stop safely before and during startup
+### Slice 3 [done]: Stop safely before and during startup
 
 1. Split process launch from readiness completion inside the test facade so scenarios can use the real host-control
    endpoint while startup is awaiting `ui.ready` or a fake-provider startup gate.
@@ -135,78 +135,15 @@ scenarios were removed, along with the overlapping StdioUiProtocol end-of-input 
 **Slice acceptance:** A real host-control shutdown linearized anywhere before readiness prevents the host from
 becoming available and releases every resource already acquired.
 
-#### Review findings on e0bef751ac
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature`
-  (Shutdown requested as early as possible prevents startup from ever completing,
-  Shutdown requested while provider startup is paused disposes the already-started session).
-- **Violated behavior:** Slice 3 item 3 requires asserting that readiness is never published after the shutdown
-  request. Slice acceptance requires a host-control shutdown before readiness to prevent the host from becoming
-  available.
-- **Root cause:** Both scenarios only observe exit 0, host-control unavailability after exit, durable state, and a
-  later launch. The gated scenario uses `StartAsync` (`starts squad-hq with the fake provider fixture`), which
-  completes the `ui.ready` handshake and sets `IsReady` before shutdown is requested. Neither scenario observes the
-  public readiness command (`squad-hq wait-for-agent`) failing to report ready after the request, so a host that
-  became ready and then shut down would still pass.
-- **Required outcome:** After the shutdown request, prove public readiness never succeeds (for example
-  `wait-for-agent` does not report the role ready). Keep the gated shutdown on the still-blocked provider startup
-  path, but do not treat UI-handshake completion as the slice's "before readiness" proof.
-
-**Finding 2 — medium**
-
-- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature`
-  (Shutdown requested while provider startup is paused disposes the already-started session),
-  `src/squad.Specs/Support/FakeAgentRuntime.cs` (`GateProviderStartupAfterSessions` / `Task.Delay` gate).
-- **Violated behavior:** Slice 3 items 2–3 require an acknowledged gate after one session has started, then
-  disposal of that partial startup. The second role must still be unstarted at the shutdown request.
-- **Root cause:** The scenario waits for `coder` session-started, then shuts down, then asserts only that `coder`
-  was disposed. It never observes that `reviewer` has not started. If the env-var gate did not pause, both sessions
-  could start and the same assertions would still pass.
-- **Required outcome:** At the shutdown request, observe the first session started and the next configured session
-  not started. After shutdown, the started session is disposed and the unstarted session was never created.
-
-**Finding 3 — medium**
-
-- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature` (both scenarios).
-- **Violated behavior:** Slice 3 item 3 requires that no new command reaches a provider session after the shutdown
-  request.
-- **Root cause:** Neither scenario sends a protocol command after shutdown is requested, and the early-shutdown
-  path uses Echo without the fake-provider control pipe, so it cannot observe whether a session received work.
-- **Required outcome:** After shutdown is requested, send a command through the supported UI/protocol boundary and
-  prove it does not reach a provider session (no prompt on the control pipe). On the early path, use the fake
-  provider so the absence of session start/command delivery is observable.
-
-**Status: done, pending review**
-
-All three findings addressed in both scenarios:
-
-- Finding 1: both scenarios now start a concurrent "squad-hq wait-for-agent" probe (`StartWatchingForReadiness`)
-  before requesting shutdown, and assert its captured output never contains "is ready" once shutdown completes -
-  proving the public readiness command itself never reports the role ready, not merely that the host became
-  unavailable afterward. The early-shutdown scenario also switched from Echo to the fake provider with the control
-  transport enabled, so it no longer relies on `ui.ready`/`IsReady` completion as its "before readiness" proof.
-- Finding 2: the gated scenario now asserts `reviewer`'s session was never started both immediately after observing
-  `coder`'s session start (at gate time) and again after shutdown/disposal - closing the gap where a silently
-  failed gate would have let both sessions start undetected.
-- Finding 3: `RequestShutdownAsSoonAsReachableAsync` and the new `ShutdownWhileSendingPromptAsync` now send a real
-  UI-protocol prompt immediately after the shutdown request is issued (a broken-pipe failure is itself further
-  proof of no delivery) and assert the targeted role's `LatestPrompt()` stays null. The gated scenario targets the
-  paused `reviewer` role specifically, since prompts sent to the already-started `coder` role race the app's own
-  in-flight stopping/disposal and are not a deterministic proof.
-
-Also fixed a latent bug surfaced while adding the prompt-send: `RequestShutdownAsSoonAsReachableAsync`'s retry loop
-previously re-issued a brand-new "squad-hq shutdown" child process every ~50ms without waiting for the prior
-attempt to finish, which could pile up many overlapping shutdown attempts and intermittently destabilize a later,
-unrelated launch in the same scenario. It now waits for each attempt (or the target process) to finish before
-deciding whether a retry is needed, so at most one shutdown attempt is ever in flight.
-
-Regression suite (`ViewModel|HeadquartersLifecycle|HeadquartersTermination|StoppingSafely`, 31 scenarios) green
-across 3 consecutive runs; the two `HeadquartersEarlyShutdown` scenarios green across 8 consecutive runs after the
-retry-loop fix. Full-suite run shows the same 6 pre-existing, unrelated transient timeouts in
-`PromptIsolationAndReadiness.feature` under parallel load (confirmed untouched by this change; pass in isolation
-individually), consistent with the baseline already documented against `e0bef751ac`.
+**Status: complete (78dca103fb).** `HeadquartersEarlyShutdown.feature` covers slice 3 through the process boundary:
+shutdown as soon as host-control is reachable (without completing `ui.ready`) and shutdown while the fake provider
+is gated after `coder` starts and before `reviewer` starts. Both race a concurrent `squad-hq wait-for-agent` that
+never reports ready, send a UI prompt that never appears on the control pipe, exit 0, leave host control
+unavailable, preserve seeded `notes.md`, and allow a replacement Echo-provider process to reach `ui.ready`. The
+gated path also proves `reviewer` never started and that the started `coder` session is disposed. Covered ViewModel
+pre-start shutdown, blocked-preparation, shutdown-already-requested, and simultaneous-ready scenarios were removed.
+The follow-up `78dca103fb` closes the review findings that readiness was only inferred from later unavailability,
+that the one-session gate was not observed, and that no post-shutdown command was shown to miss the provider.
 
 ### Slice 4: Retire failed and partial provider startup
 
