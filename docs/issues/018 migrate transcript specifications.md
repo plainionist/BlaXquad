@@ -229,7 +229,7 @@ updates; `task`/`read_agent`/`list_agents` never set `activeTool` and a later or
 entry on synchronize. The two covered ViewModel scenarios and their orphaned subagent-start / exact-entry-count
 bindings were removed.
 
-### Slice 10 [pending]: Preserve visible skill activity while suppressing skill plumbing
+### Slice 10 [in progress]: Preserve visible skill activity while suppressing skill plumbing
 
 1. Publish semantic skill application and discovery events plus the underlying skill tool activity.
 2. Assert skill application and discovery remain visible while the skill control call and file contents remain
