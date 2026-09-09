@@ -320,7 +320,7 @@ host-control shutdown removes the isolated temporary transcript history. Covered
 scenarios and the archived-available scenario were removed; reconstruction-input and unavailable-entry scenarios
 stay for slice 16.
 
-### Slice 15 [pending]: Report oversized transcript content explicitly
+### Slice 15 [in progress]: Report oversized transcript content explicitly
 
 1. Publish entries and streaming content that cross the production per-entry and announcement limits without adding
    configurable test capacities.
