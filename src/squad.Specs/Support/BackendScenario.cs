@@ -343,6 +343,14 @@ public sealed class BackendScenario : IDisposable
         return myUi.WaitForRoleStatusAsync(role, status, timeout, DescribeControlDiagnostics());
     }
 
+    /// <summary>
+    /// Waits until the most recently published "state.snapshot" message (not just any snapshot ever observed)
+    /// reports the given role at the given status - proving the status still holds after later, possibly stale,
+    /// publication rather than merely rematching the same earlier snapshot already observed at termination.
+    /// </summary>
+    public Task WaitForLatestRoleStatusAsync(string role, string status, TimeSpan? timeout = null) =>
+        RequireUi().WaitForLatestRoleStatusAsync(role, status, timeout, DescribeControlDiagnostics());
+
     /// <summary>Sends a prompt to the given role through the real UI protocol - the same path a real user
     /// interface uses, never a shortcut into the provider.</summary>
     public void SendPrompt(string role, string prompt)
@@ -440,6 +448,19 @@ public sealed class BackendScenario : IDisposable
     public Task<TranscriptSynchronizationObservation> WaitForTranscriptSynchronizationAsync(
         string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
         RequireUi().WaitForTranscriptSynchronizationAsync(role, matches, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Counts how many "transcript.synchronize" messages including an entry list for the given role have
+    /// been captured so far - the skip count to pass to <see cref="WaitForNextTranscriptSynchronizationAsync"/> to
+    /// observe only a synchronization published after this point.</summary>
+    public int CountTranscriptSynchronizations(string role) => RequireUi().CountTranscriptSynchronizations(role);
+
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.synchronize" message for the given
+    /// role has been published - identified purely by structural presence, never by content - so a caller can
+    /// assert on that specific response's entries directly and genuinely fail if it carries an unexpected
+    /// value.</summary>
+    public Task<TranscriptSynchronizationObservation> WaitForNextTranscriptSynchronizationAsync(
+        string role, int skip, TimeSpan? timeout = null) =>
+        RequireUi().WaitForNextTranscriptSynchronizationAsync(role, skip, timeout, DescribeControlDiagnostics());
 
     /// <summary>Requests the given role's previous transcript page - the entries immediately preceding
     /// <paramref name="beforeIndex"/> - through the real UI protocol, the same operation a dashboard paging back

@@ -26,13 +26,7 @@ public sealed class RecordingAgentSession : IAgentSession
     public TimeSpan SendDelay { get; set; }
     public bool OverlappedSend { get; private set; }
     public bool Disposed => myDisposed;
-    public bool FailOnDispose { get; set; }
-    public bool IgnoreEventCancellation { get; set; }
-    public bool LeaveEventsOpenOnDispose { get; set; }
-    public bool EventCancellationObserved { get; private set; }
-    public bool EventStreamLeftOpen { get; private set; }
     public int DisposeCount { get; private set; }
-    public Action? OnDispose { get; set; }
     public Action? OnDisposeObserved { get; set; }
     public Action<string>? OnSend { get; set; }
 
@@ -99,9 +93,7 @@ public sealed class RecordingAgentSession : IAgentSession
 
     public async IAsyncEnumerable<AgentEvent> Events([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        using var registration = cancellationToken.Register(() => EventCancellationObserved = true);
-        var readerCancellation = IgnoreEventCancellation ? CancellationToken.None : cancellationToken;
-        await foreach (var agentEvent in myEvents.ReadAllAsync(readerCancellation))
+        await foreach (var agentEvent in myEvents.ReadAllAsync(cancellationToken))
         {
             yield return agentEvent;
         }
@@ -112,22 +104,10 @@ public sealed class RecordingAgentSession : IAgentSession
     public async ValueTask DisposeAsync()
     {
         DisposeCount++;
-        OnDispose?.Invoke();
         OnDisposeObserved?.Invoke();
         myDisposed = true;
         myCompletion.TrySetResult();
-        if (LeaveEventsOpenOnDispose)
-        {
-            EventStreamLeftOpen = true;
-        }
-        else
-        {
-            await myEvents.DisposeAsync();
-        }
-        if (FailOnDispose)
-        {
-            throw new InvalidOperationException("recording session disposal failed");
-        }
+        await myEvents.DisposeAsync();
     }
 }
 

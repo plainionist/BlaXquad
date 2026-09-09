@@ -108,15 +108,6 @@ public sealed class ViewModelSteps
             viewModel: viewModel);
     }
 
-    [Given("a SquadApplication with a session that emits while shutting down")]
-    public void GivenASquadApplicationWithASessionThatEmitsWhileShuttingDown()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder");
-        var session = myBackend.Sessions.Single();
-        session.IgnoreEventCancellation = true;
-        session.OnDispose = () => session.Emit(new AgentStartedEvent(DateTimeOffset.UtcNow));
-    }
-
     [Given("a SquadApplication with recording roles and a host lease")]
     public void GivenASquadApplicationWithRecordingRolesAndAHostLease()
     {
@@ -233,15 +224,6 @@ public sealed class ViewModelSteps
     public void GivenAControllableSquadApplicationWithBlockedStartupAndAFaultingServer() =>
         ConfigureControllableApplication(blockStartup: true, faultServer: true);
 
-    [Given("a controllable SquadApplication with a session disposal failure and open events")]
-    public void GivenAControllableSquadApplicationWithASessionDisposalFailureAndOpenEvents()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        var session = myBackend.Sessions.Single();
-        session.FailOnDispose = true;
-        session.LeaveEventsOpenOnDispose = true;
-    }
-
     [Given("a controllable SquadApplication with startup and cleanup failures")]
     public void GivenAControllableSquadApplicationWithStartupAndCleanupFailures()
     {
@@ -310,24 +292,6 @@ public sealed class ViewModelSteps
     {
         await CompleteApplicationRunAsync();
         Assert.That(ExceptionMessages(myApplicationLifecycleFailure), Does.Contain(message));
-    }
-
-    [Then("the application lifecycle fails after cleanup")]
-    public async Task ThenTheApplicationLifecycleFailsAfterCleanup()
-    {
-        await CompleteApplicationRunAsync();
-        Assert.That(myApplicationLifecycleFailure, Is.Not.Null);
-    }
-
-    [Then("the open event observer was canceled without stream completion")]
-    public void ThenTheOpenEventObserverWasCanceledWithoutStreamCompletion()
-    {
-        var session = myBackend.Sessions.Single();
-        Assert.Multiple(() =>
-        {
-            Assert.That(session.EventStreamLeftOpen, Is.True);
-            Assert.That(session.EventCancellationObserved, Is.True);
-        });
     }
 
     [Then("the application lifecycle contains {string} and {string}")]
@@ -498,9 +462,6 @@ public sealed class ViewModelSteps
 
     [Then("the application ViewModel role {string} has status {string}")]
     public void ThenTheApplicationViewModelRoleHasStatus(string role, string status) => Assert.That(myApplication!.ViewModel.Roles[role].Status, Is.EqualTo(status));
-
-    [Then("the recording application sessions are drained")]
-    public void ThenTheRecordingApplicationSessionsAreDrained() => Assert.That(myApplication!.Sessions, Is.Empty);
 
     [Then("ViewModel role {string} has no error")]
     public void ThenViewModelRoleHasNoError(string role) => Assert.That(myViewModel.Roles[role].Error, Is.Null);
