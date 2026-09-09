@@ -232,35 +232,26 @@ Echo-provider process reaches `ui.ready`. Covered ViewModel post-ready handoff-f
 **Slice acceptance:** Shutdown cancels or completes every admitted command before provider resources disappear, while
 commands arriving after admission closes are observably rejected and side-effect free.
 
-#### Review findings on 80d9c87130
+#### Review findings on 80d9c87130 / f664c82b11
 
-**Finding 1 — medium**
+**Finding 1 — medium** (still open on `f664c82b11`)
 
 - **Location:** `src/squad.Specs/Features/ShutdownCommandAdmission.feature`
-  (Shutdown drains an admitted prompt and rejects a new one while cleanup holds at the provider boundary).
+  (`observes role "coder"'s prompt "keep this admitted" canceled before disposal` then
+  `observes role "coder"'s session disposal held`),
+  `src/squad.Specs/Support/FakeProviderControlServer.cs` (`WaitForSendCanceledAsync`,
+  `WaitForDisposalHeldAsync` / `WaitForObservationDataAsync`).
 - **Violated behavior:** Slice 7 item 2 requires proving the admitted prompt reaches a safe terminal outcome
-  before the fake session is disposed. Slice acceptance requires shutdown to cancel or complete every admitted
-  command before provider resources disappear.
-- **Root cause:** After shutdown, the scenario waits for `disposal-held` first, then for a protocol error
-  mentioning `task was canceled`. That order cannot show the cancel preceded disposal, and the commit documents
-  the drain-before-dispose claim as an inference from `SquadRuntimeController.StopAsync` calling
-  `ViewModel.StopAsync` before `SessionGeneration.TeardownAsync`. A host that disposed first and canceled later
-  would still pass.
-- **Required outcome:** Observe the admitted prompt's canceled or otherwise safe terminal outcome while the
-  session has not yet been disposed (for example before `disposal-held`, or by an equivalent control-pipe
-  observation that the in-flight send finished without the session already being gone).
+  before the fake session is disposed.
+- **Root cause:** `f664c82b11` adds a `send-canceled` observation and waits for it before waiting for
+  `disposal-held`. Each wait only polls its own latest-observation slot until that kind exists. That does not
+  compare arrival order. A host that notified `disposal-held` first and `send-canceled` later would still pass
+  both waits. Same-pipe FIFO is not observed.
+- **Required outcome:** When `send-canceled` is observed, prove `disposal-held` has not yet been observed (or
+  assert order on one observation log).
 
-**Finding 2 — medium**
-
-- **Location:** `src/squad.Specs/Features/ShutdownCommandAdmission.feature` (same scenario), after
-  `rejected after admission closes` is sent.
-- **Violated behavior:** Slice 7 item 3 requires that a command arriving after admission closes is rejected with
-  no prompt, interaction, transcript, or durable side effect.
-- **Root cause:** The scenario asserts a protocol error mentioning `shutting down` and that the transcript does
-  not contain the rejected text within 2 seconds. It never observes the fake session, so a rejection that still
-  forwarded the prompt to the provider would pass.
-- **Required outcome:** After the rejected send, prove the provider session never received that prompt (for
-  example the control pipe's latest prompt remains the admitted one).
+**Finding 2 — addressed in `f664c82b11`.** After the rejected send, the scenario waits 2 seconds for the fake
+session's latest prompt to become `rejected after admission closes` and requires that wait to time out.
 
 ### Slice 8: Ignore events from terminated sessions
 
