@@ -123,11 +123,12 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
-    /// <summary>Waits until a "transcript.update" message reports an appended or replaced entry for the given
-    /// role with the given source - and, unless null, the given content - and returns the dashboard protocol's
-    /// typed <c>sequence</c>, <c>operation</c>, <c>entryIndex</c>, <c>source</c>, and <c>content</c> fields.</summary>
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.update" message reports an appended
+    /// or replaced entry for the given role with the given source - and, unless null, the given content - and
+    /// returns the dashboard protocol's typed <c>sequence</c>, <c>operation</c>, <c>entryIndex</c>, <c>source</c>,
+    /// and <c>content</c> fields.</summary>
     public async Task<TranscriptUpdateObservation> WaitForTranscriptUpdateAsync(
-        string role, string source, string? content = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+        string role, string source, string? content = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null, int skip = 0)
     {
         var description = content is null
             ? $"a transcript update for role '{role}' with source '{source}'"
@@ -136,7 +137,8 @@ public sealed class HeadlessUiClient
             transcriptUpdate => IsMatchingTranscriptEntryUpdate(transcriptUpdate, role, source, content),
             description,
             timeout,
-            additionalDiagnostics);
+            additionalDiagnostics,
+            skip);
         return ParseTranscriptUpdate(element);
     }
 

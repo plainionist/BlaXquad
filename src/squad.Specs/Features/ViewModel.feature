@@ -43,17 +43,6 @@ Feature: Squad ViewModel
     When the ViewModel creates snapshots while recording "coder" emits 100 assistant updates
     Then the UI snapshot contains event count 100 for "coder"
 
-  Scenario: Archived transcript history has an explicit disk bound
-    Given a ViewModel retaining 2 entries and archiving 3 entries
-    When the recording "coder" session emits 6 user messages
-    Then archived transcript history for "coder" contains 3 entries and reports truncation
-
-  Scenario: Synchronization invalidates rotated archived content
-    Given a ViewModel retaining 2 entries and 60 content characters while archiving 3 entries
-    When the recording "coder" session emits assistant delta "1234567890123456789012345678901234567890123456789012345678901234567890"
-    And the recording "coder" session emits 5 harness messages
-    Then synchronized transcript history for "coder" reports unavailable archived content within 30 characters
-
   Scenario: SDK-shaped agent backend publishes early events and initial instructions
     Given a SquadApplication with SDK-shaped recording roles "coder,reviewer"
     When the application lifecycle reaches readiness

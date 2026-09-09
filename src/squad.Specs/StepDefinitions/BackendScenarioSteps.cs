@@ -375,6 +375,30 @@ public sealed class BackendScenarioSteps
         }
     }
 
+    [When("the {string} agent emits {int} system messages with {int} characters each")]
+    public void WhenTheAgentEmitsSystemMessagesWithCharactersEach(string role, int count, int characterCount)
+    {
+        var content = new string('x', characterCount);
+        for (var index = 0; index < count; index++)
+        {
+            Await(myScenario.Agent(role).EmitSystemMessageAsync(content));
+        }
+
+        // Content this size lands well beyond the production per-entry retained bound, so every one of these
+        // updates reports only its live-truncated tail on the wire, never the full raw content - comparing
+        // against the exact content sent would therefore never match. Skipping past this burst's own first
+        // count-1 "system" appends and matching on operation and role alone, ignoring content, instead proves the
+        // very last message of the burst has itself already been applied before a later step requests an archived
+        // entry or synchronization, so that request observes this burst's true final boundary rather than an
+        // arbitrary, still-catching-up partial state. A generous explicit timeout accounts for the extra time
+        // genuinely needed to encode, transmit, and project a burst of entries this size end to end.
+        if (count > 0)
+        {
+            Await(myScenario.WaitForTranscriptUpdateAsync(
+                role, "system", content: null, timeout: TimeSpan.FromSeconds(180), skip: count - 1));
+        }
+    }
+
     [When("the {string} agent starts subagent {string} displayed as {string} using model {string}")]
     public void WhenTheAgentStartsSubagent(string role, string agentName, string displayName, string model) =>
         Await(myScenario.Agent(role).EmitSubagentStartedAsync(
@@ -514,6 +538,19 @@ public sealed class BackendScenarioSteps
         Assert.That(actualEntries, Is.EqualTo(expectedEntries));
     }
 
+    [Then("the transcript synchronization for role {string} reports {string} content that is no longer available")]
+    public void ThenTheTranscriptSynchronizationForRoleReportsContentThatIsNoLongerAvailable(string role, string source)
+    {
+        var synchronization = Await(myScenario.WaitForTranscriptSynchronizationAsync(
+            role,
+            entries => entries.Any(entry =>
+                entry.Source == source && entry.Content.Contains("no longer available", StringComparison.Ordinal))));
+        Assert.That(
+            synchronization.Entries,
+            Has.Some.Matches<TranscriptEntryObservation>(entry =>
+                entry.Source == source && entry.Content.Contains("no longer available", StringComparison.Ordinal)));
+    }
+
     [Then("the transcript synchronization for role {string} contains exactly {int} entries")]
     public void ThenTheTranscriptSynchronizationForRoleContainsExactlyEntries(string role, int expectedCount)
     {
@@ -592,6 +629,25 @@ public sealed class BackendScenarioSteps
             Assert.That(entry.TotalContentCharacters, Is.EqualTo(totalCharacters));
             Assert.That(entry.ArchivedPrefixCharacters, Is.EqualTo(totalCharacters));
             Assert.That(entry.Content?.Length, Is.EqualTo(totalCharacters));
+        });
+    }
+
+    [Then("the archived transcript entry is unavailable")]
+    public void ThenTheArchivedTranscriptEntryIsUnavailable()
+    {
+        var entry = myLatestArchivedEntry
+            ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.Content, Is.Null);
+            Assert.That(entry.ContentTruncated, Is.False);
+            Assert.That(entry.TotalContentCharacters, Is.Zero);
+            Assert.That(entry.ArchivedPrefixCharacters, Is.Zero);
+
+            // A rotated-out entry still reports the role's current sequence - proving the reply is a genuine,
+            // live protocol answer at this moment rather than an omitted or malformed message - it just carries
+            // no entry content for this index anymore.
+            Assert.That(entry.Sequence, Is.GreaterThan(0));
         });
     }
 

@@ -28,3 +28,30 @@ Feature: Transcript oversized content
     And the "coder" agent emits an assistant delta with 1200000 characters
     And the backend scenario requests the archived transcript entry 2 for role "coder"
     Then the archived transcript entry is truncated with 2400000 total characters at the 2000000 character archive bound
+
+  Scenario: An entry that has rotated out of the archive is reported as unavailable while newer archived entries remain available
+    # Entry 0 is the automatic "Session started." system entry and entry 1 is the automatic initial-instruction
+    # harness entry every fresh role session publishes first, so this burst of system messages, each sized at the
+    # production per-entry archive bound, itself occupies entries 2 through 16. Their combined 30,000,000 archived
+    # characters push this role's archive well past its 20,000,000 character total bound, so the archive evicts
+    # entries oldest-first - entries 0, 1, then this burst's own oldest entries - until the remaining total again
+    # fits, landing back at exactly the bound with entries 7 through 16 left standing. Entry 2, this burst's own
+    # oldest message, is therefore always among those rotated out, while entry 16, its newest, always survives.
+    When the "coder" agent emits 15 system messages with 2000000 characters each
+    And the backend scenario requests the archived transcript entry 2 for role "coder"
+    Then the archived transcript entry is unavailable
+    When the backend scenario requests the archived transcript entry 16 for role "coder"
+    Then the archived transcript entry has 2000000 characters and is not truncated
+
+  Scenario: Synchronization reports a still-live entry's rotated archive content as no longer available
+    # An assistant delta that is never finalized keeps streaming - its retained entry stays pinned in live
+    # retention indefinitely, exempt from the ordinary oldest-first live eviction that would otherwise apply once
+    # enough later entries accumulate - while the archive holds no such exemption and evicts its backing content
+    # oldest-first exactly like any other entry. Publishing enough later history therefore rotates this entry's
+    # own archived content out from under it despite it staying live the entire time, and a synchronization taken
+    # afterward must report that reversal explicitly rather than continuing to claim the earlier content is still
+    # available in transcript history.
+    When the "coder" agent emits an assistant delta with 260000 characters
+    And the "coder" agent emits 15 system messages with 2000000 characters each
+    And the backend scenario requests a fresh transcript synchronization
+    Then the transcript synchronization for role "coder" reports "assistant" content that is no longer available

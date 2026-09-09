@@ -230,12 +230,12 @@ public sealed class BackendScenario : IDisposable
         return myUi.WaitForTranscriptAsync(role, content, timeout, DescribeControlDiagnostics());
     }
 
-    /// <summary>Waits until a "transcript.update" message reports an appended or replaced entry for the given
-    /// role with the given source - and, unless null, the given content - and returns the dashboard protocol's
-    /// typed sequence, operation, entry index, source, and content fields.</summary>
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.update" message reports an appended
+    /// or replaced entry for the given role with the given source - and, unless null, the given content - and
+    /// returns the dashboard protocol's typed sequence, operation, entry index, source, and content fields.</summary>
     public Task<TranscriptUpdateObservation> WaitForTranscriptUpdateAsync(
-        string role, string source, string? content = null, TimeSpan? timeout = null) =>
-        RequireUi().WaitForTranscriptUpdateAsync(role, source, content, timeout, DescribeControlDiagnostics());
+        string role, string source, string? content = null, TimeSpan? timeout = null, int skip = 0) =>
+        RequireUi().WaitForTranscriptUpdateAsync(role, source, content, timeout, DescribeControlDiagnostics(), skip);
 
     /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.update" message reports the given
     /// operation for the given role - and, unless null, the given content - and returns the dashboard protocol's
