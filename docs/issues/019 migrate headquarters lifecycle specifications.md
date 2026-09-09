@@ -56,7 +56,7 @@ This issue does not add a runtime replacement command, a `Relaunching` phase, `c
 behavior from `restart button.md`. A subsequent process launch is used only to prove that the terminated process
 released ownership.
 
-### Slice 1: Prove healthy startup and host-controlled shutdown
+### Slice 1 [done]: Prove healthy startup and host-controlled shutdown
 
 1. Extend the process scenario facade with semantic observations for UI readiness, every configured provider session
    becoming ready, process completion, session disposal, host-control unavailability, and a subsequent launch against
@@ -73,6 +73,14 @@ released ownership.
 **Slice acceptance:** A real multi-role headquarters process reaches UI and agent readiness, shuts down through its
 public control command, preserves durable state, releases all externally observable ownership, and permits a fresh
 healthy launch.
+
+**Status: complete (c43fde8f6c).** `HeadquartersLifecycle.feature` covers slice 1 through the process boundary: a
+real multi-role `squad-hq` launch completes `ui.ready`, observes both fake sessions and their initial harness
+instructions, reaches agent readiness through `squad-hq wait-for-agent` after idle, shuts down through
+`squad-hq shutdown` with exit 0, reports both sessions disposed, finds host control unavailable, preserves seeded
+`notes.md` in the coder worktree, and a replacement Echo-provider process reaches `ui.ready` on the same workspace.
+Covered ViewModel happy-path `SquadApplication`, host-lease, session-draining, prepared-role ordering, and
+lifecycle-trace scenarios were removed with their orphaned bindings.
 
 ### Slice 2: Terminate cleanly on UI closure and caller cancellation
 
