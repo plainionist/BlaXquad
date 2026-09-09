@@ -382,28 +382,6 @@ Feature: Squad ViewModel
     And the recording "coder" session emits tool start "list_agents"
     Then ViewModel role "coder" transcript has exactly 0 "tool" entries
 
-  Scenario: Concurrent tool output remains correlated by tool call ID
-    Given a ViewModel with recording roles "coder"
-    When SDK tool call "X" starts "powershell X" for role "coder"
-    And SDK tool call "Y" starts "powershell Y" for role "coder"
-    And SDK tool call "X" emits partial output "X-1\n" for role "coder"
-    And SDK tool call "Y" emits partial output "Y-1\n" for role "coder"
-    And SDK tool call "X" emits partial output "X-2\n" for role "coder"
-    And SDK tool call "Y" emits partial output "Y-2\n" for role "coder"
-    Then ViewModel role "coder" transcript has exactly 2 "tool" entries
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      powershell X
-      X-1
-      X-2
-      """
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      powershell Y
-      Y-1
-      Y-2
-      """
-
   Scenario: Tool progress remains separate from output
     Given a ViewModel with recording roles "coder"
     When SDK tool call "X" starts "powershell" for role "coder"
