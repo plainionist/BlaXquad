@@ -246,7 +246,7 @@ is the only `tool` entry and `activeTool` stays clear); and a discovery system m
 `Read ...SKILL.md` transcript update. The three covered ViewModel scenarios and their orphaned skill/tool-output
 bindings were removed.
 
-### Slice 11 [pending]: Preserve monotonic context and accumulated usage
+### Slice 11 [in progress]: Preserve monotonic context and accumulated usage
 
 1. Extend `ActiveUsageRefresh.feature` and typed snapshot observations to cover context tokens and accumulated AIC
    usage together while a role is working and after it becomes idle.
