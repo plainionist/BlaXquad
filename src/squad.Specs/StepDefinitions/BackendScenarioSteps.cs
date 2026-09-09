@@ -491,6 +491,18 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentCompletesToolCallNamedWithDetailedOutput(string role, string toolCallId, string toolName, string detailedOutput) =>
         Await(myScenario.Agent(role).EmitToolCompletedAsync(toolCallId, toolName, succeeded: true, displayOutputFallback: DecodeEscapes(detailedOutput)));
 
+    [When("the {string} agent reports progress {string} for tool call {string}")]
+    public void WhenTheAgentReportsProgressForToolCall(string role, string progress, string toolCallId) =>
+        Await(myScenario.Agent(role).EmitToolProgressAsync(toolCallId, progress));
+
+    [Then("the backend scenario observes role {string} with active tool {string}")]
+    public void ThenTheBackendScenarioObservesRoleWithActiveTool(string role, string tool) =>
+        Await(myScenario.WaitForRoleActiveToolAsync(role, tool));
+
+    [Then("the backend scenario observes role {string} with no active tool")]
+    public void ThenTheBackendScenarioObservesRoleWithNoActiveTool(string role) =>
+        Await(myScenario.WaitForNoActiveToolAsync(role));
+
     [When("the {string} agent emits idle")]
     public void WhenTheAgentEmitsIdle(string role) => Await(myScenario.Agent(role).EmitIdleAsync());
 

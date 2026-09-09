@@ -231,6 +231,16 @@ public sealed class BackendScenario : IDisposable
     public Task WaitForRoleUsageAsync(string role, decimal aicUsed, TimeSpan? timeout = null) =>
         RequireUi().WaitForRoleUsageAsync(role, aicUsed, timeout, DescribeControlDiagnostics());
 
+    /// <summary>Waits until a "state.snapshot" message reports the given role at the given active tool - proving
+    /// the UI protocol exposes a running tool call as the role's active tool.</summary>
+    public Task WaitForRoleActiveToolAsync(string role, string activeTool, TimeSpan? timeout = null) =>
+        RequireUi().WaitForRoleActiveToolAsync(role, activeTool, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Waits until the most recently published "state.snapshot" message reports the given role with no
+    /// active tool - proving a tool completion genuinely cleared it.</summary>
+    public Task WaitForNoActiveToolAsync(string role, TimeSpan? timeout = null) =>
+        RequireUi().WaitForNoActiveToolAsync(role, timeout, DescribeControlDiagnostics());
+
     private HeadlessUiClient RequireUi() =>
         myUi ?? throw new InvalidOperationException("The backend process has not been started.");
 

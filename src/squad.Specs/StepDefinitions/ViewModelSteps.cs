@@ -1000,36 +1000,6 @@ public sealed class ViewModelSteps
             tool,
             JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = path }));
 
-    [When("SDK tool call {string} starts {string} for role {string}")]
-    public void WhenSdkToolCallStartsForRole(string toolCallId, string tool, string role) =>
-        EmitToolStart(role, toolCallId, tool);
-
-    [When("SDK tool call {string} emits partial output {string} for role {string}")]
-    public void WhenSdkToolCallEmitsPartialOutputForRole(string toolCallId, string partialOutput, string role)
-    {
-        var output = myToolOutputNormalizer.Apply(toolCallId, DecodeEscapes(partialOutput));
-        if (output is not null)
-        {
-            Emit(role, new AgentToolOutputChangedEvent(DateTimeOffset.UtcNow, toolCallId, output));
-        }
-    }
-
-    [When("tool call {string} reports progress {string} for role {string}")]
-    public void WhenToolCallReportsProgressForRole(string toolCallId, string progress, string role) =>
-        Emit(role, new AgentToolProgressEvent(DateTimeOffset.UtcNow, toolCallId, progress));
-
-    [When("SDK tool call {string} completes for role {string} with detailed output {string}")]
-    public void WhenSdkToolCallCompletesForRoleWithDetailedOutput(string toolCallId, string role, string detailedOutput)
-    {
-        var streamedOutput = myToolOutputNormalizer.Complete(toolCallId);
-        Emit(role, new AgentToolCompletedEvent(
-            DateTimeOffset.UtcNow,
-            toolCallId,
-            "powershell",
-            true,
-            streamedOutput ? null : DecodeEscapes(detailedOutput)));
-    }
-
     [When("the recording {string} session emits system message {string}")]
     public void WhenTheRecordingSessionEmitsSystemMessage(string role, string message) =>
         Emit(role, new AgentSystemMessageEvent(DateTimeOffset.UtcNow, message));
@@ -1614,7 +1584,6 @@ public sealed class ViewModelSteps
                 NormalizeLineEndings(entry.Content) == NormalizeLineEndings(content)),
             Is.True);
 
-    [Then("ViewModel role {string} transcript has exactly {int} {string} entry")]
     [Then("ViewModel role {string} transcript has exactly {int} {string} entries")]
     public void ThenViewModelRoleTranscriptHasExactlyEntries(string role, int count, string source) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Count(entry => entry.Source == source), Is.EqualTo(count));
@@ -1640,12 +1609,6 @@ public sealed class ViewModelSteps
 
     private static string NormalizeLineEndings(string value) =>
         value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
-
-    [Then("ViewModel role {string} has active tool {string}")]
-    public void ThenViewModelRoleHasActiveTool(string role, string tool) => Assert.That(myViewModel.Roles[role].ActiveTool, Is.EqualTo(tool));
-
-    [Then("ViewModel role {string} has no active tool")]
-    public void ThenViewModelRoleHasNoActiveTool(string role) => Assert.That(myViewModel.Roles[role].ActiveTool, Is.Null);
 
     private void Emit(string role, AgentEvent agentEvent)
     {

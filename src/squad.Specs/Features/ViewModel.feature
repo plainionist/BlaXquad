@@ -382,31 +382,6 @@ Feature: Squad ViewModel
     And the recording "coder" session emits tool start "list_agents"
     Then ViewModel role "coder" transcript has exactly 0 "tool" entries
 
-  Scenario: Tool progress remains separate from output
-    Given a ViewModel with recording roles "coder"
-    When SDK tool call "X" starts "powershell" for role "coder"
-    And tool call "X" reports progress "Waiting" for role "coder"
-    And SDK tool call "X" emits partial output "DONE" for role "coder"
-    And tool call "X" reports progress "Finishing" for role "coder"
-    And SDK tool call "X" completes for role "coder" with detailed output "DONE\nmetadata"
-    Then ViewModel role "coder" transcript has exactly 1 "tool" entry
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      powershell
-      DONE
-      """
-
-  Scenario: Completion detailed output is a display fallback
-    Given a ViewModel with recording roles "coder"
-    When SDK tool call "X" starts "powershell" for role "coder"
-    And SDK tool call "X" completes for role "coder" with detailed output "FINAL"
-    Then ViewModel role "coder" transcript has exactly 1 "tool" entry
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      powershell
-      FINAL
-      """
-
   Scenario: Console activity formats known command arguments
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session emits tool start "powershell" with arguments:
@@ -505,10 +480,3 @@ Feature: Squad ViewModel
     When the recording "coder" session emits system message "Discovered skill: C:\\skills\\analyze-issue\\SKILL.md"
     Then ViewModel role "coder" transcript has a "system" entry "Discovered skill: C:\\skills\\analyze-issue\\SKILL.md"
     And ViewModel role "coder" transcript has no entry "Read C:\\skills\\analyze-issue\\SKILL.md"
-
-  Scenario: Tool state is visible only while the tool is active
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "git status"
-    Then ViewModel role "coder" has active tool "git status"
-    When the recording "coder" session emits tool completion "git status"
-    Then ViewModel role "coder" has no active tool

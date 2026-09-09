@@ -81,6 +81,26 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
+    /// <summary>Waits until a "state.snapshot" message reports the given role at the given active tool.</summary>
+    public Task WaitForRoleActiveToolAsync(
+        string role, string activeTool, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element) && RoleHasActiveTool(element, role, activeTool),
+            $"role '{role}' to report active tool '{activeTool}'",
+            timeout,
+            additionalDiagnostics);
+
+    /// <summary>Waits until the most recently published "state.snapshot" message (not just any snapshot ever
+    /// observed) reports the given role with no active tool - proving a tool completion genuinely cleared it,
+    /// rather than merely matching an earlier snapshot recorded before any tool ever started.</summary>
+    public Task WaitForNoActiveToolAsync(
+        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForLatestStateSnapshotAsync(
+            element => RoleHasActiveTool(element, role, null),
+            $"role '{role}' to report no active tool",
+            timeout,
+            additionalDiagnostics);
+
     /// <summary>Waits until a "transcript.update" message reports the given content for the given role.</summary>
     public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
@@ -622,6 +642,29 @@ public sealed class HeadlessUiClient
             {
                 return true;
             }
+        }
+        return false;
+    }
+
+    /// <summary>Matches a role's published "activeTool" field, either against a specific expected tool name or -
+    /// when <paramref name="activeTool"/> is null - against no active tool at all.</summary>
+    private static bool RoleHasActiveTool(JsonElement element, string role, string? activeTool)
+    {
+        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (!roleElement.TryGetProperty("role", out var name) || name.GetString() != role)
+            {
+                continue;
+            }
+            var observedActiveTool = roleElement.TryGetProperty("activeTool", out var activeToolElement)
+                && activeToolElement.ValueKind == JsonValueKind.String
+                ? activeToolElement.GetString()
+                : null;
+            return observedActiveTool == activeTool;
         }
         return false;
     }
