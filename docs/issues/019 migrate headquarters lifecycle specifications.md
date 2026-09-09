@@ -253,33 +253,24 @@ rejected prompt was not shown to miss the provider.
 **Slice acceptance:** Once a provider session terminates, delayed work carrying its identity cannot mutate any later
 published state or obstruct process cleanup.
 
-#### Review findings on fb58db1948
+#### Review findings on fb58db1948 / 17f2ff449c
 
-**Finding 1 — medium**
+**Finding 1 — addressed in `17f2ff449c`.** Post-delay status now uses `WaitForLatestRoleStatusAsync` /
+`WaitForLatestStateSnapshotAsync`, so it cannot rematch an earlier terminal snapshot.
+
+**Finding 2 — medium** (still open on `17f2ff449c`)
 
 - **Location:** `src/squad.Specs/Features/TerminatedSessionEventSuppression.feature`
-  (both delayed-event scenarios: the second `observes role "coder" at status "stopped"` /
-  `at status "error"` after the late readiness and second termination).
-- **Violated behavior:** Slice 8 item 2 requires capturing terminal protocol state, publishing delayed events,
-  then proving those stale values do not change the published role.
-- **Root cause:** `WaitForRoleStatusAsync` uses `WaitForMessageAsync` with no skip, so it rematches the
-  `state.snapshot` already observed at termination. A later snapshot that resurrected the role would still pass.
-  `WaitForLatestStateSnapshotAsync` exists specifically to avoid this first-match pitfall and is already used for
-  pending-permission absence.
-- **Required outcome:** After the delayed publications, assert role status from a snapshot that cannot be the
-  pre-delay terminal one (latest snapshot, skipped prior matches, or a requested state refresh).
-
-**Finding 2 — medium**
-
-- **Location:** Same feature, `requests a fresh transcript synchronization` then
-  `does not observe the transcript ... within 2 seconds`.
-- **Violated behavior:** Slice 8 item 2 requires a fresh state/transcript synchronization and proof that stale
-  values do not change the published transcript.
-- **Root cause:** The scenario sends `transcript.synchronize` but never waits for or inspects that result. It then
-  waits for a `transcript.update` containing the stale text to time out. Stale content that appeared only in the
+  (`requests a fresh transcript synchronization` then `the reconciled transcript for role "coder" does not contain
+  ...`), `BackendScenarioSteps.ThenTheReconciledTranscriptForRoleDoesNotContain`.
+- **Violated behavior:** Slice 8 item 2 requires observing the fresh transcript synchronization and proving that
+  response does not contain the delayed stale values.
+- **Root cause:** `WaitForReconciledTranscriptAsync` returns as soon as the current reconciliation matches
+  `!contains(stale)`. The initial handshake synchronization already lacks that text, so the wait succeeds before
+  the just-requested `transcript.synchronize` is observed. Stale content that appeared only in that new
   synchronize payload would not fail.
-- **Required outcome:** After requesting transcript synchronization, observe that response and prove it does not
-  contain the delayed assistant (or other stale) values.
+- **Required outcome:** After the request, wait for a new `transcript.synchronize` (not a prior one) and prove
+  that payload, or a reconciliation that includes it, does not contain the delayed values.
 
 ### Slice 9: Preserve primary and cleanup diagnostics through final release
 
