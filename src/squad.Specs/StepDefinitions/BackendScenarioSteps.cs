@@ -401,7 +401,7 @@ public sealed class BackendScenarioSteps
     [Then("the transcript synchronization for role {string} includes exactly these entries:")]
     public void ThenTheTranscriptSynchronizationForRoleIncludesExactlyTheseEntries(string role, Table expected)
     {
-        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: row["content"])).ToList();
+        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: DecodeEscapes(row["content"]))).ToList();
         var expectedSources = expectedEntries.Select(entry => entry.Source).ToHashSet();
 
         // Filtering the observed entries to the expected sources before comparing (rather than requiring an exact

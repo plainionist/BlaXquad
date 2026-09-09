@@ -27,7 +27,9 @@ Feature: Transcript tool output aggregation
     And the most recently observed transcript updates for role "coder" report the same entry index
     When the "coder" agent completes tool call "X" named "powershell" with detailed output "Build succeeded"
     When the backend scenario requests a fresh transcript synchronization
-    Then the transcript synchronization for role "coder" includes an entry with source "tool" and content "powershell\nLINE-1\nLINE-2\nLINE-3"
+    Then the transcript synchronization for role "coder" includes exactly these entries:
+      | source | content                            |
+      | tool   | powershell\nLINE-1\nLINE-2\nLINE-3 |
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
 
@@ -45,6 +47,10 @@ Feature: Transcript tool output aggregation
     When the "coder" agent emits partial tool output "LINE-3\n" for tool call "X"
     Then the backend scenario observes a transcript update for role "coder" with source "tool" and content "powershell\nLINE-1\nLINE-2\nLINE-3\n"
     And the most recently observed transcript updates for role "coder" report the same entry index
+    When the backend scenario requests a fresh transcript synchronization
+    Then the transcript synchronization for role "coder" includes exactly these entries:
+      | source | content                             |
+      | tool   | powershell\nLINE-1\nLINE-2\nLINE-3\n |
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
 
@@ -62,6 +68,10 @@ Feature: Transcript tool output aggregation
     When the "coder" agent emits partial tool output "Progress 20" for tool call "X"
     Then the backend scenario observes a transcript update for role "coder" with source "tool" and content "powershell\nProgress 20"
     And the most recently observed transcript updates for role "coder" report the same entry index
+    When the backend scenario requests a fresh transcript synchronization
+    Then the transcript synchronization for role "coder" includes exactly these entries:
+      | source | content               |
+      | tool   | powershell\nProgress 20 |
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
 
@@ -75,6 +85,8 @@ Feature: Transcript tool output aggregation
     Then the backend scenario observes a transcript update for role "coder" with source "tool" and content "run_in_terminal\n3 files found"
     When the "coder" agent completes tool call "X" named "run_in_terminal" with detailed output "Build succeeded"
     And the backend scenario requests a fresh transcript synchronization
-    Then the transcript synchronization for role "coder" includes an entry with source "tool" and content "run_in_terminal\n3 files found"
+    Then the transcript synchronization for role "coder" includes exactly these entries:
+      | source | content                       |
+      | tool   | run_in_terminal\n3 files found |
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
