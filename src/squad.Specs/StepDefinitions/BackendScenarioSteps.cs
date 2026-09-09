@@ -233,13 +233,13 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioCompletesThePendingSessionDisposalForRole(string role) =>
         Await(myScenario.Agent(role).CompletePendingDisposalAsync());
 
-    [Then("the backend scenario observes role {string}'s session disposal held")]
-    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeld(string role) =>
-        Await(myScenario.Agent(role).WaitForDisposalHeldAsync());
-
-    [Then("the backend scenario observes role {string}'s prompt {string} canceled before disposal")]
-    public void ThenTheBackendScenarioObservesRoleSPromptCanceledBeforeDisposal(string role, string prompt) =>
-        Assert.That(Await(myScenario.Agent(role).WaitForSendCanceledAsync()), Is.EqualTo(prompt));
+    [Then("the backend scenario observes role {string}'s session disposal held after its admitted send was already canceled")]
+    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeldAfterItsAdmittedSendWasAlreadyCanceled(string role) =>
+        Assert.That(
+            Await(myScenario.Agent(role).WaitForDisposalHeldAsync()),
+            Is.True,
+            $"Role '{role}''s session disposal was held, but its admitted send had not yet reached its own " +
+            "canceled outcome by that moment - drain-before-dispose ordering was not observed.");
 
     [When("the backend scenario requests a host-control shutdown without waiting for the process to exit")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdownWithoutWaitingForTheProcessToExit() =>

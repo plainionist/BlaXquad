@@ -34,6 +34,7 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     private readonly FakeProviderControlClient? myControl;
     private readonly CopilotToolOutputNormalizer myToolOutputNormalizer = new();
     private TaskCompletionSource<string>? myPendingReply;
+    private bool mySendCanceledBeforeDisposal;
     private long myGeneration;
     private bool myRejectNextHarness;
     private TaskCompletionSource? myPendingAbort;
@@ -83,16 +84,13 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
         }
         catch (OperationCanceledException)
         {
-            // Reports this send's own cancellation before propagating so a scenario can prove the admitted send
-            // reached its terminal, canceled outcome strictly before this same session's later disposal - not
-            // merely infer the order from production's own call sequence. This notification and DisposeAsync's
-            // "disposal-held" notification below both travel across the very same single control-pipe
-            // connection this session already uses, so whichever one this real host process actually sends
-            // first is exactly the one the test observes first.
-            if (myControl is not null)
-            {
-                await myControl.NotifyObservationAsync(Role, SessionId, "send-canceled", new { prompt }, CancellationToken.None);
-            }
+            // Records this send's own terminal, canceled outcome in-process, synchronously, before propagating -
+            // not merely a control-pipe notification a scenario could observe in either order relative to the
+            // later "disposal-held" notification below. DisposeAsync reads this same field when it later runs,
+            // so a scenario that observes "disposal-held" carrying this flag as true has proof - not an
+            // inference from production's own call sequence, and not reliant on any pipe message ordering - that
+            // this admitted send already reached its canceled outcome strictly before disposal began.
+            mySendCanceledBeforeDisposal = true;
             throw;
         }
         myEvents.Publish(new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, content, IsDelta: false));
@@ -430,13 +428,17 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     {
         // If a scenario armed a held disposal for this session, report it before waiting so a scenario can prove
         // backend cleanup has genuinely reached this real provider boundary - not merely infer it from timing -
-        // before it proceeds to prove a command arriving while cleanup remains held is still rejected.
+        // before it proceeds to prove a command arriving while cleanup remains held is still rejected. The
+        // observation carries this session's own in-process record of whether an admitted send already reached
+        // its canceled outcome, giving a scenario a direct causal proof of drain-before-dispose ordering instead
+        // of one built on control-pipe message arrival order.
         var pendingDisposal = myPendingDisposal;
         if (pendingDisposal is not null)
         {
             if (myControl is not null)
             {
-                await myControl.NotifyObservationAsync(Role, SessionId, "disposal-held", new { }, CancellationToken.None);
+                await myControl.NotifyObservationAsync(
+                    Role, SessionId, "disposal-held", new { sendCanceledBeforeDisposal = mySendCanceledBeforeDisposal }, CancellationToken.None);
             }
             await pendingDisposal.Task;
         }
@@ -448,5 +450,8 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
         await myEvents.DisposeAsync();
     }
 }
+
+
+
 
 

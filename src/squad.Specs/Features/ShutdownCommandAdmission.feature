@@ -17,8 +17,7 @@ Feature: Draining accepted commands and rejecting new commands during shutdown
     And the backend scenario sends the prompt "keep this admitted" to role "coder"
     Then the "coder" agent observes the prompt "keep this admitted"
     When the backend scenario requests a host-control shutdown without waiting for the process to exit
-    Then the backend scenario observes role "coder"'s prompt "keep this admitted" canceled before disposal
-    And the backend scenario observes role "coder"'s session disposal held
+    Then the backend scenario observes role "coder"'s session disposal held after its admitted send was already canceled
     And the backend scenario observes a protocol error mentioning "task was canceled"
     When the backend scenario sends the prompt "rejected after admission closes" to role "coder"
     Then the backend scenario observes a protocol error mentioning "shutting down"
