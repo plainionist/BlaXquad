@@ -156,7 +156,7 @@ exactly those two `tool` entries with only each call's own ordered output. The c
 ("Concurrent tool output remains correlated by tool call ID") was removed; shared SDK tool-call bindings remain
 for later slices.
 
-### Slice 6 [in progress]: Preserve visible tool lifecycle state
+### Slice 6 [done]: Preserve visible tool lifecycle state
 
 1. Publish tool start, progress, output, and completion through semantic fake-provider operations.
 2. Assert the role snapshot exposes the active tool only while it is running, progress does not replace output,
@@ -167,24 +167,13 @@ for later slices.
 **Slice acceptance:** The UI protocol exposes correct active-tool state and stable display output throughout one tool
 call, including completion with and without prior output.
 
-**Status: changes requested (83b99359ad)**
-
-#### Review findings on 83b99359ad
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/TranscriptToolLifecycleState.feature` (progress and completion-fallback
-  scenarios), `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
-  (`Then the reconciled transcript for role {string} contains each of these entries exactly once:`).
-- **Violated behavior:** Slice 6 requires stable display output `powershell` plus `DONE` (progress must not replace
-  it, and `DONE\nmetadata` must not be used as a fallback) and fallback display output `powershell` plus `FINAL`
-  when nothing streamed. Those are newline-separated production contents.
-- **Root cause:** The reused slice-3 multiset step compares table cell text without `DecodeEscapes`. Gherkin tables
-  carry `\n` as two literal characters, which is why slice 4's exact-entry synchronize step already decodes them.
-  These scenarios therefore do not assert the real newline-separated tool display output.
-- **Required outcome:** Expected table content for these tool-output assertions must be decoded the same way as
-  other multi-line tool-output checks, so the scenarios prove the production display strings and still reject extra
-  or wrong `tool` entries.
+**Status: complete (2efbe1f84e).** `src/squad.Specs/Features/TranscriptToolLifecycleState.feature` covers slice 6
+through the process boundary: a role snapshot reports `activeTool` only while the call is running and the latest
+snapshot clears it on completion; progress reports plus a completion fallback of `DONE\nmetadata` leave exactly one
+`tool` entry with `powershell\nDONE`; and a completion with no prior stream uses the detailed output as
+`powershell\nFINAL`. The follow-up `2efbe1f84e` closes the review finding that the reused slice-3 multiset step
+compared table cells without `DecodeEscapes`. The three covered ViewModel scenarios and their orphaned SDK
+tool-call, progress, and active-tool bindings were removed.
 
 ### Slice 7 [pending]: Preserve ordinary tool command presentation
 
