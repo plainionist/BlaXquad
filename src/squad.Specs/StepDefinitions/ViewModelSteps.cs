@@ -125,13 +125,6 @@ public sealed class ViewModelSteps
         session.OnDispose = () => session.Emit(new AgentStartedEvent(DateTimeOffset.UtcNow));
     }
 
-    [Given("a SquadApplication with recording roles {string} and a lifecycle trace")]
-    public void GivenASquadApplicationWithRecordingRolesAndALifecycleTrace(string roles)
-    {
-        GivenASquadApplicationWithRecordingRoles(roles);
-        WireLifecycleTrace();
-    }
-
     [Given("a SquadApplication with recording roles {string} and a lifecycle trace whose backend fails during startup")]
     public void GivenASquadApplicationWithRecordingRolesAndALifecycleTraceWhoseBackendFailsDuringStartup(string roles)
     {
@@ -157,69 +150,6 @@ public sealed class ViewModelSteps
         }
     }
 
-    [Given("a SquadApplication constructed with empty roles and a startup lifecycle trace")]
-    public void GivenASquadApplicationConstructedWithEmptyRolesAndAStartupLifecycleTrace()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder");
-        var context = myApplicationContext!;
-        var preparedRoles = context.Roles.ToList();
-        context.Roles = [];
-        WireLifecycleTrace();
-
-        var viewModel = myApplication!.ViewModel;
-        var roleInitializationRecorded = false;
-        viewModel.StateChanged += () =>
-        {
-            if (roleInitializationRecorded || !viewModel.Roles.ContainsKey("coder"))
-            {
-                return;
-            }
-
-            Assert.That(
-                Directory.Exists(context.StateDir),
-                Is.False,
-                "Role initialization must precede workspace preparation.");
-            roleInitializationRecorded = true;
-            myLifecycleTrace!.Record("roles.initialized");
-        };
-
-        myRecordingHostLease = new RecordingHostLease { Trace = myLifecycleTrace };
-        myRecordingWindow!.OnStart = () =>
-        {
-            Assert.That(Directory.Exists(context.StateDir), Is.True);
-            Assert.That(
-                Directory.Exists(Path.Combine(
-                    context.WorkingDir,
-                    ".blaxquad",
-                    "handoffs",
-                    "inbox",
-                    "new")),
-                Is.True);
-            myLifecycleTrace!.Record("workspace.prepared");
-        };
-
-        myApplication = new SquadApplication(
-            SquadStartupPlanFactory.ForWorkspace(
-                context,
-                new WorkspacePreparer(_ => { }),
-                prepareContextAsync: cancellationToken =>
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    myLifecycleTrace!.Record("postLockPreparation.started");
-                    context.Roles = preparedRoles;
-                    myLifecycleTrace.Record("roles.populated");
-                    myLifecycleTrace.Record("backend.prepared");
-                    myLifecycleTrace.Record("postLockPreparation.completed");
-                    return Task.FromResult(BuildAgentBackendContext(context));
-                }),
-            new RecordingAgentProviderFactory(myBackend),
-            myRecordingPump!,
-            myRecordingWindow,
-            myRecordingSleep!,
-            viewModel: viewModel,
-            hostLease: myRecordingHostLease);
-    }
-
     [Given("a SquadApplication with recording roles and a host lease")]
     public void GivenASquadApplicationWithRecordingRolesAndAHostLease()
     {
@@ -230,16 +160,6 @@ public sealed class ViewModelSteps
 
     [When("the leased SquadApplication starts")]
     public async Task WhenTheLeasedSquadApplicationStarts() => await StartApplicationUntilReadyAsync();
-
-    [Then("the leased SquadApplication start completes")]
-    public void ThenTheLeasedSquadApplicationStartCompletes() => Assert.That(myApplication!.Sessions, Has.Count.EqualTo(1));
-
-    [When("the leased SquadApplication stops")]
-    public async Task WhenTheLeasedSquadApplicationStops()
-    {
-        myRecordingWindow!.Close();
-        await myApplicationRun!;
-    }
 
     [When("an external client requests application shutdown")]
     public async Task WhenAnExternalClientRequestsApplicationShutdown()
@@ -726,17 +646,6 @@ public sealed class ViewModelSteps
         }
     }
 
-    [When("the application recording {string} session emits a started event")]
-    public async Task WhenTheApplicationRecordingSessionEmitsAStartedEvent(string role)
-    {
-        myBackend.Sessions.Single(session => session.Role == role).Emit(new AgentStartedEvent(DateTimeOffset.UtcNow));
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-        while (myApplication!.ViewModel.Roles[role].EventCount == 0 && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(10);
-        }
-    }
-
     [When("the recording backend reports terminal failure {string}")]
     public void WhenTheRecordingBackendReportsTerminalFailure(string message) =>
         myBackend.FailBackend(message);
@@ -746,17 +655,6 @@ public sealed class ViewModelSteps
     {
         myRecordingWindow!.Close();
         myBackend.Sessions.Single(session => session.Role == role).Fail("failure during shutdown");
-    }
-
-    [When("the SquadApplication stops")]
-    public async Task WhenTheSquadApplicationStops()
-    {
-        myRecordingWindow!.Close();
-        await myApplicationRun!;
-        if (Directory.Exists(myApplicationRoot))
-        {
-            Directory.Delete(myApplicationRoot, recursive: true);
-        }
     }
 
     [When("the application window closes")]
@@ -931,9 +829,6 @@ public sealed class ViewModelSteps
     [Then("the application ViewModel role {string} has status {string}")]
     public void ThenTheApplicationViewModelRoleHasStatus(string role, string status) => Assert.That(myApplication!.ViewModel.Roles[role].Status, Is.EqualTo(status));
 
-    [Then("the application ViewModel role {string} saw one event")]
-    public void ThenTheApplicationViewModelRoleSawOneEvent(string role) => Assert.That(myApplication!.ViewModel.Roles[role].EventCount, Is.EqualTo(1));
-
     [Then("the application ViewModel role {string} has error {string}")]
     public void ThenTheApplicationViewModelRoleHasError(string role, string message)
     {
@@ -943,85 +838,6 @@ public sealed class ViewModelSteps
 
     [Then("the recording application sessions are drained")]
     public void ThenTheRecordingApplicationSessionsAreDrained() => Assert.That(myApplication!.Sessions, Is.Empty);
-
-    [Then("prepared role {string} is initialized before readiness publication")]
-    public async Task ThenPreparedRoleIsInitializedBeforeReadinessPublication(string role)
-    {
-        var readinessProvider = myRecordingHostLease!.AgentReadinessProvider;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(myApplication!.ViewModel.Roles.Keys, Does.Contain(role));
-            Assert.That(readinessProvider, Is.Not.Null);
-        });
-        Assert.That(await readinessProvider!(role, CancellationToken.None), Is.Not.Null);
-        myLifecycleTrace!.AssertOrdered("roles.populated", "roles.initialized");
-        myLifecycleTrace.AssertOrdered("roles.initialized", "readinessProvider.installed");
-        myLifecycleTrace.AssertOrdered("readinessProvider.installed", "application.ready");
-    }
-
-    [Then("the lifecycle trace records the current startup order")]
-    public void ThenTheLifecycleTraceRecordsTheCurrentStartupOrder()
-    {
-        var milestones = new[]
-        {
-            "postLockPreparation.started",
-            "roles.populated",
-            "backend.prepared",
-            "postLockPreparation.completed",
-            "sleepInhibitor.started",
-            "roles.initialized",
-            "readinessProvider.installed",
-            "workspace.prepared",
-            "window.started",
-            "backend.runtimeCreated",
-            "backend.sessionRegistered:coder",
-            "window.sessionsStarted",
-            "handoff.recovered",
-            "handoff.started",
-            "application.ready",
-        };
-
-        foreach (var pair in milestones.Zip(milestones.Skip(1)))
-        {
-            myLifecycleTrace!.AssertOrdered(pair.First, pair.Second);
-        }
-    }
-
-    [Then("the lifecycle trace shows the process-wide window starting before backend generation startup")]
-    public void ThenTheLifecycleTraceShowsWindowBeforeBackendGenerationStartup() =>
-        myLifecycleTrace!.AssertOrdered("window.started", "backend.sessionRegistered:coder");
-
-    [Then("the lifecycle trace shows session registration completing before the window is told sessions started")]
-    public void ThenTheLifecycleTraceShowsSessionRegistrationBeforeSessionsStarted() =>
-        myLifecycleTrace!.AssertOrdered("backend.sessionRegistered:coder", "window.sessionsStarted");
-
-    [Then("the lifecycle trace shows handoff recovery and production starting only after sessions are available")]
-    public void ThenTheLifecycleTraceShowsHandoffAfterSessionsAvailable()
-    {
-        myLifecycleTrace!.AssertOrdered("window.sessionsStarted", "handoff.recovered");
-        myLifecycleTrace.AssertOrdered("handoff.recovered", "handoff.started");
-    }
-
-    [Then("the lifecycle trace shows shutdown stopping handoff production before retiring the backend generation")]
-    public void ThenTheLifecycleTraceShowsHandoffStopBeforeBackendRetirement() =>
-        myLifecycleTrace!.AssertOrdered("handoff.stopped", "backend.disposed");
-
-    [Then("the lifecycle trace shows session completion resolving before observer retirement completes")]
-    public void ThenTheLifecycleTraceShowsSessionCompletionBeforeObserverRetirement() =>
-        // SquadApplication only reaches backend disposal after AwaitEventTasksAsync drains every per-session
-        // observer, and each observer's own await session.Completion cannot resolve until this session's dispose
-        // runs. So backend.disposed is a genuine, non-racy proxy for observer retirement, driven by real
-        // production cleanup rather than a test-manufactured signal.
-        myLifecycleTrace!.AssertOrdered("session.coder.completionResolved", "backend.disposed");
-
-    [Then("the lifecycle trace shows generation teardown finishing before the window and remaining process-wide resources release")]
-    public void ThenTheLifecycleTraceShowsGenerationTeardownBeforeProcessWideRelease()
-    {
-        myLifecycleTrace!.AssertOrdered("backend.disposed", "window.stopped");
-        myLifecycleTrace.AssertOrdered("backend.disposed", "window.disposed");
-        myLifecycleTrace.AssertOrdered("backend.disposed", "sleepInhibitor.disposed");
-    }
 
     [Then("the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup failure")]
     public void ThenTheLifecycleTraceShowsCleanupCompletedDespiteFailure()

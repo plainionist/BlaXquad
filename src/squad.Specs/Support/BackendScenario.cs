@@ -389,6 +389,67 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Runs the real "squad-hq wait-for-agent" host-control command for the given role against this scenario's own
+    /// workspace and awaits its bounded completion, proving agent readiness through the same public command a real
+    /// caller uses - never the UI protocol's own "state.snapshot" projection.
+    /// </summary>
+    public async Task<CommandResult> WaitForAgentReadyThroughCliAsync(string role, TimeSpan? timeout = null)
+    {
+        var waitTimeout = timeout ?? DefaultTimeout;
+        var command = StartWaitForAgent(role, waitTimeout);
+        // The outer wait must outlast the command's own "--timeout" so a genuinely ready agent always completes
+        // first; the extra margin only bounds how long a broken wait-for-agent is allowed to hang.
+        return await command.WaitForCompletionAsync(waitTimeout + TimeSpan.FromSeconds(5));
+    }
+
+    /// <summary>
+    /// Confirms this scenario's host-control endpoint is no longer reachable - for example after a normal
+    /// host-controlled shutdown - by invoking the real "squad-hq wait-for-agent" command against this scenario's
+    /// own workspace and returning its captured result. A live host would answer promptly; an unavailable one
+    /// makes this command fail fast with the same "squad host unavailable" diagnostic any other caller would
+    /// observe, never a fabricated in-process check.
+    /// </summary>
+    public CommandResult ConfirmHostControlUnavailable(string role, TimeSpan? timeout = null) =>
+        myWorkspace.RunBackendSpecSquadHq(
+            [
+                "wait-for-agent",
+                role,
+                "--timeout",
+                (timeout ?? TimeSpan.FromSeconds(2)).TotalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                myWorkspace.Root,
+            ]);
+
+    /// <summary>
+    /// Writes a durable marker file into the given role's own worktree before the process starts, so
+    /// <see cref="DurableRoleFileIsPreserved"/> can later prove a normal shutdown neither deletes nor corrupts
+    /// durable workspace content the launched process does not itself own.
+    /// </summary>
+    public void SeedDurableRoleFile(string role, string relativePath, string content) =>
+        myWorkspace.WriteFileInRoleWorktree(role, relativePath, content);
+
+    /// <summary>Whether the given role's durable marker file (see <see cref="SeedDurableRoleFile"/>) still exists
+    /// on disk and still contains its original content.</summary>
+    public bool DurableRoleFileIsPreserved(string role, string relativePath, string expectedContent)
+    {
+        var path = Path.Combine(myWorkspace.RoleWorktreePath(role), Path.Combine(relativePath.Split('/')));
+        return File.Exists(path) && File.ReadAllText(path).Contains(expectedContent, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Starts a brand-new <see cref="BackendScenario"/> against this exact same workspace, proving a healthy
+    /// replacement process can acquire the same project and reach readiness after this scenario's own process
+    /// released it - for example after a normal host-controlled shutdown. The caller owns the returned scenario's
+    /// lifetime exactly like this one; it is not disposed automatically by this scenario.
+    /// </summary>
+    public async Task<BackendScenario> StartReplacementAsync<TProviderFactory>(TimeSpan? timeout = null)
+        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
+    {
+        var replacement = new BackendScenario(myWorkspace);
+        await replacement.StartAsync<TProviderFactory>(timeout);
+        return replacement;
+    }
+
+    /// <summary>
     /// Abruptly terminates the exact squad-hq process this scenario launched - simulating a real host crash
     /// instead of a normal "squad-hq shutdown" - and waits until it has actually exited, so a specification can
     /// prove stale-ownership recovery starts from a genuinely terminated process rather than fabricated metadata.

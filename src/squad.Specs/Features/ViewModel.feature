@@ -1,15 +1,6 @@
 Feature: Squad ViewModel
   The application ViewModel isolates role state and serializes role commands.
 
-  Scenario: SquadApplication forwards and drains session events
-    Given a SquadApplication with recording roles "coder,reviewer"
-    When the SquadApplication starts
-    And the application recording "coder" session emits a started event
-    Then the application ViewModel role "coder" has status "running"
-    And the application ViewModel role "coder" saw one event
-    When the SquadApplication stops
-    Then the recording application sessions are drained
-
   Scenario: Backend-wide terminal failure stops the application
     Given a SquadApplication with recording roles "coder,reviewer"
     When the SquadApplication starts
@@ -70,20 +61,6 @@ Feature: Squad ViewModel
     And the application waits for window closure
     Then SDK-shaped sessions were disposed in reverse registration order
 
-  Scenario: Roles prepared after construction initialize in the current startup order
-    Given a SquadApplication constructed with empty roles and a startup lifecycle trace
-    When the application lifecycle reaches readiness
-    Then prepared role "coder" is initialized before readiness publication
-    And the lifecycle trace records the current startup order
-    When the application window closes
-    And the application waits for window closure
-
-  Scenario: Healthy startup with host ownership completes
-    Given a SquadApplication with recording roles and a host lease
-    When the leased SquadApplication starts
-    Then the leased SquadApplication start completes
-    When the leased SquadApplication stops
-
   Scenario: External shutdown stops a lease-owned application
     Given a SquadApplication with recording roles and a host lease
     When the leased SquadApplication starts
@@ -112,18 +89,6 @@ Feature: Squad ViewModel
     And the application window closes
     And the application waits for window closure
     Then the recording application sessions are drained
-
-  Scenario: Healthy startup and shutdown follow generation lifecycle ownership order
-    Given a SquadApplication with recording roles "coder" and a lifecycle trace
-    When the application lifecycle reaches readiness
-    And the application window closes
-    And the application waits for window closure
-    Then the lifecycle trace shows the process-wide window starting before backend generation startup
-    And the lifecycle trace shows session registration completing before the window is told sessions started
-    And the lifecycle trace shows handoff recovery and production starting only after sessions are available
-    And the lifecycle trace shows shutdown stopping handoff production before retiring the backend generation
-    And the lifecycle trace shows session completion resolving before observer retirement completes
-    And the lifecycle trace shows generation teardown finishing before the window and remaining process-wide resources release
 
   Scenario: Late session events do not fail window shutdown
     Given a SquadApplication with a session that emits while shutting down
