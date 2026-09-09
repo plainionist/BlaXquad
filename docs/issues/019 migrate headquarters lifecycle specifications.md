@@ -82,7 +82,7 @@ instructions, reaches agent readiness through `squad-hq wait-for-agent` after id
 Covered ViewModel happy-path `SquadApplication`, host-lease, session-draining, prepared-role ordering, and
 lifecycle-trace scenarios were removed with their orphaned bindings.
 
-### Slice 2: Terminate cleanly on UI closure and caller cancellation
+### Slice 2 [done]: Terminate cleanly on UI closure and caller cancellation
 
 **Decision:** Keep the existing `Process.Start` path for every ordinary `BackendScenario` launch. Add a dedicated,
 test-owned cancellation-capable process launcher used only by the caller-cancellation scenario. It may use the
@@ -109,6 +109,14 @@ in Slice 2 because it is the only supported boundary that proves the executable'
 **Slice acceptance:** Closing the headless UI or cancelling the launched command terminates only that headquarters
 process, reports the documented result, cleans up owned resources, and does not require a recording window or injected
 caller token.
+
+**Status: complete (b945cabe31).** `HeadquartersTermination.feature` covers slice 2 through the process boundary:
+closing stdin after readiness and before `ui.ready`, and delivering the platform cancellation signal after
+readiness, each exit 0, and the after-readiness paths also dispose both fake sessions, find host control
+unavailable, and allow a replacement Echo-provider process to reach `ui.ready` on the same workspace. Caller
+cancellation uses a dedicated `CancellableChildProcess` launcher only (ordinary `Process.Start` unchanged), per
+the slice decision. Covered ViewModel window-close, caller-cancellation, and synthetic window-close-failure
+scenarios were removed, along with the overlapping StdioUiProtocol end-of-input scenarios.
 
 ### Slice 3: Stop safely before and during startup
 
