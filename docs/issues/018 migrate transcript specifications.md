@@ -298,7 +298,7 @@ cross the live-retention budget, a later delta publishes `append-content` on the
 synchronize contains the concatenated stream (`Hello world` / `draft final`) rather than a split or misrouted
 entry. The covered ViewModel scenario and its orphaned `has a ... entry` binding were removed.
 
-### Slice 14 [pending]: Page retained transcript history
+### Slice 14 [in progress]: Page retained transcript history
 
 1. Extend the headless UI client with semantic transcript synchronization and previous-page requests while keeping
    request envelopes and storage coordinates private.
