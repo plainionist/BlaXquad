@@ -264,7 +264,7 @@ latest values after idle; a new scenario reports AIC `3.5` then a stale AIC `0` 
 each assertion matches a fresh snapshot) and proves working and idle snapshots keep `3.5` with no `aicUsed` of `0`.
 The three covered ViewModel usage scenarios and their orphaned snapshot bindings were removed.
 
-### Slice 12 [in progress]: Retain pending interaction context
+### Slice 12 [done]: Retain pending interaction context
 
 1. Create a pending interaction through the fake provider, then publish enough transcript activity to cross the
    production live-retention boundary.
@@ -274,6 +274,12 @@ The three covered ViewModel usage scenarios and their orphaned snapshot bindings
 
 **Slice acceptance:** Retention does not remove the published or recoverable context required to answer a pending
 interaction.
+
+**Status: complete (b243393c4f).** `src/squad.Specs/Features/TranscriptPendingInteractionRetention.feature` covers
+slice 12 through the process boundary: a pending permission's protected harness entry remains on a fresh
+synchronize after five production-sized (250,000-character) system messages that exceed the 1,000,000-character
+live-retention budget, the permission stays answerable, and no test-only retention capacity is configured. The
+covered ViewModel scenario and its orphaned "reports older history" binding were removed.
 
 ### Slice 13 [pending]: Retain active stream context
 
