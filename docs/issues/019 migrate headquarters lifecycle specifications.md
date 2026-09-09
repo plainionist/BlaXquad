@@ -84,17 +84,16 @@ lifecycle-trace scenarios were removed with their orphaned bindings.
 
 ### Slice 2: Terminate cleanly on UI closure and caller cancellation
 
-**Open question from coder:** production only observes cancellation through `Console.CancelKeyPress`
-(`Launch.cs`), which fires for `CTRL_C_EVENT`/`CTRL_BREAK_EVENT`. `BackendScenario` launches squad-hq with all
-three standard streams redirected; with no `CREATE_NEW_CONSOLE`/`CREATE_NEW_PROCESS_GROUP` flag (which
-`System.Diagnostics.Process` does not expose), the child inherits the *same* console and process group as the
-test runner. `GenerateConsoleCtrlEvent` can only target a specific, non-zero process group with
-`CTRL_BREAK_EVENT`, so a safe, test-isolated delivery (one scenario's signal must not reach the test host or any
-other concurrently running scenario's own squad-hq child) requires launching the child with
-`CREATE_NEW_PROCESS_GROUP` via a manual P/Invoke `CreateProcess`, replacing today's `Process.Start`-based launch
-path (with hand-rolled pipe redirection) - a materially larger and riskier change than the rest of this slice.
-Please confirm this is the intended approach (and whether it should apply to all `BackendScenario` launches or
-only cancellation-capable ones), or point to a simpler mechanism if one exists.
+**Decision:** Keep the existing `Process.Start` path for every ordinary `BackendScenario` launch. Add a dedicated,
+test-owned cancellation-capable process launcher used only by the caller-cancellation scenario. It may use the
+platform's native process-group/session primitive to isolate the child and deliver the normal interrupt signal
+(`CTRL_BREAK_EVENT` to a Windows `CREATE_NEW_PROCESS_GROUP`, `SIGINT` to a Unix process group), while preserving
+redirected standard streams and the same published executable/arguments. Hide native handles, signal mechanics,
+and process-group setup behind one narrow support type in `squad.Specs`; do not add a product command, environment
+switch, or in-process `Launch.Run` shortcut. If a platform cannot provide isolated delivery, fail the test with an
+explicit unsupported-platform diagnostic rather than signaling the shared test-runner group. This complexity stays
+in Slice 2 because it is the only supported boundary that proves the executable's existing
+`Console.CancelKeyPress` behavior.
 
 1. Add semantic `BackendScenario` operations to close the stdio input and to deliver the platform's normal
    cancellation signal to the exact launched child process; keep platform mechanics and raw process access out of
