@@ -353,3 +353,38 @@ truncation were not pinned to those production bounds.
 
 **Slice acceptance:** Bounded archive rotation preserves available recent history and reports older missing content as
 unavailable without exposing offsets, paths, capacities, or reconstruction inputs.
+
+**Status: changes requested (d98c554513)**
+
+#### Review findings on d98c554513
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/TranscriptOversizedContent.feature`
+  (An entry that has rotated out of the archive is reported as unavailable while newer archived entries remain available),
+  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
+  (`Then the archived transcript entry is unavailable`,
+  `Then the archived transcript entry has {int} characters and is not truncated`).
+- **Violated behavior:** Slice 16 requires that after an entry rotates out, newer archived entries remain
+  page-accessible and ordered. The removed ViewModel archive-bound scenario proved remaining history through
+  `CreateTranscriptPage` (count plus `historyTruncated`), not a single-index fetch.
+- **Root cause:** After crossing the production archive content bound, the scenario requests `transcript.entry` for
+  index 2 (unavailable) and index 16 (still present). It never sends `transcript.page`, so it does not observe the
+  remaining archived window, its order, or `historyTruncated`. A protocol that answers those two point lookups
+  while paging remaining history out of order, with gaps, or without reporting truncation would still pass.
+- **Required outcome:** After rotation, observe remaining archived history through the real previous-page protocol
+  (not only `transcript.entry`): entries still in the archive must page back in order, and rotated-out entries must
+  not appear in that page. Keep request envelopes and storage coordinates private to test support.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
+  (`Then the archived transcript entry is unavailable`).
+- **Violated behavior:** Slice 16 requires an explicit unavailable result at the current sequence. The removed
+  reconstruction scenario asserted the unavailable archived entry's sequence matched the live transcript sequence
+  after the burst that caused rotation.
+- **Root cause:** The Then only asserts `Sequence > 0` (plus null content). Any positive stale sequence satisfies
+  that, so the reply is not proven to be the role's current sequence at request time.
+- **Required outcome:** Assert the unavailable `transcript.entry` reply's sequence matches the live transcript
+  sequence observed for that role at request time (for example the last applied update or a fresh synchronize),
+  not merely that it is greater than zero.
