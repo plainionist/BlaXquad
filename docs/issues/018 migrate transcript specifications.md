@@ -342,7 +342,7 @@ ViewModel oversized-entry, announcement-bound, and exact-limit streaming scenari
 were removed. The follow-up `dca20ca0b3` closes the review findings that live content length and archived streaming
 truncation were not pinned to those production bounds.
 
-### Slice 16 [pending]: Report rotated transcript history as unavailable
+### Slice 16 [in progress]: Report rotated transcript history as unavailable
 
 1. Publish enough history to cross the production archive boundary and request an entry that has rotated out.
 2. Assert the UI protocol returns an explicit unavailable result at the current sequence while newer archived entries
