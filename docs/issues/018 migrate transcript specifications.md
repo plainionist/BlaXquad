@@ -264,7 +264,7 @@ latest values after idle; a new scenario reports AIC `3.5` then a stale AIC `0` 
 each assertion matches a fresh snapshot) and proves working and idle snapshots keep `3.5` with no `aicUsed` of `0`.
 The three covered ViewModel usage scenarios and their orphaned snapshot bindings were removed.
 
-### Slice 12 [pending]: Retain pending interaction context
+### Slice 12 [in progress]: Retain pending interaction context
 
 1. Create a pending interaction through the fake provider, then publish enough transcript activity to cross the
    production live-retention boundary.
