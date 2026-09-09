@@ -80,6 +80,26 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     public Task FailNextAbortAsync(string message, TimeSpan? timeout = null) =>
         control.FailNextAbortAsync(role, message, timeout, uiDiagnostics);
 
+    /// <summary>Arms this role's session so its disposal, when it happens, first reports a "disposal-held"
+    /// observation and then remains pending until <see cref="CompletePendingDisposalAsync"/> resolves it.</summary>
+    public Task ArmPendingDisposalAsync(TimeSpan? timeout = null) =>
+        control.ArmPendingDisposalAsync(role, timeout, uiDiagnostics);
+
+    /// <summary>Resolves this role's currently held disposal (armed by <see cref="ArmPendingDisposalAsync"/>),
+    /// letting it proceed.</summary>
+    public Task CompletePendingDisposalAsync(TimeSpan? timeout = null) =>
+        control.CompletePendingDisposalAsync(role, timeout, uiDiagnostics);
+
+    /// <summary>Waits until this role's session has reported that its disposal is being held (armed by
+    /// <see cref="ArmPendingDisposalAsync"/>), and returns whether an admitted send on this same session had
+    /// already reached its own canceled terminal outcome by the moment disposal began - this session's own
+    /// in-process record (not an inference from production's own call sequence, and not reliant on any
+    /// control-pipe message arrival order) that an admitted prompt's cancellation strictly precedes this same
+    /// session's later disposal.</summary>
+    public Task<bool> WaitForDisposalHeldAsync(TimeSpan? timeout = null) =>
+        control.WaitForDisposalHeldAsync(role, timeout, uiDiagnostics);
+
+
     /// <summary>Waits until this role's session has reported the host cancelling its pending interactions (for
     /// example while stopping with a request still outstanding).</summary>
     public Task WaitForPendingInteractionsCancelledAsync(TimeSpan? timeout = null) =>

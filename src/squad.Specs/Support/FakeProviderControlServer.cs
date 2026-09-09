@@ -456,6 +456,31 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         string role, string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "fail-next-abort", new { message }, timeout, additionalDiagnostics);
 
+    /// <summary>Arms the given role's session so its disposal, when it happens, first reports a "disposal-held"
+    /// observation and then remains pending until <see cref="CompletePendingDisposalAsync"/> resolves it - the
+    /// deterministic control a scenario needs to prove backend cleanup genuinely holds at the real provider
+    /// boundary without an arbitrary sleep.</summary>
+    public Task ArmPendingDisposalAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "arm-pending-disposal", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Resolves the given role's currently held disposal (armed by <see cref="ArmPendingDisposalAsync"/>),
+    /// letting it proceed.</summary>
+    public Task CompletePendingDisposalAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "complete-pending-disposal", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Waits until the connected client has reported that the given role's session disposal is being
+    /// held (armed by <see cref="ArmPendingDisposalAsync"/>), and returns whether an admitted send on this same
+    /// session had already reached its own canceled terminal outcome by the moment disposal began - this session's
+    /// own in-process record (not an inference from production's own call sequence, and not reliant on any
+    /// control-pipe message arrival order) that an admitted prompt's cancellation strictly precedes this same
+    /// session's later disposal.</summary>
+    public async Task<bool> WaitForDisposalHeldAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var data = await WaitForObservationDataAsync(role, "disposal-held", timeout, additionalDiagnostics);
+        return data.TryGetProperty("sendCanceledBeforeDisposal", out var flag) && flag.GetBoolean();
+    }
+
+
     /// <summary>Completes the given role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
     public Task CompleteSessionAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
