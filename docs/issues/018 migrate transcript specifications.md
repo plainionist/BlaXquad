@@ -94,7 +94,7 @@ scenarios (assistant delta aggregation, snapshot-mid-stream, final reasoning rep
 reasoning stream, final assistant messages preserve history, final assistant messages replace streamed deltas) and
 the orphaned final-reasoning ViewModel binding were removed.
 
-### Slice 3 [pending]: Preserve transcript ordering across synchronization races
+### Slice 3 [in progress]: Preserve transcript ordering across synchronization races
 
 1. Extend the headless client with a bounded semantic observation that combines initial synchronization with updates
    after its high-water mark.
