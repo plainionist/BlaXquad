@@ -117,7 +117,7 @@ locks, callbacks, or journal inspection. The three white-box ViewModel scenarios
 atomic publication via paused callback, high-water-mark journal replay) and their Photino/journal-capacity bindings
 were removed.
 
-### Slice 4 [in progress]: Preserve single-call tool output aggregation
+### Slice 4 [done]: Preserve single-call tool output aggregation
 
 1. Add semantic tool-start, cumulative-output, incremental-output, rewritten-snapshot, and completion operations to
    the fake-provider controller as needed.
@@ -129,23 +129,14 @@ were removed.
 **Slice acceptance:** All output updates for one tool call produce one correctly aggregated transcript entry with no
 duplicated or superseded content.
 
-**Status: changes requested (5d0339efe6)**
-
-#### Review findings on 5d0339efe6
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/TranscriptToolOutputAggregation.feature`,
-  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
-  (`Then the transcript synchronization for role {string} includes an entry with source {string} and content {string}`).
-- **Violated behavior:** Slice 4 requires every output update for one tool call to produce one correctly aggregated
-  transcript entry with no duplicated or superseded content. The removed ViewModel scenarios asserted exactly one
-  `tool` entry, and the console-activity scenario asserted the transcript had no entry `Build succeeded`.
-- **Root cause:** Consecutive observed updates sharing an entry index, plus a synchronize `Any(...)` include, do not
-  prove the snapshot contains only that tool entry. An extra leftover tool entry — a superseded snapshot, a duplicated
-  cumulative item, or the completion summary `Build succeeded` as its own entry — still passes.
-- **Required outcome:** After aggregation, observe one synchronize message and assert it contains exactly one `tool`
-  entry with the expected aggregated content. For the completion cases, also prove `Build succeeded` is absent.
+**Status: complete (3c6bf6e924).** `src/squad.Specs/Features/TranscriptToolOutputAggregation.feature` covers slice 4
+through the process boundary: raw partial output is driven through the fake provider's production
+`CopilotToolOutputNormalizer`, then observed as one `tool` entry for cumulative snapshots (without duplicating
+repeated content), incremental fragments, rewritten snapshots that replace superseded output, and streamed output
+that is not overwritten by a completion summary. Each scenario ends with a synchronize that contains exactly one
+`tool` entry with the fully aggregated content, so a leftover superseded snapshot or `Build succeeded` entry fails.
+The four covered ViewModel scenarios were removed; their step bindings remain for later slices. The follow-up
+`3c6bf6e924` closes the review finding that `Any(...)` include checks allowed extra tool entries.
 
 ### Slice 5 [pending]: Preserve concurrent tool-call correlation
 
