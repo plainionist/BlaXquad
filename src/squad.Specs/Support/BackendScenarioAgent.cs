@@ -117,6 +117,17 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     public Task EmitReasoningAsync(string content, bool isDelta = false, TimeSpan? timeout = null) =>
         control.EmitReasoningAsync(role, content, isDelta, timeout, uiDiagnostics);
 
+    /// <summary>Emits an assistant message update for this role's session, awaiting the real production
+    /// <c>AgentAssistantMessageEvent</c> to be published, independently of any prompt currently awaited through
+    /// <see cref="WaitForPromptAsync(TimeSpan?)"/> or answered through <see cref="ReplyAsync"/>.</summary>
+    public Task EmitAssistantAsync(string content, bool isDelta = false, TimeSpan? timeout = null) =>
+        control.EmitAssistantAsync(role, content, isDelta, timeout, uiDiagnostics);
+
+    /// <summary>Emits a system message update for this role's session, awaiting the real production
+    /// <c>AgentSystemMessageEvent</c> to be published.</summary>
+    public Task EmitSystemMessageAsync(string content, TimeSpan? timeout = null) =>
+        control.EmitSystemMessageAsync(role, content, timeout, uiDiagnostics);
+
     /// <summary>Emits a tool-started update for this role's session.</summary>
     public Task EmitToolStartedAsync(
         string toolCallId, string toolName, string? arguments = null, string? toolKind = null,

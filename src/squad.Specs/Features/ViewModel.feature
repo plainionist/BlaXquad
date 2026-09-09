@@ -43,12 +43,6 @@ Feature: Squad ViewModel
     When the ViewModel creates snapshots while recording "coder" emits 100 assistant updates
     Then the UI snapshot contains event count 100 for "coder"
 
-  Scenario: UI snapshots preserve transcript entry field names
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits assistant delta "Ready"
-    Then the UI snapshot contains an "assistant" transcript entry "Ready" for "coder"
-    And the UI state snapshot excludes transcript history
-
   Scenario: Transcript updates preserve ordering and stream semantics
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session emits a user message "question"
@@ -431,17 +425,6 @@ Feature: Squad ViewModel
     Then ViewModel role "coder" transcript has a "reasoning" entry "final"
     And ViewModel role "coder" transcript has no entry "draft"
 
-  Scenario: Transcript entries preserve their sources
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits a user message "question"
-    And the recording "coder" session emits harness message "Loading instructions"
-    And the recording "coder" session emits assistant delta "answer"
-    And the recording "coder" session emits tool start "read_file"
-    Then ViewModel role "coder" transcript has a "user" entry "question"
-    And ViewModel role "coder" transcript has a "harness" entry "Loading instructions"
-    And ViewModel role "coder" transcript has a "assistant" entry "answer"
-    And ViewModel role "coder" transcript has a "read" entry "read_file"
-
   Scenario Outline: Subagent activity uses semantic transcript metadata
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session starts subagent "<agent>" displayed as "<description>" using model "<model>"
@@ -642,11 +625,6 @@ Feature: Squad ViewModel
       thread_status
       thread output
       """
-
-  Scenario: System activity remains visible in the transcript
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits system message "Context compaction started"
-    Then ViewModel role "coder" transcript has a "system" entry "Context compaction started"
 
   Scenario: Skill application is visible in the transcript
     Given a ViewModel with recording roles "coder"

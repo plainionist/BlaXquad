@@ -59,6 +59,11 @@ public sealed class HeadlessUiClient
     public void RespondToElicitation(string role, string requestId, string action, object? content = null) =>
         SendEnvelope("elicitation.respond", role, new { action, content }, requestId);
 
+    /// <summary>Requests a fresh full transcript synchronization through the real "transcript.synchronize"
+    /// command, producing a new "transcript.synchronize" message alongside every currently retained entry for
+    /// every role - the same message a reconnecting dashboard relies on to rebuild its view.</summary>
+    public void RequestTranscriptSynchronization() => SendEnvelope("transcript.synchronize");
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
     public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
@@ -83,6 +88,41 @@ public sealed class HeadlessUiClient
             $"a transcript update for role '{role}' with content '{content}'",
             timeout,
             additionalDiagnostics);
+
+    /// <summary>Waits until a "transcript.update" message reports an appended or replaced entry for the given
+    /// role with the given source - and, unless null, the given content - and returns the dashboard protocol's
+    /// typed <c>sequence</c>, <c>operation</c>, <c>entryIndex</c>, <c>source</c>, and <c>content</c> fields.</summary>
+    public async Task<TranscriptUpdateObservation> WaitForTranscriptUpdateAsync(
+        string role, string source, string? content = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var description = content is null
+            ? $"a transcript update for role '{role}' with source '{source}'"
+            : $"a transcript update for role '{role}' with source '{source}' and content '{content}'";
+        var element = await WaitForMessageAsync(
+            transcriptUpdate => IsMatchingTranscriptEntryUpdate(transcriptUpdate, role, source, content),
+            description,
+            timeout,
+            additionalDiagnostics);
+        return ParseTranscriptUpdate(element);
+    }
+
+    /// <summary>Waits until the most recently published "transcript.synchronize" message includes a role entry for
+    /// the given role whose decoded entries satisfy the given predicate, and returns the dashboard protocol's typed
+    /// <c>sequence</c> and indexed, sourced <c>entries</c> fields for that role.</summary>
+    public async Task<TranscriptSynchronizationObservation> WaitForTranscriptSynchronizationAsync(
+        string role,
+        Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches,
+        TimeSpan? timeout = null,
+        Func<string>? additionalDiagnostics = null)
+    {
+        var element = await WaitForMessageAsync(
+            transcriptSynchronize => TryGetTranscriptSynchronizationEntries(transcriptSynchronize, role, out var entries) && matches(entries),
+            $"a transcript synchronization for role '{role}' matching the expected entries",
+            timeout,
+            additionalDiagnostics);
+        TryGetTranscriptSynchronizationEntries(element, role, out var observedEntries);
+        return new TranscriptSynchronizationObservation(role, GetRoleSynchronizationSequence(element, role), observedEntries);
+    }
 
     /// <summary>Waits until a "state.snapshot" message publishes a pending permission request with the given
     /// role, request id, and description.</summary>
@@ -297,6 +337,115 @@ public sealed class HeadlessUiClient
             && entry.ValueKind == JsonValueKind.Object
             && entry.TryGetProperty("content", out var contentElement)
             && contentElement.GetString() == content;
+    }
+
+    private static bool IsMatchingTranscriptEntryUpdate(JsonElement element, string role, string source, string? content)
+    {
+        if (!IsType(element, "transcript.update"))
+        {
+            return false;
+        }
+        var payload = GetPayload(element);
+        if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role)
+        {
+            return false;
+        }
+        if (!payload.TryGetProperty("entry", out var entry) || entry.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+        if (!entry.TryGetProperty("source", out var sourceElement) || sourceElement.GetString() != source)
+        {
+            return false;
+        }
+        return content is null
+            || (entry.TryGetProperty("content", out var contentElement) && contentElement.GetString() == content);
+    }
+
+    private static TranscriptUpdateObservation ParseTranscriptUpdate(JsonElement element)
+    {
+        var payload = GetPayload(element);
+        var role = payload.GetProperty("role").GetString()!;
+        var sequence = payload.GetProperty("sequence").GetInt64();
+        var operation = payload.GetProperty("operation").GetString()!;
+        var entryIndex = payload.GetProperty("entryIndex").GetInt32();
+        string? source = null;
+        string? content = null;
+        if (payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object)
+        {
+            source = entry.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String
+                ? sourceElement.GetString()
+                : null;
+            content = entry.TryGetProperty("content", out var entryContentElement) && entryContentElement.ValueKind == JsonValueKind.String
+                ? entryContentElement.GetString()
+                : null;
+        }
+        else if (payload.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String)
+        {
+            content = contentElement.GetString();
+        }
+        return new TranscriptUpdateObservation(role, sequence, operation, entryIndex, source, content);
+    }
+
+    private static bool TryGetTranscriptSynchronizationEntries(
+        JsonElement element, string role, out IReadOnlyList<TranscriptEntryObservation> entries)
+    {
+        entries = [];
+        if (!IsType(element, "transcript.synchronize"))
+        {
+            return false;
+        }
+        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (!roleElement.TryGetProperty("role", out var name) || name.GetString() != role)
+            {
+                continue;
+            }
+            entries = ParseTranscriptEntries(roleElement);
+            return true;
+        }
+        return false;
+    }
+
+    private static IReadOnlyList<TranscriptEntryObservation> ParseTranscriptEntries(JsonElement roleElement)
+    {
+        if (!roleElement.TryGetProperty("entries", out var entriesElement) || entriesElement.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+        var entries = new List<TranscriptEntryObservation>();
+        foreach (var entry in entriesElement.EnumerateArray())
+        {
+            var entryIndex = entry.GetProperty("entryIndex").GetInt32();
+            var source = entry.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String
+                ? sourceElement.GetString()!
+                : "";
+            var content = entry.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String
+                ? contentElement.GetString()!
+                : "";
+            entries.Add(new TranscriptEntryObservation(entryIndex, source, content));
+        }
+        return entries;
+    }
+
+    private static long GetRoleSynchronizationSequence(JsonElement element, string role)
+    {
+        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role)
+            {
+                return roleElement.TryGetProperty("sequence", out var sequenceElement) ? sequenceElement.GetInt64() : 0;
+            }
+        }
+        return 0;
     }
 
     private static bool RoleHasStatus(JsonElement element, string role, string status)

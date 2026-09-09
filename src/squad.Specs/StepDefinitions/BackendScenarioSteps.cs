@@ -14,6 +14,7 @@ public sealed class BackendScenarioSteps
     private Exception? myLastWaitException;
     private string? myObservedHarnessMessage;
     private int myProtocolErrorsObserved;
+    private readonly List<TranscriptUpdateObservation> myObservedTranscriptUpdates = [];
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
     {
@@ -279,6 +280,53 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent emits the reasoning {string}")]
     public void WhenTheAgentEmitsTheReasoning(string role, string content) =>
         Await(myScenario.Agent(role).EmitReasoningAsync(content));
+
+    [When("the {string} agent emits a final reasoning message {string}")]
+    public void WhenTheAgentEmitsAFinalReasoningMessage(string role, string content) =>
+        Await(myScenario.Agent(role).EmitReasoningAsync(content, isDelta: false));
+
+    [When("the {string} agent emits a system message {string}")]
+    public void WhenTheAgentEmitsASystemMessage(string role, string content) =>
+        Await(myScenario.Agent(role).EmitSystemMessageAsync(content));
+
+    [Then("the backend scenario observes a transcript update for role {string} with source {string}")]
+    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSource(string role, string source) =>
+        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source)));
+
+    [Then("the backend scenario observes a transcript update for role {string} with source {string} and content {string}")]
+    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSourceAndContent(string role, string source, string content) =>
+        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source, content)));
+
+    [Then("every observed transcript update for role {string} reports a strictly increasing sequence and entry index")]
+    public void ThenEveryObservedTranscriptUpdateForRoleReportsAStrictlyIncreasingSequenceAndEntryIndex(string role)
+    {
+        var updatesForRole = myObservedTranscriptUpdates.Where(update => update.Role == role).ToList();
+        Assert.That(updatesForRole, Has.Count.GreaterThan(1));
+        for (var index = 1; index < updatesForRole.Count; index++)
+        {
+            var previous = updatesForRole[index - 1];
+            var current = updatesForRole[index];
+            Assert.Multiple(() =>
+            {
+                Assert.That(current.Sequence, Is.GreaterThan(previous.Sequence));
+                Assert.That(current.EntryIndex, Is.GreaterThan(previous.EntryIndex));
+                Assert.That(current.Operation, Is.EqualTo("append"));
+            });
+        }
+    }
+
+    [When("the backend scenario requests a fresh transcript synchronization")]
+    public void WhenTheBackendScenarioRequestsAFreshTranscriptSynchronization() =>
+        myScenario.RequestTranscriptSynchronization();
+
+    [Then("the transcript synchronization for role {string} includes a {string} entry")]
+    public void ThenTheTranscriptSynchronizationForRoleIncludesAEntry(string role, string source) =>
+        Await(myScenario.WaitForTranscriptSynchronizationAsync(role, entries => entries.Any(entry => entry.Source == source)));
+
+    [Then("the transcript synchronization for role {string} includes a {string} entry {string}")]
+    public void ThenTheTranscriptSynchronizationForRoleIncludesAEntryWithContent(string role, string source, string content) =>
+        Await(myScenario.WaitForTranscriptSynchronizationAsync(
+            role, entries => entries.Any(entry => entry.Source == source && entry.Content == content)));
 
     [When("the {string} agent emits a full tool lifecycle for tool call {string} named {string}")]
     public void WhenTheAgentEmitsAFullToolLifecycleForToolCallNamed(string role, string toolCallId, string toolName) =>

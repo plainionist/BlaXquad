@@ -290,6 +290,21 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         string role, string content, bool isDelta = false, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "reasoning", new { content, isDelta }, timeout, additionalDiagnostics);
 
+    /// <summary>Emits an assistant message update for the given role's session, awaiting the client's
+    /// acknowledgement that it published the real production <c>AgentAssistantMessageEvent</c>. Unlike
+    /// <see cref="ReplyAsync"/> - which answers an in-flight prompt observed through
+    /// <see cref="WaitForPromptAsync(string,TimeSpan?,Func{string}?)"/> - this lets a scenario publish an
+    /// assistant message (delta or final) independently of any pending prompt.</summary>
+    public Task EmitAssistantAsync(
+        string role, string content, bool isDelta = false, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "assistant", new { content, isDelta }, timeout, additionalDiagnostics);
+
+    /// <summary>Emits a system message update for the given role's session, awaiting the client's acknowledgement
+    /// that it published the real production <c>AgentSystemMessageEvent</c>.</summary>
+    public Task EmitSystemMessageAsync(
+        string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "system-message", new { content }, timeout, additionalDiagnostics);
+
     /// <summary>Emits a tool-started update for the given role's session.</summary>
     public Task EmitToolStartedAsync(
         string role, string toolCallId, string toolName, string? arguments = null, string? toolKind = null,

@@ -222,6 +222,12 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
             case "reasoning":
                 myEvents.Publish(new AgentReasoningEvent(now, data.GetProperty("content").GetString()!, data.GetProperty("isDelta").GetBoolean()));
                 return null;
+            case "assistant":
+                myEvents.Publish(new AgentAssistantMessageEvent(now, data.GetProperty("content").GetString()!, data.GetProperty("isDelta").GetBoolean()));
+                return null;
+            case "system-message":
+                myEvents.Publish(new AgentSystemMessageEvent(now, data.GetProperty("content").GetString()!));
+                return null;
             case "tool-started":
                 myEvents.Publish(new AgentToolStartedEvent(
                     now,

@@ -956,9 +956,6 @@ public sealed class ViewModelSteps
         }
     }
 
-    [When("the recording {string} session emits harness message {string}")]
-    public void WhenTheRecordingSessionEmitsHarnessMessage(string role, string content) => Emit(role, new AgentHarnessMessageEvent(DateTimeOffset.UtcNow, content));
-
     [When("the recording {string} session emits reasoning delta {string}")]
     public void WhenTheRecordingSessionEmitsReasoningDelta(string role, string content) => Emit(role, new AgentReasoningEvent(DateTimeOffset.UtcNow, content, true));
 
@@ -1198,13 +1195,6 @@ public sealed class ViewModelSteps
         Assert.That(
             roleSnapshot.Entries.Any(entry => entry.Entry.Source == source && entry.Entry.Content == content),
             Is.True);
-    }
-
-    [Then("the UI state snapshot excludes transcript history")]
-    public void ThenTheUiStateSnapshotExcludesTranscriptHistory()
-    {
-        var roles = myViewModel.CreateSnapshot().GetProperty("roles").EnumerateArray();
-        Assert.That(roles.All(role => !role.TryGetProperty("transcriptEntries", out _)), Is.True);
     }
 
     [Then("the transcript updates for {string} are")]

@@ -191,6 +191,24 @@ public sealed class BackendScenario : IDisposable
         return myUi.WaitForTranscriptAsync(role, content, timeout, DescribeControlDiagnostics());
     }
 
+    /// <summary>Waits until a "transcript.update" message reports an appended or replaced entry for the given
+    /// role with the given source - and, unless null, the given content - and returns the dashboard protocol's
+    /// typed sequence, operation, entry index, source, and content fields.</summary>
+    public Task<TranscriptUpdateObservation> WaitForTranscriptUpdateAsync(
+        string role, string source, string? content = null, TimeSpan? timeout = null) =>
+        RequireUi().WaitForTranscriptUpdateAsync(role, source, content, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Requests a fresh full transcript synchronization through the real UI protocol - the same
+    /// operation a reconnecting dashboard relies on to rebuild its view.</summary>
+    public void RequestTranscriptSynchronization() => RequireUi().RequestTranscriptSynchronization();
+
+    /// <summary>Waits until a "transcript.synchronize" message reports entries for the given role satisfying the
+    /// given predicate, and returns the dashboard protocol's typed sequence and indexed, sourced entries for that
+    /// role.</summary>
+    public Task<TranscriptSynchronizationObservation> WaitForTranscriptSynchronizationAsync(
+        string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
+        RequireUi().WaitForTranscriptSynchronizationAsync(role, matches, timeout, DescribeControlDiagnostics());
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given AI-credit usage.</summary>
     public Task WaitForRoleUsageAsync(string role, decimal aicUsed, TimeSpan? timeout = null) =>
         RequireUi().WaitForRoleUsageAsync(role, aicUsed, timeout, DescribeControlDiagnostics());
