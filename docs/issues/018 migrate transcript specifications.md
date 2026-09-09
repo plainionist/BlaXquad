@@ -298,7 +298,7 @@ cross the live-retention budget, a later delta publishes `append-content` on the
 synchronize contains the concatenated stream (`Hello world` / `draft final`) rather than a split or misrouted
 entry. The covered ViewModel scenario and its orphaned `has a ... entry` binding were removed.
 
-### Slice 14 [in progress]: Page retained transcript history
+### Slice 14 [done]: Page retained transcript history
 
 1. Extend the headless UI client with semantic transcript synchronization and previous-page requests while keeping
    request envelopes and storage coordinates private.
@@ -310,6 +310,15 @@ entry. The covered ViewModel scenario and its orphaned `has a ... entry` binding
 
 **Slice acceptance:** The UI protocol returns bounded live history and all still-available older entries in order,
 with temporary history removed when the process workspace is cleaned up.
+
+**Status: complete (ee040d8677).** `src/squad.Specs/Features/TranscriptHistoryPaging.feature` covers slice 14
+through the process boundary: 700 system messages cross the production 500-entry live window and 200-entry page
+size; live synchronization is exactly 500 entries; previous-page requests chain from the observed frontier (never a
+literal `beforeIndex` in Gherkin) until `hasMore` is false; and the combined pages contain `message-0` through
+`message-699` exactly once. Evicted entry 0 remains available as `Session started.` via `transcript.entry`. Clean
+host-control shutdown removes the isolated temporary transcript history. Covered ViewModel paging/retention/cleanup
+scenarios and the archived-available scenario were removed; reconstruction-input and unavailable-entry scenarios
+stay for slice 16.
 
 ### Slice 15 [pending]: Report oversized transcript content explicitly
 
