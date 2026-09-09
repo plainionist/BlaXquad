@@ -216,8 +216,12 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
             return;
         }
 
-        await onFailBackend(message, cancellationToken);
+        // Acknowledges before applying the failure, unlike "reply"/"emit": applying a backend-wide failure tears
+        // down the very runtime that owns this control connection (disposing its session and its control client),
+        // so the ack must already be safely written to the pipe before that teardown can race ahead of it and
+        // close the connection out from under an in-flight send.
         await duplex.SendAsync("ack", correlationId, new { type = "fail-backend" }, cancellationToken);
+        await onFailBackend(message, cancellationToken);
     }
 
     public ValueTask DisposeAsync() => myDuplex.DisposeAsync();

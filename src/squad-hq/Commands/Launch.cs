@@ -170,6 +170,10 @@ static class Launch
                 catch (OperationCanceledException) when (consoleCancellation.IsCancellationRequested)
                 {
                 }
+                catch (AgentBackendTerminalFailureException exception)
+                {
+                    Fail($"{Red}Error:{Reset} Provider failed: {DescribeFailure(exception)}");
+                }
                 catch (Exception exception) when (exception is not CliExitException)
                 {
                     Fail($"{Red}Error:{Reset} Provider startup failed: {DescribeFailure(exception)}");

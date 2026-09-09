@@ -163,7 +163,7 @@ public sealed class SquadApplication : IAsyncDisposable
             }
             if (backendFailure.IsCompleted)
             {
-                backendFailure.GetAwaiter().GetResult();
+                ThrowBackendFailure(backendFailure);
             }
             if (shutdown.IsCompleted)
             {
@@ -295,7 +295,7 @@ public sealed class SquadApplication : IAsyncDisposable
         }
         if (backendFailure.IsCompleted)
         {
-            backendFailure.GetAwaiter().GetResult();
+            ThrowBackendFailure(backendFailure);
         }
         if (shutdown.IsCompleted)
         {
@@ -303,6 +303,21 @@ public sealed class SquadApplication : IAsyncDisposable
             throw new ShutdownBeforeReadyException();
         }
         cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    // Re-labels a fatal, backend-wide IAgentBackendFailureSource failure as itself rather than letting it surface
+    // through the generic startup-failure path: the backend can fail this way at any point after it is created,
+    // not only during startup, so callers must be able to tell the two apart from the exception type alone.
+    private static void ThrowBackendFailure(Task backendFailure)
+    {
+        try
+        {
+            backendFailure.GetAwaiter().GetResult();
+        }
+        catch (Exception exception)
+        {
+            throw new AgentBackendTerminalFailureException(exception.Message, exception);
+        }
     }
 
     private static async Task<Exception?> ObserveStartupAsync(Task startup, CancellationToken expectedCancellation)

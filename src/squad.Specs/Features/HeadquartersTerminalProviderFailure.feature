@@ -35,6 +35,7 @@ Feature: Surfacing terminal provider failures after readiness
     Then the backend scenario observes a non-zero exit code
     And the backend scenario observes standard error containing "shared SDK force-stop failed"
     And the backend scenario observes standard error does not contain "Unhandled exception"
+    And the backend scenario observes standard error does not contain "Provider startup failed"
     And the backend scenario observes a session disposed for role "coder" across the control pipe
     And the backend scenario confirms host control is unavailable for role "coder"
     And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
@@ -52,6 +53,7 @@ Feature: Surfacing terminal provider failures after readiness
     Then the backend scenario observes a non-zero exit code
     And the backend scenario observes standard error containing "shared SDK force-stop failed"
     And the backend scenario observes standard error does not contain "Unhandled exception"
+    And the backend scenario observes standard error does not contain "Provider startup failed"
     And the backend scenario observes a session disposed for role "coder" across the control pipe
     And the backend scenario confirms host control is unavailable for role "coder"
     And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
