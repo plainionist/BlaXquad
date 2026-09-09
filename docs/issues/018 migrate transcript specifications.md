@@ -212,7 +212,7 @@ from the completion content. The follow-up `7e6e43d132` adds protocol-wide absen
 update is exactly `first` or `diff --git`. The four covered ViewModel scenarios and their orphaned path-start
 and docstring-entry bindings were removed.
 
-### Slice 9 [in progress]: Preserve subagent presentation while suppressing control plumbing
+### Slice 9 [done]: Preserve subagent presentation while suppressing control plumbing
 
 1. Publish semantic subagent activity with complete, partial, and absent display metadata.
 2. Assert the supported fallback labels and metadata in transcript updates and prove subagent control tools never
@@ -221,6 +221,13 @@ and docstring-entry bindings were removed.
 
 **Slice acceptance:** Users see one meaningful subagent activity entry with supported metadata fallbacks and no
 `task`, `read_agent`, or `list_agents` plumbing.
+
+**Status: complete (a5f20cd906).** `src/squad.Specs/Features/TranscriptSubagentPresentation.feature` covers slice 9
+through the process boundary: four `AgentSubagentStartedEvent` emits cover the production `DescribeSubagent`
+fallbacks (full metadata, equivalent display name, absent model, absent metadata) as exact `subagent` transcript
+updates; `task`/`read_agent`/`list_agents` never set `activeTool` and a later ordinary tool is the only `tool`
+entry on synchronize. The two covered ViewModel scenarios and their orphaned subagent-start / exact-entry-count
+bindings were removed.
 
 ### Slice 10 [pending]: Preserve visible skill activity while suppressing skill plumbing
 
