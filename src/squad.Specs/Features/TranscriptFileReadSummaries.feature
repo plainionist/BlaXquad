@@ -61,5 +61,7 @@ Feature: Transcript file-read summaries without content leakage
     Then the reconciled transcript for role "coder" contains each of these entries exactly once:
       | source | content                     |
       | read   | C:\\work\\src\\Main.cs [1..3] |
+    And the backend scenario does not observe the transcript for role "coder" containing "first" within 2 seconds
+    And the backend scenario does not observe the transcript for role "coder" containing "diff --git" within 2 seconds
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
