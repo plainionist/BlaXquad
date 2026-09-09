@@ -117,7 +117,7 @@ locks, callbacks, or journal inspection. The three white-box ViewModel scenarios
 atomic publication via paused callback, high-water-mark journal replay) and their Photino/journal-capacity bindings
 were removed.
 
-### Slice 4 [pending]: Preserve single-call tool output aggregation
+### Slice 4 [in progress]: Preserve single-call tool output aggregation
 
 1. Add semantic tool-start, cumulative-output, incremental-output, rewritten-snapshot, and completion operations to
    the fake-provider controller as needed.
