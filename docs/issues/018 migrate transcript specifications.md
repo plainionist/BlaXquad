@@ -320,7 +320,7 @@ host-control shutdown removes the isolated temporary transcript history. Covered
 scenarios and the archived-available scenario were removed; reconstruction-input and unavailable-entry scenarios
 stay for slice 16.
 
-### Slice 15 [in progress]: Report oversized transcript content explicitly
+### Slice 15 [done]: Report oversized transcript content explicitly
 
 1. Publish entries and streaming content that cross the production per-entry and announcement limits without adding
    configurable test capacities.
@@ -332,42 +332,15 @@ stay for slice 16.
 **Slice acceptance:** Oversized transcript content remains bounded and is explicitly identified as truncated at a
 consistent sequence through the supported UI protocol.
 
-**Status: changes requested (12156bf29e)**
-
-#### Review findings on 12156bf29e
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/TranscriptOversizedContent.feature`
-  (An oversized transcript entry remains bounded in memory while its full content stays available in the archive),
-  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
-  (`Then the transcript update for role {string} reports archived content beyond the retained bound`).
-- **Violated behavior:** Slice 15 requires the UI protocol to keep live publication bounded and not silently present
-  partial content as complete. The removed ViewModel scenario asserted the live retained content stayed within the
-  configured character bound.
-- **Root cause:** The Then only asserts `HasArchivedContent` and `ContentStart > 0`. Those flags prove a prefix was
-  skipped and that more content exists in the archive; they do not constrain the published `content` length. A
-  `transcript.update` that still carries the full 300000-character payload (or any other unbounded live window)
-  would pass.
-- **Required outcome:** Observe the live `transcript.update` for the oversized entry and assert its published content
-  stays within the production per-entry live bound — strictly shorter than the emitted 300000 characters, not merely
-  that archived content exists beyond `contentStart`.
-
-**Finding 2 — medium**
-
-- **Location:** `src/squad.Specs/Features/TranscriptOversizedContent.feature`
-  (Archived streaming content beyond the storage limit is explicitly reported as truncated),
-  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
-  (`Then the archived transcript entry is truncated with {int} total characters`).
-- **Violated behavior:** Slice 15 migrates the exact-limit streaming scenario: archived content that crosses the
-  production per-entry archive bound must report a stable truncated result at that bound. The announcement scenario
-  already pins the production announcement cap (16384); archive streaming does not pin its corresponding cap.
-- **Root cause:** The Then asserts `ContentTruncated` and that `ArchivedPrefixCharacters` / `Content.Length` are only
-  less than the 2400000-character stream. A one-character trim, or a truncation at any other point below 2400000,
-  still passes, so the production 2_000_000-character archive entry limit is never observed.
-- **Required outcome:** When the streamed archive content exceeds the production per-entry archive bound, assert the
-  persisted prefix is truncated at that bound (and still flagged truncated), not merely that it is shorter than the
-  total stream length.
+**Status: complete (dca20ca0b3).** `src/squad.Specs/Features/TranscriptOversizedContent.feature` covers slice 15
+through the process boundary against production constants (no test-only capacities): a 300000-character system
+entry publishes live `transcript.update` content of exactly 250000 characters with `hasArchivedContent` and a
+positive `contentStart`, while `transcript.entry` still returns the full untruncated 300000 characters; a
+20000-character message reports a truncated announcement of exactly 16384 characters; and two 1200000-character
+assistant deltas archive 2400000 total characters truncated at the 2000000-character per-entry bound. Covered
+ViewModel oversized-entry, announcement-bound, and exact-limit streaming scenarios and their orphaned bindings
+were removed. The follow-up `dca20ca0b3` closes the review findings that live content length and archived streaming
+truncation were not pinned to those production bounds.
 
 ### Slice 16 [pending]: Report rotated transcript history as unavailable
 
