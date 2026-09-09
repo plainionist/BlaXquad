@@ -1000,14 +1000,6 @@ public sealed class ViewModelSteps
     public void WhenTheRecordingSessionInvokesSkill(string role, string name) =>
         Emit(role, new AgentSkillInvokedEvent(DateTimeOffset.UtcNow, name));
 
-    [When("the recording {string} session starts subagent {string} displayed as {string} using model {string}")]
-    public void WhenTheRecordingSessionStartsSubagent(string role, string agentName, string displayName, string model) =>
-        Emit(role, new AgentSubagentStartedEvent(
-            DateTimeOffset.UtcNow,
-            NullIfEmpty(agentName),
-            NullIfEmpty(displayName),
-            NullIfEmpty(model)));
-
     [When("the recording {string} session emits tool completion {string}")]
     public void WhenTheRecordingSessionEmitsToolCompletion(string role, string tool)
     {
@@ -1055,8 +1047,6 @@ public sealed class ViewModelSteps
     private static string DecodeEscapes(string value) =>
         value.Replace("\\r", "\r", StringComparison.Ordinal)
             .Replace("\\n", "\n", StringComparison.Ordinal);
-
-    private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 
     [When("the recording {string} session reports {long} context tokens of {long}")]
     public void WhenTheRecordingSessionReportsContextUsage(string role, long usedTokens, long limitTokens) =>
@@ -1567,10 +1557,6 @@ public sealed class ViewModelSteps
     [Then("ViewModel role {string} transcript has a {string} entry {string}")]
     public void ThenViewModelRoleTranscriptHasEntry(string role, string source, string content) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Source == source && entry.Content == content), Is.True);
-
-    [Then("ViewModel role {string} transcript has exactly {int} {string} entries")]
-    public void ThenViewModelRoleTranscriptHasExactlyEntries(string role, int count, string source) =>
-        Assert.That(myViewModel.Roles[role].TranscriptEntries.Count(entry => entry.Source == source), Is.EqualTo(count));
 
     [Then("ViewModel role {string} transcript has no entry {string}")]
     public void ThenViewModelRoleTranscriptHasNoEntry(string role, string content) =>

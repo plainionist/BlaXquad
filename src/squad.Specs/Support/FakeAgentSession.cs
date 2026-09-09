@@ -308,6 +308,13 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                     null,
                     GetNullableString(data, "url")));
                 return null;
+            case "subagent-started":
+                myEvents.Publish(new AgentSubagentStartedEvent(
+                    now,
+                    GetNullableString(data, "agentName"),
+                    GetNullableString(data, "agentDisplayName"),
+                    GetNullableString(data, "model")));
+                return null;
             case "idle":
                 myEvents.Publish(new AgentIdleEvent(now));
                 return null;

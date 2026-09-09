@@ -305,6 +305,13 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "system-message", new { content }, timeout, additionalDiagnostics);
 
+    /// <summary>Emits a subagent-started update for the given role's session, awaiting the client's
+    /// acknowledgement that it published the real production <c>AgentSubagentStartedEvent</c>.</summary>
+    public Task EmitSubagentStartedAsync(
+        string role, string? agentName = null, string? agentDisplayName = null, string? model = null,
+        TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "subagent-started", new { agentName, agentDisplayName, model }, timeout, additionalDiagnostics);
+
     /// <summary>Emits a tool-started update for the given role's session.</summary>
     public Task EmitToolStartedAsync(
         string role, string toolCallId, string toolName, string? arguments = null, string? toolKind = null,

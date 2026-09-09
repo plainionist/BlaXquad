@@ -302,6 +302,11 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsASystemMessage(string role, string content) =>
         Await(myScenario.Agent(role).EmitSystemMessageAsync(content));
 
+    [When("the {string} agent starts subagent {string} displayed as {string} using model {string}")]
+    public void WhenTheAgentStartsSubagent(string role, string agentName, string displayName, string model) =>
+        Await(myScenario.Agent(role).EmitSubagentStartedAsync(
+            NullIfEmpty(agentName), NullIfEmpty(displayName), NullIfEmpty(model)));
+
     [When("the {string} agent concurrently emits these system messages while a transcript synchronization races them:")]
     public void WhenTheAgentConcurrentlyEmitsTheseSystemMessagesWhileATranscriptSynchronizationRacesThem(string role, Table contents)
     {
@@ -602,4 +607,9 @@ public sealed class BackendScenarioSteps
     /// an input request published or observed without any choices at all, rather than an empty choices list.</summary>
     private static IReadOnlyList<string>? ParseChoices(string commaSeparatedChoices) =>
         commaSeparatedChoices.Length == 0 ? null : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+    /// <summary>Treats an empty step-table cell as an absent (null) value - used for the subagent metadata
+    /// columns, where an empty column represents a real production fallback (no agent name, display name, or
+    /// model reported), not the literal empty string.</summary>
+    private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 }

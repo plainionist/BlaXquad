@@ -363,25 +363,6 @@ Feature: Squad ViewModel
     And ViewModel role "reviewer" has status "error"
     And ViewModel role "coder" has no error
 
-  Scenario Outline: Subagent activity uses semantic transcript metadata
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session starts subagent "<agent>" displayed as "<description>" using model "<model>"
-    Then ViewModel role "coder" transcript has a "subagent" entry "<transcript>"
-
-    Examples:
-      | agent      | description                   | model         | transcript                                                |
-      | code-review | Review authentication changes | gpt-5.6-sol   | Code Review · gpt-5.6-sol · Review authentication changes |
-      | explore     | Explore                       | claude-sonnet | Explore · claude-sonnet                                  |
-      | explore     | Find authentication entries   |               | Explore · Find authentication entries                    |
-      |             |                               |               | Subagent                                                 |
-
-  Scenario: Subagent plumbing is omitted from the transcript
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "task"
-    And the recording "coder" session emits tool start "read_agent"
-    And the recording "coder" session emits tool start "list_agents"
-    Then ViewModel role "coder" transcript has exactly 0 "tool" entries
-
   Scenario: Skill application is visible in the transcript
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session invokes skill "project-setup"
