@@ -46,6 +46,57 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public string RoleWorktreePath(string role) => myRoleWorktrees[role];
 
+    /// <summary>
+    /// Poisons a role's already-created handoff outbox directory by replacing it with a directory link (a Windows
+    /// junction, or a symbolic link elsewhere) whose target no longer exists, so the real, filesystem-polling
+    /// <see cref="squad.Handoffs.Delivery.InProcessHandoffPoller"/> genuinely faults the next time it scans that
+    /// role's outbox - a deterministic, real filesystem fault, never an injected
+    /// <see cref="squad.Handoffs.Delivery.IHandoffPump.Failure"/> or any other test hook. The link itself still
+    /// resolves as a present directory, but enumerating its contents throws because its target is gone, matching a
+    /// real, unrecoverable filesystem fault a production deployment could hit (for example a broken mount or a
+    /// directory removed out from under a running process). <see cref="Dispose"/> already knows how to remove a
+    /// dangling reparse point like this one during workspace teardown.
+    /// </summary>
+    public void PoisonRoleHandoffOutbox(string role)
+    {
+        var outboxDir = Path.Combine(myRoleWorktrees[role], ".blaxquad", "handoffs", "outbox");
+        if (Directory.Exists(outboxDir))
+        {
+            Directory.Delete(outboxDir, recursive: true);
+        }
+
+        var brokenTarget = Path.Combine(Path.GetTempPath(), "blaxquad-specs-poisoned", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(brokenTarget);
+        if (OperatingSystem.IsWindows())
+        {
+            squad.Process.ProcessRunner.RunChecked("cmd", ["/c", "mklink", "/J", outboxDir, brokenTarget]);
+        }
+        else
+        {
+            Directory.CreateSymbolicLink(outboxDir, brokenTarget);
+        }
+        Directory.Delete(brokenTarget);
+    }
+
+    /// <summary>
+    /// Repairs a role's handoff outbox directory after <see cref="PoisonRoleHandoffOutbox"/>, removing the dangling
+    /// directory link and recreating the outbox as a normal, empty directory - standing in for the real-world
+    /// remediation (fixing a broken mount, replacing a missing shared directory) an operator would have to perform
+    /// before a subsequent process could use that role's outbox again. Production code has no reason to self-heal a
+    /// genuinely broken directory link, so a healthy subsequent launch against the same workspace is only possible
+    /// once the underlying fault is actually fixed.
+    /// </summary>
+    public void RepairRoleHandoffOutbox(string role)
+    {
+        var outboxDir = Path.Combine(myRoleWorktrees[role], ".blaxquad", "handoffs", "outbox");
+        if ((File.GetAttributes(outboxDir) & FileAttributes.ReparsePoint) != 0)
+        {
+            File.SetAttributes(outboxDir, FileAttributes.Normal);
+            Directory.Delete(outboxDir);
+        }
+        Directory.CreateDirectory(outboxDir);
+    }
+
     private static void WriteFileUnder(string root, string relativePath, string content)
     {
         var path = Path.Combine(root, Path.Combine(relativePath.Split('/')));

@@ -962,12 +962,21 @@ public sealed class BackendScenarioSteps
         Assert.That(myScenario.CapturedStandardError(), Does.Not.Contain(text));
 
     [Given("the backend scenario seeds {string} into role {string}'s worktree with content {string}")]
+    [Then("the backend scenario seeds {string} into role {string}'s worktree with content {string}")]
     public void GivenTheBackendScenarioSeedsIntoRoleSWorktreeWithContent(string relativePath, string role, string content) =>
         myScenario.SeedDurableRoleFile(role, relativePath, content);
 
     [Then("the backend scenario observes role {string}'s seeded {string} still contains {string}")]
     public void ThenTheBackendScenarioObservesRoleSSeededStillContains(string role, string relativePath, string content) =>
         Assert.That(myScenario.DurableRoleFileIsPreserved(role, relativePath, content), Is.True);
+
+    [When("the backend scenario poisons role {string}'s handoff outbox directory")]
+    public void WhenTheBackendScenarioPoisonsRoleSHandoffOutboxDirectory(string role) =>
+        myScenario.PoisonHandoffOutbox(role);
+
+    [When("the backend scenario repairs role {string}'s handoff outbox directory")]
+    public void WhenTheBackendScenarioRepairsRoleSHandoffOutboxDirectory(string role) =>
+        myScenario.RepairHandoffOutbox(role);
 
     [Then("the backend scenario confirms role {string} is ready through squad-hq wait-for-agent")]
     public void ThenTheBackendScenarioConfirmsRoleIsReadyThroughSquadHqWaitForAgent(string role)

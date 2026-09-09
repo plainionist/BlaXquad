@@ -61,7 +61,16 @@ public sealed class InProcessHandoffPoller : IHandoffPump
             return;
         }
         pollingCancellation.Cancel();
-        await polling.WaitAsync(cancellationToken);
+        // Only awaits normal, cooperative-cancellation completion here: a poll loop that already faulted has
+        // already reported that same exception through Failure, so re-observing it here would surface it a
+        // second time as a spurious, duplicate cleanup failure alongside the real, already-primary one.
+        try
+        {
+            await polling.WaitAsync(cancellationToken);
+        }
+        catch (Exception) when (myFailure.Task.IsFaulted)
+        {
+        }
         lock (mySyncRoot)
         {
             if (ReferenceEquals(myPolling, polling))

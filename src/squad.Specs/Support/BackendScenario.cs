@@ -639,6 +639,21 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Poisons the given role's handoff outbox directory (see <see cref="ScenarioWorkspace.PoisonRoleHandoffOutbox"/>)
+    /// so the next real poll by the launched process's own
+    /// <see cref="squad.Handoffs.Delivery.InProcessHandoffPoller"/> genuinely faults - a deterministic, real
+    /// filesystem fault, never an injected <see cref="squad.Handoffs.Delivery.IHandoffPump.Failure"/>.
+    /// </summary>
+    public void PoisonHandoffOutbox(string role) => myWorkspace.PoisonRoleHandoffOutbox(role);
+
+    /// <summary>
+    /// Repairs the given role's handoff outbox directory (see <see cref="ScenarioWorkspace.RepairRoleHandoffOutbox"/>)
+    /// after <see cref="PoisonHandoffOutbox"/>, standing in for the real-world remediation an operator would perform
+    /// before a subsequent process could launch healthily against the same workspace.
+    /// </summary>
+    public void RepairHandoffOutbox(string role) => myWorkspace.RepairRoleHandoffOutbox(role);
+
+    /// <summary>
     /// Configures the next <see cref="StartAsync{TProviderFactory}"/> launch's fake provider to pause
     /// immediately before creating the given number of sessions - for example 0 pauses before the very first
     /// role's session, 1 pauses after the first role's session has started and been notified across the control

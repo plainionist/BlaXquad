@@ -228,9 +228,6 @@ public sealed class ViewModelSteps
     [Given("a controllable SquadApplication")]
     public void GivenAControllableSquadApplication() => ConfigureControllableApplication();
 
-    [Given("a controllable SquadApplication with a post-ready handoff failure")]
-    public void GivenAControllableSquadApplicationWithAPostReadyHandoffFailure() => ConfigureControllableApplication(useRealLease: true);
-
     [Given("a controllable SquadApplication with blocked startup")]
     public void GivenAControllableSquadApplicationWithBlockedStartup() => ConfigureControllableApplication(blockStartup: true);
 
@@ -412,9 +409,6 @@ public sealed class ViewModelSteps
 
     [When("the application window closes")]
     public void WhenTheApplicationWindowCloses() => myRecordingWindow!.Close();
-
-    [When("the controllable handoff pump fails")]
-    public void WhenTheControllableHandoffPumpFails() => myRecordingPump!.Fail();
 
     [When("the in-flight application command begins")]
     public async Task WhenTheInFlightApplicationCommandBegins()

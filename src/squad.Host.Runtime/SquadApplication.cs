@@ -159,7 +159,7 @@ public sealed class SquadApplication : IAsyncDisposable
             }
             if (handoffFailure.IsCompleted)
             {
-                handoffFailure.GetAwaiter().GetResult();
+                ThrowHandoffFailure(handoffFailure);
             }
             if (backendFailure.IsCompleted)
             {
@@ -291,7 +291,7 @@ public sealed class SquadApplication : IAsyncDisposable
         }
         if (handoffFailure.IsCompleted)
         {
-            handoffFailure.GetAwaiter().GetResult();
+            ThrowHandoffFailure(handoffFailure);
         }
         if (backendFailure.IsCompleted)
         {
@@ -317,6 +317,21 @@ public sealed class SquadApplication : IAsyncDisposable
         catch (Exception exception)
         {
             throw new AgentBackendTerminalFailureException(exception.Message, exception);
+        }
+    }
+
+    // Re-labels a fatal IHandoffPump.Failure as itself rather than letting it surface through the generic
+    // startup-failure path: the handoff pump can fail this way at any point after it starts, not only during
+    // startup, so callers must be able to tell the two apart from the exception type alone.
+    private static void ThrowHandoffFailure(Task handoffFailure)
+    {
+        try
+        {
+            handoffFailure.GetAwaiter().GetResult();
+        }
+        catch (Exception exception)
+        {
+            throw new HandoffPumpTerminalFailureException(exception.Message, exception);
         }
     }
 

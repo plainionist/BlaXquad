@@ -58,13 +58,6 @@ Feature: Squad ViewModel
     And readiness was announced once
     And all controllable application resources were disposed
 
-  Scenario: A post-ready handoff failure stops the host
-    Given a controllable SquadApplication with a post-ready handoff failure
-    When the application lifecycle reaches readiness
-    And the controllable handoff pump fails
-    Then the application lifecycle failed with "recording handoff pump failed"
-    And all controllable application resources were disposed
-
   Scenario: Open session events cannot block failed disposal cleanup
     Given a controllable SquadApplication with a session disposal failure and open events
     When the application lifecycle reaches readiness

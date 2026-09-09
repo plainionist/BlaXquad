@@ -11,7 +11,6 @@ public sealed class RecordingHandoffPump : IHandoffPump
     public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task RecoverAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-    public void Fail() => myFailure.TrySetException(new InvalidOperationException("recording handoff pump failed"));
     public ValueTask DisposeAsync()
     {
         Disposed = true;
