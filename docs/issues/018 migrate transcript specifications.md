@@ -332,6 +332,43 @@ stay for slice 16.
 **Slice acceptance:** Oversized transcript content remains bounded and is explicitly identified as truncated at a
 consistent sequence through the supported UI protocol.
 
+**Status: changes requested (12156bf29e)**
+
+#### Review findings on 12156bf29e
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/TranscriptOversizedContent.feature`
+  (An oversized transcript entry remains bounded in memory while its full content stays available in the archive),
+  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
+  (`Then the transcript update for role {string} reports archived content beyond the retained bound`).
+- **Violated behavior:** Slice 15 requires the UI protocol to keep live publication bounded and not silently present
+  partial content as complete. The removed ViewModel scenario asserted the live retained content stayed within the
+  configured character bound.
+- **Root cause:** The Then only asserts `HasArchivedContent` and `ContentStart > 0`. Those flags prove a prefix was
+  skipped and that more content exists in the archive; they do not constrain the published `content` length. A
+  `transcript.update` that still carries the full 300000-character payload (or any other unbounded live window)
+  would pass.
+- **Required outcome:** Observe the live `transcript.update` for the oversized entry and assert its published content
+  stays within the production per-entry live bound — strictly shorter than the emitted 300000 characters, not merely
+  that archived content exists beyond `contentStart`.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/Features/TranscriptOversizedContent.feature`
+  (Archived streaming content beyond the storage limit is explicitly reported as truncated),
+  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
+  (`Then the archived transcript entry is truncated with {int} total characters`).
+- **Violated behavior:** Slice 15 migrates the exact-limit streaming scenario: archived content that crosses the
+  production per-entry archive bound must report a stable truncated result at that bound. The announcement scenario
+  already pins the production announcement cap (16384); archive streaming does not pin its corresponding cap.
+- **Root cause:** The Then asserts `ContentTruncated` and that `ArchivedPrefixCharacters` / `Content.Length` are only
+  less than the 2400000-character stream. A one-character trim, or a truncation at any other point below 2400000,
+  still passes, so the production 2_000_000-character archive entry limit is never observed.
+- **Required outcome:** When the streamed archive content exceeds the production per-entry archive bound, assert the
+  persisted prefix is truncated at that bound (and still flagged truncated), not merely that it is shorter than the
+  total stream length.
+
 ### Slice 16 [pending]: Report rotated transcript history as unavailable
 
 1. Publish enough history to cross the production archive boundary and request an entry that has rotated out.
