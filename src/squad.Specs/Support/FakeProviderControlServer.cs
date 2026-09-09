@@ -86,6 +86,17 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     public Task WaitForSessionDisposedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForObservationAsync(role, "session-disposed", timeout, additionalDiagnostics);
 
+    /// <summary>Whether this server has ever observed a "session-started" notification for the given role - a
+    /// snapshot read (no waiting) so a specification can prove a session was never created, not merely that it
+    /// has not yet been observed.</summary>
+    public bool HasSessionStarted(string role)
+    {
+        lock (myStateLock)
+        {
+            return myObservations.Any(observation => observation.Role == role && observation.Type == "session-started");
+        }
+    }
+
     /// <summary>Waits until the connected client has reported a prompt sent to the given role, and returns its
     /// content.</summary>
     public async Task<string> WaitForPromptAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)

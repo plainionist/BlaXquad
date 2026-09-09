@@ -24,6 +24,7 @@ public sealed class BackendScenarioSteps
     private readonly Dictionary<string, int> myAssistantDeltaCounts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> myLatestSynchronizedSequence = new(StringComparer.Ordinal);
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
+    private readonly Dictionary<string, BackendScenarioCommand> myReadinessWatches = new(StringComparer.Ordinal);
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
     {
@@ -87,9 +88,42 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioLaunchesSquadHqWithoutCompletingTheReadyHandshake() =>
         myScenario.LaunchWithoutReadyHandshake<EchoAgentProviderFactory>();
 
+    [When("the backend scenario launches squad-hq with the fake provider fixture without completing the ready handshake")]
+    public void WhenTheBackendScenarioLaunchesSquadHqWithTheFakeProviderFixtureWithoutCompletingTheReadyHandshake() =>
+        myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
+
     [When("the backend scenario requests a host-control shutdown as soon as it is reachable")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdownAsSoonAsItIsReachable() =>
         myExitCode = Await(myScenario.RequestShutdownAsSoonAsReachableAsync());
+
+    [When("the backend scenario requests a host-control shutdown as soon as it is reachable while sending the prompt {string} to role {string}")]
+    public void WhenTheBackendScenarioRequestsAHostControlShutdownAsSoonAsItIsReachableWhileSendingThePromptToRole(string prompt, string role) =>
+        myExitCode = Await(myScenario.RequestShutdownAsSoonAsReachableAsync(sendPromptToRole: role, promptContent: prompt));
+
+    [When("the backend scenario requests a host-control shutdown while sending the prompt {string} to role {string}")]
+    public void WhenTheBackendScenarioRequestsAHostControlShutdownWhileSendingThePromptToRole(string prompt, string role) =>
+        myExitCode = Await(myScenario.ShutdownWhileSendingPromptAsync(role, prompt));
+
+    [When("the backend scenario starts watching for role {string} to become ready")]
+    public void WhenTheBackendScenarioStartsWatchingForRoleToBecomeReady(string role) =>
+        myReadinessWatches[role] = myScenario.StartWatchingForReadiness(role);
+
+    [Then("the backend scenario observes role {string} was never reported ready")]
+    public void ThenTheBackendScenarioObservesRoleWasNeverReportedReady(string role)
+    {
+        // The watch's own "wait-for-agent --timeout" bound is 15s (see StartWatchingForReadiness); the extra
+        // margin here only bounds how long a genuinely broken watch is allowed to hang.
+        var result = Await(myReadinessWatches[role].WaitForCompletionAsync(TimeSpan.FromSeconds(20)));
+        Assert.That(result.StdOut, Does.Not.Contain("is ready"), () => result.StdErr);
+    }
+
+    [Then("the backend scenario observes no session was ever started for role {string}")]
+    public void ThenTheBackendScenarioObservesNoSessionWasEverStartedForRole(string role) =>
+        Assert.That(myScenario.RoleSessionNeverStarted(role), Is.True);
+
+    [Then("the backend scenario observes role {string} received no prompt")]
+    public void ThenTheBackendScenarioObservesRoleReceivedNoPrompt(string role) =>
+        Assert.That(myScenario.Agent(role).LatestPrompt(), Is.Null);
 
     [When("the backend scenario closes its standard input")]
     public void WhenTheBackendScenarioClosesItsStandardInput()

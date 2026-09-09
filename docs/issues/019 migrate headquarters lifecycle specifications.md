@@ -135,8 +135,6 @@ scenarios were removed, along with the overlapping StdioUiProtocol end-of-input 
 **Slice acceptance:** A real host-control shutdown linearized anywhere before readiness prevents the host from
 becoming available and releases every resource already acquired.
 
-**Status: changes requested (e0bef751ac)**
-
 #### Review findings on e0bef751ac
 
 **Finding 1 — medium**
@@ -179,6 +177,36 @@ becoming available and releases every resource already acquired.
 - **Required outcome:** After shutdown is requested, send a command through the supported UI/protocol boundary and
   prove it does not reach a provider session (no prompt on the control pipe). On the early path, use the fake
   provider so the absence of session start/command delivery is observable.
+
+**Status: done, pending review**
+
+All three findings addressed in both scenarios:
+
+- Finding 1: both scenarios now start a concurrent "squad-hq wait-for-agent" probe (`StartWatchingForReadiness`)
+  before requesting shutdown, and assert its captured output never contains "is ready" once shutdown completes -
+  proving the public readiness command itself never reports the role ready, not merely that the host became
+  unavailable afterward. The early-shutdown scenario also switched from Echo to the fake provider with the control
+  transport enabled, so it no longer relies on `ui.ready`/`IsReady` completion as its "before readiness" proof.
+- Finding 2: the gated scenario now asserts `reviewer`'s session was never started both immediately after observing
+  `coder`'s session start (at gate time) and again after shutdown/disposal - closing the gap where a silently
+  failed gate would have let both sessions start undetected.
+- Finding 3: `RequestShutdownAsSoonAsReachableAsync` and the new `ShutdownWhileSendingPromptAsync` now send a real
+  UI-protocol prompt immediately after the shutdown request is issued (a broken-pipe failure is itself further
+  proof of no delivery) and assert the targeted role's `LatestPrompt()` stays null. The gated scenario targets the
+  paused `reviewer` role specifically, since prompts sent to the already-started `coder` role race the app's own
+  in-flight stopping/disposal and are not a deterministic proof.
+
+Also fixed a latent bug surfaced while adding the prompt-send: `RequestShutdownAsSoonAsReachableAsync`'s retry loop
+previously re-issued a brand-new "squad-hq shutdown" child process every ~50ms without waiting for the prior
+attempt to finish, which could pile up many overlapping shutdown attempts and intermittently destabilize a later,
+unrelated launch in the same scenario. It now waits for each attempt (or the target process) to finish before
+deciding whether a retry is needed, so at most one shutdown attempt is ever in flight.
+
+Regression suite (`ViewModel|HeadquartersLifecycle|HeadquartersTermination|StoppingSafely`, 31 scenarios) green
+across 3 consecutive runs; the two `HeadquartersEarlyShutdown` scenarios green across 8 consecutive runs after the
+retry-loop fix. Full-suite run shows the same 6 pre-existing, unrelated transient timeouts in
+`PromptIsolationAndReadiness.feature` under parallel load (confirmed untouched by this change; pass in isolation
+individually), consistent with the baseline already documented against `e0bef751ac`.
 
 ### Slice 4: Retire failed and partial provider startup
 

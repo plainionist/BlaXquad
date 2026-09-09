@@ -197,16 +197,32 @@ public sealed class BackendScenario : IDisposable
     /// <summary>
     /// Launches the published, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
     /// returns immediately once the process starts without ever completing the "ui.ready" handshake - for the
-    /// specification proving standard input closed before readiness still terminates the process cleanly, rather
-    /// than the ordinary ready-then-close sequence.
+    /// specification proving standard input closed (or a host-control shutdown requested) before readiness still
+    /// terminates the process cleanly, rather than the ordinary ready-then-close sequence. Wires the same
+    /// fake-provider control-pipe and startup-gate environment as <see cref="StartAsync{TProviderFactory}"/> when
+    /// <see cref="EnableFakeProviderControl"/> or <see cref="GateProviderStartupAfterSessions"/> were called, so a
+    /// fake-provider launch through this seam can still be observed across the control pipe.
     /// </summary>
     public void LaunchWithoutReadyHandshake<TProviderFactory>()
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
         var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        var environmentOverrides = new Dictionary<string, string?>();
+        if (myControl is not null)
+        {
+            environmentOverrides[FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName;
+            environmentOverrides[FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token;
+        }
+        if (myStartupGateAfterSessions is { } gateAfterSessions)
+        {
+            environmentOverrides[FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable] =
+                gateAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
             ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            environment,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);
     }
@@ -567,9 +583,18 @@ public sealed class BackendScenario : IDisposable
     /// be listening in the very first instant after the process starts - and awaits the same clean exit
     /// <see cref="ShutdownAsync"/> does, returning the exit code observed. Proves shutdown wins even when
     /// requested at the earliest possible moment, racing host-lease acquisition and the wait for "ui.ready"
-    /// itself rather than deliberately waiting for any later, more convenient point.
+    /// itself rather than deliberately waiting for any later, more convenient point. Only one attempt is ever in
+    /// flight at a time - each retry waits for its own attempt process to finish before deciding whether another
+    /// is needed - so a slow first attempt never causes a pile-up of overlapping "squad-hq shutdown" child
+    /// processes. The very first attempt is issued as a background process rather than awaited synchronously, so
+    /// - immediately after it is issued, before the launched process has necessarily terminated - this can also
+    /// deliver a UI-protocol prompt for <paramref name="sendPromptToRole"/> (when supplied), proving a command
+    /// sent once shutdown has already been requested never reaches a provider session. A broken-pipe failure from
+    /// sending that prompt after the process has already fully exited is swallowed, since that failure is itself
+    /// further proof no session ever received it.
     /// </summary>
-    public Task<int> RequestShutdownAsSoonAsReachableAsync(TimeSpan? timeout = null)
+    public async Task<int> RequestShutdownAsSoonAsReachableAsync(
+        TimeSpan? timeout = null, string? sendPromptToRole = null, string? promptContent = null)
     {
         if (myProcess is null || myUi is null)
         {
@@ -577,10 +602,33 @@ public sealed class BackendScenario : IDisposable
         }
 
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        var firstAttemptIssued = false;
         while (true)
         {
-            myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root]);
-            if (myProcess.WaitForExit(50))
+            var attempt = myWorkspace.StartProcess(myWorkspace.BackendSpecSquadHqExecutablePath, ["shutdown", myWorkspace.Root]);
+            if (!firstAttemptIssued)
+            {
+                firstAttemptIssued = true;
+                if (sendPromptToRole is not null)
+                {
+                    try
+                    {
+                        myUi.SendPrompt(sendPromptToRole, promptContent!);
+                    }
+                    catch (IOException)
+                    {
+                        // The process had already fully exited by the time this prompt was sent - itself further
+                        // proof no session ever received it.
+                    }
+                }
+            }
+
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining > TimeSpan.Zero)
+            {
+                await WaitForEitherExitAsync(attempt, myProcess, remaining);
+            }
+            if (myProcess.WaitForExit(0))
             {
                 break;
             }
@@ -590,10 +638,77 @@ public sealed class BackendScenario : IDisposable
                     "the backend process to exit after repeatedly requesting shutdown",
                     myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
             }
+            // This attempt's own process has already finished (most likely because the host-control endpoint
+            // was not reachable yet) but the launched process is still running - retry with a fresh attempt.
+        }
+
+        return myProcess.ExitCode;
+    }
+
+    /// <summary>Waits until either process exits or the given timeout elapses, whichever comes first.</summary>
+    private static async Task WaitForEitherExitAsync(System.Diagnostics.Process first, System.Diagnostics.Process second, TimeSpan timeout)
+    {
+        using var cancellation = new CancellationTokenSource(timeout);
+        try
+        {
+            await Task.WhenAny(first.WaitForExitAsync(cancellation.Token), second.WaitForExitAsync(cancellation.Token));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Requests shutdown through the real "squad-hq shutdown" host-control command exactly like
+    /// <see cref="ShutdownAsync"/>, but issues the request as its own background process instead of awaiting it,
+    /// sends the given role a UI-protocol prompt immediately afterward - before termination has necessarily
+    /// finished - then awaits the launched process's own clean exit, so a specification can prove a command sent
+    /// once shutdown is already in flight never reaches a provider session.
+    /// </summary>
+    public Task<int> ShutdownWhileSendingPromptAsync(string role, string prompt, TimeSpan? timeout = null)
+    {
+        if (myProcess is null || myUi is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        myWorkspace.StartProcess(myWorkspace.BackendSpecSquadHqExecutablePath, ["shutdown", myWorkspace.Root]);
+        try
+        {
+            myUi.SendPrompt(role, prompt);
+        }
+        catch (IOException)
+        {
+            // The process had already fully exited by the time this prompt was sent - itself further proof no
+            // session ever received it.
+        }
+
+        var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
+        if (!myProcess.WaitForExit(deadlineMilliseconds))
+        {
+            throw new HeadlessUiWaitTimeoutException(
+                "the backend process to exit after requesting shutdown while sending a prompt",
+                myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
         }
 
         return Task.FromResult(myProcess.ExitCode);
     }
+
+    /// <summary>
+    /// Whether the fake provider has never reported, across the control pipe, that the given role's session
+    /// started - a snapshot read (no waiting) proving a not-yet-configured session was genuinely never created,
+    /// not merely that it has not yet been observed. Requires <see cref="EnableFakeProviderControl"/>.
+    /// </summary>
+    public bool RoleSessionNeverStarted(string role) => !RequireControl().HasSessionStarted(role);
+
+    /// <summary>
+    /// Starts the real "squad-hq wait-for-agent" command for the given role as a concurrent background probe
+    /// racing this scenario's own subsequent shutdown request, so a specification can later prove the role never
+    /// reported ready to a live, independently polling caller - not merely that the host became unavailable after
+    /// the fact.
+    /// </summary>
+    public BackendScenarioCommand StartWatchingForReadiness(string role, TimeSpan? timeout = null) =>
+        StartWaitForAgent(role, timeout ?? DefaultTimeout);
 
     /// <summary>
     /// Starts a brand-new <see cref="BackendScenario"/> against this exact same workspace, proving a healthy
