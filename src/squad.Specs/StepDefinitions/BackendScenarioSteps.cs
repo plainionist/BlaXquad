@@ -237,6 +237,10 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeld(string role) =>
         Await(myScenario.Agent(role).WaitForDisposalHeldAsync());
 
+    [Then("the backend scenario observes role {string}'s prompt {string} canceled before disposal")]
+    public void ThenTheBackendScenarioObservesRoleSPromptCanceledBeforeDisposal(string role, string prompt) =>
+        Assert.That(Await(myScenario.Agent(role).WaitForSendCanceledAsync()), Is.EqualTo(prompt));
+
     [When("the backend scenario requests a host-control shutdown without waiting for the process to exit")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdownWithoutWaitingForTheProcessToExit() =>
         Await(myScenario.RequestShutdownWithoutWaitingForExit());

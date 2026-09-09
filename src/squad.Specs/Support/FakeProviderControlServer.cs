@@ -474,6 +474,18 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     public async Task WaitForDisposalHeldAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         await WaitForObservationDataAsync(role, "disposal-held", timeout, additionalDiagnostics);
 
+    /// <summary>Waits until the connected client has reported that the given role's session's send was canceled
+    /// by shutdown, and returns the prompt that was canceled - the causal proof (not merely an inference from
+    /// production's own call sequence) that an admitted prompt reached its own safe, canceled outcome strictly
+    /// before this same session's later disposal: this notification and a later "disposal-held" notification
+    /// both travel across the very same single control-pipe connection, so whichever one the client actually
+    /// sent first is exactly the one observed first here.</summary>
+    public async Task<string> WaitForSendCanceledAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var data = await WaitForObservationDataAsync(role, "send-canceled", timeout, additionalDiagnostics);
+        return data.GetProperty("prompt").GetString()!;
+    }
+
     /// <summary>Completes the given role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
     public Task CompleteSessionAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>

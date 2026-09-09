@@ -96,6 +96,12 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     public Task WaitForDisposalHeldAsync(TimeSpan? timeout = null) =>
         control.WaitForDisposalHeldAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Waits until this role's session has reported that its send was canceled by shutdown, and returns
+    /// the prompt that was canceled - the causal proof that an admitted prompt reached its own safe, canceled
+    /// outcome strictly before this same session's later disposal.</summary>
+    public Task<string> WaitForSendCanceledAsync(TimeSpan? timeout = null) =>
+        control.WaitForSendCanceledAsync(role, timeout, uiDiagnostics);
+
     /// <summary>Waits until this role's session has reported the host cancelling its pending interactions (for
     /// example while stopping with a request still outstanding).</summary>
     public Task WaitForPendingInteractionsCancelledAsync(TimeSpan? timeout = null) =>

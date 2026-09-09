@@ -76,7 +76,25 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
         // decides to give up on this round trip (for example during shutdown); mirror that here so a scenario
         // can prove the host itself remains well-behaved under a still-outstanding prompt, without this fixture
         // manufacturing an unrealistic, uncancelable wait no real provider would exhibit.
-        var content = await pendingReply.Task.WaitAsync(cancellationToken);
+        string content;
+        try
+        {
+            content = await pendingReply.Task.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Reports this send's own cancellation before propagating so a scenario can prove the admitted send
+            // reached its terminal, canceled outcome strictly before this same session's later disposal - not
+            // merely infer the order from production's own call sequence. This notification and DisposeAsync's
+            // "disposal-held" notification below both travel across the very same single control-pipe
+            // connection this session already uses, so whichever one this real host process actually sends
+            // first is exactly the one the test observes first.
+            if (myControl is not null)
+            {
+                await myControl.NotifyObservationAsync(Role, SessionId, "send-canceled", new { prompt }, CancellationToken.None);
+            }
+            throw;
+        }
         myEvents.Publish(new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, content, IsDelta: false));
         myEvents.Publish(new AgentIdleEvent(DateTimeOffset.UtcNow));
     }
