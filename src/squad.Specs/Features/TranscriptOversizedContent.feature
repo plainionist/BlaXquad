@@ -15,7 +15,7 @@ Feature: Transcript oversized content
 
   Scenario: An oversized transcript entry remains bounded in memory while its full content stays available in the archive
     When the "coder" agent emits a system message with 300000 characters
-    Then the transcript update for role "coder" reports archived content beyond the retained bound
+    Then the transcript update for role "coder" reports archived content beyond the 250000 character retained bound
     When the backend scenario requests the archived transcript entry 2 for role "coder"
     Then the archived transcript entry has 300000 characters and is not truncated
 
@@ -27,4 +27,4 @@ Feature: Transcript oversized content
     When the "coder" agent emits an assistant delta with 1200000 characters
     And the "coder" agent emits an assistant delta with 1200000 characters
     And the backend scenario requests the archived transcript entry 2 for role "coder"
-    Then the archived transcript entry is truncated with 2400000 total characters
+    Then the archived transcript entry is truncated with 2400000 total characters at the 2000000 character archive bound

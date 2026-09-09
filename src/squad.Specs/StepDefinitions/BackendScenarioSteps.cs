@@ -595,8 +595,9 @@ public sealed class BackendScenarioSteps
         });
     }
 
-    [Then("the archived transcript entry is truncated with {int} total characters")]
-    public void ThenTheArchivedTranscriptEntryIsTruncatedWithTotalCharacters(int totalCharacters)
+    [Then("the archived transcript entry is truncated with {int} total characters at the {int} character archive bound")]
+    public void ThenTheArchivedTranscriptEntryIsTruncatedWithTotalCharactersAtTheArchiveBound(
+        int totalCharacters, int archiveBoundCharacters)
     {
         var entry = myLatestArchivedEntry
             ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
@@ -604,24 +605,30 @@ public sealed class BackendScenarioSteps
         {
             Assert.That(entry.ContentTruncated, Is.True);
             Assert.That(entry.TotalContentCharacters, Is.EqualTo(totalCharacters));
-
-            // Both the reported archived prefix and the actually persisted content must stay strictly bounded
-            // below the true stream length - proving the archive never silently presents its truncated, partial
-            // content as if it were the complete stream.
-            Assert.That(entry.ArchivedPrefixCharacters, Is.LessThan(totalCharacters));
             Assert.That(entry.Content, Is.Not.Null);
-            Assert.That(entry.Content!.Length, Is.LessThan(totalCharacters));
+
+            // The persisted content's length must land exactly at the production per-entry archive bound -
+            // proving the archive stops writing precisely there, not merely somewhere short of the total stream -
+            // while the reported prefix (which excludes the appended truncation marker) stays strictly below it.
+            Assert.That(entry.Content!.Length, Is.EqualTo(archiveBoundCharacters));
+            Assert.That(entry.ArchivedPrefixCharacters, Is.LessThan(archiveBoundCharacters));
         });
     }
 
-    [Then("the transcript update for role {string} reports archived content beyond the retained bound")]
-    public void ThenTheTranscriptUpdateForRoleReportsArchivedContentBeyondTheRetainedBound(string role)
+    [Then("the transcript update for role {string} reports archived content beyond the {int} character retained bound")]
+    public void ThenTheTranscriptUpdateForRoleReportsArchivedContentBeyondTheRetainedBound(string role, int retainedBoundCharacters)
     {
         var update = Await(myScenario.WaitForTranscriptUpdateAsync(role, "system"));
         Assert.Multiple(() =>
         {
             Assert.That(update.HasArchivedContent, Is.True);
             Assert.That(update.ContentStart, Is.GreaterThan(0));
+
+            // The published live content must land exactly at the production per-entry retained bound - proving
+            // the update never silently carries more than that bound, rather than merely proving a prefix was
+            // skipped and more content exists in the archive.
+            Assert.That(update.Content, Is.Not.Null);
+            Assert.That(update.Content!.Length, Is.EqualTo(retainedBoundCharacters));
         });
     }
 
