@@ -449,6 +449,19 @@ public sealed class BackendScenario : IDisposable
         string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
         RequireUi().WaitForTranscriptSynchronizationAsync(role, matches, timeout, DescribeControlDiagnostics());
 
+    /// <summary>Counts how many "transcript.synchronize" messages including an entry list for the given role have
+    /// been captured so far - the skip count to pass to <see cref="WaitForNextTranscriptSynchronizationAsync"/> to
+    /// observe only a synchronization published after this point.</summary>
+    public int CountTranscriptSynchronizations(string role) => RequireUi().CountTranscriptSynchronizations(role);
+
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.synchronize" message for the given
+    /// role has been published - identified purely by structural presence, never by content - so a caller can
+    /// assert on that specific response's entries directly and genuinely fail if it carries an unexpected
+    /// value.</summary>
+    public Task<TranscriptSynchronizationObservation> WaitForNextTranscriptSynchronizationAsync(
+        string role, int skip, TimeSpan? timeout = null) =>
+        RequireUi().WaitForNextTranscriptSynchronizationAsync(role, skip, timeout, DescribeControlDiagnostics());
+
     /// <summary>Requests the given role's previous transcript page - the entries immediately preceding
     /// <paramref name="beforeIndex"/> - through the real UI protocol, the same operation a dashboard paging back
     /// through older history relies on.</summary>

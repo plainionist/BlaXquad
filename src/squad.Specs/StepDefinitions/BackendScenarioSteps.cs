@@ -24,6 +24,7 @@ public sealed class BackendScenarioSteps
     private readonly Dictionary<string, int> myAssistantDeltaCounts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> myLatestSynchronizedSequence = new(StringComparer.Ordinal);
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
+    private TranscriptSynchronizationObservation? myAwaitedTranscriptSynchronization;
     private readonly Dictionary<string, BackendScenarioCommand> myReadinessWatches = new(StringComparer.Ordinal);
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
@@ -826,19 +827,28 @@ public sealed class BackendScenarioSteps
         Assert.That(observedContents, Is.EquivalentTo(expectedContents));
     }
 
-    [Then("the reconciled transcript for role {string} does not contain {string}")]
-    public void ThenTheReconciledTranscriptForRoleDoesNotContain(string role, string content)
+    [When("the backend scenario requests a fresh transcript synchronization and awaits role {string}'s response")]
+    public void WhenTheBackendScenarioRequestsAFreshTranscriptSynchronizationAndAwaitsRoleSResponse(string role)
     {
+        // Snapshotting the count of synchronizations already captured for this role - before issuing the request -
+        // and then waiting for that count-plus-first one to appear identifies exactly the response this specific
+        // request produced (never an earlier one, such as the initial "ui.ready" handshake, that happened to
+        // already satisfy some later content assertion).
+        var skip = myScenario.CountTranscriptSynchronizations(role);
+        myScenario.RequestTranscriptSynchronization();
+        myAwaitedTranscriptSynchronization = Await(myScenario.WaitForNextTranscriptSynchronizationAsync(role, skip));
+    }
+
+    [Then("the freshly synchronized transcript for role {string} does not contain {string}")]
+    public void ThenTheFreshlySynchronizedTranscriptForRoleDoesNotContain(string role, string content)
+    {
+        Assert.That(myAwaitedTranscriptSynchronization, Is.Not.Null);
+        Assert.That(myAwaitedTranscriptSynchronization!.Role, Is.EqualTo(role));
+
         var decodedContent = DecodeEscapes(content);
-
-        // Reconciling combines the latest transcript synchronization - whichever request produced it - with every
-        // update published after its high-water mark, so this proves the given content never actually appears in
-        // the currently reconciled transcript, rather than merely finding some earlier synchronization message
-        // (for example the initial handshake) that happened not to mention it.
-        var reconciled = Await(myScenario.WaitForReconciledTranscriptAsync(
-            role, entries => !entries.Any(entry => entry.Content.Contains(decodedContent, StringComparison.Ordinal))));
-
-        Assert.That(reconciled.Any(entry => entry.Content.Contains(decodedContent, StringComparison.Ordinal)), Is.False);
+        Assert.That(
+            myAwaitedTranscriptSynchronization.Entries.Any(entry => entry.Content.Contains(decodedContent, StringComparison.Ordinal)),
+            Is.False);
     }
 
     [Then("the reconciled transcript for role {string} contains exactly these entries in order:")]

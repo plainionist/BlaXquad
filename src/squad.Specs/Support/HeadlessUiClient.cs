@@ -209,6 +209,38 @@ public sealed class HeadlessUiClient
         return new TranscriptSynchronizationObservation(role, GetRoleSynchronizationSequence(element, role), observedEntries);
     }
 
+    /// <summary>Counts how many "transcript.synchronize" messages including an entry list for the given role have
+    /// been captured so far. A caller that needs to observe a synchronization published strictly after this point -
+    /// not the initial "ui.ready" handshake or any earlier explicit request that already satisfies some predicate -
+    /// passes this count as <c>skip</c> to <see cref="WaitForNextTranscriptSynchronizationAsync"/>.</summary>
+    public int CountTranscriptSynchronizations(string role) =>
+        CopyLines(myStdOutLines).Count(line =>
+        {
+            using var document = JsonDocument.Parse(line);
+            return TryGetTranscriptSynchronizationEntries(document.RootElement, role, out _);
+        });
+
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.synchronize" message that includes
+    /// an entry list for the given role has been published - identified purely by its structural presence, never
+    /// by its content - and returns the dashboard protocol's typed <c>sequence</c> and entries for that role.
+    /// Unlike <see cref="WaitForTranscriptSynchronizationAsync"/>, which searches for any message (past or future)
+    /// whose entries already satisfy a predicate and so can be satisfied by an earlier synchronization observed
+    /// before a just-issued request even completes, this identifies the exact synchronization a specific request
+    /// produced - so a caller can then assert on its entries directly and genuinely fail if that particular
+    /// response carries an unexpected value, rather than silently skipping past it to a later, correct one.</summary>
+    public async Task<TranscriptSynchronizationObservation> WaitForNextTranscriptSynchronizationAsync(
+        string role, int skip, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var element = await WaitForMessageAsync(
+            candidate => TryGetTranscriptSynchronizationEntries(candidate, role, out _),
+            $"a new transcript synchronization for role '{role}'",
+            timeout,
+            additionalDiagnostics,
+            skip);
+        TryGetTranscriptSynchronizationEntries(element, role, out var entries);
+        return new TranscriptSynchronizationObservation(role, GetRoleSynchronizationSequence(element, role), entries);
+    }
+
     /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.page" message for the given role has
     /// been published (the wire payload carries no correlation id back to its triggering request, so distinguishing
     /// a specific page reply among several for the same role requires counting prior ones already observed - the
