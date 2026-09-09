@@ -281,7 +281,7 @@ synchronize after five production-sized (250,000-character) system messages that
 live-retention budget, the permission stays answerable, and no test-only retention capacity is configured. The
 covered ViewModel scenario and its orphaned "reports older history" binding were removed.
 
-### Slice 13 [pending]: Retain active stream context
+### Slice 13 [in progress]: Retain active stream context
 
 1. Start an assistant stream, cross the production live-retention boundary with unrelated activity, and continue the
    stream; repeat for reasoning only when the same setup and assertions can share the path.
