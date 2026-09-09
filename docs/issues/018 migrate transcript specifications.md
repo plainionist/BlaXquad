@@ -229,7 +229,7 @@ updates; `task`/`read_agent`/`list_agents` never set `activeTool` and a later or
 entry on synchronize. The two covered ViewModel scenarios and their orphaned subagent-start / exact-entry-count
 bindings were removed.
 
-### Slice 10 [in progress]: Preserve visible skill activity while suppressing skill plumbing
+### Slice 10 [done]: Preserve visible skill activity while suppressing skill plumbing
 
 1. Publish semantic skill application and discovery events plus the underlying skill tool activity.
 2. Assert skill application and discovery remain visible while the skill control call and file contents remain
@@ -238,6 +238,13 @@ bindings were removed.
 
 **Slice acceptance:** Skill use remains understandable in the transcript without exposing control-tool traffic or
 skill file contents.
+
+**Status: complete (7b77005c64).** `src/squad.Specs/Features/TranscriptSkillActivityPresentation.feature` covers
+slice 10 through the process boundary: `AgentSkillInvokedEvent` publishes `using skill(project-setup)` as a `tool`
+entry; an underlying `skill` tool start/streamed SKILL.md contents/completion never appear (a later ordinary tool
+is the only `tool` entry and `activeTool` stays clear); and a discovery system message remains visible without a
+`Read ...SKILL.md` transcript update. The three covered ViewModel scenarios and their orphaned skill/tool-output
+bindings were removed.
 
 ### Slice 11 [pending]: Preserve monotonic context and accumulated usage
 
