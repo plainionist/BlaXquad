@@ -225,6 +225,22 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioArmsRoleToFailItsNextAbortWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailNextAbortAsync(message));
 
+    [When("the backend scenario arms role {string} to hold its next session disposal pending")]
+    public void WhenTheBackendScenarioArmsRoleToHoldItsNextSessionDisposalPending(string role) =>
+        Await(myScenario.Agent(role).ArmPendingDisposalAsync());
+
+    [When("the backend scenario completes the pending session disposal for role {string}")]
+    public void WhenTheBackendScenarioCompletesThePendingSessionDisposalForRole(string role) =>
+        Await(myScenario.Agent(role).CompletePendingDisposalAsync());
+
+    [Then("the backend scenario observes role {string}'s session disposal held")]
+    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeld(string role) =>
+        Await(myScenario.Agent(role).WaitForDisposalHeldAsync());
+
+    [When("the backend scenario requests a host-control shutdown without waiting for the process to exit")]
+    public void WhenTheBackendScenarioRequestsAHostControlShutdownWithoutWaitingForTheProcessToExit() =>
+        Await(myScenario.RequestShutdownWithoutWaitingForExit());
+
     [Then("role {string} is not ready for a prompt")]
     public void ThenRoleIsNotReadyForAPrompt(string role)
     {

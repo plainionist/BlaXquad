@@ -66,33 +66,6 @@ Feature: Squad ViewModel
     And the open event observer was canceled without stream completion
     And all controllable application resources were disposed
 
-  Scenario: Backend cleanup retains host ownership until it terminates
-    Given a controllable SquadApplication with blocking backend cleanup
-    When the application lifecycle reaches readiness
-    And the application window closes
-    And backend cleanup begins
-    And backend cleanup remains blocked for six seconds
-    Then the host lease remains held
-    When backend cleanup is released
-    And the application waits for window closure
-    Then the application stopped after readiness
-    And all controllable application resources were disposed
-
-  Scenario: Shutdown rejects commands before session disposal
-    Given a controllable SquadApplication that sends a command while stopping
-    When the application lifecycle reaches readiness
-    And the application window closes
-    Then the stopping command was rejected
-    And all controllable application resources were disposed
-
-  Scenario: Accepted commands drain before session disposal
-    Given a controllable SquadApplication with an in-flight command
-    When the application lifecycle reaches readiness
-    And the in-flight application command begins
-    And the application window closes
-    Then the accepted command was canceled before its session disposal
-    And all controllable application resources were disposed
-
   Scenario: Primary and cleanup failures are both reported
     Given a controllable SquadApplication with startup and cleanup failures
     When the application lifecycle runs

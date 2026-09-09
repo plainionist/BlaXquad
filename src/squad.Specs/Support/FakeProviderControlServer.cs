@@ -456,6 +456,24 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         string role, string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "fail-next-abort", new { message }, timeout, additionalDiagnostics);
 
+    /// <summary>Arms the given role's session so its disposal, when it happens, first reports a "disposal-held"
+    /// observation and then remains pending until <see cref="CompletePendingDisposalAsync"/> resolves it - the
+    /// deterministic control a scenario needs to prove backend cleanup genuinely holds at the real provider
+    /// boundary without an arbitrary sleep.</summary>
+    public Task ArmPendingDisposalAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "arm-pending-disposal", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Resolves the given role's currently held disposal (armed by <see cref="ArmPendingDisposalAsync"/>),
+    /// letting it proceed.</summary>
+    public Task CompletePendingDisposalAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "complete-pending-disposal", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Waits until the connected client has reported that the given role's session disposal is being
+    /// held (armed by <see cref="ArmPendingDisposalAsync"/>) - proving backend cleanup has genuinely reached the
+    /// real provider boundary rather than merely inferring it from timing.</summary>
+    public async Task WaitForDisposalHeldAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        await WaitForObservationDataAsync(role, "disposal-held", timeout, additionalDiagnostics);
+
     /// <summary>Completes the given role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
     public Task CompleteSessionAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>

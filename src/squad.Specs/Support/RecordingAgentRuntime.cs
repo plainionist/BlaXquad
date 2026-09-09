@@ -15,11 +15,9 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
     private readonly IReadOnlyDictionary<string, string> myInitialInstructions;
     private readonly bool myFailDuringStart;
     private readonly int myBlockBeforeSessionIndex;
-    private readonly bool myBlockDispose;
     private readonly Action myOnRegistrationBlocked;
     private readonly Task myRegistrationGate;
     private readonly Action myOnDisposeEntered;
-    private readonly Task myDisposeGate;
     private readonly HashSet<RecordingAgentSession> myRetiredSessions = [];
     private bool myDisposed;
 
@@ -29,22 +27,18 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
         IReadOnlyDictionary<string, string> initialInstructions,
         bool failDuringStart,
         int blockBeforeSessionIndex,
-        bool blockDispose,
         Action onRegistrationBlocked,
         Task registrationGate,
-        Action onDisposeEntered,
-        Task disposeGate)
+        Action onDisposeEntered)
     {
         mySessions = sessions;
         myEarlyEvents = earlyEvents;
         myInitialInstructions = initialInstructions;
         myFailDuringStart = failDuringStart;
         myBlockBeforeSessionIndex = blockBeforeSessionIndex;
-        myBlockDispose = blockDispose;
         myOnRegistrationBlocked = onRegistrationBlocked;
         myRegistrationGate = registrationGate;
         myOnDisposeEntered = onDisposeEntered;
-        myDisposeGate = disposeGate;
     }
 
     public async Task StartAsync(Func<IAgentSession, Task> sessionStarted, CancellationToken cancellationToken = default)
@@ -85,10 +79,6 @@ public sealed class RecordingAgentRuntime : IAgentRuntime
             return;
         }
         myOnDisposeEntered();
-        if (myBlockDispose)
-        {
-            await myDisposeGate;
-        }
         var failures = new List<Exception>();
         for (var index = mySessions.Count - 1; index >= 0; index--)
         {

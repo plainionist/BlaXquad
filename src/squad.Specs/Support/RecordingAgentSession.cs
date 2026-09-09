@@ -32,7 +32,6 @@ public sealed class RecordingAgentSession : IAgentSession
     public bool EventCancellationObserved { get; private set; }
     public bool EventStreamLeftOpen { get; private set; }
     public int DisposeCount { get; private set; }
-    public int ActiveSendCountAtDispose { get; private set; }
     public Action? OnDispose { get; set; }
     public Action? OnDisposeObserved { get; set; }
     public Action<string>? OnSend { get; set; }
@@ -113,7 +112,6 @@ public sealed class RecordingAgentSession : IAgentSession
     public async ValueTask DisposeAsync()
     {
         DisposeCount++;
-        ActiveSendCountAtDispose = Volatile.Read(ref myActiveSends);
         OnDispose?.Invoke();
         OnDisposeObserved?.Invoke();
         myDisposed = true;

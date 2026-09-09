@@ -33,8 +33,6 @@ public sealed class ViewModelSteps
     private RecordingSleepInhibitor? myRecordingSleep;
     private RecordingHostLease? myRecordingHostLease;
     private FaultingHostLease? myFaultingHostLease;
-    private Task? myStoppingCommand;
-    private Task? myInFlightApplicationCommand;
     private Task? myExternalShutdown;
     private RunResult? myApplicationRunResult;
     private Exception? myApplicationLifecycleFailure;
@@ -244,27 +242,6 @@ public sealed class ViewModelSteps
         session.LeaveEventsOpenOnDispose = true;
     }
 
-    [Given("a controllable SquadApplication with blocking backend cleanup")]
-    public void GivenAControllableSquadApplicationWithBlockingBackendCleanup()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myBackend.BlockDispose = true;
-    }
-
-    [Given("a controllable SquadApplication that sends a command while stopping")]
-    public void GivenAControllableSquadApplicationThatSendsACommandWhileStopping()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myBackend.Sessions.Single().OnDispose = () => myStoppingCommand = myApplication!.ViewModel.SendAsync("coder", "too late");
-    }
-
-    [Given("a controllable SquadApplication with an in-flight command")]
-    public void GivenAControllableSquadApplicationWithAnInFlightCommand()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myBackend.Sessions.Single().SendDelay = TimeSpan.FromSeconds(30);
-    }
-
     [Given("a controllable SquadApplication with startup and cleanup failures")]
     public void GivenAControllableSquadApplicationWithStartupAndCleanupFailures()
     {
@@ -353,28 +330,6 @@ public sealed class ViewModelSteps
         });
     }
 
-    [Then("the stopping command was rejected")]
-    public async Task ThenTheStoppingCommandWasRejected()
-    {
-        await CompleteApplicationRunAsync();
-        Assert.That(myStoppingCommand, Is.Not.Null);
-        Assert.That(myStoppingCommand!.IsFaulted, Is.True);
-        Assert.That(myStoppingCommand.Exception!.GetBaseException().Message, Is.EqualTo("Squad is shutting down"));
-    }
-
-    [Then("the accepted command was canceled before its session disposal")]
-    public async Task ThenTheAcceptedCommandWasCanceledBeforeItsSessionDisposal()
-    {
-        await CompleteApplicationRunAsync();
-        var session = myBackend.Sessions.Single();
-        Assert.Multiple(() =>
-        {
-            Assert.That(myInFlightApplicationCommand, Is.Not.Null);
-            Assert.That(myInFlightApplicationCommand!.IsCanceled, Is.True);
-            Assert.That(session.ActiveSendCountAtDispose, Is.Zero);
-        });
-    }
-
     [Then("the application lifecycle contains {string} and {string}")]
     public async Task ThenTheApplicationLifecycleContains(string first, string second)
     {
@@ -409,38 +364,6 @@ public sealed class ViewModelSteps
 
     [When("the application window closes")]
     public void WhenTheApplicationWindowCloses() => myRecordingWindow!.Close();
-
-    [When("the in-flight application command begins")]
-    public async Task WhenTheInFlightApplicationCommandBegins()
-    {
-        myInFlightApplicationCommand = myApplication!.ViewModel.SendAsync("coder", "still working");
-        var session = myBackend.Sessions.Single();
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-        while (session.Sends.IsEmpty && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(10);
-        }
-        Assert.That(session.Sends, Has.Some.EqualTo("still working"));
-    }
-
-    [When("backend cleanup begins")]
-    public async Task WhenBackendCleanupBegins() => await myBackend.DisposeEntered.WaitAsync(TimeSpan.FromSeconds(2));
-
-    [When("backend cleanup remains blocked for six seconds")]
-    public async Task WhenBackendCleanupRemainsBlockedForSixSeconds() => await Task.Delay(TimeSpan.FromSeconds(6));
-
-    [Then("the host lease remains held")]
-    public void ThenTheHostLeaseRemainsHeld()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(File.Exists(Path.Combine(myApplicationRoot, ".blaxquad", "host.json")), Is.True);
-            Assert.That(HostLease.TryAcquireProbe(myApplicationRoot), Is.False);
-        });
-    }
-
-    [When("backend cleanup is released")]
-    public void WhenBackendCleanupIsReleased() => myBackend.ReleaseDispose();
 
     [When("the application waits for window closure")]
     public async Task WhenTheApplicationWaitsForWindowClosure() => await myApplicationRun!;

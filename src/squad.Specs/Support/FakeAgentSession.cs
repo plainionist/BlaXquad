@@ -38,6 +38,7 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     private bool myRejectNextHarness;
     private TaskCompletionSource? myPendingAbort;
     private string? myNextAbortFailureMessage;
+    private TaskCompletionSource? myPendingDisposal;
 
     public FakeAgentSession(string role, FakeProviderControlClient? control = null)
     {
@@ -171,6 +172,18 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     /// <see cref="AbortAsync"/> call fails immediately with the given message instead of succeeding - proving a
     /// failed abort's user-visible outcome without any pending, held-open state.</summary>
     public void FailNextAbort(string message) => myNextAbortFailureMessage = message;
+
+    /// <summary>Test-only control (not a production event): arms this session so its disposal, when it happens,
+    /// first reports a "disposal-held" observation and then remains pending until
+    /// <see cref="CompletePendingDisposal"/> resolves it - the deterministic control a scenario needs to prove
+    /// backend cleanup genuinely holds at the real provider boundary (for example so it can prove a command
+    /// arriving after admission closes still gets rejected while cleanup is in progress) without any arbitrary
+    /// sleep.</summary>
+    public void ArmPendingDisposal() => myPendingDisposal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>Resolves this session's currently held disposal (armed by <see cref="ArmPendingDisposal"/>),
+    /// letting it proceed.</summary>
+    public void CompletePendingDisposal() => myPendingDisposal?.TrySetResult();
 
     /// <summary>Reports, when a control transport is configured, the host's response to a permission request this
     /// session previously emitted through <see cref="Emit"/>.</summary>
@@ -346,6 +359,12 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
             case "fail-next-abort":
                 FailNextAbort(data.GetProperty("message").GetString()!);
                 return null;
+            case "arm-pending-disposal":
+                ArmPendingDisposal();
+                return null;
+            case "complete-pending-disposal":
+                CompletePendingDisposal();
+                return null;
             case "complete-session":
                 myEvents.Publish(new AgentStoppedEvent(now));
                 myCompletion.TrySetResult();
@@ -391,6 +410,19 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
 
     public async ValueTask DisposeAsync()
     {
+        // If a scenario armed a held disposal for this session, report it before waiting so a scenario can prove
+        // backend cleanup has genuinely reached this real provider boundary - not merely infer it from timing -
+        // before it proceeds to prove a command arriving while cleanup remains held is still rejected.
+        var pendingDisposal = myPendingDisposal;
+        if (pendingDisposal is not null)
+        {
+            if (myControl is not null)
+            {
+                await myControl.NotifyObservationAsync(Role, SessionId, "disposal-held", new { }, CancellationToken.None);
+            }
+            await pendingDisposal.Task;
+        }
+
         IsDisposed = true;
         myPendingReply?.TrySetCanceled();
         myEvents.Complete();

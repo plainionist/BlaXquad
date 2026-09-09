@@ -572,6 +572,26 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Requests shutdown through the real "squad-hq shutdown" host-control command's own underlying pipe request
+    /// (<see cref="squad.Host.Control.HostControlClient.RequestShutdownAsync"/>) without waiting for the host to
+    /// release ownership or for the launched process itself to exit, so a scenario can observe backend cleanup
+    /// unfold - for example holding at the real provider boundary through
+    /// <see cref="BackendScenarioAgent.ArmPendingDisposalAsync"/> - before later waiting for the process's own
+    /// bounded exit through <see cref="WaitForProcessExitAsync"/>. The full "squad-hq shutdown" CLI command itself
+    /// cannot be used here because it always blocks up to its own timeout waiting for host release, which would
+    /// deadlock against a still-held disposal.
+    /// </summary>
+    public async Task RequestShutdownWithoutWaitingForExit()
+    {
+        if (myProcess is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        await squad.Host.Control.HostControlClient.RequestShutdownAsync(myWorkspace.Root);
+    }
+
+    /// <summary>
     /// Starts "squad-hq wait-for-agent" for the given role as a separate real child process addressing this
     /// scenario's project, using the same published, provider-free executable as the launched host, and returns a
     /// semantic handle so a specification can observe whether the command remains blocked or await its bounded

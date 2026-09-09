@@ -11,8 +11,6 @@ public sealed class RecordingAgentBackend : IAgentBackend
     private readonly Dictionary<string, string> myInitialInstructions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> myRoleWorktrees = new(StringComparer.Ordinal);
     private readonly List<string> myDisposeOrder = [];
-    private readonly TaskCompletionSource myDisposeEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly TaskCompletionSource myDisposeGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource myRegistrationBlocked = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource myRegistrationGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -20,8 +18,6 @@ public sealed class RecordingAgentBackend : IAgentBackend
     public bool RuntimeCreated { get; private set; }
     public bool FailDuringStart { get; set; }
     public bool Disposed { get; private set; }
-    public bool BlockDispose { get; set; }
-    public Task DisposeEntered => myDisposeEntered.Task;
     public IReadOnlyDictionary<string, string> RoleWorktrees => myRoleWorktrees;
     public IReadOnlyList<string> DisposeOrder => myDisposeOrder;
     public int BlockBeforeSessionIndex { get; set; } = -1;
@@ -37,15 +33,9 @@ public sealed class RecordingAgentBackend : IAgentBackend
             myInitialInstructions,
             FailDuringStart,
             BlockBeforeSessionIndex,
-            BlockDispose,
             onRegistrationBlocked: () => myRegistrationBlocked.TrySetResult(),
             registrationGate: myRegistrationGate.Task,
-            onDisposeEntered: () =>
-            {
-                Disposed = true;
-                myDisposeEntered.TrySetResult();
-            },
-            disposeGate: myDisposeGate.Task);
+            onDisposeEntered: () => Disposed = true);
         return Task.FromResult(runtime);
     }
 
@@ -68,6 +58,5 @@ public sealed class RecordingAgentBackend : IAgentBackend
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    public void ReleaseDispose() => myDisposeGate.TrySetResult();
     public void ReleaseRegistration() => myRegistrationGate.TrySetResult();
 }
