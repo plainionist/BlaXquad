@@ -175,7 +175,7 @@ snapshot clears it on completion; progress reports plus a completion fallback of
 compared table cells without `DecodeEscapes`. The three covered ViewModel scenarios and their orphaned SDK
 tool-call, progress, and active-tool bindings were removed.
 
-### Slice 7 [in progress]: Preserve ordinary tool command presentation
+### Slice 7 [done]: Preserve ordinary tool command presentation
 
 1. Publish known command arguments, unrecognized arguments, and ordinary tool names containing read-like words.
 2. Assert known commands are decoded, unknown arguments remain available in their supported representation, and
@@ -185,22 +185,14 @@ tool-call, progress, and active-tool bindings were removed.
 **Slice acceptance:** Command tools retain their supported summaries, unknown arguments are not lost, and names alone
 do not misclassify an ordinary tool as a file read.
 
-**Status: changes requested (ebf940e2b0)**
-
-#### Review findings on ebf940e2b0
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/TranscriptToolCommandPresentation.feature`
-  (scenario "An unrecognized tool argument shape remains available in its raw form").
-- **Violated behavior:** Slice 7 requires unknown arguments to remain available in their supported representation.
-  The removed ViewModel scenario asserted the single `tool` entry content
-  `glob {"pattern":"**/*","paths":"C:\\work"}` (JSON `GetRawText()` of the parsed arguments, two backslashes).
-- **Root cause:** The new exact-entry table cell writes `C:\\\\work` (four backslashes). `DecodeEscapes` only
-  translates `\n`/`\r`, and Gherkin table cells do not treat `\\` as a C# string escape, so the expected string is
-  not the production display text.
-- **Required outcome:** The synchronize assertion must expect the same supported raw-argument display the removed
-  ViewModel scenario proved, so a dropped or re-escaped argument payload fails.
+**Status: complete (d3779f0ab6).** `src/squad.Specs/Features/TranscriptToolCommandPresentation.feature` covers
+slice 7 through the process boundary: a known shell tool's `command` argument is decoded to
+`powershell Get-ChildItem -Path "C:\work"`; unrecognized `glob` arguments remain in the transcript as
+`JsonElement.GetRawText()` (`C:\\work` in the raw JSON, written `C:\\\\work` in the Gherkin table because
+Reqnroll unescapes `\\` but not `\n`); and `preview`, `open_connection`, and `thread_status` remain `tool`
+entries with their own output rather than being classified as file reads. The follow-up `d3779f0ab6` documents
+that table escaping. The three covered ViewModel scenarios and their orphaned decoded-command / raw-glob
+bindings were removed.
 
 ### Slice 8 [pending]: Preserve file-read summaries without content leakage
 
