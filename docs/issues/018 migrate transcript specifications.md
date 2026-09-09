@@ -138,7 +138,7 @@ that is not overwritten by a completion summary. Each scenario ends with a synch
 The four covered ViewModel scenarios were removed; their step bindings remain for later slices. The follow-up
 `3c6bf6e924` closes the review finding that `Any(...)` include checks allowed extra tool entries.
 
-### Slice 5 [pending]: Preserve concurrent tool-call correlation
+### Slice 5 [in progress]: Preserve concurrent tool-call correlation
 
 1. Publish interleaved output for two concurrently active tool-call IDs through the fake provider.
 2. Assert through transcript updates that each output fragment reaches only its matching tool entry and retains
