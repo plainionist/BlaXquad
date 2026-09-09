@@ -38,80 +38,190 @@ All slices run the published `squad-hq --ui stdio` process with the fake provide
 operations exposed by `BackendScenario`, its role controller, and the headless UI client. Test support may decode the
 wire protocol into test-owned values, but Gherkin and step definitions must not expose raw JSON, production object
 graphs, transcript storage, or archive files. Migrate and delete each covered `ViewModel.feature` scenario in the same
-slice so old and new specifications do not coexist.
+slice so old and new specifications do not coexist. Each slice includes its focused fake-provider/UI support,
+acceptance scenarios, and obsolete white-box scenario and binding cleanup.
 
-### Slice 1: Specify transcript streaming through the UI protocol
+### Slice 1 [in progress]: Preserve transcript protocol shape and entry sources
 
-1. Introduce a cohesive transcript feature around the published process, fake-provider controller, and headless UI
-   client.
-2. Extend the role controller with semantic assistant-delta, final-assistant, reasoning-delta, final-reasoning, and
-   system-message operations as required. Extend the UI client with typed, bounded transcript synchronization and
-   update observations while keeping envelope framing and JSON parsing private.
-3. Cover initial synchronization and incremental updates, including the dashboard field names for entry source,
-   content, sequence, operation, and index. Exercise user, harness, assistant, reasoning, and system sources.
-4. Prove assistant and reasoning aggregation/finalization, preservation of earlier entries, and idle finalization by
-   asserting the complete observed transcript and ordered update stream.
-5. Emit updates across initial synchronization and in a concurrent burst to prove that no published entry is missing,
-   duplicated, or reordered; do not retain the white-box publication pause, lock, callback, journal-capacity, or
-   Photino assertions.
-6. Remove the now-covered core transcript scenarios and their obsolete bindings from `ViewModel.feature` and
-   `ViewModelSteps`.
-
-**Slice acceptance:** A real headless client reconstructs the same ordered transcript from synchronization plus
-incremental messages, sources and protocol fields match the dashboard contract, streamed assistant/reasoning entries
-finalize correctly, and boundary races produce each update exactly once without inspecting internal state.
-
-### Slice 2: Specify tool and agent activity presentation
-
-1. Add semantic fake-agent operations needed to publish tool start, progress, output snapshots/chunks, completion,
-   subagent activity, and skill activity without constructing provider event records in steps.
-2. Cover one-item aggregation for cumulative and incremental output, replacement of rewritten snapshots, correlation
-   of concurrent calls by tool-call ID, separation of progress from output, completion fallback output, and active-tool
-   state while a call is running.
-3. Preserve the supported formatting of known command arguments and unknown arguments, file-read paths and ranges,
-   whole-file line counts, and ordinary tools whose names merely contain read-like words.
-4. Preserve semantic subagent labels, visible skill application and discovery, and system activity while proving that
-   subagent control tools, skill plumbing, and file contents remain suppressed.
-5. Assert only transcript updates and published role snapshots, then remove the corresponding tool, subagent, skill,
-   and activity scenarios and bindings from `ViewModel.feature`.
-
-**Slice acceptance:** Tool calls remain correlated and update exactly one appropriate transcript entry, supported
-summaries and metadata are unchanged, active state clears on completion, and suppressed plumbing never appears in the
-UI protocol.
-
-### Slice 3: Specify usage and retained live context
-
-1. Consolidate context-token and accumulated AIC usage behavior at the process boundary, reusing
-   `ActiveUsageRefresh.feature` rather than creating duplicate coverage.
-2. Extend semantic state-snapshot observations to assert both context and AIC fields together and to distinguish a
-   newly published snapshot from an older matching snapshot.
-3. Publish newer and then stale usage checkpoints through the fake provider and prove stale data cannot overwrite the
-   latest values while the role is working or after it becomes idle.
-4. With enough transcript churn to cross the production retention boundary, prove that a pending interaction remains
-   published and answerable and that an active assistant or reasoning stream remains present and continues in the
-   correct entry.
-5. Remove the corresponding usage, pending-interaction-context, and active-stream-context scenarios and bindings from
-   `ViewModel.feature`.
-
-**Slice acceptance:** Published snapshots expose current context and accumulated usage monotonically, and retention
-never removes state still required to answer a pending interaction or continue an active stream.
-
-### Slice 4: Specify bounded history paging and recovery
-
-1. Extend the headless UI client with semantic transcript-page requests and typed synchronization/page results,
-   including explicit truncation and unavailable outcomes; keep request envelopes and storage coordinates private.
-2. Drive enough entries and content through the fake provider to cross the real production retention, page, per-entry,
-   and archive limits without adding test-only production capacities or timing knobs.
-3. Prove that live state remains bounded, older entries are returned in order through supported paging, and
-   synchronization plus incremental updates reconstructs history without gaps or duplicates.
-4. Prove user-visible behavior for an oversized entry and for history rotated out of the bounded archive: return the
-   supported truncated or unavailable result at a consistent sequence rather than asserting offsets, buffer sizes,
-   archive paths, or exact reconstruction inputs.
-5. Delete `ArchivedEntryReconstruction.feature`, including the scenario outline that reports exact reconstruction
-   inputs, after migrating only its supported paging and unavailable-entry behavior. Remove the corresponding
-   retention, paging, archive, announcement-bound, and reconstruction scenarios and obsolete bindings from
+1. Introduce the process-boundary transcript feature and only the semantic fake-provider and headless-UI operations
+   needed to observe synchronization and incremental transcript messages.
+2. Publish user, harness, assistant, reasoning, and system entries and assert their source and content through typed
+   test-owned values.
+3. Assert the dashboard contract fields for synchronization and updates: source, content, sequence, operation, and
+   index. Keep raw envelopes and JSON field access inside the headless client.
+4. Remove the covered field-name, source, system-message, and basic snapshot transcript scenarios and bindings from
    `ViewModel.feature` and `ViewModelSteps`.
 
-**Slice acceptance:** Retained and archived history stays within production bounds, available older entries can be
-recovered in order through the UI protocol, oversized or rotated content has an explicit stable outcome, temporary
-history is cleaned up with the process workspace, and no scenario reads transcript internals or archive storage.
+**Slice acceptance:** After the real UI-ready handshake, a headless client observes each supported transcript source
+with the dashboard-compatible source, content, sequence, operation, and index fields, without loading production
+objects or parsing raw JSON in steps.
+
+### Slice 2 [pending]: Preserve assistant and reasoning stream finalization
+
+1. Add semantic assistant/reasoning delta, final-message, and idle operations to the fake-provider controller as
+   needed.
+2. Prove consecutive deltas aggregate into one entry, snapshot publication does not end aggregation, a final message
+   replaces its streamed draft without removing earlier entries, and idle ends a reasoning stream before the next
+   delta.
+3. Assert complete transcript entries and protocol updates, then remove the corresponding assistant/reasoning stream
+   scenarios and bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Assistant and reasoning deltas aggregate into the correct entry, final or idle events close only
+that stream, and previously published transcript entries remain intact.
+
+### Slice 3 [pending]: Preserve transcript ordering across synchronization races
+
+1. Extend the headless client with a bounded semantic observation that combines initial synchronization with updates
+   after its high-water mark.
+2. Publish a known ordered sequence before and after synchronization and in a concurrent burst through the fake
+   provider.
+3. Assert the reconstructed transcript and update sequence contain every entry exactly once and in order.
+4. Remove the white-box ordering, atomic-publication, journal-capacity, callback, and Photino assertions and their
+   obsolete bindings.
+
+**Slice acceptance:** A real client reconstructs the ordered transcript without missing or duplicated updates when
+publication overlaps initial synchronization, without publication pauses, locks, callbacks, or journal inspection.
+
+### Slice 4 [pending]: Preserve single-call tool output aggregation
+
+1. Add semantic tool-start, cumulative-output, incremental-output, rewritten-snapshot, and completion operations to
+   the fake-provider controller as needed.
+2. Prove each supported output mode updates one transcript entry, repeated cumulative content is not duplicated, and
+   rewritten snapshots replace superseded output.
+3. Remove the covered cumulative, incremental, snapshot-replacement, and streaming-output scenarios and bindings from
+   `ViewModel.feature`.
+
+**Slice acceptance:** All output updates for one tool call produce one correctly aggregated transcript entry with no
+duplicated or superseded content.
+
+### Slice 5 [pending]: Preserve concurrent tool-call correlation
+
+1. Publish interleaved output for two concurrently active tool-call IDs through the fake provider.
+2. Assert through transcript updates that each output fragment reaches only its matching tool entry and retains
+   per-call order.
+3. Remove the corresponding concurrent-correlation scenario and obsolete bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Interleaved concurrent tool calls remain separate, and each resulting transcript entry contains
+only its own ordered output.
+
+### Slice 6 [pending]: Preserve visible tool lifecycle state
+
+1. Publish tool start, progress, output, and completion through semantic fake-provider operations.
+2. Assert the role snapshot exposes the active tool only while it is running, progress does not replace output,
+   completion detail is used only when no streamed display output exists, and active state clears on completion.
+3. Remove the covered active-state, progress, and completion-fallback scenarios and bindings from
+   `ViewModel.feature`.
+
+**Slice acceptance:** The UI protocol exposes correct active-tool state and stable display output throughout one tool
+call, including completion with and without prior output.
+
+### Slice 7 [pending]: Preserve ordinary tool command presentation
+
+1. Publish known command arguments, unrecognized arguments, and ordinary tool names containing read-like words.
+2. Assert known commands are decoded, unknown arguments remain available in their supported representation, and
+   ordinary tools remain tool entries rather than being classified as file reads.
+3. Remove the corresponding command-formatting and tool-name scenarios and bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Command tools retain their supported summaries, unknown arguments are not lost, and names alone
+do not misclassify an ordinary tool as a file read.
+
+### Slice 8 [pending]: Preserve file-read summaries without content leakage
+
+1. Publish file-read starts and completions for path-only, ranged, and whole-file reads.
+2. Assert transcript updates show the path, requested range, or derived whole-file line count as applicable while
+   suppressing file contents and completion payloads.
+3. Remove the covered file-read and file-view scenarios and bindings from `ViewModel.feature`.
+
+**Slice acceptance:** File-read entries identify what was read, including ranges or line counts, but never publish the
+file contents or completion payload through the transcript protocol.
+
+### Slice 9 [pending]: Preserve subagent presentation while suppressing control plumbing
+
+1. Publish semantic subagent activity with complete, partial, and absent display metadata.
+2. Assert the supported fallback labels and metadata in transcript updates and prove subagent control tools never
+   appear as ordinary tool entries.
+3. Remove the subagent metadata and plumbing scenarios and bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Users see one meaningful subagent activity entry with supported metadata fallbacks and no
+`task`, `read_agent`, or `list_agents` plumbing.
+
+### Slice 10 [pending]: Preserve visible skill activity while suppressing skill plumbing
+
+1. Publish semantic skill application and discovery events plus the underlying skill tool activity.
+2. Assert skill application and discovery remain visible while the skill control call and file contents remain
+   absent from transcript updates.
+3. Remove the skill application, discovery, and plumbing scenarios and bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Skill use remains understandable in the transcript without exposing control-tool traffic or
+skill file contents.
+
+### Slice 11 [pending]: Preserve monotonic context and accumulated usage
+
+1. Extend `ActiveUsageRefresh.feature` and typed snapshot observations to cover context tokens and accumulated AIC
+   usage together while a role is working and after it becomes idle.
+2. Publish a newer checkpoint followed by a stale checkpoint and distinguish newly published snapshots from older
+   matching snapshots.
+3. Assert stale provider data never overwrites the latest values, then remove the three corresponding usage scenarios
+   and bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Published state reports the latest context and accumulated usage while working and idle, and a
+late stale checkpoint cannot regress either value.
+
+### Slice 12 [pending]: Retain pending interaction context
+
+1. Create a pending interaction through the fake provider, then publish enough transcript activity to cross the
+   production live-retention boundary.
+2. Assert the interaction remains in published state, its transcript context remains recoverable through the UI
+   protocol, and the user can answer it successfully.
+3. Remove the white-box pending-interaction retention scenario and obsolete bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Retention does not remove the published or recoverable context required to answer a pending
+interaction.
+
+### Slice 13 [pending]: Retain active stream context
+
+1. Start an assistant stream, cross the production live-retention boundary with unrelated activity, and continue the
+   stream; repeat for reasoning only when the same setup and assertions can share the path.
+2. Assert the active entry remains present and receives the later delta instead of creating or modifying another
+   entry.
+3. Remove the white-box active-stream retention scenario and obsolete bindings from `ViewModel.feature`.
+
+**Slice acceptance:** Live retention preserves the entry required to continue an active assistant or reasoning stream
+without splitting, losing, or misrouting later content.
+
+### Slice 14 [pending]: Page retained transcript history
+
+1. Extend the headless UI client with semantic transcript synchronization and previous-page requests while keeping
+   request envelopes and storage coordinates private.
+2. Publish enough entries to cross the production live-retention and page boundaries.
+3. Assert live synchronization is bounded and older available entries page back in order; combining pages with live
+   updates must not introduce gaps or duplicates.
+4. Migrate the supported available-entry behavior from `ArchivedEntryReconstruction.feature` and remove the covered
+   paging, retention, and cleanup scenarios and bindings from `ViewModel.feature`.
+
+**Slice acceptance:** The UI protocol returns bounded live history and all still-available older entries in order,
+with temporary history removed when the process workspace is cleaned up.
+
+### Slice 15 [pending]: Report oversized transcript content explicitly
+
+1. Publish entries and streaming content that cross the production per-entry and announcement limits without adding
+   configurable test capacities.
+2. Assert the UI protocol reports a stable truncated result, keeps live publication bounded, and does not silently
+   present partial content as complete.
+3. Remove the covered oversized-entry, announcement-bound, and exact-limit streaming scenarios and bindings from
+   `ViewModel.feature`.
+
+**Slice acceptance:** Oversized transcript content remains bounded and is explicitly identified as truncated at a
+consistent sequence through the supported UI protocol.
+
+### Slice 16 [pending]: Report rotated transcript history as unavailable
+
+1. Publish enough history to cross the production archive boundary and request an entry that has rotated out.
+2. Assert the UI protocol returns an explicit unavailable result at the current sequence while newer archived entries
+   remain page-accessible and ordered.
+3. Remove the covered archive-bound and rotated-content scenarios and obsolete bindings from `ViewModel.feature`.
+4. Delete `ArchivedEntryReconstruction.feature`, including the obsolete exact-reconstruction-input outline, after its
+   supported available and unavailable outcomes have been migrated.
+
+**Slice acceptance:** Bounded archive rotation preserves available recent history and reports older missing content as
+unavailable without exposing offsets, paths, capacities, or reconstruction inputs.
