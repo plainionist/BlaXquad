@@ -35,6 +35,11 @@ Feature: Transcript ordinary tool command presentation
       """
     Then the backend scenario observes a transcript update for role "coder" with source "tool"
     When the backend scenario requests a fresh transcript synchronization
+    # The data-table cell below needs two literal backslash characters ("\\") to represent each single actual
+    # backslash in the raw JSON text production echoes back (via JsonElement.GetRawText()) - Reqnroll's own
+    # data-table parsing unescapes "\\" to "\" before this step ever sees the cell, exactly like a C# string
+    # literal needs "\\\\" to encode two real backslash characters. So "C:\\\\work" here decodes to the same
+    # "C:\\work" (two real backslashes) that GetRawText() returns for the "C:\\work" argument passed above.
     Then the transcript synchronization for role "coder" includes exactly these entries:
       | source | content                                        |
       | tool   | glob {"pattern":"**/*","paths":"C:\\\\work"}   |
