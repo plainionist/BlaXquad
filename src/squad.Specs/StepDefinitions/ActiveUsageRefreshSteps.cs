@@ -98,6 +98,29 @@ public sealed class ActiveUsageRefreshSteps
     public void ThenAStateSnapshotMessageReportsRoleAsIdleWithUsage(string role, int contextUsed, int contextLimit, decimal aicUsed) =>
         WaitForRoleSnapshot(role, isWorking: false, contextUsed, contextLimit, aicUsed);
 
+    [Then("no \"state.snapshot\" message reports role {string} with AIC usage {decimal} within {int} seconds")]
+    public void ThenNoStateSnapshotMessageReportsRoleWithAicUsageWithinSeconds(string role, decimal aicUsed, int seconds)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(seconds);
+        while (DateTime.UtcNow < deadline)
+        {
+            List<string> lines;
+            lock (myLinesLock)
+            {
+                lines = [.. myStdOutLines];
+            }
+            foreach (var line in lines)
+            {
+                using var document = JsonDocument.Parse(line);
+                if (MatchesRoleAicUsage(document.RootElement, role, aicUsed))
+                {
+                    Assert.Fail($"A \"state.snapshot\" message reported role '{role}' with AIC usage {aicUsed}, but none was expected.");
+                }
+            }
+            Thread.Sleep(25);
+        }
+    }
+
     [AfterScenario]
     public async Task StopProcessAsync()
     {
@@ -165,6 +188,32 @@ public sealed class ActiveUsageRefreshSteps
                 continue;
             }
             if (!roleElement.TryGetProperty("contextLimitTokens", out var limit) || limit.ValueKind == JsonValueKind.Null || limit.GetInt64() != contextLimit)
+            {
+                continue;
+            }
+            if (!roleElement.TryGetProperty("aicUsed", out var aic) || aic.ValueKind == JsonValueKind.Null || aic.GetDecimal() != aicUsed)
+            {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static bool MatchesRoleAicUsage(JsonElement element, string role, decimal aicUsed)
+    {
+        if (!element.TryGetProperty("type", out var type) || type.GetString() != "state.snapshot")
+        {
+            return false;
+        }
+        var payload = element.GetProperty("payload");
+        if (!payload.TryGetProperty("roles", out var roles))
+        {
+            return false;
+        }
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (!roleElement.TryGetProperty("role", out var roleName) || roleName.GetString() != role)
             {
                 continue;
             }

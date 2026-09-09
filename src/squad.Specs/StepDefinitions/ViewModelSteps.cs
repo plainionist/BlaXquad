@@ -990,14 +990,6 @@ public sealed class ViewModelSteps
         Emit(role, new AgentToolStartedEvent(DateTimeOffset.UtcNow, toolCallId, tool, null));
     }
 
-    [When("the recording {string} session reports {long} context tokens of {long}")]
-    public void WhenTheRecordingSessionReportsContextUsage(string role, long usedTokens, long limitTokens) =>
-        Emit(role, new AgentContextUsageEvent(DateTimeOffset.UtcNow, usedTokens, limitTokens));
-
-    [When("the recording {string} session reports {decimal} AIC used")]
-    public void WhenTheRecordingSessionReportsAicUsage(string role, decimal aicUsed) =>
-        Emit(role, new AgentSessionUsageEvent(DateTimeOffset.UtcNow, aicUsed));
-
     [When("a prompt {string} is sent to {string}")]
     public async Task WhenAPromptIsSentTo(string prompt, string role) => await myViewModel.SendAsync(role, prompt);
 
@@ -1052,26 +1044,6 @@ public sealed class ViewModelSteps
         var snapshot = myViewModel.CreateSnapshot();
         var roleSnapshot = snapshot.GetProperty("roles").EnumerateArray().Single(entry => entry.GetProperty("role").GetString() == role);
         Assert.That(roleSnapshot.GetProperty("eventCount").GetInt32(), Is.EqualTo(count));
-    }
-
-    [Then("the UI snapshot contains {long} context tokens of {long} for {string}")]
-    public void ThenTheUiSnapshotContainsContextUsage(long usedTokens, long limitTokens, string role)
-    {
-        var snapshot = myViewModel.CreateSnapshot();
-        var roleSnapshot = snapshot.GetProperty("roles").EnumerateArray().Single(entry => entry.GetProperty("role").GetString() == role);
-        Assert.Multiple(() =>
-        {
-            Assert.That(roleSnapshot.GetProperty("contextUsedTokens").GetInt64(), Is.EqualTo(usedTokens));
-            Assert.That(roleSnapshot.GetProperty("contextLimitTokens").GetInt64(), Is.EqualTo(limitTokens));
-        });
-    }
-
-    [Then("the UI snapshot contains {decimal} AIC used for {string}")]
-    public void ThenTheUiSnapshotContainsAicUsage(decimal aicUsed, string role)
-    {
-        var snapshot = myViewModel.CreateSnapshot();
-        var roleSnapshot = snapshot.GetProperty("roles").EnumerateArray().Single(entry => entry.GetProperty("role").GetString() == role);
-        Assert.That(roleSnapshot.GetProperty("aicUsed").GetDecimal(), Is.EqualTo(aicUsed));
     }
 
     [Then("the UI snapshot contains an {string} transcript entry {string} for {string}")]

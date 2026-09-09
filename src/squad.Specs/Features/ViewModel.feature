@@ -104,22 +104,6 @@ Feature: Squad ViewModel
     And the recording "coder" session emits 5 harness messages
     Then synchronized transcript history for "coder" reports unavailable archived content within 30 characters
 
-  Scenario: UI snapshots include real context usage
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session reports 48000 context tokens of 128000
-    Then the UI snapshot contains 48000 context tokens of 128000 for "coder"
-
-  Scenario: UI snapshots include accumulated AIC usage
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session reports 3.5 AIC used
-    Then the UI snapshot contains 3.5 AIC used for "coder"
-
-  Scenario: A delayed AIC refresh cannot overwrite a newer usage checkpoint
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session reports 3.5 AIC used
-    And the recording "coder" session reports 0 AIC used
-    Then the UI snapshot contains 3.5 AIC used for "coder"
-
   Scenario: SDK-shaped agent backend publishes early events and initial instructions
     Given a SquadApplication with SDK-shaped recording roles "coder,reviewer"
     When the application lifecycle reaches readiness
