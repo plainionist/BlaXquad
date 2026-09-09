@@ -69,7 +69,7 @@ their sources", "System activity remains visible in the transcript") and their o
 The follow-up `926705097f` closes the review findings that independent first-match synchronize waits could pass
 against different messages including the handshake snapshot, and that harness updates were not content-asserted.
 
-### Slice 2 [in progress]: Preserve assistant and reasoning stream finalization
+### Slice 2 [done]: Preserve assistant and reasoning stream finalization
 
 1. Add semantic assistant/reasoning delta, final-message, and idle operations to the fake-provider controller as
    needed.
@@ -81,6 +81,18 @@ against different messages including the handshake snapshot, and that harness up
 
 **Slice acceptance:** Assistant and reasoning deltas aggregate into the correct entry, final or idle events close only
 that stream, and previously published transcript entries remain intact.
+
+**Status: complete (a11dc83db9).** `src/squad.Specs/Features/TranscriptStreamFinalization.feature` covers slice 2
+through the process boundary: consecutive assistant deltas publish `append` then `append-content` on the same entry
+index even after a mid-stream `transcript.synchronize`; a final assistant message publishes `replace` on that index
+without dropping the earlier user entry; a final reasoning message replaces its streamed draft the same way; and idle
+closes a reasoning stream so the next delta starts a new entry, proven by different entry indices and a synchronize
+snapshot that contains both reasoning entries. `HeadlessUiClient` gained operation-based update observation so
+`append-content` continuations (which carry no source) can be waited on; synchronization assertions require the
+expected source/content set in one message rather than independent first-match waits. The six covered ViewModel
+scenarios (assistant delta aggregation, snapshot-mid-stream, final reasoning replaces draft, idle finalizes a
+reasoning stream, final assistant messages preserve history, final assistant messages replace streamed deltas) and
+the orphaned final-reasoning ViewModel binding were removed.
 
 ### Slice 3 [pending]: Preserve transcript ordering across synchronization races
 
