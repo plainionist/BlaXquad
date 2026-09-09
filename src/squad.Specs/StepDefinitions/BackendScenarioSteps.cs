@@ -307,6 +307,10 @@ public sealed class BackendScenarioSteps
         Await(myScenario.Agent(role).EmitSubagentStartedAsync(
             NullIfEmpty(agentName), NullIfEmpty(displayName), NullIfEmpty(model)));
 
+    [When("the {string} agent invokes skill {string}")]
+    public void WhenTheAgentInvokesSkill(string role, string name) =>
+        Await(myScenario.Agent(role).EmitSkillInvokedAsync(name));
+
     [When("the {string} agent concurrently emits these system messages while a transcript synchronization races them:")]
     public void WhenTheAgentConcurrentlyEmitsTheseSystemMessagesWhileATranscriptSynchronizationRacesThem(string role, Table contents)
     {
@@ -501,6 +505,10 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent emits partial tool output {string} for tool call {string}")]
     public void WhenTheAgentEmitsPartialToolOutputForToolCall(string role, string partialOutput, string toolCallId) =>
         Await(myScenario.Agent(role).EmitToolPartialOutputAsync(toolCallId, DecodeEscapes(partialOutput)));
+
+    [When("the {string} agent completes tool call {string} named {string}")]
+    public void WhenTheAgentCompletesToolCallNamed(string role, string toolCallId, string toolName) =>
+        Await(myScenario.Agent(role).EmitToolCompletedAsync(toolCallId, toolName, succeeded: true));
 
     [When("the {string} agent completes tool call {string} named {string} with detailed output {string}")]
     public void WhenTheAgentCompletesToolCallNamedWithDetailedOutput(string role, string toolCallId, string toolName, string detailedOutput) =>

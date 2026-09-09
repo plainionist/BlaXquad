@@ -315,6 +315,9 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                     GetNullableString(data, "agentDisplayName"),
                     GetNullableString(data, "model")));
                 return null;
+            case "skill-invoked":
+                myEvents.Publish(new AgentSkillInvokedEvent(now, data.GetProperty("name").GetString()!));
+                return null;
             case "idle":
                 myEvents.Publish(new AgentIdleEvent(now));
                 return null;

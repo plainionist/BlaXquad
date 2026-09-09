@@ -954,17 +954,6 @@ public sealed class ViewModelSteps
     [When("the recording {string} session emits reasoning delta {string}")]
     public void WhenTheRecordingSessionEmitsReasoningDelta(string role, string content) => Emit(role, new AgentReasoningEvent(DateTimeOffset.UtcNow, content, true));
 
-    [When("the recording {string} session emits tool output {string}")]
-    public void WhenTheRecordingSessionEmitsToolOutput(string role, string content)
-    {
-        var toolCallId = myActiveToolCallIds[role];
-        var output = myToolOutputNormalizer.Apply(toolCallId, DecodeEscapes(content));
-        if (output is not null)
-        {
-            Emit(role, new AgentToolOutputChangedEvent(DateTimeOffset.UtcNow, toolCallId, output));
-        }
-    }
-
     [When("the recording {string} session emits a final assistant message {string}")]
     public void WhenTheRecordingSessionEmitsAFinalAssistantMessage(string role, string content) => Emit(role, new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, content, false));
 
@@ -988,65 +977,18 @@ public sealed class ViewModelSteps
     public void WhenTheRecordingSessionEmitsToolStart(string role, string tool) =>
         EmitToolStart(role, CreateToolCallId(role), tool);
 
-    [When("the recording {string} session emits tool start {string} with arguments:")]
-    public void WhenTheRecordingSessionEmitsToolStartWithArguments(string role, string tool, string arguments) =>
-        EmitToolStart(role, CreateToolCallId(role), tool, arguments);
-
     [When("the recording {string} session emits system message {string}")]
     public void WhenTheRecordingSessionEmitsSystemMessage(string role, string message) =>
         Emit(role, new AgentSystemMessageEvent(DateTimeOffset.UtcNow, message));
 
-    [When("the recording {string} session invokes skill {string}")]
-    public void WhenTheRecordingSessionInvokesSkill(string role, string name) =>
-        Emit(role, new AgentSkillInvokedEvent(DateTimeOffset.UtcNow, name));
-
-    [When("the recording {string} session emits tool completion {string}")]
-    public void WhenTheRecordingSessionEmitsToolCompletion(string role, string tool)
-    {
-        var toolCallId = myActiveToolCallIds[role];
-        myToolOutputNormalizer.Complete(toolCallId);
-        Emit(role, new AgentToolCompletedEvent(DateTimeOffset.UtcNow, toolCallId, tool, true));
-    }
-
-    [When("the recording {string} session emits tool completion {string} with output {string}")]
-    public void WhenTheRecordingSessionEmitsToolCompletionWithOutput(string role, string tool, string output)
-    {
-        var toolCallId = myActiveToolCallIds[role];
-        var streamedOutput = myToolOutputNormalizer.Complete(toolCallId);
-        Emit(role, new AgentToolCompletedEvent(
-            DateTimeOffset.UtcNow,
-            toolCallId,
-            tool,
-            true,
-            streamedOutput ? null : output));
-    }
-
-    [When("the recording {string} session emits tool completion {string} with display output {string} and content {string}")]
-    public void WhenTheRecordingSessionEmitsToolCompletionWithDisplayOutputAndContent(string role, string tool, string displayOutput, string content)
-    {
-        var toolCallId = myActiveToolCallIds[role];
-        myToolOutputNormalizer.Complete(toolCallId);
-        Emit(role, new AgentToolCompletedEvent(
-            DateTimeOffset.UtcNow,
-            toolCallId,
-            tool,
-            true,
-            displayOutput,
-            DecodeEscapes(content)));
-    }
-
     private string CreateToolCallId(string role) => $"{role}-tool-{++myNextToolCallId}";
 
-    private void EmitToolStart(string role, string toolCallId, string tool, string? arguments = null)
+    private void EmitToolStart(string role, string toolCallId, string tool)
     {
         myActiveToolCallIds[role] = toolCallId;
         myToolOutputNormalizer.Start(toolCallId);
-        Emit(role, new AgentToolStartedEvent(DateTimeOffset.UtcNow, toolCallId, tool, arguments));
+        Emit(role, new AgentToolStartedEvent(DateTimeOffset.UtcNow, toolCallId, tool, null));
     }
-
-    private static string DecodeEscapes(string value) =>
-        value.Replace("\\r", "\r", StringComparison.Ordinal)
-            .Replace("\\n", "\n", StringComparison.Ordinal);
 
     [When("the recording {string} session reports {long} context tokens of {long}")]
     public void WhenTheRecordingSessionReportsContextUsage(string role, long usedTokens, long limitTokens) =>

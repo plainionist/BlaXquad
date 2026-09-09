@@ -312,6 +312,12 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "subagent-started", new { agentName, agentDisplayName, model }, timeout, additionalDiagnostics);
 
+    /// <summary>Emits a skill-invoked update for the given role's session, awaiting the client's acknowledgement
+    /// that it published the real production <c>AgentSkillInvokedEvent</c>.</summary>
+    public Task EmitSkillInvokedAsync(
+        string role, string name, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "skill-invoked", new { name }, timeout, additionalDiagnostics);
+
     /// <summary>Emits a tool-started update for the given role's session.</summary>
     public Task EmitToolStartedAsync(
         string role, string toolCallId, string toolName, string? arguments = null, string? toolKind = null,

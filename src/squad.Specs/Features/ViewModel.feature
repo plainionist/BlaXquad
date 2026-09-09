@@ -362,25 +362,3 @@ Feature: Squad ViewModel
     Then ViewModel role "coder" has status "running"
     And ViewModel role "reviewer" has status "error"
     And ViewModel role "coder" has no error
-
-  Scenario: Skill application is visible in the transcript
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session invokes skill "project-setup"
-    Then ViewModel role "coder" transcript has a "tool" entry "using skill(project-setup)"
-
-  Scenario: Skill tool plumbing is omitted from the transcript
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "skill" with arguments:
-      """
-      {"skill":"project-setup"}
-      """
-    And the recording "coder" session emits tool output "full SKILL.md contents"
-    And the recording "coder" session emits tool completion "skill"
-    Then ViewModel role "coder" transcript has no entry "project-setup"
-    And ViewModel role "coder" transcript has no entry "full SKILL.md contents"
-
-  Scenario: Skill discovery is distinguished from file reads
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits system message "Discovered skill: C:\\skills\\analyze-issue\\SKILL.md"
-    Then ViewModel role "coder" transcript has a "system" entry "Discovered skill: C:\\skills\\analyze-issue\\SKILL.md"
-    And ViewModel role "coder" transcript has no entry "Read C:\\skills\\analyze-issue\\SKILL.md"

@@ -133,6 +133,10 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
         string? agentName = null, string? agentDisplayName = null, string? model = null, TimeSpan? timeout = null) =>
         control.EmitSubagentStartedAsync(role, agentName, agentDisplayName, model, timeout, uiDiagnostics);
 
+    /// <summary>Emits a skill-invoked update for this role's session.</summary>
+    public Task EmitSkillInvokedAsync(string name, TimeSpan? timeout = null) =>
+        control.EmitSkillInvokedAsync(role, name, timeout, uiDiagnostics);
+
     /// <summary>Emits a tool-started update for this role's session.</summary>
     public Task EmitToolStartedAsync(
         string toolCallId, string toolName, string? arguments = null, string? toolKind = null,
