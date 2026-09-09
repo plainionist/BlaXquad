@@ -212,7 +212,7 @@ from the completion content. The follow-up `7e6e43d132` adds protocol-wide absen
 update is exactly `first` or `diff --git`. The four covered ViewModel scenarios and their orphaned path-start
 and docstring-entry bindings were removed.
 
-### Slice 9 [pending]: Preserve subagent presentation while suppressing control plumbing
+### Slice 9 [in progress]: Preserve subagent presentation while suppressing control plumbing
 
 1. Publish semantic subagent activity with complete, partial, and absent display metadata.
 2. Assert the supported fallback labels and metadata in transcript updates and prove subagent control tools never
