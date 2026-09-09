@@ -382,43 +382,6 @@ Feature: Squad ViewModel
     And the recording "coder" session emits tool start "list_agents"
     Then ViewModel role "coder" transcript has exactly 0 "tool" entries
 
-  Scenario: File reads include their path in console activity
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "read_file" for "src/App.cs"
-    Then ViewModel role "coder" transcript has a "read" entry "src/App.cs"
-
-  Scenario: File-view tools include their path in console activity
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "view_file" for "src/Main.cs"
-    Then ViewModel role "coder" transcript has a "read" entry "src/Main.cs"
-
-  Scenario: File reads show their range without echoing file contents
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "view" with arguments:
-      """
-      {"path":"C:\\work\\src\\Main.cs","view_range":[100,1000]}
-      """
-    And the recording "coder" session emits tool output "file contents"
-    And the recording "coder" session emits tool completion "view" with output "diff --git"
-    And the recording "coder" session emits tool start "dotnet build"
-    And the recording "coder" session emits tool output "Build succeeded"
-    Then ViewModel role "coder" transcript has a "read" entry "C:\work\src\Main.cs [100..1000]"
-    And ViewModel role "coder" transcript has no entry "file contents"
-    And ViewModel role "coder" transcript has no entry "diff --git"
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      dotnet build
-      Build succeeded
-      """
-
-  Scenario: Whole-file reads show the number of lines read
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "view" for "C:\work\src\Main.cs"
-    And the recording "coder" session emits tool completion "view" with display output "diff --git" and content "first\nsecond\nthird"
-    Then ViewModel role "coder" transcript has a "read" entry "C:\work\src\Main.cs [1..3]"
-    And ViewModel role "coder" transcript has no entry "first"
-    And ViewModel role "coder" transcript has no entry "diff --git"
-
   Scenario: Skill application is visible in the transcript
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session invokes skill "project-setup"

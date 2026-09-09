@@ -1,3 +1,4 @@
+using System.Text.Json;
 using squad.Specs.Support;
 
 namespace squad.Specs.StepDefinitions;
@@ -487,6 +488,11 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentStartsToolCallNamedWithArguments(string role, string toolCallId, string toolName, string arguments) =>
         Await(myScenario.Agent(role).EmitToolStartedAsync(toolCallId, toolName, arguments));
 
+    [When("the {string} agent starts tool call {string} named {string} for path {string}")]
+    public void WhenTheAgentStartsToolCallNamedForPath(string role, string toolCallId, string toolName, string path) =>
+        Await(myScenario.Agent(role).EmitToolStartedAsync(
+            toolCallId, toolName, JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = path })));
+
     [When("the {string} agent emits partial tool output {string} for tool call {string}")]
     public void WhenTheAgentEmitsPartialToolOutputForToolCall(string role, string partialOutput, string toolCallId) =>
         Await(myScenario.Agent(role).EmitToolPartialOutputAsync(toolCallId, DecodeEscapes(partialOutput)));
@@ -494,6 +500,13 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent completes tool call {string} named {string} with detailed output {string}")]
     public void WhenTheAgentCompletesToolCallNamedWithDetailedOutput(string role, string toolCallId, string toolName, string detailedOutput) =>
         Await(myScenario.Agent(role).EmitToolCompletedAsync(toolCallId, toolName, succeeded: true, displayOutputFallback: DecodeEscapes(detailedOutput)));
+
+    [When("the {string} agent completes tool call {string} named {string} with display output {string} and content {string}")]
+    public void WhenTheAgentCompletesToolCallNamedWithDisplayOutputAndContent(string role, string toolCallId, string toolName, string displayOutput, string content) =>
+        Await(myScenario.Agent(role).EmitToolCompletedAsync(
+            toolCallId, toolName, succeeded: true,
+            displayOutputFallback: DecodeEscapes(displayOutput),
+            contentFallback: DecodeEscapes(content)));
 
     [When("the {string} agent reports progress {string} for tool call {string}")]
     public void WhenTheAgentReportsProgressForToolCall(string role, string progress, string toolCallId) =>

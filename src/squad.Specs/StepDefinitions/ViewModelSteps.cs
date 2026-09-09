@@ -992,14 +992,6 @@ public sealed class ViewModelSteps
     public void WhenTheRecordingSessionEmitsToolStartWithArguments(string role, string tool, string arguments) =>
         EmitToolStart(role, CreateToolCallId(role), tool, arguments);
 
-    [When("the recording {string} session emits tool start {string} for {string}")]
-    public void WhenTheRecordingSessionEmitsToolStartForPath(string role, string tool, string path) =>
-        EmitToolStart(
-            role,
-            CreateToolCallId(role),
-            tool,
-            JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = path }));
-
     [When("the recording {string} session emits system message {string}")]
     public void WhenTheRecordingSessionEmitsSystemMessage(string role, string message) =>
         Emit(role, new AgentSystemMessageEvent(DateTimeOffset.UtcNow, message));
@@ -1576,14 +1568,6 @@ public sealed class ViewModelSteps
     public void ThenViewModelRoleTranscriptHasEntry(string role, string source, string content) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Source == source && entry.Content == content), Is.True);
 
-    [Then("ViewModel role {string} transcript has a {string} entry:")]
-    public void ThenViewModelRoleTranscriptHasDocStringEntry(string role, string source, string content) =>
-        Assert.That(
-            myViewModel.Roles[role].TranscriptEntries.Any(entry =>
-                entry.Source == source &&
-                NormalizeLineEndings(entry.Content) == NormalizeLineEndings(content)),
-            Is.True);
-
     [Then("ViewModel role {string} transcript has exactly {int} {string} entries")]
     public void ThenViewModelRoleTranscriptHasExactlyEntries(string role, int count, string source) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Count(entry => entry.Source == source), Is.EqualTo(count));
@@ -1591,9 +1575,6 @@ public sealed class ViewModelSteps
     [Then("ViewModel role {string} transcript has no entry {string}")]
     public void ThenViewModelRoleTranscriptHasNoEntry(string role, string content) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Content == content), Is.False);
-
-    private static string NormalizeLineEndings(string value) =>
-        value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
 
     private void Emit(string role, AgentEvent agentEvent)
     {
