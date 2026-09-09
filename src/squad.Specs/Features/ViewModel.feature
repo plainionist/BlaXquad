@@ -43,21 +43,6 @@ Feature: Squad ViewModel
     When the ViewModel creates snapshots while recording "coder" emits 100 assistant updates
     Then the UI snapshot contains event count 100 for "coder"
 
-  Scenario: Transcript synchronization pages older history
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits 505 user messages
-    Then a 500 entry transcript synchronization for "coder" starts at index 5
-    And the previous transcript page for "coder" contains the first 5 entries
-
-  Scenario: Transcript retention spills older entries out of live state
-    Given a ViewModel retaining 3 entries and 30 content characters
-    When the recording "coder" session emits 6 user messages
-    Then ViewModel role "coder" retains at most 3 entries and 30 content characters
-    And the retained transcript for "coder" starts at index 3
-    And the previous transcript page for "coder" contains the first 3 entries
-    When the bounded ViewModel is disposed
-    Then its temporary transcript history is removed
-
   Scenario: Oversized transcript entries cannot bypass the memory bound
     Given a ViewModel retaining 3 entries and 30 content characters
     When the recording "coder" session emits a user message "abcdefghijklmnopqrstuvwxyz0123456789"

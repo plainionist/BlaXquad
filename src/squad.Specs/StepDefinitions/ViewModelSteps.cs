@@ -1067,36 +1067,6 @@ public sealed class ViewModelSteps
         });
     }
 
-    [Then("a {int} entry transcript synchronization for {string} starts at index {int}")]
-    public void ThenATranscriptSynchronizationStartsAtIndex(
-        int maxEntries,
-        string role,
-        int startIndex)
-    {
-        var snapshot = myViewModel.CreateTranscriptSnapshot(maxEntries)
-            .Single(item => item.Role == role);
-        Assert.Multiple(() =>
-        {
-            Assert.That(snapshot.Entries[0].EntryIndex, Is.EqualTo(startIndex));
-            Assert.That(snapshot.Entries, Has.Count.EqualTo(maxEntries));
-            Assert.That(snapshot.Sequence, Is.EqualTo(startIndex + maxEntries));
-        });
-    }
-
-    [Then("the previous transcript page for {string} contains the first {int} entries")]
-    public void ThenThePreviousTranscriptPageContainsTheFirstEntries(string role, int entryCount)
-    {
-        var page = myViewModel.CreateTranscriptPage(role, entryCount, 200);
-        Assert.Multiple(() =>
-        {
-            Assert.That(page.Entries[0].EntryIndex, Is.Zero);
-            Assert.That(page.Entries, Has.Count.EqualTo(entryCount));
-            Assert.That(page.HasMore, Is.False);
-            Assert.That(page.Entries[0].Entry.Content, Is.EqualTo("message-0"));
-            Assert.That(page.Entries[^1].Entry.Content, Is.EqualTo($"message-{entryCount - 1}"));
-        });
-    }
-
     [Then("ViewModel role {string} retains at most {int} entries and {int} content characters")]
     public void ThenViewModelRoleRetainsAtMostEntriesAndContentCharacters(
         string role,
@@ -1109,15 +1079,6 @@ public sealed class ViewModelSteps
             Assert.That(entries, Has.Count.LessThanOrEqualTo(maxEntries));
             Assert.That(entries.Sum(entry => entry.Content.Length), Is.LessThanOrEqualTo(maxContentCharacters));
         });
-    }
-
-    [Then("the retained transcript for {string} starts at index {int}")]
-    public void ThenTheRetainedTranscriptStartsAtIndex(string role, int entryIndex)
-    {
-        var snapshot = myViewModel.CreateTranscriptSnapshot(500)
-            .Single(item => item.Role == role);
-        Assert.That(snapshot.Entries[0].EntryIndex, Is.EqualTo(entryIndex));
-        Assert.That(snapshot.HasMore, Is.True);
     }
 
     [Then("archived transcript history for {string} preserves {string}")]
@@ -1211,30 +1172,6 @@ public sealed class ViewModelSteps
                 .Entries,
             Has.None.Property("EntryIndex").EqualTo(entryIndex));
 
-    [Then("archived entry {int} for {string} has sequence {long} and content {string}")]
-    public void ThenArchivedEntryHasSequenceAndContent(
-        int entryIndex,
-        string role,
-        long sequence,
-        string content)
-    {
-        var archivedEntry = myViewModel.CreateArchivedTranscriptEntry(
-            role,
-            entryIndex);
-        Assert.Multiple(() =>
-        {
-            Assert.That(archivedEntry.Sequence, Is.EqualTo(sequence));
-            Assert.That(archivedEntry.Entry?.Content, Is.EqualTo(content));
-            Assert.That(archivedEntry.ContentTruncated, Is.False);
-            Assert.That(
-                archivedEntry.TotalContentCharacters,
-                Is.EqualTo(content.Length));
-            Assert.That(
-                archivedEntry.ArchivedPrefixCharacters,
-                Is.EqualTo(content.Length));
-        });
-    }
-
     [Then("unavailable archived entry {int} for {string} has sequence {long}")]
     public void ThenUnavailableArchivedEntryHasSequence(
         int entryIndex,
@@ -1314,14 +1251,6 @@ public sealed class ViewModelSteps
             Assert.That(entry.Entry.Content.Length, Is.LessThanOrEqualTo(maxCharacters));
         });
     }
-
-    [When("the bounded ViewModel is disposed")]
-    public async Task WhenTheBoundedViewModelIsDisposed() =>
-        await myViewModel.DisposeAsync();
-
-    [Then("its temporary transcript history is removed")]
-    public void ThenItsTemporaryTranscriptHistoryIsRemoved() =>
-        Assert.That(Directory.Exists(myTranscriptHistoryDirectory), Is.False);
 
     [Then("the UI snapshot contains pending permission {string} for {string}")]
     public void ThenTheUiSnapshotContainsPendingPermissionFor(string requestId, string role) =>

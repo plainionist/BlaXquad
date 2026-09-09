@@ -18,6 +18,7 @@ public sealed class BackendScenario : IDisposable
     private System.Diagnostics.Process? myProcess;
     private HeadlessUiClient? myUi;
     private FakeProviderControlServer? myControl;
+    private string? myIsolatedTempDirectory;
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -68,26 +69,64 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Redirects the next <see cref="StartAsync{TProviderFactory}"/> launch's temporary-directory environment
+    /// variables (<c>TEMP</c>/<c>TMP</c> on Windows, <c>TMPDIR</c> elsewhere) to a fresh directory exclusively
+    /// owned by this scenario. Production keeps its on-disk transcript history archive's generated name and full
+    /// path private - never exposed through the UI protocol - so proving it is created, and later removed on clean
+    /// shutdown, without ever risking a collision with another concurrently running scenario's own temporary files
+    /// requires sandboxing the launched process's entire temporary-directory root to one this scenario alone
+    /// writes into.
+    /// </summary>
+    public string IsolateTemporaryDirectory()
+    {
+        myIsolatedTempDirectory = myWorkspace.PathInWorkspace("isolated-temp");
+        Directory.CreateDirectory(myIsolatedTempDirectory);
+        return myIsolatedTempDirectory;
+    }
+
+    /// <summary>Whether this scenario's isolated temporary directory (see <see cref="IsolateTemporaryDirectory"/>)
+    /// currently contains a transcript history archive - proving the launched process created one - without ever
+    /// exposing its generated name.</summary>
+    public bool HasTemporaryTranscriptHistory()
+    {
+        if (myIsolatedTempDirectory is null)
+        {
+            throw new InvalidOperationException(
+                "The scenario's temporary directory was never isolated; call IsolateTemporaryDirectory() before starting the process.");
+        }
+        return Directory.Exists(myIsolatedTempDirectory)
+            && Directory.GetDirectories(myIsolatedTempDirectory, "blaxquad-transcript-history-*").Length > 0;
+    }
+
+    /// <summary>
     /// Launches the published, provider-free squad-hq with "--ui stdio" and the given test-owned provider fixture,
     /// completes the real "ui.ready" handshake, and returns only once the process has observably become ready. If
     /// <see cref="EnableFakeProviderControl"/> was called first, also passes its pipe name and token through
     /// environment variables and waits for the fake provider to connect - which happens after "ui.ready", once
-    /// the production runtime actually starts establishing sessions. Unless <paramref name="continueLaunch"/> is
-    /// set, a plain launch resets configured worktrees and clears existing handoff queues, matching a genuine
-    /// first launch; <paramref name="continueLaunch"/> passes the real "--continue" flag so a scenario can resume
-    /// against durable state a prior launch (or test fixture) already left on disk, exactly like a real restart.
+    /// the production runtime actually starts establishing sessions. If <see cref="IsolateTemporaryDirectory"/>
+    /// was called first, also redirects the launched process's own temporary-directory environment variables to
+    /// that isolated directory. Unless <paramref name="continueLaunch"/> is set, a plain launch resets configured
+    /// worktrees and clears existing handoff queues, matching a genuine first launch; <paramref name="continueLaunch"/>
+    /// passes the real "--continue" flag so a scenario can resume against durable state a prior launch (or test
+    /// fixture) already left on disk, exactly like a real restart.
     /// </summary>
     public async Task StartAsync<TProviderFactory>(TimeSpan? timeout = null, bool continueLaunch = false)
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
         var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
-        IReadOnlyDictionary<string, string?>? environment = myControl is null
-            ? null
-            : new Dictionary<string, string?>
-            {
-                [FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName,
-                [FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token,
-            };
+        var environmentOverrides = new Dictionary<string, string?>();
+        if (myControl is not null)
+        {
+            environmentOverrides[FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName;
+            environmentOverrides[FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token;
+        }
+        if (myIsolatedTempDirectory is not null)
+        {
+            environmentOverrides["TEMP"] = myIsolatedTempDirectory;
+            environmentOverrides["TMP"] = myIsolatedTempDirectory;
+            environmentOverrides["TMPDIR"] = myIsolatedTempDirectory;
+        }
+        IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         IReadOnlyList<string> launchArguments = continueLaunch
             ? ["launch", "--continue", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root]
             : ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root];
@@ -216,6 +255,28 @@ public sealed class BackendScenario : IDisposable
     public Task<TranscriptSynchronizationObservation> WaitForTranscriptSynchronizationAsync(
         string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
         RequireUi().WaitForTranscriptSynchronizationAsync(role, matches, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Requests the given role's previous transcript page - the entries immediately preceding
+    /// <paramref name="beforeIndex"/> - through the real UI protocol, the same operation a dashboard paging back
+    /// through older history relies on.</summary>
+    public void RequestTranscriptPage(string role, int beforeIndex) => RequireUi().RequestTranscriptPage(role, beforeIndex);
+
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.page" message for the given role has
+    /// been published, and returns the dashboard protocol's typed ordered entries and "hasMore" field.</summary>
+    public Task<TranscriptPageObservation> WaitForTranscriptPageAsync(string role, int skip = 0, TimeSpan? timeout = null) =>
+        RequireUi().WaitForTranscriptPageAsync(role, skip, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Requests one already-known entry's authoritative availability for the given role through the real
+    /// UI protocol - the same operation a dashboard relies on to resolve an entry evicted from live retention or
+    /// to confirm one has rotated out of the archive entirely.</summary>
+    public void RequestArchivedEntry(string role, int entryIndex) => RequireUi().RequestArchivedEntry(role, entryIndex);
+
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.entry" message for the given role
+    /// and entry index has been published, and returns the dashboard protocol's typed sequence, content (null when
+    /// unavailable), and archive availability fields.</summary>
+    public Task<ArchivedTranscriptEntryObservation> WaitForArchivedEntryAsync(
+        string role, int entryIndex, int skip = 0, TimeSpan? timeout = null) =>
+        RequireUi().WaitForArchivedEntryAsync(role, entryIndex, skip, timeout, DescribeControlDiagnostics());
 
     /// <summary>Reconciles the most recently published transcript synchronization for the given role with every
     /// transcript update published afterward, exactly as a reconnecting dashboard client must - proving the

@@ -64,6 +64,20 @@ public sealed class HeadlessUiClient
     /// every role - the same message a reconnecting dashboard relies on to rebuild its view.</summary>
     public void RequestTranscriptSynchronization() => SendEnvelope("transcript.synchronize");
 
+    /// <summary>Requests the given role's previous transcript page - the entries immediately preceding
+    /// <paramref name="beforeIndex"/> - through the real "transcript.page" command, producing a new
+    /// "transcript.page" message bounded to the protocol's page size, exactly as a dashboard paging back through
+    /// older history relies on.</summary>
+    public void RequestTranscriptPage(string role, int beforeIndex) =>
+        SendEnvelope("transcript.page", role, new { beforeIndex });
+
+    /// <summary>Requests one already-known entry's authoritative availability for the given role through the real
+    /// "transcript.entry" command, producing a new "transcript.entry" message reporting whether it is still
+    /// available - either live or preserved in the archive after eviction - or has rotated out of the archive
+    /// entirely.</summary>
+    public void RequestArchivedEntry(string role, int entryIndex) =>
+        SendEnvelope("transcript.entry", role, new { entryIndex });
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
     public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
@@ -162,6 +176,57 @@ public sealed class HeadlessUiClient
             additionalDiagnostics);
         TryGetTranscriptSynchronizationEntries(element, role, out var observedEntries);
         return new TranscriptSynchronizationObservation(role, GetRoleSynchronizationSequence(element, role), observedEntries);
+    }
+
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.page" message for the given role has
+    /// been published (the wire payload carries no correlation id back to its triggering request, so distinguishing
+    /// a specific page reply among several for the same role requires counting prior ones already observed - the
+    /// same approach <see cref="WaitForProtocolErrorAsync"/> uses), and returns the dashboard protocol's typed
+    /// ordered entries, "hasMore", and "historyTruncated" fields.</summary>
+    public async Task<TranscriptPageObservation> WaitForTranscriptPageAsync(
+        string role, int skip = 0, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var element = await WaitForMessageAsync(
+            page => IsTranscriptPageForRole(page, role),
+            $"a transcript page for role '{role}'",
+            timeout,
+            additionalDiagnostics,
+            skip);
+        var payload = GetPayload(element);
+        return new TranscriptPageObservation(
+            role,
+            ParseTranscriptEntries(payload),
+            payload.TryGetProperty("hasMore", out var hasMore) && hasMore.GetBoolean(),
+            payload.TryGetProperty("historyTruncated", out var historyTruncated) && historyTruncated.GetBoolean());
+    }
+
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.entry" message for the given role
+    /// and entry index has been published (the wire payload carries no correlation id back to its triggering
+    /// request, so distinguishing a specific reply among several requires counting prior ones already observed -
+    /// the same approach <see cref="WaitForProtocolErrorAsync"/> uses), and returns the dashboard protocol's typed
+    /// "sequence", "content" (null when unavailable), "contentTruncated", "totalContentCharacters", and
+    /// "archivedPrefixCharacters" fields.</summary>
+    public async Task<ArchivedTranscriptEntryObservation> WaitForArchivedEntryAsync(
+        string role, int entryIndex, int skip = 0, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var element = await WaitForMessageAsync(
+            entry => IsArchivedEntryForRoleAndIndex(entry, role, entryIndex),
+            $"an archived transcript entry {entryIndex} for role '{role}'",
+            timeout,
+            additionalDiagnostics,
+            skip);
+        var payload = GetPayload(element);
+        var entryElement = payload.TryGetProperty("entry", out var entryProperty) && entryProperty.ValueKind == JsonValueKind.Object
+            ? entryProperty
+            : (JsonElement?)null;
+        return new ArchivedTranscriptEntryObservation(
+            role,
+            payload.TryGetProperty("sequence", out var sequence) ? sequence.GetInt64() : 0,
+            entryIndex,
+            entryElement?.TryGetProperty("content", out var content) == true ? content.GetString() : null,
+            payload.TryGetProperty("contentTruncated", out var contentTruncated) && contentTruncated.GetBoolean(),
+            payload.TryGetProperty("totalContentCharacters", out var totalContentCharacters) ? totalContentCharacters.GetInt64() : 0,
+            payload.TryGetProperty("archivedPrefixCharacters", out var archivedPrefixCharacters) ? archivedPrefixCharacters.GetInt64() : 0);
     }
 
     /// <summary>Reconciles the most recently published transcript synchronization for the role - whichever
@@ -401,6 +466,27 @@ public sealed class HeadlessUiClient
     private static bool IsStateSnapshot(JsonElement element) => IsType(element, "state.snapshot");
 
     private static bool IsProtocolError(JsonElement element) => IsType(element, "protocol.error");
+
+    private static bool IsTranscriptPageForRole(JsonElement element, string role)
+    {
+        if (!IsType(element, "transcript.page"))
+        {
+            return false;
+        }
+        var payload = GetPayload(element);
+        return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role;
+    }
+
+    private static bool IsArchivedEntryForRoleAndIndex(JsonElement element, string role, int entryIndex)
+    {
+        if (!IsType(element, "transcript.entry"))
+        {
+            return false;
+        }
+        var payload = GetPayload(element);
+        return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role
+            && payload.TryGetProperty("entryIndex", out var entryIndexElement) && entryIndexElement.GetInt32() == entryIndex;
+    }
 
     private static bool IsTranscriptUpdate(JsonElement element, string role, string content)
     {

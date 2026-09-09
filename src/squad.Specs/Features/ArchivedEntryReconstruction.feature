@@ -16,12 +16,6 @@ Feature: Archived transcript entry reconstruction
       | 50             | 120           | 210              | 210             | 50                  | true              | true              | 56              | 120                 |
       | 50             | 60            | 210              | 210             | 42                  | false             | true              | 0               | 60                  |
 
-  Scenario: An entry evicted from live retention remains available in the archive
-    Given a ViewModel retaining 2 entries and archiving 3 entries
-    When the recording "coder" session emits 3 user messages
-    Then live transcript for "coder" excludes entry 0
-    And archived entry 0 for "coder" has sequence 3 and content "message-0"
-
   Scenario: Archive rotation returns an unavailable entry at the current sequence
     Given a ViewModel retaining 2 entries and archiving 3 entries
     When the recording "coder" session emits 6 user messages

@@ -22,8 +22,15 @@ namespace squad.Specs.Support;
 /// </summary>
 internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
 {
-    private readonly AgentEventChannel myEvents = new();
+    // A generous capacity keeps a scenario's own rapid, synchronous burst of emits (for example hundreds of
+    // system messages driving transcript paging/retention boundaries) from ever needing the channel's overload
+    // path - real provider sessions size this the same way for the same reason. The overload callback still
+    // fails this session's own completion exactly like the real production session does, so a scenario that
+    // does manage to sustain an overload observes a fast, diagnosable failure instead of every event silently
+    // stopping with no observable error.
+    private const int myEventChannelCapacity = 4096;
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly AgentEventChannel myEvents;
     private readonly FakeProviderControlClient? myControl;
     private readonly CopilotToolOutputNormalizer myToolOutputNormalizer = new();
     private TaskCompletionSource<string>? myPendingReply;
@@ -36,6 +43,9 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     {
         Role = role;
         myControl = control;
+        myEvents = new AgentEventChannel(
+            myEventChannelCapacity,
+            onOverload: exception => myCompletion.TrySetException(exception));
         myEvents.Publish(new AgentStartedEvent(DateTimeOffset.UtcNow));
     }
 

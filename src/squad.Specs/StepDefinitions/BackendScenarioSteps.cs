@@ -16,6 +16,11 @@ public sealed class BackendScenarioSteps
     private string? myObservedHarnessMessage;
     private int myProtocolErrorsObserved;
     private readonly List<TranscriptUpdateObservation> myObservedTranscriptUpdates = [];
+    private readonly Dictionary<string, int> myTranscriptPageFrontier = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> myTranscriptPagesObserved = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TranscriptPageObservation> myLatestTranscriptPage = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<TranscriptEntryObservation>> myPagedTranscriptEntries = new(StringComparer.Ordinal);
+    private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
     {
@@ -42,6 +47,18 @@ public sealed class BackendScenarioSteps
     [Given("the backend scenario has enabled the fake-provider control transport")]
     public void GivenTheBackendScenarioHasEnabledTheFakeProviderControlTransport() =>
         myScenario.EnableFakeProviderControl();
+
+    [Given("the backend scenario isolates its temporary transcript directory")]
+    public void GivenTheBackendScenarioIsolatesItsTemporaryTranscriptDirectory() =>
+        myScenario.IsolateTemporaryDirectory();
+
+    [Then("the backend scenario's temporary transcript history exists")]
+    public void ThenTheBackendScenariosTemporaryTranscriptHistoryExists() =>
+        Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.True);
+
+    [Then("the backend scenario's temporary transcript history no longer exists")]
+    public void ThenTheBackendScenariosTemporaryTranscriptHistoryNoLongerExists() =>
+        Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.False);
 
     [When("the backend scenario starts squad-hq with the echo provider fixture")]
     public void WhenTheBackendScenarioStartsSquadHqWithTheEchoProviderFixture() =>
@@ -306,6 +323,28 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsASystemMessageWithCharacters(string role, int characterCount) =>
         Await(myScenario.Agent(role).EmitSystemMessageAsync(new string('x', characterCount)));
 
+    [When("the {string} agent emits {int} system messages")]
+    public void WhenTheAgentEmitsSystemMessages(string role, int count)
+    {
+        // Sequentially awaiting each emit (rather than firing them concurrently) guarantees "message-{i}" lands at
+        // increasing entry indices in publication order - required for the paging assertions that follow to
+        // combine synchronization and page entries by their genuine, deterministic content.
+        for (var index = 0; index < count; index++)
+        {
+            Await(myScenario.Agent(role).EmitSystemMessageAsync($"message-{index}"));
+        }
+
+        // Emitting across the control pipe only proves the backend accepted the event, not that it has already
+        // projected it onto the transcript - the two happen on genuinely independent asynchronous paths. Waiting
+        // here for the dashboard protocol to report the very last message of this burst proves every one of them
+        // has actually been applied before a later step requests a synchronization, so that request observes this
+        // burst's true final boundary rather than an arbitrary, still-catching-up partial state.
+        if (count > 0)
+        {
+            Await(myScenario.WaitForTranscriptUpdateAsync(role, "system", $"message-{count - 1}"));
+        }
+    }
+
     [When("the {string} agent starts subagent {string} displayed as {string} using model {string}")]
     public void WhenTheAgentStartsSubagent(string role, string agentName, string displayName, string model) =>
         Await(myScenario.Agent(role).EmitSubagentStartedAsync(
@@ -357,6 +396,15 @@ public sealed class BackendScenarioSteps
         var updatesForRole = myObservedTranscriptUpdates.Where(update => update.Role == role).ToList();
         Assert.That(updatesForRole, Has.Count.GreaterThanOrEqualTo(2));
         return (updatesForRole[^2], updatesForRole[^1]);
+    }
+
+    private void RecordPagedEntries(string role, IReadOnlyList<TranscriptEntryObservation> entries)
+    {
+        if (!myPagedTranscriptEntries.TryGetValue(role, out var recorded))
+        {
+            myPagedTranscriptEntries[role] = recorded = [];
+        }
+        recorded.AddRange(entries);
     }
 
     [Then("every observed transcript update for role {string} reports a strictly increasing sequence and entry index")]
@@ -434,6 +482,90 @@ public sealed class BackendScenarioSteps
             .Select(entry => (entry.Source, entry.Content))
             .ToList();
         Assert.That(actualEntries, Is.EqualTo(expectedEntries));
+    }
+
+    [Then("the transcript synchronization for role {string} contains exactly {int} entries")]
+    public void ThenTheTranscriptSynchronizationForRoleContainsExactlyEntries(string role, int expectedCount)
+    {
+        var synchronization = Await(myScenario.WaitForTranscriptSynchronizationAsync(role, entries => entries.Count == expectedCount));
+        Assert.That(synchronization.Entries, Has.Count.EqualTo(expectedCount));
+
+        // Seeding this role's paging frontier from the live synchronization's oldest entry - never a literal
+        // index in the feature file itself - is exactly what keeps the request envelope's "beforeIndex" coordinate
+        // private to this step's own bookkeeping, matching how a real reconnecting dashboard would chain a
+        // "previous page" request from whatever boundary its own last-known synchronization or page reported.
+        myTranscriptPageFrontier[role] = synchronization.Entries[0].EntryIndex;
+        RecordPagedEntries(role, synchronization.Entries);
+    }
+
+    [When("the backend scenario requests the previous transcript page for role {string}")]
+    public void WhenTheBackendScenarioRequestsThePreviousTranscriptPageForRole(string role)
+    {
+        if (!myTranscriptPageFrontier.TryGetValue(role, out var beforeIndex))
+        {
+            throw new InvalidOperationException(
+                $"No transcript synchronization or previous page has been observed yet for role '{role}' to page back from.");
+        }
+        myScenario.RequestTranscriptPage(role, beforeIndex);
+        var skip = myTranscriptPagesObserved.GetValueOrDefault(role);
+        var page = Await(myScenario.WaitForTranscriptPageAsync(role, skip));
+        myTranscriptPagesObserved[role] = skip + 1;
+        myLatestTranscriptPage[role] = page;
+        if (page.Entries.Count > 0)
+        {
+            myTranscriptPageFrontier[role] = page.Entries[0].EntryIndex;
+        }
+        RecordPagedEntries(role, page.Entries);
+    }
+
+    [Then("the previous transcript page for role {string} contains exactly {int} entries")]
+    public void ThenThePreviousTranscriptPageForRoleContainsExactlyEntries(string role, int expectedCount) =>
+        Assert.That(myLatestTranscriptPage[role].Entries, Has.Count.EqualTo(expectedCount));
+
+    [Then("the previous transcript page for role {string} reports more history")]
+    public void ThenThePreviousTranscriptPageForRoleReportsMoreHistory(string role) =>
+        Assert.That(myLatestTranscriptPage[role].HasMore, Is.True);
+
+    [Then("the previous transcript page for role {string} reports no more history")]
+    public void ThenThePreviousTranscriptPageForRoleReportsNoMoreHistory(string role) =>
+        Assert.That(myLatestTranscriptPage[role].HasMore, Is.False);
+
+    [When("the backend scenario requests the archived transcript entry {int} for role {string}")]
+    public void WhenTheBackendScenarioRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role)
+    {
+        myScenario.RequestArchivedEntry(role, entryIndex);
+        myLatestArchivedEntry = Await(myScenario.WaitForArchivedEntryAsync(role, entryIndex));
+    }
+
+    [Then("the archived transcript entry has content {string}")]
+    public void ThenTheArchivedTranscriptEntryHasContent(string content)
+    {
+        var entry = myLatestArchivedEntry
+            ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.Content, Is.EqualTo(content));
+            Assert.That(entry.ContentTruncated, Is.False);
+            Assert.That(entry.TotalContentCharacters, Is.EqualTo(content.Length));
+            Assert.That(entry.ArchivedPrefixCharacters, Is.EqualTo(content.Length));
+        });
+    }
+
+    [Then("the combined transcript history observed for role {string} contains message {int} through message {int} exactly once")]
+    public void ThenTheCombinedTranscriptHistoryObservedForRoleContainsMessageThroughMessageExactlyOnce(
+        string role, int firstMessage, int lastMessage)
+    {
+        var expectedContents = Enumerable.Range(firstMessage, lastMessage - firstMessage + 1).Select(index => $"message-{index}").ToList();
+
+        // Comparing as an equivalent multiset (rather than a set) proves every expected message was observed
+        // exactly once across every synchronization and page fetched so far for this role - neither missing (an
+        // introduced gap) nor repeated (an introduced duplicate) between the live synchronization and however many
+        // "previous page" requests it took to page all the way back to the very first entry.
+        var observedContents = myPagedTranscriptEntries.GetValueOrDefault(role, [])
+            .Select(entry => entry.Content)
+            .Where(content => content.StartsWith("message-", StringComparison.Ordinal))
+            .ToList();
+        Assert.That(observedContents, Is.EquivalentTo(expectedContents));
     }
 
     [Then("the reconciled transcript for role {string} contains exactly these entries in order:")]
