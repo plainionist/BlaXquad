@@ -449,7 +449,7 @@ public sealed class BackendScenarioSteps
     [Then("the reconciled transcript for role {string} contains each of these entries exactly once:")]
     public void ThenTheReconciledTranscriptForRoleContainsEachOfTheseEntriesExactlyOnce(string role, Table expected)
     {
-        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: row["content"])).ToList();
+        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: DecodeEscapes(row["content"]))).ToList();
         var expectedSources = expectedEntries.Select(entry => entry.Source).ToHashSet();
 
         // A concurrent burst of publications may be reconciled in any relative order (genuine concurrency gives no
