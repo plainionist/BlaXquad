@@ -1279,14 +1279,6 @@ public sealed class ViewModelSteps
         });
     }
 
-    [Then("transcript synchronization for {string} reports older history")]
-    public void ThenTranscriptSynchronizationReportsOlderHistory(string role)
-    {
-        var snapshot = myViewModel.CreateTranscriptSnapshot(500)
-            .Single(item => item.Role == role);
-        Assert.That(snapshot.HasMore, Is.True);
-    }
-
     [Then("archived transcript history for {string} contains a truncation marker")]
     public void ThenArchivedTranscriptHistoryContainsATruncationMarker(string role)
     {

@@ -302,6 +302,10 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsASystemMessage(string role, string content) =>
         Await(myScenario.Agent(role).EmitSystemMessageAsync(content));
 
+    [When("the {string} agent emits a system message with {int} characters")]
+    public void WhenTheAgentEmitsASystemMessageWithCharacters(string role, int characterCount) =>
+        Await(myScenario.Agent(role).EmitSystemMessageAsync(new string('x', characterCount)));
+
     [When("the {string} agent starts subagent {string} displayed as {string} using model {string}")]
     public void WhenTheAgentStartsSubagent(string role, string agentName, string displayName, string model) =>
         Await(myScenario.Agent(role).EmitSubagentStartedAsync(

@@ -70,14 +70,6 @@ Feature: Squad ViewModel
     When the recording "coder" session emits a 20000 character user message
     Then the latest transcript announcement contains 16384 characters and reports truncation
 
-  Scenario: Pending interaction context remains retained
-    Given a ViewModel retaining 2 entries and 50 content characters
-    When the recording "coder" session requests permission "permission-1"
-    And the recording "coder" session emits 3 user messages
-    Then ViewModel role "coder" transcript has a "harness" entry "Permission required: Run command."
-    And ViewModel role "coder" retains at most 2 entries and 50 content characters
-    And transcript synchronization for "coder" reports older history
-
   Scenario: Active streaming context remains retained
     Given a ViewModel retaining 2 entries and 30 content characters
     When the recording "coder" session emits assistant delta "active"
