@@ -1,6 +1,7 @@
 using System.Text.Json;
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
+using squad.CopilotSdk;
 
 namespace squad.Specs.Support;
 
@@ -24,6 +25,7 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     private readonly AgentEventChannel myEvents = new();
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly FakeProviderControlClient? myControl;
+    private readonly CopilotToolOutputNormalizer myToolOutputNormalizer = new();
     private TaskCompletionSource<string>? myPendingReply;
     private long myGeneration;
     private bool myRejectNextHarness;
@@ -229,9 +231,11 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                 myEvents.Publish(new AgentSystemMessageEvent(now, data.GetProperty("content").GetString()!));
                 return null;
             case "tool-started":
+                var startedToolCallId = data.GetProperty("toolCallId").GetString()!;
+                myToolOutputNormalizer.Start(startedToolCallId);
                 myEvents.Publish(new AgentToolStartedEvent(
                     now,
-                    data.GetProperty("toolCallId").GetString()!,
+                    startedToolCallId,
                     data.GetProperty("toolName").GetString()!,
                     GetNullableString(data, "arguments"),
                     GetNullableString(data, "toolKind"),
@@ -245,10 +249,26 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                 myEvents.Publish(new AgentToolOutputChangedEvent(
                     now, data.GetProperty("toolCallId").GetString()!, data.GetProperty("output").GetString()!));
                 return null;
+            case "tool-partial-output":
+                // Applies the same real production CopilotToolOutputNormalizer the live Copilot SDK provider uses
+                // to correlate a tool call's raw partial output fragments - inferring cumulative-snapshot versus
+                // incremental-delta semantics from the data itself, exactly as production does - so a scenario can
+                // prove aggregation, deduplication, and rewritten-snapshot replacement through the real wire
+                // protocol instead of a pre-normalized "tool-output-changed" value.
+                var partialToolCallId = data.GetProperty("toolCallId").GetString()!;
+                var normalizedOutput = myToolOutputNormalizer.Apply(
+                    partialToolCallId, data.GetProperty("partialOutput").GetString()!);
+                if (normalizedOutput is not null)
+                {
+                    myEvents.Publish(new AgentToolOutputChangedEvent(now, partialToolCallId, normalizedOutput));
+                }
+                return null;
             case "tool-completed":
+                var completedToolCallId = data.GetProperty("toolCallId").GetString()!;
+                myToolOutputNormalizer.Complete(completedToolCallId);
                 myEvents.Publish(new AgentToolCompletedEvent(
                     now,
-                    data.GetProperty("toolCallId").GetString()!,
+                    completedToolCallId,
                     data.GetProperty("toolName").GetString()!,
                     data.GetProperty("succeeded").GetBoolean(),
                     GetNullableString(data, "displayOutputFallback"),

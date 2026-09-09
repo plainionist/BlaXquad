@@ -142,6 +142,11 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     public Task EmitToolOutputChangedAsync(string toolCallId, string output, TimeSpan? timeout = null) =>
         control.EmitToolOutputChangedAsync(role, toolCallId, output, timeout, uiDiagnostics);
 
+    /// <summary>Emits a raw tool partial-output fragment for this role's session, normalized by the real
+    /// production <c>CopilotToolOutputNormalizer</c> exactly as the live Copilot SDK provider does.</summary>
+    public Task EmitToolPartialOutputAsync(string toolCallId, string partialOutput, TimeSpan? timeout = null) =>
+        control.EmitToolPartialOutputAsync(role, toolCallId, partialOutput, timeout, uiDiagnostics);
+
     /// <summary>Emits a tool-completed update for this role's session.</summary>
     public Task EmitToolCompletedAsync(
         string toolCallId, string toolName, bool succeeded, string? displayOutputFallback = null,

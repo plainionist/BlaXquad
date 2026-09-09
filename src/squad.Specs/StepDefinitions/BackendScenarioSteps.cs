@@ -318,7 +318,7 @@ public sealed class BackendScenarioSteps
 
     [Then("the backend scenario observes a transcript update for role {string} with source {string} and content {string}")]
     public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSourceAndContent(string role, string source, string content) =>
-        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source, content)));
+        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source, DecodeEscapes(content))));
 
     [Then("the backend scenario observes a transcript update for role {string} with operation {string} and content {string}")]
     public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithOperationAndContent(string role, string operation, string content) =>
@@ -391,9 +391,12 @@ public sealed class BackendScenarioSteps
     }
 
     [Then("the transcript synchronization for role {string} includes an entry with source {string} and content {string}")]
-    public void ThenTheTranscriptSynchronizationForRoleIncludesAnEntryWithSourceAndContent(string role, string source, string content) =>
+    public void ThenTheTranscriptSynchronizationForRoleIncludesAnEntryWithSourceAndContent(string role, string source, string content)
+    {
+        var decodedContent = DecodeEscapes(content);
         Await(myScenario.WaitForTranscriptSynchronizationAsync(
-            role, entries => entries.Any(entry => entry.Source == source && entry.Content == content)));
+            role, entries => entries.Any(entry => entry.Source == source && entry.Content == decodedContent)));
+    }
 
     [Then("the transcript synchronization for role {string} includes exactly these entries:")]
     public void ThenTheTranscriptSynchronizationForRoleIncludesExactlyTheseEntries(string role, Table expected)
@@ -476,6 +479,18 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsAFullToolLifecycleForToolCallNamed(string role, string toolCallId, string toolName) =>
         Await(EmitFullToolLifecycleAsync(role, toolCallId, toolName));
 
+    [When("the {string} agent starts tool call {string} named {string}")]
+    public void WhenTheAgentStartsToolCallNamed(string role, string toolCallId, string toolName) =>
+        Await(myScenario.Agent(role).EmitToolStartedAsync(toolCallId, toolName));
+
+    [When("the {string} agent emits partial tool output {string} for tool call {string}")]
+    public void WhenTheAgentEmitsPartialToolOutputForToolCall(string role, string partialOutput, string toolCallId) =>
+        Await(myScenario.Agent(role).EmitToolPartialOutputAsync(toolCallId, DecodeEscapes(partialOutput)));
+
+    [When("the {string} agent completes tool call {string} named {string} with detailed output {string}")]
+    public void WhenTheAgentCompletesToolCallNamedWithDetailedOutput(string role, string toolCallId, string toolName, string detailedOutput) =>
+        Await(myScenario.Agent(role).EmitToolCompletedAsync(toolCallId, toolName, succeeded: true, displayOutputFallback: DecodeEscapes(detailedOutput)));
+
     [When("the {string} agent emits idle")]
     public void WhenTheAgentEmitsIdle(string role) => Await(myScenario.Agent(role).EmitIdleAsync());
 
@@ -547,6 +562,12 @@ public sealed class BackendScenarioSteps
     private static void Await(Task task) => task.GetAwaiter().GetResult();
 
     private static T Await<T>(Task<T> task) => task.GetAwaiter().GetResult();
+
+    /// <summary>Decodes the literal "\n"/"\r" escape sequences Gherkin step text carries as plain characters into
+    /// real newlines/carriage returns, so a scenario can express multi-line tool output on a single step line.</summary>
+    private static string DecodeEscapes(string value) =>
+        value.Replace("\\r", "\r", StringComparison.Ordinal)
+            .Replace("\\n", "\n", StringComparison.Ordinal);
 
     /// <summary>Splits a comma-separated choices column into a list, or null for an empty column - representing
     /// an input request published or observed without any choices at all, rather than an empty choices list.</summary>

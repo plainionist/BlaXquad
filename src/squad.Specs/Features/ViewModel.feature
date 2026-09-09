@@ -382,64 +382,6 @@ Feature: Squad ViewModel
     And the recording "coder" session emits tool start "list_agents"
     Then ViewModel role "coder" transcript has exactly 0 "tool" entries
 
-  Scenario: Console activity preserves streaming tool output without completion summaries
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits reasoning delta "Checking the workspace"
-    And the recording "coder" session emits tool start "run_in_terminal"
-    And the recording "coder" session emits tool output "3 files found"
-    And the recording "coder" session emits tool completion "run_in_terminal" with output "Build succeeded"
-    Then ViewModel role "coder" is working
-    And ViewModel role "coder" transcript has a "reasoning" entry "Checking the workspace"
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      run_in_terminal
-      3 files found
-      """
-    And ViewModel role "coder" transcript has no entry "Build succeeded"
-
-  Scenario: Cumulative tool snapshots update one transcript item
-    Given a ViewModel with recording roles "coder"
-    When SDK tool call "X" starts "powershell" for role "coder"
-    And SDK tool call "X" emits partial output "LINE-1" for role "coder"
-    And SDK tool call "X" emits partial output "LINE-1\nLINE-2" for role "coder"
-    And SDK tool call "X" emits partial output "LINE-1\nLINE-2" for role "coder"
-    And SDK tool call "X" completes for role "coder" with detailed output "LINE-1\nLINE-2"
-    Then ViewModel role "coder" transcript has exactly 1 "tool" entry
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      powershell
-      LINE-1
-      LINE-2
-      """
-
-  Scenario: Snapshot mode replaces rewritten output
-    Given a ViewModel with recording roles "coder"
-    When SDK tool call "X" starts "powershell" for role "coder"
-    And SDK tool call "X" emits partial output "Progress 10" for role "coder"
-    And SDK tool call "X" emits partial output "Progress 10\n" for role "coder"
-    And SDK tool call "X" emits partial output "Progress 20" for role "coder"
-    Then ViewModel role "coder" transcript has exactly 1 "tool" entry
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      powershell
-      Progress 20
-      """
-
-  Scenario: Incremental tool chunks update one transcript item
-    Given a ViewModel with recording roles "coder"
-    When SDK tool call "X" starts "powershell" for role "coder"
-    And SDK tool call "X" emits partial output "LINE-1\n" for role "coder"
-    And SDK tool call "X" emits partial output "LINE-2\n" for role "coder"
-    And SDK tool call "X" emits partial output "LINE-3\n" for role "coder"
-    Then ViewModel role "coder" transcript has exactly 1 "tool" entry
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      powershell
-      LINE-1
-      LINE-2
-      LINE-3
-      """
-
   Scenario: Concurrent tool output remains correlated by tool call ID
     Given a ViewModel with recording roles "coder"
     When SDK tool call "X" starts "powershell X" for role "coder"

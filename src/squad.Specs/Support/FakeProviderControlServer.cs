@@ -321,6 +321,16 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         string role, string toolCallId, string output, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "tool-output-changed", new { toolCallId, output }, timeout, additionalDiagnostics);
 
+    /// <summary>Emits a raw tool partial-output fragment for the given role's session, letting the fake provider's
+    /// real production <c>CopilotToolOutputNormalizer</c> - the same one the live Copilot SDK provider uses -
+    /// infer cumulative-snapshot versus incremental-delta semantics from the fragment itself, exactly as
+    /// production does. Unlike <see cref="EmitToolOutputChangedAsync"/> - which publishes an already-normalized
+    /// value verbatim - this proves aggregation, deduplication of repeated content, and rewritten-snapshot
+    /// replacement through the real wire protocol.</summary>
+    public Task EmitToolPartialOutputAsync(
+        string role, string toolCallId, string partialOutput, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "tool-partial-output", new { toolCallId, partialOutput }, timeout, additionalDiagnostics);
+
     /// <summary>Emits a tool-completed update for the given role's session.</summary>
     public Task EmitToolCompletedAsync(
         string role, string toolCallId, string toolName, bool succeeded, string? displayOutputFallback = null,
