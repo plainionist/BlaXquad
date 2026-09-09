@@ -118,7 +118,7 @@ cancellation uses a dedicated `CancellableChildProcess` launcher only (ordinary 
 the slice decision. Covered ViewModel window-close, caller-cancellation, and synthetic window-close-failure
 scenarios were removed, along with the overlapping StdioUiProtocol end-of-input scenarios.
 
-### Slice 3 [done]: Stop safely before and during startup
+### Slice 3: Stop safely before and during startup
 
 1. Split process launch from readiness completion inside the test facade so scenarios can use the real host-control
    endpoint while startup is awaiting `ui.ready` or a fake-provider startup gate.
@@ -135,19 +135,50 @@ scenarios were removed, along with the overlapping StdioUiProtocol end-of-input 
 **Slice acceptance:** A real host-control shutdown linearized anywhere before readiness prevents the host from
 becoming available and releases every resource already acquired.
 
-**Status: complete.** `HeadquartersEarlyShutdown.feature` covers slice 3 through the process boundary: requesting
-`squad-hq shutdown` as early as it is reachable (retried until it lands, racing host-lease acquisition and the wait
-for `ui.ready` itself) exits 0, finds host control unavailable, and preserves seeded `notes.md`; a multi-role launch
-whose fake provider is gated to pause after exactly one session has started proves a shutdown requested while
-provider startup is genuinely paused there still disposes the already-started session, exits 0, finds host control
-unavailable, and preserves durable state - both followed by a replacement Echo-provider process reaching `ui.ready`
-on the same workspace. The fake provider's existing `session-started`/`session-disposed` control-pipe notifications
-already serve as the acknowledged startup gate; no new protocol message was needed. "Immediately after host
-acquisition" and "while waiting for UI readiness" are not distinguished as separate scenarios: both race the same
-internal `SquadApplication` shutdown-vs-startup check and converge on the identical observable outcome, so
-specifying them separately would duplicate an interleaving without a user-visible or resource-safety consequence.
-Covered ViewModel pre-start shutdown, blocked-preparation, shutdown-already-requested, and simultaneous-ready
-`SquadApplication` scenarios and bindings were removed.
+**Status: changes requested (e0bef751ac)**
+
+#### Review findings on e0bef751ac
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature`
+  (Shutdown requested as early as possible prevents startup from ever completing,
+  Shutdown requested while provider startup is paused disposes the already-started session).
+- **Violated behavior:** Slice 3 item 3 requires asserting that readiness is never published after the shutdown
+  request. Slice acceptance requires a host-control shutdown before readiness to prevent the host from becoming
+  available.
+- **Root cause:** Both scenarios only observe exit 0, host-control unavailability after exit, durable state, and a
+  later launch. The gated scenario uses `StartAsync` (`starts squad-hq with the fake provider fixture`), which
+  completes the `ui.ready` handshake and sets `IsReady` before shutdown is requested. Neither scenario observes the
+  public readiness command (`squad-hq wait-for-agent`) failing to report ready after the request, so a host that
+  became ready and then shut down would still pass.
+- **Required outcome:** After the shutdown request, prove public readiness never succeeds (for example
+  `wait-for-agent` does not report the role ready). Keep the gated shutdown on the still-blocked provider startup
+  path, but do not treat UI-handshake completion as the slice's "before readiness" proof.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature`
+  (Shutdown requested while provider startup is paused disposes the already-started session),
+  `src/squad.Specs/Support/FakeAgentRuntime.cs` (`GateProviderStartupAfterSessions` / `Task.Delay` gate).
+- **Violated behavior:** Slice 3 items 2–3 require an acknowledged gate after one session has started, then
+  disposal of that partial startup. The second role must still be unstarted at the shutdown request.
+- **Root cause:** The scenario waits for `coder` session-started, then shuts down, then asserts only that `coder`
+  was disposed. It never observes that `reviewer` has not started. If the env-var gate did not pause, both sessions
+  could start and the same assertions would still pass.
+- **Required outcome:** At the shutdown request, observe the first session started and the next configured session
+  not started. After shutdown, the started session is disposed and the unstarted session was never created.
+
+**Finding 3 — medium**
+
+- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature` (both scenarios).
+- **Violated behavior:** Slice 3 item 3 requires that no new command reaches a provider session after the shutdown
+  request.
+- **Root cause:** Neither scenario sends a protocol command after shutdown is requested, and the early-shutdown
+  path uses Echo without the fake-provider control pipe, so it cannot observe whether a session received work.
+- **Required outcome:** After shutdown is requested, send a command through the supported UI/protocol boundary and
+  prove it does not reach a provider session (no prompt on the control pipe). On the early path, use the fake
+  provider so the absence of session start/command delivery is observable.
 
 ### Slice 4: Retire failed and partial provider startup
 
