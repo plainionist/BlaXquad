@@ -21,6 +21,7 @@ public sealed class BackendScenarioSteps
     private readonly Dictionary<string, TranscriptPageObservation> myLatestTranscriptPage = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<TranscriptEntryObservation>> myPagedTranscriptEntries = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> myAssistantDeltaCounts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> myLatestSynchronizedSequence = new(StringComparer.Ordinal);
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
@@ -563,6 +564,7 @@ public sealed class BackendScenarioSteps
         // "previous page" request from whatever boundary its own last-known synchronization or page reported.
         myTranscriptPageFrontier[role] = synchronization.Entries[0].EntryIndex;
         RecordPagedEntries(role, synchronization.Entries);
+        myLatestSynchronizedSequence[role] = synchronization.Sequence;
     }
 
     [When("the backend scenario requests the previous transcript page for role {string}")]
@@ -632,11 +634,16 @@ public sealed class BackendScenarioSteps
         });
     }
 
-    [Then("the archived transcript entry is unavailable")]
-    public void ThenTheArchivedTranscriptEntryIsUnavailable()
+    [Then("the archived transcript entry is unavailable for role {string}")]
+    public void ThenTheArchivedTranscriptEntryIsUnavailableForRole(string role)
     {
         var entry = myLatestArchivedEntry
             ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
+        if (!myLatestSynchronizedSequence.TryGetValue(role, out var expectedSequence))
+        {
+            throw new InvalidOperationException(
+                $"No transcript synchronization has been observed yet for role '{role}' to compare the archived entry's reported sequence against.");
+        }
         Assert.Multiple(() =>
         {
             Assert.That(entry.Content, Is.Null);
@@ -644,10 +651,12 @@ public sealed class BackendScenarioSteps
             Assert.That(entry.TotalContentCharacters, Is.Zero);
             Assert.That(entry.ArchivedPrefixCharacters, Is.Zero);
 
-            // A rotated-out entry still reports the role's current sequence - proving the reply is a genuine,
-            // live protocol answer at this moment rather than an omitted or malformed message - it just carries
-            // no entry content for this index anymore.
-            Assert.That(entry.Sequence, Is.GreaterThan(0));
+            // A rotated-out entry still reports the role's true current sequence - proving this reply is a
+            // genuine, live protocol answer at the moment of the request, not a stale or fabricated one - it just
+            // carries no entry content for this index anymore. Comparing against the sequence a transcript
+            // synchronization observed for this role immediately beforehand (with no further activity in
+            // between) proves that match precisely, rather than merely that the reported sequence is positive.
+            Assert.That(entry.Sequence, Is.EqualTo(expectedSequence));
         });
     }
 

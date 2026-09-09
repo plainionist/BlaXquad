@@ -37,11 +37,23 @@ Feature: Transcript oversized content
     # entries oldest-first - entries 0, 1, then this burst's own oldest entries - until the remaining total again
     # fits, landing back at exactly the bound with entries 7 through 16 left standing. Entry 2, this burst's own
     # oldest message, is therefore always among those rotated out, while entry 16, its newest, always survives.
+    #
+    # Live retention, meanwhile, always live-truncates each of these oversized messages down to the 250,000
+    # character per-entry retained bound, so the burst's combined retained size (3,750,000 characters) also
+    # crosses the 1,000,000 character live retention bound - live retention likewise evicts oldest-first until only
+    # the newest 4 entries (13 through 16) remain, exactly filling that bound. Paging back from that live boundary
+    # must therefore surface exactly the remaining archived entries older than it (7 through 12) and report no
+    # further history, since the rotated-out entries below 7 are gone from the archive entirely.
     When the "coder" agent emits 15 system messages with 2000000 characters each
-    And the backend scenario requests the archived transcript entry 2 for role "coder"
-    Then the archived transcript entry is unavailable
+    And the backend scenario requests a fresh transcript synchronization
+    Then the transcript synchronization for role "coder" contains exactly 4 entries
+    When the backend scenario requests the archived transcript entry 2 for role "coder"
+    Then the archived transcript entry is unavailable for role "coder"
     When the backend scenario requests the archived transcript entry 16 for role "coder"
     Then the archived transcript entry has 2000000 characters and is not truncated
+    When the backend scenario requests the previous transcript page for role "coder"
+    Then the previous transcript page for role "coder" contains exactly 6 entries
+    And the previous transcript page for role "coder" reports no more history
 
   Scenario: Synchronization reports a still-live entry's rotated archive content as no longer available
     # An assistant delta that is never finalized keeps streaming - its retained entry stays pinned in live
