@@ -22,8 +22,20 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
     {
         myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(HandleReplyAsync, HandleEmitAsync, cancellationToken);
 
+        var gateAfterSessions = ReadStartupGateAfterSessions();
+        var sessionIndex = 0;
         foreach (var role in context.Roles)
         {
+            if (gateAfterSessions == sessionIndex)
+            {
+                // Blocks on the same cancellation token SquadRuntimeController.StartAsync was given, which
+                // SquadApplication.RunAsync cancels the instant its own shutdown-vs-startup race resolves in
+                // shutdown's favor - proving a host-control shutdown requested while provider startup is paused
+                // here still terminates cleanly and disposes every session already registered above, without
+                // ever needing a synthetic pause a production caller could actually observe.
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+
             var session = new FakeAgentSession(role.Role, myControl);
             mySessions.Add(session);
             await sessionStarted(session);
@@ -32,7 +44,17 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRunt
                 await myControl.NotifySessionStartedAsync(session.Role, session.SessionId, cancellationToken);
             }
             await session.SendHarnessAsync(role.InitialInstruction, cancellationToken);
+            sessionIndex++;
         }
+    }
+
+    /// <summary>Reads the test-owned startup gate position from the environment - the number of sessions that
+    /// must already be registered before this runtime pauses - or null if no gate was configured, matching
+    /// ordinary behavior exactly for every specification that never sets it.</summary>
+    private static int? ReadStartupGateAfterSessions()
+    {
+        var raw = Environment.GetEnvironmentVariable(FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable);
+        return int.TryParse(raw, out var value) ? value : null;
     }
 
     /// <summary>Routes one "reply" pushed across the control pipe to whichever live session it names, returning

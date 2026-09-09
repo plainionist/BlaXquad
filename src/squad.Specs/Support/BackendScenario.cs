@@ -19,6 +19,7 @@ public sealed class BackendScenario : IDisposable
     private HeadlessUiClient? myUi;
     private FakeProviderControlServer? myControl;
     private string? myIsolatedTempDirectory;
+    private int? myStartupGateAfterSessions;
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -125,6 +126,11 @@ public sealed class BackendScenario : IDisposable
             environmentOverrides["TEMP"] = myIsolatedTempDirectory;
             environmentOverrides["TMP"] = myIsolatedTempDirectory;
             environmentOverrides["TMPDIR"] = myIsolatedTempDirectory;
+        }
+        if (myStartupGateAfterSessions is { } gateAfterSessions)
+        {
+            environmentOverrides[FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable] =
+                gateAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         IReadOnlyList<string> launchArguments = continueLaunch
@@ -542,6 +548,51 @@ public sealed class BackendScenario : IDisposable
     {
         var path = Path.Combine(myWorkspace.RoleWorktreePath(role), Path.Combine(relativePath.Split('/')));
         return File.Exists(path) && File.ReadAllText(path).Contains(expectedContent, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Configures the next <see cref="StartAsync{TProviderFactory}"/> launch's fake provider to pause
+    /// immediately before creating the given number of sessions - for example 0 pauses before the very first
+    /// role's session, 1 pauses after the first role's session has started and been notified across the control
+    /// pipe, but before the next role's - so a specification can prove a host-control shutdown requested while
+    /// provider startup is genuinely paused there still disposes every session already registered and terminates
+    /// cleanly. Requires <see cref="EnableFakeProviderControl"/> to have also been called, so the paused position
+    /// is independently observable across the control pipe rather than merely inferred from timing.
+    /// </summary>
+    public void GateProviderStartupAfterSessions(int count) => myStartupGateAfterSessions = count;
+
+    /// <summary>
+    /// Requests shutdown through the real "squad-hq shutdown" host-control command as soon as it is reachable at
+    /// all, retrying the request until it lands - since the launched process's host-control endpoint may not yet
+    /// be listening in the very first instant after the process starts - and awaits the same clean exit
+    /// <see cref="ShutdownAsync"/> does, returning the exit code observed. Proves shutdown wins even when
+    /// requested at the earliest possible moment, racing host-lease acquisition and the wait for "ui.ready"
+    /// itself rather than deliberately waiting for any later, more convenient point.
+    /// </summary>
+    public Task<int> RequestShutdownAsSoonAsReachableAsync(TimeSpan? timeout = null)
+    {
+        if (myProcess is null || myUi is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root]);
+            if (myProcess.WaitForExit(50))
+            {
+                break;
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new HeadlessUiWaitTimeoutException(
+                    "the backend process to exit after repeatedly requesting shutdown",
+                    myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
+            }
+        }
+
+        return Task.FromResult(myProcess.ExitCode);
     }
 
     /// <summary>

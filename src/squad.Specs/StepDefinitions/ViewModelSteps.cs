@@ -37,9 +37,6 @@ public sealed class ViewModelSteps
     private Task? myStoppingCommand;
     private Task? myInFlightApplicationCommand;
     private Task? myExternalShutdown;
-    private TaskCompletionSource? myPreparationEntered;
-    private TaskCompletionSource? myPreparationGate;
-    private TaskCompletionSource? myPreparationCanceled;
     private RunResult? myApplicationRunResult;
     private Exception? myApplicationLifecycleFailure;
     private readonly List<string> mySdkInstructionsSentAfterRegistration = [];
@@ -165,53 +162,6 @@ public sealed class ViewModelSteps
     {
         await BeginExternalShutdownAsync();
         await myExternalShutdown!;
-    }
-
-    [When("an external client begins requesting application shutdown")]
-    public async Task WhenAnExternalClientBeginsRequestingApplicationShutdown() => await BeginExternalShutdownAsync();
-
-    [When("the lease-owned application lifecycle runs")]
-    public async Task WhenTheLeaseOwnedApplicationLifecycleRuns() => await RunApplicationToCompletionAsync();
-
-    [Given("a lease-owned SquadApplication with blocked preparation")]
-    public void GivenALeaseOwnedSquadApplicationWithBlockedPreparation()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder");
-        myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        myPreparationEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        myPreparationGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        myPreparationCanceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        myApplication = new SquadApplication(
-            SquadStartupPlanFactory.ForWorkspace(
-                myApplicationContext!,
-                new WorkspacePreparer(_ => { }),
-                prepareContextAsync: async cancellationToken =>
-                {
-                    myPreparationEntered.TrySetResult();
-                    try
-                    {
-                        await myPreparationGate.Task.WaitAsync(cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        myPreparationCanceled.TrySetResult();
-                        throw;
-                    }
-                    return BuildAgentBackendContext(myApplicationContext!);
-                }),
-            new RecordingAgentProviderFactory(myBackend),
-            myRecordingPump!,
-            myRecordingWindow!,
-            myRecordingSleep!,
-            viewModel: myApplication!.ViewModel,
-            hostLease: myApplicationLease);
-    }
-
-    [When("the lease-owned application lifecycle begins preparation")]
-    public async Task WhenTheLeaseOwnedApplicationLifecycleBeginsPreparation()
-    {
-        StartApplicationRun();
-        await myPreparationEntered!.Task.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
     [Then("the lease-owned application resources are released")]
@@ -399,13 +349,6 @@ public sealed class ViewModelSteps
     [Then("the recording backend was disposed")]
     public void ThenTheRecordingBackendWasDisposed() => Assert.That(myBackend.Disposed, Is.True);
 
-    [Given("a controllable SquadApplication with shutdown already requested")]
-    public void GivenAControllableSquadApplicationWithShutdownAlreadyRequested()
-    {
-        ConfigureControllableApplication();
-        myRecordingHostLease!.RequestShutdown();
-    }
-
     [Given("a controllable SquadApplication")]
     public void GivenAControllableSquadApplication() => ConfigureControllableApplication();
 
@@ -418,14 +361,6 @@ public sealed class ViewModelSteps
     [Given("a controllable SquadApplication with blocked startup and a faulting server")]
     public void GivenAControllableSquadApplicationWithBlockedStartupAndAFaultingServer() =>
         ConfigureControllableApplication(blockStartup: true, faultServer: true);
-
-    [Given("a controllable SquadApplication that requests shutdown when ready")]
-    public void GivenAControllableSquadApplicationThatRequestsShutdownWhenReady()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myRecordingWindow!.OnSessionsStarted = () =>
-            HostControlClient.RequestShutdownAsync(myApplicationRoot).GetAwaiter().GetResult();
-    }
 
     [Given("a controllable SquadApplication with a session disposal failure and open events")]
     public void GivenAControllableSquadApplicationWithASessionDisposalFailureAndOpenEvents()
@@ -510,29 +445,12 @@ public sealed class ViewModelSteps
     [When("the application lifecycle reaches readiness")]
     public async Task WhenTheApplicationLifecycleReachesReadiness() => await StartApplicationUntilReadyAsync();
 
-    [Then("the application stopped before readiness")]
-    public async Task ThenTheApplicationStoppedBeforeReadiness()
-    {
-        await CompleteApplicationRunAsync();
-        Assert.That(myApplicationRunResult, Is.EqualTo(RunResult.ShutdownBeforeReady));
-    }
-
-    [Then("the blocked preparation observed cancellation")]
-    public void ThenTheBlockedPreparationObservedCancellation() =>
-        Assert.That(myPreparationCanceled!.Task.IsCompletedSuccessfully, Is.True);
-
     [Then("the application stopped after readiness")]
     public async Task ThenTheApplicationStoppedAfterReadiness()
     {
         await CompleteApplicationRunAsync();
         Assert.That(myApplicationRunResult, Is.EqualTo(RunResult.StoppedAfterReady));
     }
-
-    [Then("no startup collaborator ran")]
-    public void ThenNoStartupCollaboratorRan() => Assert.That(myRecordingSleep!.Started, Is.False);
-
-    [Then("readiness was not announced")]
-    public void ThenReadinessWasNotAnnounced() => Assert.That(myApplicationReadyCount, Is.Zero);
 
     [Then("readiness was announced once")]
     public void ThenReadinessWasAnnouncedOnce() => Assert.That(myApplicationReadyCount, Is.EqualTo(1));

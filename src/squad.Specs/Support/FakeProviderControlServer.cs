@@ -17,6 +17,14 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
 {
     public const string PipeNameEnvironmentVariable = "BLAXQUAD_FAKE_CONTROL_PIPE";
     public const string TokenEnvironmentVariable = "BLAXQUAD_FAKE_CONTROL_TOKEN";
+    /// <summary>
+    /// Names the environment variable that tells the fake provider runtime to pause immediately before creating
+    /// the Nth role's session (0 pauses before the very first session), blocking on the same cancellation token
+    /// the production runtime cancels once a host-control shutdown wins its race against startup - so a
+    /// specification can prove shutdown requested while provider startup is genuinely paused here still disposes
+    /// every session already registered and terminates cleanly. Never read by any production assembly.
+    /// </summary>
+    public const string StartupGateAfterSessionsEnvironmentVariable = "BLAXQUAD_FAKE_STARTUP_GATE_AFTER_SESSIONS";
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 

@@ -118,7 +118,7 @@ cancellation uses a dedicated `CancellableChildProcess` launcher only (ordinary 
 the slice decision. Covered ViewModel window-close, caller-cancellation, and synthetic window-close-failure
 scenarios were removed, along with the overlapping StdioUiProtocol end-of-input scenarios.
 
-### Slice 3: Stop safely before and during startup
+### Slice 3 [done]: Stop safely before and during startup
 
 1. Split process launch from readiness completion inside the test facade so scenarios can use the real host-control
    endpoint while startup is awaiting `ui.ready` or a fake-provider startup gate.
@@ -134,6 +134,20 @@ scenarios were removed, along with the overlapping StdioUiProtocol end-of-input 
 
 **Slice acceptance:** A real host-control shutdown linearized anywhere before readiness prevents the host from
 becoming available and releases every resource already acquired.
+
+**Status: complete.** `HeadquartersEarlyShutdown.feature` covers slice 3 through the process boundary: requesting
+`squad-hq shutdown` as early as it is reachable (retried until it lands, racing host-lease acquisition and the wait
+for `ui.ready` itself) exits 0, finds host control unavailable, and preserves seeded `notes.md`; a multi-role launch
+whose fake provider is gated to pause after exactly one session has started proves a shutdown requested while
+provider startup is genuinely paused there still disposes the already-started session, exits 0, finds host control
+unavailable, and preserves durable state - both followed by a replacement Echo-provider process reaching `ui.ready`
+on the same workspace. The fake provider's existing `session-started`/`session-disposed` control-pipe notifications
+already serve as the acknowledged startup gate; no new protocol message was needed. "Immediately after host
+acquisition" and "while waiting for UI readiness" are not distinguished as separate scenarios: both race the same
+internal `SquadApplication` shutdown-vs-startup check and converge on the identical observable outcome, so
+specifying them separately would duplicate an interleaving without a user-visible or resource-safety consequence.
+Covered ViewModel pre-start shutdown, blocked-preparation, shutdown-already-requested, and simultaneous-ready
+`SquadApplication` scenarios and bindings were removed.
 
 ### Slice 4: Retire failed and partial provider startup
 

@@ -67,22 +67,6 @@ Feature: Squad ViewModel
     And an external client requests application shutdown
     Then the lease-owned application resources are released
 
-  Scenario: External shutdown pending before lifecycle prevents startup
-    Given a SquadApplication with recording roles and a host lease
-    When an external client begins requesting application shutdown
-    And the lease-owned application lifecycle runs
-    Then the application stopped before readiness
-    And no startup collaborator ran
-    And the lease-owned application resources are released
-
-  Scenario: External shutdown cancels blocked lease-owned preparation
-    Given a lease-owned SquadApplication with blocked preparation
-    When the lease-owned application lifecycle begins preparation
-    And an external client requests application shutdown
-    Then the application stopped before readiness
-    And the blocked preparation observed cancellation
-    And the lease-owned application resources are released
-
   Scenario: Late session events do not fail window shutdown
     Given a SquadApplication with a session that emits while shutting down
     When the application lifecycle reaches readiness
@@ -126,32 +110,11 @@ Feature: Squad ViewModel
     Then the application lifecycle contains "recording backend failed after creating sessions" and "recording session disposal failed"
     And the lifecycle trace shows generation and process-wide cleanup completed despite the cleanup failure
 
-  Scenario: Shutdown already requested prevents startup work
-    Given a controllable SquadApplication with shutdown already requested
-    When the application lifecycle runs
-    Then the application stopped before readiness
-    And no startup collaborator ran
-    And all controllable application resources were disposed
-
-  Scenario: Shutdown during blocked startup releases all resources
-    Given a controllable SquadApplication with blocked startup
-    When the application lifecycle begins
-    And the controllable host requests shutdown
-    Then the application stopped before readiness
-    And all controllable application resources were disposed
-
   Scenario: Server failure during blocked startup remains primary
     Given a controllable SquadApplication with blocked startup and a faulting server
     When the application lifecycle begins
     And the controllable host fails its server
     Then the application lifecycle failed with "recording host server failed"
-    And all controllable application resources were disposed
-
-  Scenario: Shutdown wins a simultaneous ready transition
-    Given a controllable SquadApplication that requests shutdown when ready
-    When the application lifecycle runs
-    Then the application stopped before readiness
-    And readiness was not announced
     And all controllable application resources were disposed
 
   Scenario: Shutdown after readiness stops the host without waiting for close

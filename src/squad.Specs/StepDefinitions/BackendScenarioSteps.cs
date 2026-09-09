@@ -55,6 +55,10 @@ public sealed class BackendScenarioSteps
     public void GivenTheBackendScenarioHasEnabledTheFakeProviderControlTransport() =>
         myScenario.EnableFakeProviderControl();
 
+    [Given("the backend scenario gates provider startup after {int} session has started")]
+    public void GivenTheBackendScenarioGatesProviderStartupAfterSessionHasStarted(int count) =>
+        myScenario.GateProviderStartupAfterSessions(count);
+
     [Given("the backend scenario isolates its temporary transcript directory")]
     public void GivenTheBackendScenarioIsolatesItsTemporaryTranscriptDirectory() =>
         myScenario.IsolateTemporaryDirectory();
@@ -82,6 +86,10 @@ public sealed class BackendScenarioSteps
     [When("the backend scenario launches squad-hq without completing the ready handshake")]
     public void WhenTheBackendScenarioLaunchesSquadHqWithoutCompletingTheReadyHandshake() =>
         myScenario.LaunchWithoutReadyHandshake<EchoAgentProviderFactory>();
+
+    [When("the backend scenario requests a host-control shutdown as soon as it is reachable")]
+    public void WhenTheBackendScenarioRequestsAHostControlShutdownAsSoonAsItIsReachable() =>
+        myExitCode = Await(myScenario.RequestShutdownAsSoonAsReachableAsync());
 
     [When("the backend scenario closes its standard input")]
     public void WhenTheBackendScenarioClosesItsStandardInput()
