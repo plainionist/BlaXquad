@@ -241,7 +241,7 @@ control. Covered ViewModel command-rejection, command-drain, and blocking-cleanu
 `f664c82b11` and `12f8a76a7e` close the review findings that drain-before-dispose was only inferred and that the
 rejected prompt was not shown to miss the provider.
 
-### Slice 8: Ignore events from terminated sessions
+### Slice 8 [done]: Ignore events from terminated sessions
 
 1. Add fake-provider operations that terminate a session and then attempt delayed assistant, readiness, interaction,
    and completion-failure publication from that same session identity.
@@ -253,24 +253,15 @@ rejected prompt was not shown to miss the provider.
 **Slice acceptance:** Once a provider session terminates, delayed work carrying its identity cannot mutate any later
 published state or obstruct process cleanup.
 
-#### Review findings on fb58db1948 / 17f2ff449c
-
-**Finding 1 — addressed in `17f2ff449c`.** Post-delay status now uses `WaitForLatestRoleStatusAsync` /
-`WaitForLatestStateSnapshotAsync`, so it cannot rematch an earlier terminal snapshot.
-
-**Finding 2 — medium** (still open on `17f2ff449c`)
-
-- **Location:** `src/squad.Specs/Features/TerminatedSessionEventSuppression.feature`
-  (`requests a fresh transcript synchronization` then `the reconciled transcript for role "coder" does not contain
-  ...`), `BackendScenarioSteps.ThenTheReconciledTranscriptForRoleDoesNotContain`.
-- **Violated behavior:** Slice 8 item 2 requires observing the fresh transcript synchronization and proving that
-  response does not contain the delayed stale values.
-- **Root cause:** `WaitForReconciledTranscriptAsync` returns as soon as the current reconciliation matches
-  `!contains(stale)`. The initial handshake synchronization already lacks that text, so the wait succeeds before
-  the just-requested `transcript.synchronize` is observed. Stale content that appeared only in that new
-  synchronize payload would not fail.
-- **Required outcome:** After the request, wait for a new `transcript.synchronize` (not a prior one) and prove
-  that payload, or a reconciliation that includes it, does not contain the delayed values.
+**Status: complete (11e9343e35).** `TerminatedSessionEventSuppression.feature` covers slice 8 through the process
+boundary: after a graceful or failed coder termination, delayed assistant text, a late permission, a late readiness
+change, and a late second termination cannot resurrect the role (latest published status stays terminal), cannot open
+a new pending permission, and cannot appear in the transcript response identified as the just-requested
+`transcript.synchronize`; a healthy reviewer still takes a prompt. A stale publisher cannot obstruct host-control
+shutdown: exit 0, session disposed, host control unavailable. Covered ViewModel late-event and open-event-observer
+scenarios were removed with their `RecordingAgentSession` controls. `17f2ff449c` and `11e9343e35` close the review
+findings that post-delay status rematched an earlier snapshot and that transcript absence was proven against a
+pre-request synchronization.
 
 ### Slice 9: Preserve primary and cleanup diagnostics through final release
 
