@@ -69,7 +69,7 @@ their sources", "System activity remains visible in the transcript") and their o
 The follow-up `926705097f` closes the review findings that independent first-match synchronize waits could pass
 against different messages including the handshake snapshot, and that harness updates were not content-asserted.
 
-### Slice 2 [pending]: Preserve assistant and reasoning stream finalization
+### Slice 2 [in progress]: Preserve assistant and reasoning stream finalization
 
 1. Add semantic assistant/reasoning delta, final-message, and idle operations to the fake-provider controller as
    needed.
