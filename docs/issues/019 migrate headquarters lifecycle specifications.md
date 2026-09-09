@@ -145,7 +145,7 @@ pre-start shutdown, blocked-preparation, shutdown-already-requested, and simulta
 The follow-up `78dca103fb` closes the review findings that readiness was only inferred from later unavailability,
 that the one-session gate was not observed, and that no post-shutdown command was shown to miss the provider.
 
-### Slice 4: Retire failed and partial provider startup
+### Slice 4 [done]: Retire failed and partial provider startup
 
 1. Add fake-provider modes for failure before runtime availability and failure after a configured number of sessions
    have started. The fake runtime must report session start/disposal over its private control pipe and retain no
@@ -161,6 +161,16 @@ that the one-session gate was not observed, and that no post-shutdown command wa
 
 **Slice acceptance:** Provider creation or startup failure, including failure after one session starts, exits with a
 useful diagnostic and conclusively retires all partial provider and host resources.
+
+**Status: complete (bd5f1fadde).** `HeadquartersPartialStartupFailure.feature` covers slice 4 through the process
+boundary: fake-provider env-driven failure before runtime (`BLAXQUAD_FAKE_FAIL_BEFORE_RUNTIME`) and after one session
+(`BLAXQUAD_FAKE_FAIL_AFTER_SESSIONS`). Both real `squad-hq` launches exit non-zero with a "Provider startup failed"
+stderr diagnostic (never an "Unhandled exception" dump). The partial path observes `coder` started then disposed over
+the control pipe and `reviewer` never started, then host control unavailable, seeded `notes.md` preserved, and a
+replacement Echo-provider process reaches `ui.ready`. `Launch.cs` maps `RunAsync` provider/runtime failures to
+`CliExitException`. Covered ViewModel SDK-shaped unwind, before/after-window startup failure, CLI exception-type,
+partial-backend startup, and partial-start trace scenarios were removed with `LifecycleTrace` and
+`FailAfterCreatingSessionCount` wiring.
 
 ### Slice 5: Surface terminal provider failures after readiness
 
