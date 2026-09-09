@@ -140,14 +140,14 @@ public sealed class HeadlessUiClient
         return ParseTranscriptUpdate(element);
     }
 
-    /// <summary>Waits until a "transcript.update" message reports the given operation for the given role - and,
-    /// unless null, the given content - and returns the dashboard protocol's typed fields. Unlike
-    /// <see cref="WaitForTranscriptUpdateAsync(string,string,string?,TimeSpan?,Func{string}?)"/> - which matches by
-    /// source and therefore only ever observes an appended or replaced entry - this resolves content from either
-    /// the appended/replaced entry or an "append-content" update's top-level delta fragment, so it can also
-    /// observe a streamed continuation that carries no source of its own.</summary>
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.update" message reports the given
+    /// operation for the given role - and, unless null, the given content - and returns the dashboard protocol's
+    /// typed fields. Unlike <see cref="WaitForTranscriptUpdateAsync(string,string,string?,TimeSpan?,Func{string}?)"/>
+    /// - which matches by source and therefore only ever observes an appended or replaced entry - this resolves
+    /// content from either the appended/replaced entry or an "append-content" update's top-level delta fragment, so
+    /// it can also observe a streamed continuation that carries no source of its own.</summary>
     public async Task<TranscriptUpdateObservation> WaitForTranscriptUpdateByOperationAsync(
-        string role, string operation, string? content = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+        string role, string operation, string? content = null, int skip = 0, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         var description = content is null
             ? $"a transcript update for role '{role}' with operation '{operation}'"
@@ -156,7 +156,8 @@ public sealed class HeadlessUiClient
             transcriptUpdate => IsMatchingTranscriptOperationUpdate(transcriptUpdate, role, operation, content),
             description,
             timeout,
-            additionalDiagnostics);
+            additionalDiagnostics,
+            skip);
         return ParseTranscriptUpdate(element);
     }
 
@@ -564,12 +565,38 @@ public sealed class HeadlessUiClient
         var sequence = payload.GetProperty("sequence").GetInt64();
         var operation = payload.GetProperty("operation").GetString()!;
         var entryIndex = payload.GetProperty("entryIndex").GetInt32();
-        var source = payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object
+        var hasEntry = payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object;
+        var source = hasEntry
             && entry.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String
             ? sourceElement.GetString()
             : null;
+        var hasArchivedContent = hasEntry
+            && entry.TryGetProperty("hasArchivedContent", out var hasArchivedContentElement)
+            && hasArchivedContentElement.GetBoolean();
+        var contentStart = hasEntry && entry.TryGetProperty("contentStart", out var contentStartElement)
+            ? contentStartElement.GetInt64()
+            : 0;
         var content = ResolveTranscriptUpdateContent(payload);
-        return new TranscriptUpdateObservation(role, sequence, operation, entryIndex, source, content);
+        var hasAnnouncement = payload.TryGetProperty("announcement", out var announcement) && announcement.ValueKind == JsonValueKind.Object;
+        var announcementTruncated = hasAnnouncement
+            && announcement.TryGetProperty("truncated", out var announcementTruncatedElement)
+            && announcementTruncatedElement.GetBoolean();
+        var announcementContentLength = hasAnnouncement
+            && announcement.TryGetProperty("content", out var announcementContentElement)
+            && announcementContentElement.ValueKind == JsonValueKind.String
+            ? announcementContentElement.GetString()!.Length
+            : (int?)null;
+        return new TranscriptUpdateObservation(
+            role,
+            sequence,
+            operation,
+            entryIndex,
+            source,
+            content,
+            hasArchivedContent,
+            contentStart,
+            announcementTruncated,
+            announcementContentLength);
     }
 
     private static bool TryGetTranscriptSynchronizationEntries(

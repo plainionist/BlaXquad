@@ -72,25 +72,6 @@ public sealed class ViewModelSteps
         }
     }
 
-    [Given("a ViewModel retaining {int} entries and {int} content characters")]
-    public void GivenAViewModelRetainingEntriesAndContentCharacters(
-        int maxEntries,
-        int maxContentCharacters)
-    {
-        myViewModel = new SquadViewModel(new TranscriptRetentionOptions(
-            MaxRetainedEntries: maxEntries,
-            MaxRetainedContentCharacters: maxContentCharacters,
-            MaxRetainedEntryCharacters: maxContentCharacters,
-            MaxArchivedEntries: 100,
-            MaxArchivedContentCharacters: 10_000,
-            MaxArchivedEntryCharacters: 1_000));
-        myTranscriptHistoryDirectory = myViewModel.TranscriptHistoryDirectory;
-        myBackend = new RecordingAgentBackend();
-        myViewModel.InitializeRoles(["coder"]);
-        myBackend.AddRole("coder");
-        myViewModel.RegisterSession(myBackend.Sessions.Single());
-    }
-
     [Given("a ViewModel retaining {int} entries and archiving {int} entries")]
     public void GivenAViewModelRetainingAndArchivingEntries(
         int maxRetainedEntries,
@@ -103,23 +84,6 @@ public sealed class ViewModelSteps
             MaxArchivedEntries: maxArchivedEntries,
             MaxArchivedContentCharacters: 10_000,
             MaxArchivedEntryCharacters: 1_000));
-        myTranscriptHistoryDirectory = myViewModel.TranscriptHistoryDirectory;
-        myBackend = new RecordingAgentBackend();
-        myViewModel.InitializeRoles(["coder"]);
-        myBackend.AddRole("coder");
-        myViewModel.RegisterSession(myBackend.Sessions.Single());
-    }
-
-    [Given("a ViewModel archiving {int} characters per entry")]
-    public void GivenAViewModelArchivingCharactersPerEntry(int maxArchivedEntryCharacters)
-    {
-        myViewModel = new SquadViewModel(new TranscriptRetentionOptions(
-            MaxRetainedEntries: 2,
-            MaxRetainedContentCharacters: 1_000,
-            MaxRetainedEntryCharacters: 50,
-            MaxArchivedEntries: 10,
-            MaxArchivedContentCharacters: 10_000,
-            MaxArchivedEntryCharacters: maxArchivedEntryCharacters));
         myTranscriptHistoryDirectory = myViewModel.TranscriptHistoryDirectory;
         myBackend = new RecordingAgentBackend();
         myViewModel.InitializeRoles(["coder"]);
@@ -908,15 +872,6 @@ public sealed class ViewModelSteps
     [When("the recording {string} session emits assistant delta {string}")]
     public void WhenTheRecordingSessionEmitsAssistantDelta(string role, string content) => Emit(role, new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, content, true));
 
-    [When("the recording {string} session emits a user message {string}")]
-    public void WhenTheRecordingSessionEmitsAUserMessage(string role, string content) => Emit(role, new AgentUserMessageEvent(DateTimeOffset.UtcNow, content));
-
-    [When("the recording {string} session emits a {int} character user message")]
-    public void WhenTheRecordingSessionEmitsACharacterUserMessage(
-        string role,
-        int characterCount) =>
-        Emit(role, new AgentUserMessageEvent(DateTimeOffset.UtcNow, new string('x', characterCount)));
-
     [When("the recording {string} session emits a {int} character patterned user message")]
     public void WhenTheRecordingSessionEmitsACharacterPatternedUserMessage(
         string role,
@@ -1055,58 +1010,6 @@ public sealed class ViewModelSteps
             Is.True);
     }
 
-    [Then("the latest transcript announcement contains {int} characters and reports truncation")]
-    public void ThenTheLatestTranscriptAnnouncementIsBounded(int characterCount)
-    {
-        var announcement = myTranscriptUpdates.Last().Announcement;
-        Assert.Multiple(() =>
-        {
-            Assert.That(announcement, Is.Not.Null);
-            Assert.That(announcement!.Content, Has.Length.EqualTo(characterCount));
-            Assert.That(announcement.Truncated, Is.True);
-        });
-    }
-
-    [Then("ViewModel role {string} retains at most {int} entries and {int} content characters")]
-    public void ThenViewModelRoleRetainsAtMostEntriesAndContentCharacters(
-        string role,
-        int maxEntries,
-        int maxContentCharacters)
-    {
-        var entries = myViewModel.Roles[role].TranscriptEntries;
-        Assert.Multiple(() =>
-        {
-            Assert.That(entries, Has.Count.LessThanOrEqualTo(maxEntries));
-            Assert.That(entries.Sum(entry => entry.Content.Length), Is.LessThanOrEqualTo(maxContentCharacters));
-        });
-    }
-
-    [Then("archived transcript history for {string} preserves {string}")]
-    public void ThenArchivedTranscriptHistoryPreserves(string role, string content)
-    {
-        var page = myViewModel.CreateTranscriptPage(role, int.MaxValue, 200);
-        Assert.That(page.Entries.Single().Entry.Content, Is.EqualTo(content));
-    }
-
-    [Then("the retained transcript entry for {string} offers archived content")]
-    public void ThenTheRetainedTranscriptEntryOffersArchivedContent(string role)
-    {
-        var snapshot = myViewModel.CreateTranscriptSnapshot(500)
-            .Single(item => item.Role == role);
-        var retainedEntry = snapshot.Entries.Single();
-        var archivedEntry = myViewModel.CreateArchivedTranscriptEntry(
-            role,
-            retainedEntry.EntryIndex);
-        Assert.Multiple(() =>
-        {
-            Assert.That(retainedEntry.HasArchivedContent, Is.True);
-            Assert.That(
-                archivedEntry.Entry!.Content.Length,
-                Is.GreaterThan(retainedEntry.Entry.Content.Length));
-            Assert.That(archivedEntry.Sequence, Is.EqualTo(snapshot.Sequence));
-        });
-    }
-
     [Then("archived reconstruction inputs for {string} entry {int} are:")]
     public void ThenArchivedReconstructionInputsAre(
         string role,
@@ -1213,24 +1116,6 @@ public sealed class ViewModelSteps
                     "*.txt",
                     SearchOption.AllDirectories),
                 Has.Length.EqualTo(entryCount));
-        });
-    }
-
-    [Then("archived transcript history for {string} contains a truncation marker")]
-    public void ThenArchivedTranscriptHistoryContainsATruncationMarker(string role)
-    {
-        var page = myViewModel.CreateTranscriptPage(role, int.MaxValue, 200);
-        var archivedEntry = myViewModel.CreateArchivedTranscriptEntry(
-            role,
-            page.Entries.Single().EntryIndex);
-        Assert.Multiple(() =>
-        {
-            Assert.That(page.Entries.Single().Entry.Content, Does.Contain("content truncated"));
-            Assert.That(page.HistoryTruncated, Is.True);
-            Assert.That(archivedEntry.ContentTruncated, Is.True);
-            Assert.That(
-                archivedEntry.TotalContentCharacters,
-                Is.GreaterThan(archivedEntry.ArchivedPrefixCharacters));
         });
     }
 

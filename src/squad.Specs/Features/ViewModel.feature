@@ -43,30 +43,10 @@ Feature: Squad ViewModel
     When the ViewModel creates snapshots while recording "coder" emits 100 assistant updates
     Then the UI snapshot contains event count 100 for "coder"
 
-  Scenario: Oversized transcript entries cannot bypass the memory bound
-    Given a ViewModel retaining 3 entries and 30 content characters
-    When the recording "coder" session emits a user message "abcdefghijklmnopqrstuvwxyz0123456789"
-    Then ViewModel role "coder" retains at most 3 entries and 30 content characters
-    And the retained transcript entry for "coder" offers archived content
-    And archived transcript history for "coder" preserves "abcdefghijklmnopqrstuvwxyz0123456789"
-
-  Scenario: Oversized transcript announcements remain bounded
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits a 20000 character user message
-    Then the latest transcript announcement contains 16384 characters and reports truncation
-
   Scenario: Archived transcript history has an explicit disk bound
     Given a ViewModel retaining 2 entries and archiving 3 entries
     When the recording "coder" session emits 6 user messages
     Then archived transcript history for "coder" contains 3 entries and reports truncation
-
-  Scenario: Archived streaming content reports exact-limit truncation
-    Given a ViewModel archiving 80 characters per entry
-    When the recording "coder" session emits assistant delta "12345678901234567890123456789012345678901234567890123456789012345678901234567890"
-    And the recording "coder" session emits assistant delta "overflow"
-    And the recording "coder" session emits assistant delta "ignored after truncation"
-    And the recording "coder" session emits an idle event
-    Then archived transcript history for "coder" contains a truncation marker
 
   Scenario: Synchronization invalidates rotated archived content
     Given a ViewModel retaining 2 entries and 60 content characters while archiving 3 entries

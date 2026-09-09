@@ -237,13 +237,13 @@ public sealed class BackendScenario : IDisposable
         string role, string source, string? content = null, TimeSpan? timeout = null) =>
         RequireUi().WaitForTranscriptUpdateAsync(role, source, content, timeout, DescribeControlDiagnostics());
 
-    /// <summary>Waits until a "transcript.update" message reports the given operation for the given role - and,
-    /// unless null, the given content - and returns the dashboard protocol's typed fields. Unlike
-    /// <see cref="WaitForTranscriptUpdateAsync(string,string,string?,TimeSpan?)"/>, this also observes an
-    /// "append-content" continuation, whose delta fragment carries no source of its own.</summary>
+    /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.update" message reports the given
+    /// operation for the given role - and, unless null, the given content - and returns the dashboard protocol's
+    /// typed fields. Unlike <see cref="WaitForTranscriptUpdateAsync(string,string,string?,TimeSpan?)"/>, this also
+    /// observes an "append-content" continuation, whose delta fragment carries no source of its own.</summary>
     public Task<TranscriptUpdateObservation> WaitForTranscriptUpdateByOperationAsync(
-        string role, string operation, string? content = null, TimeSpan? timeout = null) =>
-        RequireUi().WaitForTranscriptUpdateByOperationAsync(role, operation, content, timeout, DescribeControlDiagnostics());
+        string role, string operation, string? content = null, int skip = 0, TimeSpan? timeout = null) =>
+        RequireUi().WaitForTranscriptUpdateByOperationAsync(role, operation, content, skip, timeout, DescribeControlDiagnostics());
 
     /// <summary>Requests a fresh full transcript synchronization through the real UI protocol - the same
     /// operation a reconnecting dashboard relies on to rebuild its view.</summary>

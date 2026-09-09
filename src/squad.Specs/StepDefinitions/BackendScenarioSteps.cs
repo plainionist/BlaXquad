@@ -20,6 +20,7 @@ public sealed class BackendScenarioSteps
     private readonly Dictionary<string, int> myTranscriptPagesObserved = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TranscriptPageObservation> myLatestTranscriptPage = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<TranscriptEntryObservation>> myPagedTranscriptEntries = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> myAssistantDeltaCounts = new(StringComparer.Ordinal);
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
@@ -311,6 +312,35 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsAnAssistantDelta(string role, string content) =>
         Await(myScenario.Agent(role).EmitAssistantAsync(content, isDelta: true));
 
+    [When("the {string} agent emits an assistant delta with {int} characters")]
+    public void WhenTheAgentEmitsAnAssistantDeltaWithCharacters(string role, int characterCount)
+    {
+        var index = myAssistantDeltaCounts.GetValueOrDefault(role);
+        myAssistantDeltaCounts[role] = index + 1;
+        Await(myScenario.Agent(role).EmitAssistantAsync(new string('x', characterCount), isDelta: true));
+
+        // Emitting across the control pipe only proves the backend accepted the event, not that the independent
+        // background reader has finished appending it onto the archived entry - waiting here for this delta's own
+        // transcript update proves it before a later step queries the archived entry's now-stable truncation
+        // state. The very first delta for a role creates its entry via an "append" update. Once that entry's
+        // in-memory retained buffer has itself been truncated - which a delta this size does immediately -
+        // production reports every later continuation as a "replace" (a full retained-entry rebuild), never an
+        // "append-content" delta, so later deltas must wait for that operation instead - identified by how many
+        // prior "replace" updates this role has already produced, not by content equality, since content this
+        // size is expensive to compare and may itself be truncated before it reaches the wire. A larger explicit
+        // timeout accounts for the extra time genuinely needed to encode, transmit, and project content this
+        // size end to end.
+        var timeout = TimeSpan.FromSeconds(60);
+        if (index == 0)
+        {
+            Await(myScenario.WaitForTranscriptUpdateAsync(role, "assistant", content: null, timeout));
+        }
+        else
+        {
+            Await(myScenario.WaitForTranscriptUpdateByOperationAsync(role, "replace", content: null, skip: index - 1, timeout: timeout));
+        }
+    }
+
     [When("the {string} agent emits a final assistant message {string}")]
     public void WhenTheAgentEmitsAFinalAssistantMessage(string role, string content) =>
         Await(myScenario.Agent(role).EmitAssistantAsync(content, isDelta: false));
@@ -548,6 +578,61 @@ public sealed class BackendScenarioSteps
             Assert.That(entry.ContentTruncated, Is.False);
             Assert.That(entry.TotalContentCharacters, Is.EqualTo(content.Length));
             Assert.That(entry.ArchivedPrefixCharacters, Is.EqualTo(content.Length));
+        });
+    }
+
+    [Then("the archived transcript entry has {int} characters and is not truncated")]
+    public void ThenTheArchivedTranscriptEntryHasCharactersAndIsNotTruncated(int totalCharacters)
+    {
+        var entry = myLatestArchivedEntry
+            ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.ContentTruncated, Is.False);
+            Assert.That(entry.TotalContentCharacters, Is.EqualTo(totalCharacters));
+            Assert.That(entry.ArchivedPrefixCharacters, Is.EqualTo(totalCharacters));
+            Assert.That(entry.Content?.Length, Is.EqualTo(totalCharacters));
+        });
+    }
+
+    [Then("the archived transcript entry is truncated with {int} total characters")]
+    public void ThenTheArchivedTranscriptEntryIsTruncatedWithTotalCharacters(int totalCharacters)
+    {
+        var entry = myLatestArchivedEntry
+            ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.ContentTruncated, Is.True);
+            Assert.That(entry.TotalContentCharacters, Is.EqualTo(totalCharacters));
+
+            // Both the reported archived prefix and the actually persisted content must stay strictly bounded
+            // below the true stream length - proving the archive never silently presents its truncated, partial
+            // content as if it were the complete stream.
+            Assert.That(entry.ArchivedPrefixCharacters, Is.LessThan(totalCharacters));
+            Assert.That(entry.Content, Is.Not.Null);
+            Assert.That(entry.Content!.Length, Is.LessThan(totalCharacters));
+        });
+    }
+
+    [Then("the transcript update for role {string} reports archived content beyond the retained bound")]
+    public void ThenTheTranscriptUpdateForRoleReportsArchivedContentBeyondTheRetainedBound(string role)
+    {
+        var update = Await(myScenario.WaitForTranscriptUpdateAsync(role, "system"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(update.HasArchivedContent, Is.True);
+            Assert.That(update.ContentStart, Is.GreaterThan(0));
+        });
+    }
+
+    [Then("the transcript update for role {string} reports a truncated announcement of {int} characters")]
+    public void ThenTheTranscriptUpdateForRoleReportsATruncatedAnnouncementOfCharacters(string role, int announcementLength)
+    {
+        var update = Await(myScenario.WaitForTranscriptUpdateAsync(role, "system"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(update.AnnouncementTruncated, Is.True);
+            Assert.That(update.AnnouncementContentLength, Is.EqualTo(announcementLength));
         });
     }
 
