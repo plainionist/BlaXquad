@@ -246,7 +246,7 @@ is the only `tool` entry and `activeTool` stays clear); and a discovery system m
 `Read ...SKILL.md` transcript update. The three covered ViewModel scenarios and their orphaned skill/tool-output
 bindings were removed.
 
-### Slice 11 [in progress]: Preserve monotonic context and accumulated usage
+### Slice 11 [done]: Preserve monotonic context and accumulated usage
 
 1. Extend `ActiveUsageRefresh.feature` and typed snapshot observations to cover context tokens and accumulated AIC
    usage together while a role is working and after it becomes idle.
@@ -257,6 +257,12 @@ bindings were removed.
 
 **Slice acceptance:** Published state reports the latest context and accumulated usage while working and idle, and a
 late stale checkpoint cannot regress either value.
+
+**Status: complete (c7ba532186).** `src/squad.Specs/Features/ActiveUsageRefresh.feature` covers slice 11 through the
+process boundary: the existing scenario still proves context and AIC appear together while working and remain the
+latest values after idle; a new scenario reports AIC `3.5` then a stale AIC `0` (with advancing context tokens so
+each assertion matches a fresh snapshot) and proves working and idle snapshots keep `3.5` with no `aicUsed` of `0`.
+The three covered ViewModel usage scenarios and their orphaned snapshot bindings were removed.
 
 ### Slice 12 [pending]: Retain pending interaction context
 
