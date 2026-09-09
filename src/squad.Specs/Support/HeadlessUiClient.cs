@@ -102,6 +102,18 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
+    /// <summary>Waits until the most recently published "state.snapshot" message (not just any snapshot ever
+    /// observed) reports the given role at the given status - the correct proof that a role's status still holds
+    /// after later, possibly stale, publication, rather than merely rematching the same earlier snapshot already
+    /// observed right after termination.</summary>
+    public Task WaitForLatestRoleStatusAsync(
+        string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForLatestStateSnapshotAsync(
+            element => RoleHasStatus(element, role, status),
+            $"role '{role}' to report status '{status}' in its latest published snapshot",
+            timeout,
+            additionalDiagnostics);
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given AI-credit usage.</summary>
     public Task WaitForRoleUsageAsync(
         string role, decimal aicUsed, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>

@@ -343,6 +343,14 @@ public sealed class BackendScenario : IDisposable
         return myUi.WaitForRoleStatusAsync(role, status, timeout, DescribeControlDiagnostics());
     }
 
+    /// <summary>
+    /// Waits until the most recently published "state.snapshot" message (not just any snapshot ever observed)
+    /// reports the given role at the given status - proving the status still holds after later, possibly stale,
+    /// publication rather than merely rematching the same earlier snapshot already observed at termination.
+    /// </summary>
+    public Task WaitForLatestRoleStatusAsync(string role, string status, TimeSpan? timeout = null) =>
+        RequireUi().WaitForLatestRoleStatusAsync(role, status, timeout, DescribeControlDiagnostics());
+
     /// <summary>Sends a prompt to the given role through the real UI protocol - the same path a real user
     /// interface uses, never a shortcut into the provider.</summary>
     public void SendPrompt(string role, string prompt)

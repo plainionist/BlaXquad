@@ -155,6 +155,10 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesRoleAtStatus(string role, string status) =>
         Await(myScenario.WaitForRoleStatusAsync(role, status));
 
+    [Then("the backend scenario observes role {string}'s latest published status as {string}")]
+    public void ThenTheBackendScenarioObservesRoleSLatestPublishedStatusAs(string role, string status) =>
+        Await(myScenario.WaitForLatestRoleStatusAsync(role, status));
+
     [Then("the backend scenario observes a session started for role {string} across the control pipe")]
     public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
         Await(myScenario.WaitForRoleSessionStartedAsync(role));
@@ -820,6 +824,21 @@ public sealed class BackendScenarioSteps
             .Where(content => content.StartsWith("message-", StringComparison.Ordinal))
             .ToList();
         Assert.That(observedContents, Is.EquivalentTo(expectedContents));
+    }
+
+    [Then("the reconciled transcript for role {string} does not contain {string}")]
+    public void ThenTheReconciledTranscriptForRoleDoesNotContain(string role, string content)
+    {
+        var decodedContent = DecodeEscapes(content);
+
+        // Reconciling combines the latest transcript synchronization - whichever request produced it - with every
+        // update published after its high-water mark, so this proves the given content never actually appears in
+        // the currently reconciled transcript, rather than merely finding some earlier synchronization message
+        // (for example the initial handshake) that happened not to mention it.
+        var reconciled = Await(myScenario.WaitForReconciledTranscriptAsync(
+            role, entries => !entries.Any(entry => entry.Content.Contains(decodedContent, StringComparison.Ordinal))));
+
+        Assert.That(reconciled.Any(entry => entry.Content.Contains(decodedContent, StringComparison.Ordinal)), Is.False);
     }
 
     [Then("the reconciled transcript for role {string} contains exactly these entries in order:")]

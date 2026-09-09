@@ -27,9 +27,9 @@ Feature: Terminated session event suppression
     Then the backend scenario observes no pending permission "permission-2" for role "coder"
     When the "coder" agent emits readiness "ready"
     And the "coder" agent fails its session with message "late failure after stop"
-    Then the backend scenario observes role "coder" at status "stopped"
+    Then the backend scenario observes role "coder"'s latest published status as "stopped"
     When the backend scenario requests a fresh transcript synchronization
-    Then the backend scenario does not observe the transcript for role "coder" containing "late failure after stop" within 2 seconds
+    Then the reconciled transcript for role "coder" does not contain "late failure after stop"
     When the backend scenario sends the prompt "still available" to role "reviewer"
     Then the "reviewer" agent observes the prompt "still available"
 
@@ -45,9 +45,9 @@ Feature: Terminated session event suppression
     Then the backend scenario observes no pending permission "permission-2" for role "coder"
     When the "coder" agent emits readiness "ready"
     And the "coder" agent completes its session
-    Then the backend scenario observes role "coder" at status "error"
+    Then the backend scenario observes role "coder"'s latest published status as "error"
     When the backend scenario requests a fresh transcript synchronization
-    Then the backend scenario does not observe the transcript for role "coder" containing "should not resurrect the role" within 2 seconds
+    Then the reconciled transcript for role "coder" does not contain "should not resurrect the role"
     When the backend scenario sends the prompt "still available" to role "reviewer"
     Then the "reviewer" agent observes the prompt "still available"
 
