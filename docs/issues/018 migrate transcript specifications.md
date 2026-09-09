@@ -281,7 +281,7 @@ synchronize after five production-sized (250,000-character) system messages that
 live-retention budget, the permission stays answerable, and no test-only retention capacity is configured. The
 covered ViewModel scenario and its orphaned "reports older history" binding were removed.
 
-### Slice 13 [in progress]: Retain active stream context
+### Slice 13 [done]: Retain active stream context
 
 1. Start an assistant stream, cross the production live-retention boundary with unrelated activity, and continue the
    stream; repeat for reasoning only when the same setup and assertions can share the path.
@@ -291,6 +291,12 @@ covered ViewModel scenario and its orphaned "reports older history" binding were
 
 **Slice acceptance:** Live retention preserves the entry required to continue an active assistant or reasoning stream
 without splitting, losing, or misrouting later content.
+
+**Status: complete (1e07bc2d71).** `src/squad.Specs/Features/TranscriptActiveStreamRetention.feature` covers slice 13
+through the process boundary for both assistant and reasoning: after five production-sized system messages that
+cross the live-retention budget, a later delta publishes `append-content` on the same entry index, and a fresh
+synchronize contains the concatenated stream (`Hello world` / `draft final`) rather than a split or misrouted
+entry. The covered ViewModel scenario and its orphaned `has a ... entry` binding were removed.
 
 ### Slice 14 [pending]: Page retained transcript history
 
