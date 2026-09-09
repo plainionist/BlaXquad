@@ -197,7 +197,7 @@ when shutdown is also requested. Covered ViewModel backend-wide failure, SDK-sha
 normal-shutdown session-failure scenarios were removed. The follow-up `5612072b88` closes the review finding that
 post-ready provider failures were mislabeled as startup failures.
 
-### Slice 6: Surface a real handoff-pump failure
+### Slice 6 [done]: Surface a real handoff-pump failure
 
 1. Arrange a deterministic filesystem-backed handoff polling failure using the real workspace and delivery pump,
    rather than injecting `IHandoffPump.Failure` or constructing `SquadApplication`.
@@ -209,6 +209,14 @@ post-ready provider failures were mislabeled as startup failures.
 
 **Slice acceptance:** An unexpected real handoff-pump failure terminates headquarters visibly without losing durable
 work or retaining process, provider, endpoint, or host ownership.
+
+**Status: complete (6ed5523b84).** `HeadquartersHandoffPumpFailure.feature` covers slice 6 through the process
+boundary: after a real `squad-hq` launch, a durable inbox handoff is seeded and the role outbox is replaced with a
+broken directory junction so the real `InProcessHandoffPoller` faults. The process exits non-zero with
+`Handoff delivery failed` (not an unhandled dump and not `Provider startup failed`), disposes the started session,
+leaves host control unavailable, preserves the queued inbox artifact, and after repairing the outbox a replacement
+Echo-provider process reaches `ui.ready`. Covered ViewModel post-ready handoff-failure scenario and
+`RecordingHandoffPump.Fail` were removed.
 
 ### Slice 7: Drain accepted commands and reject new commands during shutdown
 
