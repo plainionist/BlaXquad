@@ -187,6 +187,24 @@ partial-backend startup, and partial-start trace scenarios were removed with `Li
 **Slice acceptance:** Session and provider terminal failures retain their distinct supported outcomes, and a
 provider-wide failure is diagnosable while still releasing the failed host completely.
 
+#### Review findings on 4cc27a8968
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad-hq/Commands/Launch.cs` (the `RunAsync` catch that always reports
+  `Provider startup failed`), `src/squad.Specs/Features/HeadquartersTerminalProviderFailure.feature`
+  (A backend-wide terminal failure after readiness stops the host with the original diagnostic,
+  A backend-wide terminal failure remains the reported outcome even when shutdown is also requested).
+- **Violated behavior:** Slice 5 item 2 requires a provider-wide terminal failure after readiness to end the
+  process with the original diagnostic. Slice acceptance requires that failure to be diagnosable as itself.
+- **Root cause:** The slice 4 `Launch` catch wraps every non-cancel `RunAsync` exception as
+  `Provider startup failed: {message}`. A post-ready `IAgentBackendFailureSource` failure therefore reaches
+  standard error as a startup failure that happens to contain the original text. The new scenarios only assert
+  that stderr contains `shared SDK force-stop failed` and does not contain `Unhandled exception`, so the wrong
+  startup label still passes.
+- **Required outcome:** After readiness, a backend-wide provider failure's public stderr diagnostic must identify
+  the original provider failure, not describe it as a startup failure. The specification must lock that distinction.
+
 ### Slice 6: Surface a real handoff-pump failure
 
 1. Arrange a deterministic filesystem-backed handoff polling failure using the real workspace and delivery pump,
