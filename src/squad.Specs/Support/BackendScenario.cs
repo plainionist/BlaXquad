@@ -145,6 +145,115 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
+    /// Launches the published, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
+    /// through <see cref="CancellableChildProcess"/> instead of an ordinary process launch, so the process owns
+    /// its own process group and <see cref="RequestCallerCancellation"/> can later deliver the platform's normal
+    /// cancellation signal to it alone - never the test runner, and never any other concurrently running
+    /// scenario's own child process. Deliberately narrower than <see cref="StartAsync{TProviderFactory}"/> - no
+    /// "--continue" or temporary-directory isolation support - since only the caller-cancellation specification
+    /// scenario needs this launcher.
+    /// </summary>
+    public async Task StartCancellableAsync<TProviderFactory>(TimeSpan? timeout = null)
+        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
+    {
+        if (!CancellableChildProcess.CanDeliverIsolatedSignal)
+        {
+            throw new PlatformNotSupportedException(
+                "This platform cannot isolate cancellation-signal delivery to one child process; StartCancellableAsync is unsupported here.");
+        }
+
+        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        var environmentOverrides = new Dictionary<string, string?>();
+        if (myControl is not null)
+        {
+            environmentOverrides[FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName;
+            environmentOverrides[FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token;
+        }
+
+        myProcess = CancellableChildProcess.Start(
+            myWorkspace.BackendSpecSquadHqExecutablePath,
+            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            myWorkspace.Root,
+            environmentOverrides.Count == 0 ? null : environmentOverrides,
+            out var standardInput,
+            out var standardOutput,
+            out var standardError);
+        myWorkspace.TrackProcess(myProcess);
+        myUi = new HeadlessUiClient(myProcess, standardInput, standardOutput, standardError);
+        await myUi.CompleteReadyHandshakeAsync(timeout, DescribeControlDiagnostics());
+        IsReady = true;
+        if (myControl is not null)
+        {
+            await myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
+        }
+    }
+
+    /// <summary>
+    /// Launches the published, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
+    /// returns immediately once the process starts without ever completing the "ui.ready" handshake - for the
+    /// specification proving standard input closed before readiness still terminates the process cleanly, rather
+    /// than the ordinary ready-then-close sequence.
+    /// </summary>
+    public void LaunchWithoutReadyHandshake<TProviderFactory>()
+        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
+    {
+        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        myProcess = myWorkspace.StartProcess(
+            myWorkspace.BackendSpecSquadHqExecutablePath,
+            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            redirectStandardInput: true);
+        myUi = new HeadlessUiClient(myProcess);
+    }
+
+    /// <summary>
+    /// Closes the launched process's standard input - the same observable event as its UI process exiting or its
+    /// window closing - proving squad-hq treats end of standard input as "the UI is gone" and terminates cleanly,
+    /// without ever depending on a recording window test double.
+    /// </summary>
+    public void CloseStandardInput() => RequireUi().CloseStandardInput();
+
+    /// <summary>
+    /// Delivers the platform's own normal cancellation signal (the same one a real terminal's Ctrl+C would send)
+    /// to the exact process this scenario launched through <see cref="StartCancellableAsync{TProviderFactory}"/> -
+    /// never broadcasting to the test runner or to any other concurrently running scenario's own child process.
+    /// </summary>
+    public void RequestCallerCancellation()
+    {
+        if (myProcess is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+        CancellableChildProcess.SendCancellationSignal(myProcess);
+    }
+
+    /// <summary>
+    /// Waits for the launched process to exit on its own - without first requesting shutdown through any
+    /// host-control command - and returns the exit code it observed, for specifications proving that closing
+    /// standard input or delivering the platform's cancellation signal alone terminates the process cleanly.
+    /// </summary>
+    public Task<int> WaitForProcessExitAsync(TimeSpan? timeout = null)
+    {
+        if (myProcess is null || myUi is null)
+        {
+            throw new InvalidOperationException("The backend process has not been started.");
+        }
+
+        var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
+        if (!myProcess.WaitForExit(deadlineMilliseconds))
+        {
+            throw new HeadlessUiWaitTimeoutException(
+                "the backend process to exit",
+                myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
+        }
+
+        // Reads through CancellableChildProcess.GetExitCode rather than myProcess.ExitCode directly: a process
+        // obtained through CancellableChildProcess's manual CreateProcess launcher
+        // (System.Diagnostics.Process.GetProcessById) never has .NET's own process handle cached merely from
+        // observing WaitForExit, and ExitCode throws in that case even though the process has genuinely exited.
+        return Task.FromResult(CancellableChildProcess.GetExitCode(myProcess));
+    }
+
+    /// <summary>
     /// Waits until a "state.snapshot" message reports the given role at the given status, proving a lifecycle
     /// transition (for example a session establishing or disposing) beyond mere process readiness or exit.
     /// </summary>

@@ -9,9 +9,23 @@ internal static class ProcessDiagnostics
 {
     public static string Describe(System.Diagnostics.Process process)
     {
-        var command = $"{process.StartInfo.FileName} {string.Join(' ', process.StartInfo.ArgumentList)}";
+        var command = DescribeCommand(process);
         var state = DescribeState(process);
         return $"{command}\nState: {state}";
+    }
+
+    private static string DescribeCommand(System.Diagnostics.Process process)
+    {
+        try
+        {
+            return $"{process.StartInfo.FileName} {string.Join(' ', process.StartInfo.ArgumentList)}";
+        }
+        catch (InvalidOperationException)
+        {
+            // A process launched through CancellableChildProcess is adopted via Process.GetProcessById, which
+            // cannot expose the original command line - report that plainly instead of throwing while diagnosing.
+            return "(command unavailable: process was not started by this Process object)";
+        }
     }
 
     private static string DescribeState(System.Diagnostics.Process process)

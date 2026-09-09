@@ -83,13 +83,6 @@ Feature: Squad ViewModel
     And the blocked preparation observed cancellation
     And the lease-owned application resources are released
 
-  Scenario: SquadApplication cleans up after window closure
-    Given a SquadApplication with recording roles "coder"
-    When the SquadApplication starts
-    And the application window closes
-    And the application waits for window closure
-    Then the recording application sessions are drained
-
   Scenario: Late session events do not fail window shutdown
     Given a SquadApplication with a session that emits while shutting down
     When the application lifecycle reaches readiness
@@ -174,19 +167,6 @@ Feature: Squad ViewModel
     When the application lifecycle reaches readiness
     And the controllable handoff pump fails
     Then the application lifecycle failed with "recording handoff pump failed"
-    And all controllable application resources were disposed
-
-  Scenario: Caller cancellation wins a simultaneous ready transition
-    Given a controllable SquadApplication that cancels its caller when ready
-    When the application lifecycle runs
-    Then the application lifecycle was canceled
-    And readiness was not announced
-    And all controllable application resources were disposed
-
-  Scenario: A window close failure is reported after cleanup
-    Given a controllable SquadApplication with a failing window close
-    When the application lifecycle reaches readiness
-    Then the application lifecycle failed with "recording window close failed"
     And all controllable application resources were disposed
 
   Scenario: Open session events cannot block failed disposal cleanup

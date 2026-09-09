@@ -18,15 +18,31 @@ public sealed class HeadlessUiClient
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
     private readonly System.Diagnostics.Process myProcess;
+    private readonly TextWriter myStandardInput;
     private readonly object myLinesLock = new();
     private readonly List<string> myStdOutLines = [];
     private readonly List<string> myStdErrLines = [];
 
+    /// <summary>
+    /// Convenience constructor for the common case: a process launched by <see cref="System.Diagnostics.Process.Start()" />
+    /// with redirected standard streams, so the streams can be read directly off the process object.
+    /// </summary>
     public HeadlessUiClient(System.Diagnostics.Process process)
+        : this(process, process.StandardInput, process.StandardOutput, process.StandardError)
+    {
+    }
+
+    /// <summary>
+    /// Constructor for processes whose standard streams were not created via <see cref="System.Diagnostics.Process.Start()" />
+    /// (for example, a process launched through a platform-specific cancellation-capable launcher that wires its own
+    /// pipes) - the streams are supplied explicitly instead of being read off the process object.
+    /// </summary>
+    public HeadlessUiClient(System.Diagnostics.Process process, TextWriter standardInput, TextReader standardOutput, TextReader standardError)
     {
         myProcess = process;
-        Drain(process.StandardOutput, myStdOutLines);
-        Drain(process.StandardError, myStdErrLines);
+        myStandardInput = standardInput;
+        Drain(standardOutput, myStdOutLines);
+        Drain(standardError, myStdErrLines);
     }
 
     /// <summary>
@@ -352,11 +368,18 @@ public sealed class HeadlessUiClient
         {
             envelope["payload"] = payload;
         }
-        myProcess.StandardInput.WriteLine(JsonSerializer.Serialize(envelope));
-        myProcess.StandardInput.Flush();
+        myStandardInput.WriteLine(JsonSerializer.Serialize(envelope));
+        myStandardInput.Flush();
     }
 
-    private void Drain(StreamReader reader, List<string> destination) =>
+    /// <summary>
+    /// Closes the process's standard input, the same observable event as a real UI process exiting or its window
+    /// closing - squad-hq treats end of standard input as the "the UI is gone" signal regardless of which launcher
+    /// created the process.
+    /// </summary>
+    public void CloseStandardInput() => myStandardInput.Close();
+
+    private void Drain(TextReader reader, List<string> destination) =>
         Task.Run(async () =>
         {
             while (await reader.ReadLineAsync() is { } line)

@@ -75,6 +75,28 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioStartsSquadHqWithTheFakeProviderFixture() =>
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
 
+    [When("the backend scenario starts a cancellable squad-hq with the fake provider fixture")]
+    public void WhenTheBackendScenarioStartsACancellableSquadHqWithTheFakeProviderFixture() =>
+        Await(myScenario.StartCancellableAsync<FakeAgentProviderFactory>());
+
+    [When("the backend scenario launches squad-hq without completing the ready handshake")]
+    public void WhenTheBackendScenarioLaunchesSquadHqWithoutCompletingTheReadyHandshake() =>
+        myScenario.LaunchWithoutReadyHandshake<EchoAgentProviderFactory>();
+
+    [When("the backend scenario closes its standard input")]
+    public void WhenTheBackendScenarioClosesItsStandardInput()
+    {
+        myScenario.CloseStandardInput();
+        myExitCode = Await(myScenario.WaitForProcessExitAsync());
+    }
+
+    [When("the backend scenario delivers the platform's cancellation signal")]
+    public void WhenTheBackendScenarioDeliversThePlatformSCancellationSignal()
+    {
+        myScenario.RequestCallerCancellation();
+        myExitCode = Await(myScenario.WaitForProcessExitAsync());
+    }
+
     [Then("the backend scenario reports the process as ready")]
     public void ThenTheBackendScenarioReportsTheProcessAsReady() =>
         Assert.That(myScenario.IsReady, Is.True);

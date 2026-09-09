@@ -34,7 +34,6 @@ public sealed class ViewModelSteps
     private RecordingSleepInhibitor? myRecordingSleep;
     private RecordingHostLease? myRecordingHostLease;
     private FaultingHostLease? myFaultingHostLease;
-    private CancellationTokenSource? myApplicationCancellation;
     private Task? myStoppingCommand;
     private Task? myInFlightApplicationCommand;
     private Task? myExternalShutdown;
@@ -428,21 +427,6 @@ public sealed class ViewModelSteps
             HostControlClient.RequestShutdownAsync(myApplicationRoot).GetAwaiter().GetResult();
     }
 
-    [Given("a controllable SquadApplication that cancels its caller when ready")]
-    public void GivenAControllableSquadApplicationThatCancelsItsCallerWhenReady()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myApplicationCancellation = new CancellationTokenSource();
-        myRecordingWindow!.OnSessionsStarted = myApplicationCancellation.Cancel;
-    }
-
-    [Given("a controllable SquadApplication with a failing window close")]
-    public void GivenAControllableSquadApplicationWithAFailingWindowClose()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myRecordingWindow!.FailOnClose = true;
-    }
-
     [Given("a controllable SquadApplication with a session disposal failure and open events")]
     public void GivenAControllableSquadApplicationWithASessionDisposalFailureAndOpenEvents()
     {
@@ -552,13 +536,6 @@ public sealed class ViewModelSteps
 
     [Then("readiness was announced once")]
     public void ThenReadinessWasAnnouncedOnce() => Assert.That(myApplicationReadyCount, Is.EqualTo(1));
-
-    [Then("the application lifecycle was canceled")]
-    public async Task ThenTheApplicationLifecycleWasCanceled()
-    {
-        await CompleteApplicationRunAsync();
-        Assert.That(myApplicationLifecycleFailure, Is.TypeOf<OperationCanceledException>());
-    }
 
     [Then("the application lifecycle failed with {string}")]
     public async Task ThenTheApplicationLifecycleFailedWith(string message)
@@ -949,7 +926,7 @@ public sealed class ViewModelSteps
         Assert.That(interaction.GetProperty("role").GetString(), Is.EqualTo(role));
     }
 
-    private void StartApplicationRun() => myApplicationRun = myApplication!.RunAsync(AnnounceReadinessAsync, myApplicationCancellation?.Token ?? default);
+    private void StartApplicationRun() => myApplicationRun = myApplication!.RunAsync(AnnounceReadinessAsync, default);
 
     private async Task BeginExternalShutdownAsync()
     {

@@ -216,6 +216,13 @@ public sealed class ScenarioWorkspace : IDisposable
         return process;
     }
 
+    /// <summary>
+    /// Registers a process launched outside <see cref="StartProcess"/> (for example, through
+    /// <see cref="CancellableChildProcess"/>) so this workspace's own emergency cleanup on <see cref="Dispose"/>
+    /// still terminates it if a specification never reaches its own normal shutdown.
+    /// </summary>
+    public void TrackProcess(System.Diagnostics.Process process) => myRunningProcesses.Add(process);
+
     public void WaitUntil(Func<bool> condition, string description, TimeSpan? timeout = null)
     {
         var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));

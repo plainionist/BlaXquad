@@ -38,12 +38,6 @@ Feature: Stdio UI protocol over the real published process
     Then a "protocol.error" message is written to stdout
     And the squad-hq process is still running
 
-  Scenario: End of standard input closes the process cleanly
-    When squad-hq is launched with "--ui stdio"
-    And the ui sends "ui.ready"
-    And standard input is closed
-    Then the squad-hq process exits with code "0"
-
   Scenario: A host-controlled shutdown closes the process without closing standard input
     When squad-hq is launched with "--ui stdio"
     And the ui sends "ui.ready"
@@ -51,11 +45,6 @@ Feature: Stdio UI protocol over the real published process
     When squad-hq requests shutdown for the workspace
     Then the shutdown request succeeds
     And the squad-hq process exits with code "0"
-
-  Scenario: End of standard input before the ui.ready handshake still unblocks startup
-    When squad-hq is launched with "--ui stdio"
-    And standard input is closed
-    Then the squad-hq process exits with code "0"
 
   Scenario: A terminated process releases workspace host ownership for the next launch
     When squad-hq is launched with "--ui stdio"

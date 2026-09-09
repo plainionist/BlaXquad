@@ -93,9 +93,6 @@ public sealed class StdioUiProtocolSteps
     [When("the ui sends the malformed line {string}")]
     public void WhenTheUiSendsTheMalformedLine(string line) => SendRawLine(line);
 
-    [When("standard input is closed")]
-    public void WhenStandardInputIsClosed() => myProcess!.StandardInput.Close();
-
     [When("the squad-hq process is forcibly terminated")]
     public void WhenTheSquadHqProcessIsForciblyTerminated() => myProcess!.Kill(entireProcessTree: true);
 
