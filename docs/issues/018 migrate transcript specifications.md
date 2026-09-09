@@ -56,6 +56,43 @@ acceptance scenarios, and obsolete white-box scenario and binding cleanup.
 with the dashboard-compatible source, content, sequence, operation, and index fields, without loading production
 objects or parsing raw JSON in steps.
 
+**Status: changes requested (a4a14e3fcd)**
+
+#### Review findings on a4a14e3fcd
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Support/HeadlessUiClient.cs` (`WaitForTranscriptSynchronizationAsync`),
+  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (per-source synchronization Thens),
+  `src/squad.Specs/Features/TranscriptProtocolShape.feature`
+  (Transcript synchronization reports every supported entry source with dashboard protocol fields).
+- **Violated behavior:** Slice 1 requires asserting dashboard contract fields on synchronization as well as updates:
+  source, content, sequence, operation, and index. A reconnecting client rebuilds from one `transcript.synchronize`
+  message after the request.
+- **Root cause:** Each Then calls `WaitForTranscriptSynchronizationAsync` with a single-source `Any(...)` predicate.
+  That helper scans stdout from the start via `WaitForMessageAsync` and returns the first matching synchronize,
+  including the handshake synchronize that `ui.ready` always publishes. The typed `Sequence` and `EntryIndex` values
+  are decoded and discarded; missing `sequence` defaults to 0. Independent waits can therefore succeed against
+  different synchronize messages, and a snapshot that omits sequence or reports a useless index still passes.
+- **Required outcome:** After requesting synchronization, observe that one resulting message (not an earlier
+  handshake synchronize) and assert it contains every supported source with content, a real sequence, and entry
+  indices. Do not treat independent first-match waits for a single source as that proof.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/Features/TranscriptProtocolShape.feature`
+  (Transcript updates report every supported entry source with dashboard protocol fields),
+  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
+  (`Then the backend scenario observes a transcript update for role {string} with source {string}`).
+- **Violated behavior:** Slice 1 requires publishing user, harness, assistant, reasoning, and system entries and
+  asserting their source and content. The removed ViewModel source scenario proved a harness message's content
+  together with source `harness`.
+- **Root cause:** The update Then that omits content matches the first `source=harness` update, which production
+  publishes as `Session started.` from `AgentStartedEvent`. Harness content is never asserted on updates or
+  synchronization, so a wrong or empty harness payload still passes.
+- **Required outcome:** Assert harness source together with its content through the typed observation. Do not treat
+  mere presence of source `harness` as proof of the published harness entry.
+
 ### Slice 2 [pending]: Preserve assistant and reasoning stream finalization
 
 1. Add semantic assistant/reasoning delta, final-message, and idle operations to the fake-provider controller as
