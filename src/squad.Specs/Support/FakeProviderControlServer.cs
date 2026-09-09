@@ -468,6 +468,30 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         EmitAsync(role, "fail-session", new { message }, timeout, additionalDiagnostics);
 
     /// <summary>
+    /// Faults the fake provider's whole backend with the given message, as production
+    /// <see cref="squad.AgentProvider.Abstractions.IAgentBackendFailureSource.Failure"/> faulting - a fatal,
+    /// backend-wide failure independent of any individual role's session, mirroring a real provider whose shared
+    /// SDK connection or process dies entirely rather than one role's session failing on its own. Unlike
+    /// <see cref="FailSessionAsync"/>, this command names no role or session: it targets the backend itself, so it
+    /// can be sent even when no session has ever been observed.
+    /// </summary>
+    public async Task FailBackendAsync(string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        JsonElement response;
+        try
+        {
+            response = await myDuplex!.SendAndAwaitAsync(
+                "fail-backend", new { message }, timeout ?? DefaultTimeout, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
+        {
+            throw new FakeProviderControlTimeoutException(
+                "the client to acknowledge 'fail-backend'", DescribeDiagnostics(additionalDiagnostics));
+        }
+        ControlPipeDuplex.EnsureNotProtocolError(response, "fail-backend");
+    }
+
+    /// <summary>
     /// Sends a semantic assistant reply for the given role's session across the pipe and awaits the client's
     /// acknowledgement - or throws a <see cref="FakeProviderControlProtocolException"/> immediately if no session
     /// has ever been observed for that role, or with the client's own explicit diagnostic if the client rejects

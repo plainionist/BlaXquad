@@ -386,13 +386,6 @@ public sealed class ViewModelSteps
         Assert.That(messages, Does.Contain(first).And.Contain(second));
     }
 
-    [Then("the application lifecycle contains {string}")]
-    public async Task ThenTheApplicationLifecycleContains(string message)
-    {
-        await CompleteApplicationRunAsync();
-        Assert.That(ExceptionMessages(myApplicationLifecycleFailure), Does.Contain(message));
-    }
-
     [Then("all controllable application resources were disposed")]
     public void ThenAllControllableApplicationResourcesWereDisposed()
     {
@@ -415,17 +408,6 @@ public sealed class ViewModelSteps
             Assert.That(File.Exists(Path.Combine(myApplicationRoot, ".blaxquad", "host.json")), Is.False);
             Assert.That(HostLease.TryAcquireProbe(myApplicationRoot), Is.True);
         }
-    }
-
-    [When("the recording backend reports terminal failure {string}")]
-    public void WhenTheRecordingBackendReportsTerminalFailure(string message) =>
-        myBackend.FailBackend(message);
-
-    [When("the application window closes while recording {string} fails")]
-    public void WhenTheApplicationWindowClosesWhileRecordingFails(string role)
-    {
-        myRecordingWindow!.Close();
-        myBackend.Sessions.Single(session => session.Role == role).Fail("failure during shutdown");
     }
 
     [When("the application window closes")]
@@ -599,13 +581,6 @@ public sealed class ViewModelSteps
 
     [Then("the application ViewModel role {string} has status {string}")]
     public void ThenTheApplicationViewModelRoleHasStatus(string role, string status) => Assert.That(myApplication!.ViewModel.Roles[role].Status, Is.EqualTo(status));
-
-    [Then("the application ViewModel role {string} has error {string}")]
-    public void ThenTheApplicationViewModelRoleHasError(string role, string message)
-    {
-        myWorkspace.WaitUntil(() => myApplication!.ViewModel.Roles[role].Error == message, "SDK-shaped session error");
-        Assert.That(myApplication!.ViewModel.Roles[role].Status, Is.EqualTo("error"));
-    }
 
     [Then("the recording application sessions are drained")]
     public void ThenTheRecordingApplicationSessionsAreDrained() => Assert.That(myApplication!.Sessions, Is.Empty);

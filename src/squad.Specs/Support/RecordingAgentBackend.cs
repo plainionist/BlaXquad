@@ -4,7 +4,7 @@ using squad.Workspaces;
 
 namespace squad.Specs.Support;
 
-public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureSource
+public sealed class RecordingAgentBackend : IAgentBackend
 {
     private readonly List<RecordingAgentSession> mySessions = [];
     private readonly Dictionary<string, AgentEvent> myEarlyEvents = new(StringComparer.Ordinal);
@@ -15,7 +15,6 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     private readonly TaskCompletionSource myDisposeGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource myRegistrationBlocked = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource myRegistrationGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly TaskCompletionSource myFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public IReadOnlyList<RecordingAgentSession> Sessions => mySessions;
     public bool RuntimeCreated { get; private set; }
@@ -27,7 +26,6 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
     public IReadOnlyList<string> DisposeOrder => myDisposeOrder;
     public int BlockBeforeSessionIndex { get; set; } = -1;
     public Task RegistrationBlocked => myRegistrationBlocked.Task;
-    public Task Failure => myFailure.Task;
 
     public Task<IAgentRuntime> CreateRuntimeAsync(CancellationToken cancellationToken = default)
     {
@@ -72,6 +70,4 @@ public sealed class RecordingAgentBackend : IAgentBackend, IAgentBackendFailureS
 
     public void ReleaseDispose() => myDisposeGate.TrySetResult();
     public void ReleaseRegistration() => myRegistrationGate.TrySetResult();
-    public void FailBackend(string message) =>
-        myFailure.TrySetException(new InvalidOperationException(message));
 }

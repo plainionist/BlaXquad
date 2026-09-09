@@ -924,6 +924,10 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentFailsItsSessionWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailSessionAsync(message));
 
+    [When("the backend scenario fails the fake provider's backend with message {string}")]
+    public void WhenTheBackendScenarioFailsTheFakeProvidersBackendWithMessage(string message) =>
+        Await(myScenario.FailProviderBackendAsync(message));
+
     private async Task EmitFullToolLifecycleAsync(string role, string toolCallId, string toolName)
     {
         var agent = myScenario.Agent(role);

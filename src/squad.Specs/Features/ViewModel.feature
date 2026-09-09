@@ -1,20 +1,6 @@
 Feature: Squad ViewModel
   The application ViewModel isolates role state and serializes role commands.
 
-  Scenario: Backend-wide terminal failure stops the application
-    Given a SquadApplication with recording roles "coder,reviewer"
-    When the SquadApplication starts
-    And the recording backend reports terminal failure "shared SDK force-stop failed"
-    Then the application lifecycle fails after cleanup
-    And the application lifecycle contains "shared SDK force-stop failed"
-
-  Scenario: Session failure during normal shutdown is not a cleanup failure
-    Given a SquadApplication with recording roles "coder"
-    When the SquadApplication starts
-    And the application window closes while recording "coder" fails
-    And the application waits for window closure
-    Then the recording application sessions are drained
-
   Scenario: UI snapshot contains role state and pending interactions
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session emits a started event
@@ -40,15 +26,6 @@ Feature: Squad ViewModel
     Then SDK-shaped sessions use distinct role worktrees
     And early SDK-shaped events reached each ViewModel role
     And SDK-shaped initial instructions were sent after session registration
-    When the application window closes
-    And the application waits for window closure
-    Then SDK-shaped sessions were disposed in reverse registration order
-
-  Scenario: SDK-shaped session errors reach the ViewModel before shutdown
-    Given a SquadApplication with SDK-shaped recording roles "coder"
-    When the application lifecycle reaches readiness
-    And the recording "coder" session emits an error "SDK unavailable"
-    Then the application ViewModel role "coder" has error "SDK unavailable"
     When the application window closes
     And the application waits for window closure
     Then SDK-shaped sessions were disposed in reverse registration order

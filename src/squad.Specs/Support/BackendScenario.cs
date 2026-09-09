@@ -524,6 +524,15 @@ public sealed class BackendScenario : IDisposable
     public Task WaitForRoleSessionDisposedAsync(string role, TimeSpan? timeout = null) =>
         RequireControl().WaitForSessionDisposedAsync(role, timeout, DescribeUiDiagnostics());
 
+    /// <summary>
+    /// Faults the fake provider's whole backend with the given message across the private control pipe, as
+    /// production <see cref="squad.AgentProvider.Abstractions.IAgentBackendFailureSource.Failure"/> faulting - a
+    /// fatal, backend-wide failure independent of any individual role's session. Requires
+    /// <see cref="EnableFakeProviderControl"/> to have been called before <see cref="StartAsync{TProviderFactory}"/>.
+    /// </summary>
+    public Task FailProviderBackendAsync(string message, TimeSpan? timeout = null) =>
+        RequireControl().FailBackendAsync(message, timeout, DescribeUiDiagnostics());
+
     private FakeProviderControlServer RequireControl() =>
         myControl ?? throw new InvalidOperationException(
             $"{nameof(EnableFakeProviderControl)} must be called before starting the backend scenario.");

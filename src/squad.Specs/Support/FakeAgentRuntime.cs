@@ -9,18 +9,23 @@ namespace squad.Specs.Support;
 /// normal production <see cref="IAgentRuntime"/> lifecycle this slice needs to prove. When the environment names a
 /// fake-provider control pipe (<see cref="FakeProviderControlServer.PipeNameEnvironmentVariable"/>), also connects
 /// to it and reports every session start and disposal across it; otherwise behaves exactly as it did before the
-/// control transport existed. Mirrors the real <c>squad.CopilotSdk</c> runtime by sending each role's configured
+/// control transport existed. Also routes the control pipe's "fail-backend" command to the given
+/// <paramref name="failBackend"/> handler, letting a specification fault
+/// <see cref="squad.AgentProvider.Abstractions.IAgentBackendFailureSource.Failure"/> on the owning
+/// <see cref="FakeAgentBackend"/> at any point after this runtime connects - independent of any individual role's
+/// session. Mirrors the real <c>squad.CopilotSdk</c> runtime by sending each role's configured
 /// initial instruction as a harness message once its session starts, so the "harness messages" event family is
 /// observable through the same real session lifecycle a production provider uses - never a product test hook.
 /// </summary>
-internal sealed class FakeAgentRuntime(AgentBackendContext context) : IAgentRuntime
+internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProviderFailBackendHandler failBackend) : IAgentRuntime
 {
     private readonly List<FakeAgentSession> mySessions = [];
     private FakeProviderControlClient? myControl;
 
     public async Task StartAsync(Func<IAgentSession, Task> sessionStarted, CancellationToken cancellationToken = default)
     {
-        myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(HandleReplyAsync, HandleEmitAsync, cancellationToken);
+        myControl = await FakeProviderControlClient.ConnectIfConfiguredAsync(
+            HandleReplyAsync, HandleEmitAsync, failBackend, cancellationToken);
 
         var gateAfterSessions = ReadStartupGateAfterSessions();
         var failAfterSessions = ReadFailAfterSessions();

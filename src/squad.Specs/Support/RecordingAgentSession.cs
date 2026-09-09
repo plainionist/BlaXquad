@@ -110,8 +110,6 @@ public sealed class RecordingAgentSession : IAgentSession
 
     public void Emit(AgentEvent agentEvent) => myEvents.Publish(agentEvent);
 
-    public void Fail(string message) => myCompletion.TrySetException(new InvalidOperationException(message));
-
     public async ValueTask DisposeAsync()
     {
         DisposeCount++;

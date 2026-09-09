@@ -35,7 +35,8 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
     /// specifications, which must never set these variables on the shared test process.
     /// </summary>
     public static async Task<FakeProviderControlClient?> ConnectIfConfiguredAsync(
-        FakeProviderReplyHandler onReply, FakeProviderEmitHandler onEmit, CancellationToken cancellationToken = default)
+        FakeProviderReplyHandler onReply, FakeProviderEmitHandler onEmit, FakeProviderFailBackendHandler onFailBackend,
+        CancellationToken cancellationToken = default)
     {
         var pipeName = Environment.GetEnvironmentVariable(FakeProviderControlServer.PipeNameEnvironmentVariable);
         var token = Environment.GetEnvironmentVariable(FakeProviderControlServer.TokenEnvironmentVariable);
@@ -44,20 +45,21 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
             return null;
         }
 
-        return await ConnectAsync(pipeName, token, onReply, onEmit, cancellationToken);
+        return await ConnectAsync(pipeName, token, onReply, onEmit, onFailBackend, cancellationToken);
     }
 
     /// <summary>Connects to the given pipe and authenticates with the given token directly - no environment
     /// variable involved - for in-process specifications of the control transport itself.</summary>
     public static async Task<FakeProviderControlClient> ConnectAsync(
         string pipeName, string token, FakeProviderReplyHandler onReply, FakeProviderEmitHandler onEmit,
-        CancellationToken cancellationToken = default)
+        FakeProviderFailBackendHandler onFailBackend, CancellationToken cancellationToken = default)
     {
         var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         await pipe.ConnectAsync(cancellationToken);
 
         ControlPipeDuplex? duplex = null;
-        duplex = new ControlPipeDuplex(pipe, (envelope, ct) => HandleUnsolicitedAsync(envelope, duplex!, onReply, onEmit, ct));
+        duplex = new ControlPipeDuplex(
+            pipe, (envelope, ct) => HandleUnsolicitedAsync(envelope, duplex!, onReply, onEmit, onFailBackend, ct));
         duplex.StartDispatching();
 
         var response = await duplex.SendAndAwaitAsync("connect", new { token }, DefaultTimeout, cancellationToken);
@@ -96,7 +98,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
     /// pushes, validated the same way <see cref="FakeProviderControlServer"/> validates inbound requests.</summary>
     private static async Task HandleUnsolicitedAsync(
         JsonElement envelope, ControlPipeDuplex duplex, FakeProviderReplyHandler onReply, FakeProviderEmitHandler onEmit,
-        CancellationToken cancellationToken)
+        FakeProviderFailBackendHandler onFailBackend, CancellationToken cancellationToken)
     {
         var correlationId = envelope.TryGetProperty("correlationId", out var correlationElement)
             && correlationElement.ValueKind == JsonValueKind.String
@@ -129,6 +131,9 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
                 break;
             case "emit":
                 await HandleEmitAsync(duplex, correlationId, payload, onEmit, cancellationToken);
+                break;
+            case "fail-backend":
+                await HandleFailBackendAsync(duplex, correlationId, payload, onFailBackend, cancellationToken);
                 break;
             default:
                 await duplex.SendAsync("protocol-error", correlationId, new { message = $"Unknown command '{type}'." }, cancellationToken);
@@ -195,6 +200,24 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
             return;
         }
         await duplex.SendAsync("ack", correlationId, new { type = "emit" }, cancellationToken);
+    }
+
+    private static async Task HandleFailBackendAsync(
+        ControlPipeDuplex duplex, string correlationId, JsonElement payload, FakeProviderFailBackendHandler onFailBackend,
+        CancellationToken cancellationToken)
+    {
+        var message = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("message", out var messageElement)
+            ? messageElement.GetString()
+            : null;
+        if (string.IsNullOrEmpty(message))
+        {
+            await duplex.SendAsync(
+                "protocol-error", correlationId, new { message = "'fail-backend' requires a message." }, cancellationToken);
+            return;
+        }
+
+        await onFailBackend(message, cancellationToken);
+        await duplex.SendAsync("ack", correlationId, new { type = "fail-backend" }, cancellationToken);
     }
 
     public ValueTask DisposeAsync() => myDuplex.DisposeAsync();
