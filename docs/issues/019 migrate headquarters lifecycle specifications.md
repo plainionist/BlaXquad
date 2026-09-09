@@ -172,7 +172,7 @@ replacement Echo-provider process reaches `ui.ready`. `Launch.cs` maps `RunAsync
 partial-backend startup, and partial-start trace scenarios were removed with `LifecycleTrace` and
 `FailAfterCreatingSessionCount` wiring.
 
-### Slice 5: Surface terminal provider failures after readiness
+### Slice 5 [done]: Surface terminal provider failures after readiness
 
 1. Make the fake backend expose a controllable provider-wide terminal failure through
    `IAgentBackendFailureSource`, independently from the existing per-session completion/failure controls.
@@ -187,23 +187,15 @@ partial-backend startup, and partial-start trace scenarios were removed with `Li
 **Slice acceptance:** Session and provider terminal failures retain their distinct supported outcomes, and a
 provider-wide failure is diagnosable while still releasing the failed host completely.
 
-#### Review findings on 4cc27a8968
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad-hq/Commands/Launch.cs` (the `RunAsync` catch that always reports
-  `Provider startup failed`), `src/squad.Specs/Features/HeadquartersTerminalProviderFailure.feature`
-  (A backend-wide terminal failure after readiness stops the host with the original diagnostic,
-  A backend-wide terminal failure remains the reported outcome even when shutdown is also requested).
-- **Violated behavior:** Slice 5 item 2 requires a provider-wide terminal failure after readiness to end the
-  process with the original diagnostic. Slice acceptance requires that failure to be diagnosable as itself.
-- **Root cause:** The slice 4 `Launch` catch wraps every non-cancel `RunAsync` exception as
-  `Provider startup failed: {message}`. A post-ready `IAgentBackendFailureSource` failure therefore reaches
-  standard error as a startup failure that happens to contain the original text. The new scenarios only assert
-  that stderr contains `shared SDK force-stop failed` and does not contain `Unhandled exception`, so the wrong
-  startup label still passes.
-- **Required outcome:** After readiness, a backend-wide provider failure's public stderr diagnostic must identify
-  the original provider failure, not describe it as a startup failure. The specification must lock that distinction.
+**Status: complete (5612072b88).** `HeadquartersTerminalProviderFailure.feature` covers slice 5 through the process
+boundary: a per-session fake-provider failure marks only that role `error` while another role still takes work and a
+later host-control shutdown exits 0 and disposes both sessions; a backend-wide `IAgentBackendFailureSource` failure
+exits non-zero with the original diagnostic (`shared SDK force-stop failed`), not an unhandled dump and not
+`Provider startup failed`, disposes started sessions, leaves host control unavailable, preserves seeded `notes.md`,
+and allows a replacement Echo-provider process to reach `ui.ready`. The same backend-wide outcome remains primary
+when shutdown is also requested. Covered ViewModel backend-wide failure, SDK-shaped session error, and
+normal-shutdown session-failure scenarios were removed. The follow-up `5612072b88` closes the review finding that
+post-ready provider failures were mislabeled as startup failures.
 
 ### Slice 6: Surface a real handoff-pump failure
 
