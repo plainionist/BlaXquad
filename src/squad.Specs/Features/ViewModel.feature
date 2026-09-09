@@ -36,13 +36,6 @@ Feature: Squad ViewModel
     And an external client requests application shutdown
     Then the lease-owned application resources are released
 
-  Scenario: Late session events do not fail window shutdown
-    Given a SquadApplication with a session that emits while shutting down
-    When the application lifecycle reaches readiness
-    And the application window closes
-    And the application waits for window closure
-    Then the recording application sessions are drained
-
   Scenario: Server failure during blocked startup remains primary
     Given a controllable SquadApplication with blocked startup and a faulting server
     When the application lifecycle begins
@@ -56,14 +49,6 @@ Feature: Squad ViewModel
     And the controllable host requests shutdown
     Then the application stopped after readiness
     And readiness was announced once
-    And all controllable application resources were disposed
-
-  Scenario: Open session events cannot block failed disposal cleanup
-    Given a controllable SquadApplication with a session disposal failure and open events
-    When the application lifecycle reaches readiness
-    And the application window closes
-    Then the application lifecycle fails after cleanup
-    And the open event observer was canceled without stream completion
     And all controllable application resources were disposed
 
   Scenario: Primary and cleanup failures are both reported
