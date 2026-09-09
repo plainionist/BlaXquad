@@ -185,6 +185,23 @@ tool-call, progress, and active-tool bindings were removed.
 **Slice acceptance:** Command tools retain their supported summaries, unknown arguments are not lost, and names alone
 do not misclassify an ordinary tool as a file read.
 
+**Status: changes requested (ebf940e2b0)**
+
+#### Review findings on ebf940e2b0
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/TranscriptToolCommandPresentation.feature`
+  (scenario "An unrecognized tool argument shape remains available in its raw form").
+- **Violated behavior:** Slice 7 requires unknown arguments to remain available in their supported representation.
+  The removed ViewModel scenario asserted the single `tool` entry content
+  `glob {"pattern":"**/*","paths":"C:\\work"}` (JSON `GetRawText()` of the parsed arguments, two backslashes).
+- **Root cause:** The new exact-entry table cell writes `C:\\\\work` (four backslashes). `DecodeEscapes` only
+  translates `\n`/`\r`, and Gherkin table cells do not treat `\\` as a C# string escape, so the expected string is
+  not the production display text.
+- **Required outcome:** The synchronize assertion must expect the same supported raw-argument display the removed
+  ViewModel scenario proved, so a dropped or re-escaped argument payload fails.
+
 ### Slice 8 [pending]: Preserve file-read summaries without content leakage
 
 1. Publish file-read starts and completions for path-only, ranged, and whole-file reads.
