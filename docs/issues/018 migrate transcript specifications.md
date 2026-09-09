@@ -194,7 +194,7 @@ entries with their own output rather than being classified as file reads. The fo
 that table escaping. The three covered ViewModel scenarios and their orphaned decoded-command / raw-glob
 bindings were removed.
 
-### Slice 8 [pending]: Preserve file-read summaries without content leakage
+### Slice 8 [in progress]: Preserve file-read summaries without content leakage
 
 1. Publish file-read starts and completions for path-only, ranged, and whole-file reads.
 2. Assert transcript updates show the path, requested range, or derived whole-file line count as applicable while
