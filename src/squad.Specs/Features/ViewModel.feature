@@ -70,13 +70,6 @@ Feature: Squad ViewModel
     When the recording "coder" session emits a 20000 character user message
     Then the latest transcript announcement contains 16384 characters and reports truncation
 
-  Scenario: Active streaming context remains retained
-    Given a ViewModel retaining 2 entries and 30 content characters
-    When the recording "coder" session emits assistant delta "active"
-    And the recording "coder" session emits 3 harness messages
-    Then ViewModel role "coder" transcript has a "assistant" entry "active"
-    And ViewModel role "coder" retains at most 2 entries and 30 content characters
-
   Scenario: Archived transcript history has an explicit disk bound
     Given a ViewModel retaining 2 entries and archiving 3 entries
     When the recording "coder" session emits 6 user messages

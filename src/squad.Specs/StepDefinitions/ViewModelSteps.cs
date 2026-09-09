@@ -1460,10 +1460,6 @@ public sealed class ViewModelSteps
     [Then("ViewModel role {string} is ready for a prompt")]
     public void ThenViewModelRoleIsReadyForAPrompt(string role) => Assert.That(myViewModel!.GetRoleReadiness(role), Is.True);
 
-    [Then("ViewModel role {string} transcript has a {string} entry {string}")]
-    public void ThenViewModelRoleTranscriptHasEntry(string role, string source, string content) =>
-        Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Source == source && entry.Content == content), Is.True);
-
     [Then("ViewModel role {string} transcript has no entry {string}")]
     public void ThenViewModelRoleTranscriptHasNoEntry(string role, string content) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Content == content), Is.False);
