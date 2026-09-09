@@ -156,7 +156,7 @@ exactly those two `tool` entries with only each call's own ordered output. The c
 ("Concurrent tool output remains correlated by tool call ID") was removed; shared SDK tool-call bindings remain
 for later slices.
 
-### Slice 6 [pending]: Preserve visible tool lifecycle state
+### Slice 6 [in progress]: Preserve visible tool lifecycle state
 
 1. Publish tool start, progress, output, and completion through semantic fake-provider operations.
 2. Assert the role snapshot exposes the active tool only while it is running, progress does not replace output,
