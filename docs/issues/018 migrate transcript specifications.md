@@ -175,7 +175,7 @@ snapshot clears it on completion; progress reports plus a completion fallback of
 compared table cells without `DecodeEscapes`. The three covered ViewModel scenarios and their orphaned SDK
 tool-call, progress, and active-tool bindings were removed.
 
-### Slice 7 [pending]: Preserve ordinary tool command presentation
+### Slice 7 [in progress]: Preserve ordinary tool command presentation
 
 1. Publish known command arguments, unrecognized arguments, and ordinary tool names containing read-like words.
 2. Assert known commands are decoded, unknown arguments remain available in their supported representation, and
