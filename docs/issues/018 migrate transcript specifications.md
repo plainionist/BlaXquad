@@ -204,6 +204,23 @@ bindings were removed.
 **Slice acceptance:** File-read entries identify what was read, including ranges or line counts, but never publish the
 file contents or completion payload through the transcript protocol.
 
+**Status: changes requested (3d917bab91)**
+
+#### Review findings on 3d917bab91
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/TranscriptFileReadSummaries.feature`
+  (scenario "A whole-file read shows its derived line count without leaking file contents").
+- **Violated behavior:** Slice 8 requires that file contents and the completion payload never appear through the
+  transcript protocol. The removed ViewModel scenario asserted the line-count `read` entry and also that no entry
+  was `first` or `diff --git`.
+- **Root cause:** The reused source-filtered exact-once step only inspects `read` entries. A leaked completion
+  display or file-content payload published as a `tool` (or other non-`read`) entry still passes, unlike the ranged
+  scenario whose expected set includes the later `tool` entry and therefore rejects extra tool rows.
+- **Required outcome:** After the whole-file completion, prove the published transcript contains the derived
+  `[1..3]` summary and does not contain the file contents or the completion display payload.
+
 ### Slice 9 [pending]: Preserve subagent presentation while suppressing control plumbing
 
 1. Publish semantic subagent activity with complete, partial, and absent display metadata.
