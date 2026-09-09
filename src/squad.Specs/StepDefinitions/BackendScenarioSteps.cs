@@ -319,14 +319,28 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioRequestsAFreshTranscriptSynchronization() =>
         myScenario.RequestTranscriptSynchronization();
 
-    [Then("the transcript synchronization for role {string} includes a {string} entry")]
-    public void ThenTheTranscriptSynchronizationForRoleIncludesAEntry(string role, string source) =>
-        Await(myScenario.WaitForTranscriptSynchronizationAsync(role, entries => entries.Any(entry => entry.Source == source)));
+    [Then("the transcript synchronization for role {string} reports every supported entry source with dashboard protocol fields:")]
+    public void ThenTheTranscriptSynchronizationForRoleReportsEverySupportedEntrySourceWithDashboardProtocolFields(string role, Table expected)
+    {
+        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: row["content"])).ToList();
 
-    [Then("the transcript synchronization for role {string} includes a {string} entry {string}")]
-    public void ThenTheTranscriptSynchronizationForRoleIncludesAEntryWithContent(string role, string source, string content) =>
-        Await(myScenario.WaitForTranscriptSynchronizationAsync(
-            role, entries => entries.Any(entry => entry.Source == source && entry.Content == content)));
+        // A single synchronization message must carry every expected source - independent first-match waits could
+        // otherwise each be satisfied by a different message, including the handshake synchronize that "ui.ready"
+        // always publishes before this scenario's later sources exist.
+        var synchronization = Await(myScenario.WaitForTranscriptSynchronizationAsync(
+            role,
+            entries => expectedEntries.All(expectedEntry =>
+                entries.Any(entry => entry.Source == expectedEntry.Source && entry.Content == expectedEntry.Content))));
+
+        Assert.That(synchronization.Sequence, Is.GreaterThan(0), "The synchronization message must report a real sequence.");
+
+        var entryIndices = synchronization.Entries.Select(entry => entry.EntryIndex).ToList();
+        for (var index = 1; index < entryIndices.Count; index++)
+        {
+            Assert.That(entryIndices[index], Is.GreaterThan(entryIndices[index - 1]),
+                "Synchronization entries must report strictly increasing entry indices.");
+        }
+    }
 
     [When("the {string} agent emits a full tool lifecycle for tool call {string} named {string}")]
     public void WhenTheAgentEmitsAFullToolLifecycleForToolCallNamed(string role, string toolCallId, string toolName) =>

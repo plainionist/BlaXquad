@@ -11,7 +11,7 @@ Feature: Transcript protocol shape and entry sources
     And the backend scenario has enabled the fake-provider control transport
     When the backend scenario starts squad-hq with the fake provider fixture
     Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario observes a transcript update for role "coder" with source "harness"
+    And the backend scenario observes a transcript update for role "coder" with source "harness" and content "Session started."
     When the backend scenario sends the prompt "What should I build?" to role "coder"
     Then the "coder" agent observes the prompt "What should I build?"
     And the backend scenario observes a transcript update for role "coder" with source "user" and content "What should I build?"
@@ -37,10 +37,12 @@ Feature: Transcript protocol shape and entry sources
     And the "coder" agent emits a system message "Context compaction started"
     Then the backend scenario observes a transcript update for role "coder" with source "system" and content "Context compaction started"
     When the backend scenario requests a fresh transcript synchronization
-    Then the transcript synchronization for role "coder" includes a "harness" entry
-    And the transcript synchronization for role "coder" includes a "user" entry "What should I build?"
-    And the transcript synchronization for role "coder" includes a "assistant" entry "Build the driver."
-    And the transcript synchronization for role "coder" includes a "reasoning" entry "Considering the request."
-    And the transcript synchronization for role "coder" includes a "system" entry "Context compaction started"
+    Then the transcript synchronization for role "coder" reports every supported entry source with dashboard protocol fields:
+      | source    | content                     |
+      | harness   | Session started.            |
+      | user      | What should I build?        |
+      | assistant | Build the driver.           |
+      | reasoning | Considering the request.    |
+      | system    | Context compaction started  |
     When the backend scenario requests a host-control shutdown
     Then the backend scenario observes an exit code of zero
