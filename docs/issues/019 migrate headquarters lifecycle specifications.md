@@ -218,7 +218,7 @@ leaves host control unavailable, preserves the queued inbox artifact, and after 
 Echo-provider process reaches `ui.ready`. Covered ViewModel post-ready handoff-failure scenario and
 `RecordingHandoffPump.Fail` were removed.
 
-### Slice 7: Drain accepted commands and reject new commands during shutdown
+### Slice 7 [done]: Drain accepted commands and reject new commands during shutdown
 
 1. Extend the fake provider with acknowledged gates for a prompt that remains in flight until cancellation and for
    runtime disposal, allowing shutdown admission and retirement boundaries to be observed without sleeps.
@@ -232,26 +232,14 @@ Echo-provider process reaches `ui.ready`. Covered ViewModel post-ready handoff-f
 **Slice acceptance:** Shutdown cancels or completes every admitted command before provider resources disappear, while
 commands arriving after admission closes are observably rejected and side-effect free.
 
-#### Review findings on 80d9c87130 / f664c82b11
-
-**Finding 1 — medium** (still open on `f664c82b11`)
-
-- **Location:** `src/squad.Specs/Features/ShutdownCommandAdmission.feature`
-  (`observes role "coder"'s prompt "keep this admitted" canceled before disposal` then
-  `observes role "coder"'s session disposal held`),
-  `src/squad.Specs/Support/FakeProviderControlServer.cs` (`WaitForSendCanceledAsync`,
-  `WaitForDisposalHeldAsync` / `WaitForObservationDataAsync`).
-- **Violated behavior:** Slice 7 item 2 requires proving the admitted prompt reaches a safe terminal outcome
-  before the fake session is disposed.
-- **Root cause:** `f664c82b11` adds a `send-canceled` observation and waits for it before waiting for
-  `disposal-held`. Each wait only polls its own latest-observation slot until that kind exists. That does not
-  compare arrival order. A host that notified `disposal-held` first and `send-canceled` later would still pass
-  both waits. Same-pipe FIFO is not observed.
-- **Required outcome:** When `send-canceled` is observed, prove `disposal-held` has not yet been observed (or
-  assert order on one observation log).
-
-**Finding 2 — addressed in `f664c82b11`.** After the rejected send, the scenario waits 2 seconds for the fake
-session's latest prompt to become `rejected after admission closes` and requires that wait to time out.
+**Status: complete (12f8a76a7e).** `ShutdownCommandAdmission.feature` covers slice 7 through the process boundary: an
+admitted prompt is in flight, host-control shutdown is requested without waiting for exit, and `disposal-held`
+carries `sendCanceledBeforeDisposal=true` so the fake session itself records that the send canceled before
+disposal began. A later prompt is rejected with `shutting down`, never reaches the provider session, and never
+appears in the transcript. Completing the held disposal yields exit 0, a disposed session, and unavailable host
+control. Covered ViewModel command-rejection, command-drain, and blocking-cleanup scenarios were removed.
+`f664c82b11` and `12f8a76a7e` close the review findings that drain-before-dispose was only inferred and that the
+rejected prompt was not shown to miss the provider.
 
 ### Slice 8: Ignore events from terminated sessions
 
