@@ -342,7 +342,7 @@ ViewModel oversized-entry, announcement-bound, and exact-limit streaming scenari
 were removed. The follow-up `dca20ca0b3` closes the review findings that live content length and archived streaming
 truncation were not pinned to those production bounds.
 
-### Slice 16 [in progress]: Report rotated transcript history as unavailable
+### Slice 16 [done]: Report rotated transcript history as unavailable
 
 1. Publish enough history to cross the production archive boundary and request an entry that has rotated out.
 2. Assert the UI protocol returns an explicit unavailable result at the current sequence while newer archived entries
@@ -354,37 +354,13 @@ truncation were not pinned to those production bounds.
 **Slice acceptance:** Bounded archive rotation preserves available recent history and reports older missing content as
 unavailable without exposing offsets, paths, capacities, or reconstruction inputs.
 
-**Status: changes requested (d98c554513)**
-
-#### Review findings on d98c554513
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/TranscriptOversizedContent.feature`
-  (An entry that has rotated out of the archive is reported as unavailable while newer archived entries remain available),
-  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
-  (`Then the archived transcript entry is unavailable`,
-  `Then the archived transcript entry has {int} characters and is not truncated`).
-- **Violated behavior:** Slice 16 requires that after an entry rotates out, newer archived entries remain
-  page-accessible and ordered. The removed ViewModel archive-bound scenario proved remaining history through
-  `CreateTranscriptPage` (count plus `historyTruncated`), not a single-index fetch.
-- **Root cause:** After crossing the production archive content bound, the scenario requests `transcript.entry` for
-  index 2 (unavailable) and index 16 (still present). It never sends `transcript.page`, so it does not observe the
-  remaining archived window, its order, or `historyTruncated`. A protocol that answers those two point lookups
-  while paging remaining history out of order, with gaps, or without reporting truncation would still pass.
-- **Required outcome:** After rotation, observe remaining archived history through the real previous-page protocol
-  (not only `transcript.entry`): entries still in the archive must page back in order, and rotated-out entries must
-  not appear in that page. Keep request envelopes and storage coordinates private to test support.
-
-**Finding 2 — medium**
-
-- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
-  (`Then the archived transcript entry is unavailable`).
-- **Violated behavior:** Slice 16 requires an explicit unavailable result at the current sequence. The removed
-  reconstruction scenario asserted the unavailable archived entry's sequence matched the live transcript sequence
-  after the burst that caused rotation.
-- **Root cause:** The Then only asserts `Sequence > 0` (plus null content). Any positive stale sequence satisfies
-  that, so the reply is not proven to be the role's current sequence at request time.
-- **Required outcome:** Assert the unavailable `transcript.entry` reply's sequence matches the live transcript
-  sequence observed for that role at request time (for example the last applied update or a fresh synchronize),
-  not merely that it is greater than zero.
+**Status: complete (1bd2b40cad).** `TranscriptOversizedContent.feature` covers slice 16 through the process boundary
+against production archive limits: 15 system messages of 2_000_000 characters cross the 20_000_000-character archive
+bound. Live synchronization is exactly 4 retained entries; `transcript.entry` 2 is unavailable at that
+synchronization's sequence; entry 16 remains a full untruncated 2_000_000 characters; and one previous-page request
+from the live frontier returns exactly 6 still-archived older entries with `hasMore` false, so rotated-out history
+does not page back. Synchronization after an unfinalized 260000-character assistant stream plus the same burst
+reports assistant content as no longer available. Covered ViewModel archive-bound and rotated-content scenarios
+were removed; `ArchivedEntryReconstruction.feature` (including the reconstruction-input outline) was deleted. The
+follow-up `1bd2b40cad` closes the review findings that remaining history was only sampled via `transcript.entry` and
+that unavailable sequence was not matched to the live synchronize.
