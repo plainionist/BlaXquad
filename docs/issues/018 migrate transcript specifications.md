@@ -129,6 +129,24 @@ were removed.
 **Slice acceptance:** All output updates for one tool call produce one correctly aggregated transcript entry with no
 duplicated or superseded content.
 
+**Status: changes requested (5d0339efe6)**
+
+#### Review findings on 5d0339efe6
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/TranscriptToolOutputAggregation.feature`,
+  `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs`
+  (`Then the transcript synchronization for role {string} includes an entry with source {string} and content {string}`).
+- **Violated behavior:** Slice 4 requires every output update for one tool call to produce one correctly aggregated
+  transcript entry with no duplicated or superseded content. The removed ViewModel scenarios asserted exactly one
+  `tool` entry, and the console-activity scenario asserted the transcript had no entry `Build succeeded`.
+- **Root cause:** Consecutive observed updates sharing an entry index, plus a synchronize `Any(...)` include, do not
+  prove the snapshot contains only that tool entry. An extra leftover tool entry — a superseded snapshot, a duplicated
+  cumulative item, or the completion summary `Build succeeded` as its own entry — still passes.
+- **Required outcome:** After aggregation, observe one synchronize message and assert it contains exactly one `tool`
+  entry with the expected aggregated content. For the completion cases, also prove `Build succeeded` is absent.
+
 ### Slice 5 [pending]: Preserve concurrent tool-call correlation
 
 1. Publish interleaved output for two concurrently active tool-call IDs through the fake provider.
