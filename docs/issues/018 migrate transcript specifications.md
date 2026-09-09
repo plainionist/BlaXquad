@@ -94,7 +94,7 @@ scenarios (assistant delta aggregation, snapshot-mid-stream, final reasoning rep
 reasoning stream, final assistant messages preserve history, final assistant messages replace streamed deltas) and
 the orphaned final-reasoning ViewModel binding were removed.
 
-### Slice 3 [in progress]: Preserve transcript ordering across synchronization races
+### Slice 3 [done]: Preserve transcript ordering across synchronization races
 
 1. Extend the headless client with a bounded semantic observation that combines initial synchronization with updates
    after its high-water mark.
@@ -106,6 +106,16 @@ the orphaned final-reasoning ViewModel binding were removed.
 
 **Slice acceptance:** A real client reconstructs the ordered transcript without missing or duplicated updates when
 publication overlaps initial synchronization, without publication pauses, locks, callbacks, or journal inspection.
+
+**Status: complete (22e6fdc775).** `src/squad.Specs/Features/TranscriptSynchronizationOrder.feature` covers slice 3
+through the process boundary: a mid-stream `transcript.synchronize` that captured only the first assistant delta is
+reconciled with later `append-content` and `replace` updates into the full ordered user+assistant transcript; and a
+synchronize request fired concurrently with a five-message system burst is reconciled so each burst entry appears
+exactly once regardless of how much the snapshot captured. `HeadlessUiClient.WaitForReconciledTranscriptAsync` seeds
+from the latest synchronize high-water mark and replays subsequent updates by sequence, without publication pauses,
+locks, callbacks, or journal inspection. The three white-box ViewModel scenarios (ordering/stream semantics,
+atomic publication via paused callback, high-water-mark journal replay) and their Photino/journal-capacity bindings
+were removed.
 
 ### Slice 4 [pending]: Preserve single-call tool output aggregation
 
