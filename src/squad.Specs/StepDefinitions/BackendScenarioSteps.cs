@@ -301,6 +301,17 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsASystemMessage(string role, string content) =>
         Await(myScenario.Agent(role).EmitSystemMessageAsync(content));
 
+    [When("the {string} agent concurrently emits these system messages while a transcript synchronization races them:")]
+    public void WhenTheAgentConcurrentlyEmitsTheseSystemMessagesWhileATranscriptSynchronizationRacesThem(string role, Table contents)
+    {
+        // Firing the synchronize request without awaiting an acknowledgement (it has none) before starting every
+        // emit concurrently creates a genuine race between this UI-protocol request and the fake provider's
+        // control-pipe emits, proving reconciliation stays correct regardless of how much of the burst the
+        // synchronization response actually captured.
+        myScenario.RequestTranscriptSynchronization();
+        Await(Task.WhenAll(contents.Rows.Select(row => myScenario.Agent(role).EmitSystemMessageAsync(row["content"]))));
+    }
+
     [Then("the backend scenario observes a transcript update for role {string} with source {string}")]
     public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSource(string role, string source) =>
         myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source)));
@@ -406,6 +417,59 @@ public sealed class BackendScenarioSteps
             .Select(entry => (entry.Source, entry.Content))
             .ToList();
         Assert.That(actualEntries, Is.EqualTo(expectedEntries));
+    }
+
+    [Then("the reconciled transcript for role {string} contains exactly these entries in order:")]
+    public void ThenTheReconciledTranscriptForRoleContainsExactlyTheseEntriesInOrder(string role, Table expected)
+    {
+        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: row["content"])).ToList();
+        var expectedSources = expectedEntries.Select(entry => entry.Source).ToHashSet();
+
+        // Reconciling combines the latest transcript synchronization with every update published after its
+        // high-water mark, exactly as a reconnecting dashboard client must - proving the synchronization and any
+        // publication racing it never lose or duplicate an entry. Filtering to the expected sources (rather than
+        // requiring an exact match across the whole transcript) ignores unrelated automatic entries such as the
+        // harness "Session started." entry every session publishes.
+        var reconciled = Await(myScenario.WaitForReconciledTranscriptAsync(
+            role,
+            entries => entries.Where(entry => expectedSources.Contains(entry.Source))
+                .Select(entry => (entry.Source, entry.Content))
+                .SequenceEqual(expectedEntries)));
+
+        var actualEntries = reconciled
+            .Where(entry => expectedSources.Contains(entry.Source))
+            .Select(entry => (entry.Source, entry.Content))
+            .ToList();
+        Assert.That(actualEntries, Is.EqualTo(expectedEntries));
+    }
+
+    [Then("the reconciled transcript for role {string} contains each of these entries exactly once:")]
+    public void ThenTheReconciledTranscriptForRoleContainsEachOfTheseEntriesExactlyOnce(string role, Table expected)
+    {
+        var expectedEntries = expected.Rows.Select(row => (Source: row["source"], Content: row["content"])).ToList();
+        var expectedSources = expectedEntries.Select(entry => entry.Source).ToHashSet();
+
+        // A concurrent burst of publications may be reconciled in any relative order (genuine concurrency gives no
+        // ordering guarantee between the burst's own entries), so this compares as a multiset rather than an
+        // ordered sequence - it still proves every expected entry was reconciled exactly once, with none missing
+        // or duplicated.
+        var reconciled = Await(myScenario.WaitForReconciledTranscriptAsync(
+            role,
+            entries =>
+            {
+                var actual = entries.Where(entry => expectedSources.Contains(entry.Source))
+                    .Select(entry => (entry.Source, entry.Content))
+                    .ToList();
+                return actual.Count == expectedEntries.Count
+                    && expectedEntries.All(expectedEntry => actual.Count(entry => entry == expectedEntry) == 1);
+            }));
+
+        var actualEntries = reconciled
+            .Where(entry => expectedSources.Contains(entry.Source))
+            .Select(entry => (entry.Source, entry.Content))
+            .ToList();
+        Assert.That(actualEntries, Is.EquivalentTo(expectedEntries));
+        Assert.That(actualEntries, Has.Count.EqualTo(expectedEntries.Count));
     }
 
     [When("the {string} agent emits a full tool lifecycle for tool call {string} named {string}")]

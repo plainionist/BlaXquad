@@ -43,45 +43,11 @@ Feature: Squad ViewModel
     When the ViewModel creates snapshots while recording "coder" emits 100 assistant updates
     Then the UI snapshot contains event count 100 for "coder"
 
-  Scenario: Transcript updates preserve ordering and stream semantics
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits a user message "question"
-    And the recording "coder" session emits assistant delta "Hello-"
-    And the recording "coder" session emits assistant delta "world"
-    And the recording "coder" session emits a final assistant message "Hello-world"
-    Then the transcript updates for "coder" are
-      | sequence | operation     | index | content     |
-      | 1        | AppendEntry   | 0     | question    |
-      | 2        | AppendEntry   | 1     | Hello-      |
-      | 3        | AppendContent | 1     | world       |
-      | 4        | ReplaceEntry  | 1     | Hello-world |
-    And the transcript announcements for "coder" are
-      | sequence | operation     | content     |
-      | 1        | AppendEntry   | question    |
-      | 2        | AppendEntry   | Hello-      |
-      | 3        | AppendContent | world       |
-    And a 2 update recovery announcement journal for "coder" reports truncation after sequence 0
-    And the Photino transcript delta excludes earlier transcript content
-    And the Photino recovery synchronization includes announcements for "coder" after sequence 1
-    And the Photino transcript synchronization preserves the current "coder" history
-
   Scenario: Transcript synchronization pages older history
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session emits 505 user messages
     Then a 500 entry transcript synchronization for "coder" starts at index 5
     And the previous transcript page for "coder" contains the first 5 entries
-
-  Scenario: Transcript state and announcement publication are atomic
-    Given a ViewModel with recording roles "coder"
-    When transcript publication for "coder" pauses after an assistant delta "atomic"
-    Then transcript snapshot capture waits for the publication and includes announcement "atomic"
-
-  Scenario: Initial transcript synchronization replays updates after its high-water mark
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits a user message "historical"
-    And the initial transcript high-water mark for "coder" is captured
-    And the recording "coder" session emits assistant delta "live"
-    Then initial transcript synchronization for "coder" announces "live" exactly once after the high-water mark
 
   Scenario: Transcript retention spills older entries out of live state
     Given a ViewModel retaining 3 entries and 30 content characters

@@ -144,6 +144,43 @@ public sealed class HeadlessUiClient
         return new TranscriptSynchronizationObservation(role, GetRoleSynchronizationSequence(element, role), observedEntries);
     }
 
+    /// <summary>Reconciles the most recently published transcript synchronization for the role - whichever
+    /// request produced it, whether the initial "ui.ready" handshake or a later explicit request that may have
+    /// raced ongoing publication - exactly as a reconnecting dashboard client must: its entries seed those already
+    /// known at its reported sequence (its "high-water mark"), and every subsequent "transcript.update" message for
+    /// the role whose own sequence is greater than that high-water mark is then replayed on top of it in
+    /// publication order - an "append" adds its entry at its reported index, an "append-content" appends its delta
+    /// fragment onto the entry already at its index, and a "replace" overwrites the entry at its index outright.
+    /// Because the synchronization and any updates racing it are combined by comparing sequence numbers rather
+    /// than by requiring silence or a paused publication, this proves a real client reconstructs the ordered
+    /// transcript without missing or duplicated entries even when synchronization overlaps ongoing or concurrent
+    /// publication. Retries until the reconciled entries satisfy the given predicate or the timeout elapses. Does
+    /// not itself request a synchronization - callers that need one to race publication request it explicitly
+    /// (for example through <see cref="RequestTranscriptSynchronization"/>) before or during publication.</summary>
+    public async Task<IReadOnlyList<TranscriptEntryObservation>> WaitForReconciledTranscriptAsync(
+        string role,
+        Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches,
+        TimeSpan? timeout = null,
+        Func<string>? additionalDiagnostics = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+        while (true)
+        {
+            var stdOut = CopyLines(myStdOutLines);
+            if (TryReconcileTranscript(stdOut, role, out var reconciled) && matches(reconciled))
+            {
+                return reconciled;
+            }
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new HeadlessUiWaitTimeoutException(
+                    $"a reconciled transcript synchronization for role '{role}' matching the expected entries",
+                    DescribeDiagnostics(stdOut, additionalDiagnostics));
+            }
+            await Task.Delay(PollInterval);
+        }
+    }
+
     /// <summary>Waits until a "state.snapshot" message publishes a pending permission request with the given
     /// role, request id, and description.</summary>
     public Task WaitForPendingPermissionAsync(
@@ -451,6 +488,69 @@ public sealed class HeadlessUiClient
             return true;
         }
         return false;
+    }
+
+    /// <summary>Reconciles the most recently published "transcript.synchronize" message for the role (its
+    /// entries seed the result, its sequence is the high-water mark) with every "transcript.update" message for
+    /// the role published afterward, applied in publication order by "append"/"append-content"/"replace"
+    /// semantics. Returns false only if no synchronization for the role has been published yet.</summary>
+    private static bool TryReconcileTranscript(
+        IReadOnlyList<string> stdOutLines, string role, out IReadOnlyList<TranscriptEntryObservation> entries)
+    {
+        entries = [];
+        JsonElement? latestSynchronization = null;
+        foreach (var line in stdOutLines)
+        {
+            using var document = JsonDocument.Parse(line);
+            if (TryGetTranscriptSynchronizationEntries(document.RootElement, role, out _))
+            {
+                latestSynchronization = document.RootElement.Clone();
+            }
+        }
+        if (latestSynchronization is not { } synchronization)
+        {
+            return false;
+        }
+        TryGetTranscriptSynchronizationEntries(synchronization, role, out var seededEntries);
+        var highWaterMark = GetRoleSynchronizationSequence(synchronization, role);
+
+        var reconciled = new SortedDictionary<int, (string Source, string Content)>();
+        foreach (var entry in seededEntries)
+        {
+            reconciled[entry.EntryIndex] = (entry.Source, entry.Content);
+        }
+        foreach (var line in stdOutLines)
+        {
+            using var document = JsonDocument.Parse(line);
+            var element = document.RootElement;
+            if (!IsType(element, "transcript.update"))
+            {
+                continue;
+            }
+            var payload = GetPayload(element);
+            if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role
+                || payload.GetProperty("sequence").GetInt64() <= highWaterMark)
+            {
+                continue;
+            }
+            var entryIndex = payload.GetProperty("entryIndex").GetInt32();
+            switch (payload.GetProperty("operation").GetString())
+            {
+                case "append":
+                case "replace":
+                    var entry = payload.GetProperty("entry");
+                    reconciled[entryIndex] = (entry.GetProperty("source").GetString()!, entry.GetProperty("content").GetString()!);
+                    break;
+                case "append-content":
+                    if (reconciled.TryGetValue(entryIndex, out var existing))
+                    {
+                        reconciled[entryIndex] = (existing.Source, existing.Content + payload.GetProperty("content").GetString());
+                    }
+                    break;
+            }
+        }
+        entries = reconciled.Select(pair => new TranscriptEntryObservation(pair.Key, pair.Value.Source, pair.Value.Content)).ToList();
+        return true;
     }
 
     private static IReadOnlyList<TranscriptEntryObservation> ParseTranscriptEntries(JsonElement roleElement)

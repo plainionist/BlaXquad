@@ -217,6 +217,16 @@ public sealed class BackendScenario : IDisposable
         string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
         RequireUi().WaitForTranscriptSynchronizationAsync(role, matches, timeout, DescribeControlDiagnostics());
 
+    /// <summary>Reconciles the most recently published transcript synchronization for the given role with every
+    /// transcript update published afterward, exactly as a reconnecting dashboard client must - proving the
+    /// reconstructed transcript contains every entry exactly once and in order even when a synchronization
+    /// overlaps ongoing or concurrent publication. Does not itself request a synchronization; callers that need
+    /// one to race publication request it explicitly through <see cref="RequestTranscriptSynchronization"/>.
+    /// Retries until the reconciled entries satisfy the given predicate.</summary>
+    public Task<IReadOnlyList<TranscriptEntryObservation>> WaitForReconciledTranscriptAsync(
+        string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
+        RequireUi().WaitForReconciledTranscriptAsync(role, matches, timeout, DescribeControlDiagnostics());
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given AI-credit usage.</summary>
     public Task WaitForRoleUsageAsync(string role, decimal aicUsed, TimeSpan? timeout = null) =>
         RequireUi().WaitForRoleUsageAsync(role, aicUsed, timeout, DescribeControlDiagnostics());
