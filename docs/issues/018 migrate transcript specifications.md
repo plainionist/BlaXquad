@@ -138,7 +138,7 @@ that is not overwritten by a completion summary. Each scenario ends with a synch
 The four covered ViewModel scenarios were removed; their step bindings remain for later slices. The follow-up
 `3c6bf6e924` closes the review finding that `Any(...)` include checks allowed extra tool entries.
 
-### Slice 5 [in progress]: Preserve concurrent tool-call correlation
+### Slice 5 [done]: Preserve concurrent tool-call correlation
 
 1. Publish interleaved output for two concurrently active tool-call IDs through the fake provider.
 2. Assert through transcript updates that each output fragment reaches only its matching tool entry and retains
@@ -147,6 +147,14 @@ The four covered ViewModel scenarios were removed; their step bindings remain fo
 
 **Slice acceptance:** Interleaved concurrent tool calls remain separate, and each resulting transcript entry contains
 only its own ordered output.
+
+**Status: complete (c10b47707b).** `src/squad.Specs/Features/TranscriptToolCallCorrelation.feature` covers slice 5
+through the process boundary: two concurrently started tool calls publish distinct `tool` entries, interleaved
+partial output (`X-1`, `Y-1`, `X-2`, `Y-2`) is driven through the fake provider's production
+`CopilotToolOutputNormalizer` keyed by tool-call ID, and transcript updates then a synchronize snapshot contain
+exactly those two `tool` entries with only each call's own ordered output. The covered ViewModel scenario
+("Concurrent tool output remains correlated by tool call ID") was removed; shared SDK tool-call bindings remain
+for later slices.
 
 ### Slice 6 [pending]: Preserve visible tool lifecycle state
 
