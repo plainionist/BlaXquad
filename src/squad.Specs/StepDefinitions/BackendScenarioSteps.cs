@@ -483,6 +483,10 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentStartsToolCallNamed(string role, string toolCallId, string toolName) =>
         Await(myScenario.Agent(role).EmitToolStartedAsync(toolCallId, toolName));
 
+    [When("the {string} agent starts tool call {string} named {string} with arguments:")]
+    public void WhenTheAgentStartsToolCallNamedWithArguments(string role, string toolCallId, string toolName, string arguments) =>
+        Await(myScenario.Agent(role).EmitToolStartedAsync(toolCallId, toolName, arguments));
+
     [When("the {string} agent emits partial tool output {string} for tool call {string}")]
     public void WhenTheAgentEmitsPartialToolOutputForToolCall(string role, string partialOutput, string toolCallId) =>
         Await(myScenario.Agent(role).EmitToolPartialOutputAsync(toolCallId, DecodeEscapes(partialOutput)));

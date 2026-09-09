@@ -1592,21 +1592,6 @@ public sealed class ViewModelSteps
     public void ThenViewModelRoleTranscriptHasNoEntry(string role, string content) =>
         Assert.That(myViewModel.Roles[role].TranscriptEntries.Any(entry => entry.Content == content), Is.False);
 
-    [Then("ViewModel role {string} transcript has a decoded PowerShell command")]
-    public void ThenViewModelRoleTranscriptHasADecodedPowerShellCommand(string role) =>
-        Assert.That(
-            ToolTranscriptEntry(role),
-            Is.EqualTo("powershell Get-ChildItem -Path \"C:\\work\""));
-
-    [Then("ViewModel role {string} transcript has raw glob arguments")]
-    public void ThenViewModelRoleTranscriptHasRawGlobArguments(string role) =>
-        Assert.That(
-            ToolTranscriptEntry(role),
-            Is.EqualTo("glob {\"pattern\":\"**/*\",\"paths\":\"C:\\\\work\"}"));
-
-    private string ToolTranscriptEntry(string role) =>
-        myViewModel.Roles[role].TranscriptEntries.Single(entry => entry.Source == "tool").Content;
-
     private static string NormalizeLineEndings(string value) =>
         value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
 

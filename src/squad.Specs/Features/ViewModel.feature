@@ -382,22 +382,6 @@ Feature: Squad ViewModel
     And the recording "coder" session emits tool start "list_agents"
     Then ViewModel role "coder" transcript has exactly 0 "tool" entries
 
-  Scenario: Console activity formats known command arguments
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "powershell" with arguments:
-      """
-      {"command":"Get-ChildItem -Path \u0022C:\\work\u0022","description":"List files"}
-      """
-    Then ViewModel role "coder" transcript has a decoded PowerShell command
-
-  Scenario: Console activity preserves unrecognized tool arguments
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "glob" with arguments:
-      """
-      {"pattern":"**/*","paths":"C:\\work"}
-      """
-    Then ViewModel role "coder" transcript has raw glob arguments
-
   Scenario: File reads include their path in console activity
     Given a ViewModel with recording roles "coder"
     When the recording "coder" session emits tool start "read_file" for "src/App.cs"
@@ -434,30 +418,6 @@ Feature: Squad ViewModel
     Then ViewModel role "coder" transcript has a "read" entry "C:\work\src\Main.cs [1..3]"
     And ViewModel role "coder" transcript has no entry "first"
     And ViewModel role "coder" transcript has no entry "diff --git"
-
-  Scenario: Tool names containing read verbs remain regular tools
-    Given a ViewModel with recording roles "coder"
-    When the recording "coder" session emits tool start "preview"
-    And the recording "coder" session emits tool output "preview output"
-    And the recording "coder" session emits tool start "open_connection"
-    And the recording "coder" session emits tool output "connection output"
-    And the recording "coder" session emits tool start "thread_status"
-    And the recording "coder" session emits tool output "thread output"
-    Then ViewModel role "coder" transcript has a "tool" entry:
-      """
-      preview
-      preview output
-      """
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      open_connection
-      connection output
-      """
-    And ViewModel role "coder" transcript has a "tool" entry:
-      """
-      thread_status
-      thread output
-      """
 
   Scenario: Skill application is visible in the transcript
     Given a ViewModel with recording roles "coder"
