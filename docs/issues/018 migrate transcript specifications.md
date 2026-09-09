@@ -194,7 +194,7 @@ entries with their own output rather than being classified as file reads. The fo
 that table escaping. The three covered ViewModel scenarios and their orphaned decoded-command / raw-glob
 bindings were removed.
 
-### Slice 8 [in progress]: Preserve file-read summaries without content leakage
+### Slice 8 [done]: Preserve file-read summaries without content leakage
 
 1. Publish file-read starts and completions for path-only, ranged, and whole-file reads.
 2. Assert transcript updates show the path, requested range, or derived whole-file line count as applicable while
@@ -204,22 +204,13 @@ bindings were removed.
 **Slice acceptance:** File-read entries identify what was read, including ranges or line counts, but never publish the
 file contents or completion payload through the transcript protocol.
 
-**Status: changes requested (3d917bab91)**
-
-#### Review findings on 3d917bab91
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/TranscriptFileReadSummaries.feature`
-  (scenario "A whole-file read shows its derived line count without leaking file contents").
-- **Violated behavior:** Slice 8 requires that file contents and the completion payload never appear through the
-  transcript protocol. The removed ViewModel scenario asserted the line-count `read` entry and also that no entry
-  was `first` or `diff --git`.
-- **Root cause:** The reused source-filtered exact-once step only inspects `read` entries. A leaked completion
-  display or file-content payload published as a `tool` (or other non-`read`) entry still passes, unlike the ranged
-  scenario whose expected set includes the later `tool` entry and therefore rejects extra tool rows.
-- **Required outcome:** After the whole-file completion, prove the published transcript contains the derived
-  `[1..3]` summary and does not contain the file contents or the completion display payload.
+**Status: complete (7e6e43d132).** `src/squad.Specs/Features/TranscriptFileReadSummaries.feature` covers slice 8
+through the process boundary: path-only `read_file`/`view_file` starts publish `read` entries with just the path;
+a ranged `view` shows `path [100..1000]` and a later ordinary tool remains the only `tool` entry, so streamed
+`file contents` and completion `diff --git` cannot appear as extra rows; a whole-file `view` derives `[1..3]`
+from the completion content. The follow-up `7e6e43d132` adds protocol-wide absence checks that no transcript
+update is exactly `first` or `diff --git`. The four covered ViewModel scenarios and their orphaned path-start
+and docstring-entry bindings were removed.
 
 ### Slice 9 [pending]: Preserve subagent presentation while suppressing control plumbing
 
