@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 8 review (186dad1e69) — changes requested
+
+Background, prompt send, and shutdown now use canonical vocabulary, but the migrated features still name `backend scenario` as the actor that observes transcript updates and requests synchronization.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/TranscriptProtocolShape.feature` and `src/squad.Specs/Features/TranscriptStreamFinalization.feature` (`the backend scenario observes a transcript update...`, `the backend scenario requests a fresh transcript synchronization`).
+- **Violated behavior:** Slice 8 must rewrite both features from their identified user perspective. Definition of done forbids a test-owned actor in the migrated feature. Transcript updates and synchronization are dashboard or UI-protocol-client observations; `BackendScenario` must not appear as a Gherkin actor. Slice 2 already required canonical wording in the migrated file and old phrases only as aliases for unmigrated features.
+- **Root cause:** Setup and shutdown were rewritten, but incremental transcript observation and sync requests kept the `backend scenario` aliases inside this slice's features instead of dashboard/UI-protocol wording. A canonical `the user requests a fresh transcript synchronization for role` step already exists from earlier slices.
+- **Required outcome:** In both migrated features, do not name `backend scenario`. Observe transcript updates and request synchronization in dashboard or UI-protocol-client language. Keep the old BackendScenarioSteps phrases only as aliases for files this slice does not migrate.
+
 ## Slice 7 review (fb71cf69f0) — accepted
 
 **Status: complete (fb71cf69f0).** `ActiveUsageDashboardRefresh.feature` covers mid-turn usage, idle preserving the latest values, and a stale AIC checkpoint not overwriting newer usage, using dashboard and agent-session language. The feature-specific `ActiveUsageRefreshSteps` owner was removed.
