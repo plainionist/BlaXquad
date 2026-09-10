@@ -17,19 +17,19 @@ public sealed class HostCoexistenceSteps
     private readonly Dictionary<string, BackendScenario> myScenariosByLabel = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> myExitCodesByLabel = new(StringComparer.Ordinal);
 
-    [Given("independent squad projects {string} and {string} using the fake provider fixture")]
-    public void GivenIndependentSquadProjectsUsingTheFakeProviderFixture(string firstLabel, string secondLabel)
+    [Given("the operator configures independent squad projects {string} and {string}")]
+    public void GivenTheOperatorConfiguresIndependentSquadProjects(string firstLabel, string secondLabel)
     {
         CreateProject(firstLabel);
         CreateProject(secondLabel);
     }
 
-    [When("squad-hq is launched with \"--ui stdio\" for project {string}")]
-    public void WhenSquadHqIsLaunchedWithUiStdioForProject(string label) =>
+    [When("the operator launches Headquarters with the \"stdio\" UI transport for project {string}")]
+    public void WhenTheOperatorLaunchesHeadquartersWithTheStdioUiTransportForProject(string label) =>
         myScenariosByLabel[label].LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
 
-    [When("the ui sends \"ui.ready\" to project {string}")]
-    public void WhenTheUiSendsUiReadyToProject(string label)
+    [When("a UI-protocol client sends \"ui.ready\" to project {string}")]
+    public void WhenAUiProtocolClientSendsUiReadyToProject(string label)
     {
         var scenario = myScenariosByLabel[label];
         Await(scenario.CompleteReadyHandshakeAsync());
@@ -41,8 +41,8 @@ public sealed class HostCoexistenceSteps
         Await(scenario.Agent("coder").EnableAutoEchoAsync());
     }
 
-    [When("the ui sends a {string} command for role {string} with prompt {string} to project {string}")]
-    public void WhenTheUiSendsACommandForRoleWithPromptToProject(string type, string role, string prompt, string label)
+    [When("a UI-protocol client sends a {string} command for role {string} with prompt {string} to project {string}")]
+    public void WhenAUiProtocolClientSendsACommandForRoleWithPromptToProject(string type, string role, string prompt, string label)
     {
         if (type != "prompt.send")
         {
@@ -55,20 +55,16 @@ public sealed class HostCoexistenceSteps
     public void ThenATranscriptUpdateMessageForRoleWithContentIsWrittenToStdoutForProject(string role, string content, string label) =>
         Await(myScenariosByLabel[label].WaitForTranscriptAsync(role, content));
 
-    [When("squad-hq requests shutdown for project {string}")]
-    public void WhenSquadHqRequestsShutdownForProject(string label) =>
+    [When("the operator shuts down Headquarters for project {string}")]
+    public void WhenTheOperatorShutsDownHeadquartersForProject(string label) =>
         myExitCodesByLabel[label] = Await(myScenariosByLabel[label].ShutdownAsync());
 
-    [Then("the shutdown request succeeds for project {string}")]
-    public void ThenTheShutdownRequestSucceedsForProject(string label) =>
-        Assert.That(myExitCodesByLabel[label], Is.Zero);
+    [Then("Headquarters exits with code {int} for project {string}")]
+    public void ThenHeadquartersExitsWithCodeForProject(int expectedExitCode, string label) =>
+        Assert.That(myExitCodesByLabel[label], Is.EqualTo(expectedExitCode));
 
-    [Then("the squad-hq process for project {string} exits with code {string}")]
-    public void ThenTheSquadHqProcessForProjectExitsWithCode(string label, string expectedExitCode) =>
-        Assert.That(myExitCodesByLabel[label], Is.EqualTo(int.Parse(expectedExitCode)));
-
-    [Then("the squad-hq process for project {string} is still running")]
-    public void ThenTheSquadHqProcessForProjectIsStillRunning(string label)
+    [Then("Headquarters for project {string} is still running")]
+    public void ThenHeadquartersForProjectIsStillRunning(string label)
     {
         Thread.Sleep(200);
         Assert.That(myScenariosByLabel[label].IsRunning, Is.True, $"Project '{label}' should still be running.");

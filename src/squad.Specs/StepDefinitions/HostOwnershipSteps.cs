@@ -59,15 +59,15 @@ public sealed class HostOwnershipSteps
         Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
     }
 
-    [When("the executable requests squad shutdown")]
-    public async Task WhenTheExecutableRequestsSquadShutdown() => await myScenario!.ShutdownAsync();
+    [When("the operator requests squad shutdown")]
+    public async Task WhenTheOperatorRequestsSquadShutdown() => await myScenario!.ShutdownAsync();
 
-    [When("the executable requests shutdown for an equivalent project path")]
-    public void WhenTheExecutableRequestsShutdownForAnEquivalentProjectPath() =>
+    [When("the operator requests shutdown for an equivalent project path")]
+    public void WhenTheOperatorRequestsShutdownForAnEquivalentProjectPath() =>
         myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root + Path.DirectorySeparatorChar]);
 
-    [When("the executable requests shutdown for the empty project")]
-    public void WhenTheExecutableRequestsShutdownForTheEmptyProject() =>
+    [When("the operator requests shutdown for the empty project")]
+    public void WhenTheOperatorRequestsShutdownForTheEmptyProject() =>
         myWorkspace.RunTool("squad-hq", ["shutdown", myWorkspace.Root]);
 
     [When("the host process is abruptly terminated")]
@@ -91,18 +91,18 @@ public sealed class HostOwnershipSteps
         await myReplacementScenario.StartAsync<EchoAgentProviderFactory>();
     }
 
-    [Then("the executable shutdown succeeds")]
-    public void ThenTheExecutableShutdownSucceeds() => Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
+    [Then("the operator's shutdown succeeds")]
+    public void ThenTheOperatorSShutdownSucceeds() => Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
 
-    [When("the executable begins waiting for the {string} agent")]
-    public void WhenTheExecutableBeginsWaitingForTheAgent(string role)
+    [When("the operator begins waiting for the {string} agent")]
+    public void WhenTheOperatorBeginsWaitingForTheAgent(string role)
     {
         myWaitRole = role;
         myWaitCommand = myScenario!.StartWaitForAgent(role, TimeSpan.FromSeconds(5));
     }
 
-    [Then("the executable remains waiting for agent readiness")]
-    public async Task ThenTheExecutableRemainsWaitingForAgentReadiness()
+    [Then("the operator remains waiting for agent readiness")]
+    public async Task ThenTheOperatorRemainsWaitingForAgentReadiness()
     {
         // A short, independently bounded probe against the same live host proves the role is genuinely busy and
         // the host is reachable right now: it must poll the host for its own full timeout before concluding
@@ -130,23 +130,23 @@ public sealed class HostOwnershipSteps
         });
     }
 
-    [When("the executable waits {double} seconds for the {string} agent")]
-    public void WhenTheExecutableWaitsForTheAgent(double timeoutSeconds, string role) =>
+    [When("the operator waits {double} seconds for the {string} agent")]
+    public void WhenTheOperatorWaitsForTheAgent(double timeoutSeconds, string role) =>
         RunTimedWait(
             role,
             timeoutSeconds,
             myWorkspace.Root);
 
-    [When("the executable waits for {string} without an explicit project root")]
-    public void WhenTheExecutableWaitsWithoutAnExplicitProjectRoot(string role) =>
+    [When("the operator waits for {string} without an explicit project root")]
+    public void WhenTheOperatorWaitsWithoutAnExplicitProjectRoot(string role) =>
         RunTimedWait(role, 2, projectRoot: null, myWorkspace.Root);
 
-    [When("the executable waits for {string} from the linked worktree")]
-    public void WhenTheExecutableWaitsFromTheLinkedWorktree(string role) =>
+    [When("the operator waits for {string} from the linked worktree")]
+    public void WhenTheOperatorWaitsFromTheLinkedWorktree(string role) =>
         RunTimedWait(role, 2, projectRoot: null, myLinkedWorktree);
 
-    [When("the executable waits for {string} using an equivalent project path")]
-    public void WhenTheExecutableWaitsUsingAnEquivalentProjectPath(string role) =>
+    [When("the operator waits for {string} using an equivalent project path")]
+    public void WhenTheOperatorWaitsUsingAnEquivalentProjectPath(string role) =>
         RunTimedWait(role, 2, myWorkspace.Root + Path.DirectorySeparatorChar);
 
     [Then("the agent readiness wait times out")]
@@ -191,8 +191,8 @@ public sealed class HostOwnershipSteps
         });
     }
 
-    [When("the executable waits with a zero timeout for {string}")]
-    public void WhenTheExecutableWaitsWithAZeroTimeout(string role) =>
+    [When("the operator waits with a zero timeout for {string}")]
+    public void WhenTheOperatorWaitsWithAZeroTimeout(string role) =>
         myWorkspace.RunBackendSpecSquadHq(["wait-for-agent", role, "--timeout", "0"]);
 
     [Then("the zero readiness timeout is rejected")]
@@ -218,8 +218,8 @@ public sealed class HostOwnershipSteps
         });
     }
 
-    [When("the executable attempts a duplicate launch")]
-    public void WhenTheExecutableAttemptsADuplicateLaunch() =>
+    [When("the operator attempts a duplicate launch")]
+    public void WhenTheOperatorAttemptsADuplicateLaunch() =>
         myWorkspace.RunTool("squad-hq", ["launch", myWorkspace.Root]);
 
     [Then("the duplicate launch fails without an exception trace")]
