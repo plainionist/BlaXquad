@@ -57,14 +57,14 @@ internal sealed class PendingInteractionRegistry
             myProtectedTranscriptEntries[Key(role, requestId)] = new ProtectedTranscriptEntry(role, entryIndex);
     }
 
-    public (string Role, AgentPermissionRequest Request) RemovePermission(string? expectedRole, string requestId) =>
-        Remove(myPermissions, expectedRole, requestId, request => request.Role, request => request.RequestId);
+    public (string Role, AgentPermissionRequest Request) RemovePermission(string expectedRole, string requestId) =>
+        Remove(myPermissions, expectedRole, requestId);
 
-    public (string Role, AgentInputRequest Request) RemoveInput(string? expectedRole, string requestId) =>
-        Remove(myInputs, expectedRole, requestId, request => request.Role, request => request.RequestId);
+    public (string Role, AgentInputRequest Request) RemoveInput(string expectedRole, string requestId) =>
+        Remove(myInputs, expectedRole, requestId);
 
-    public (string Role, AgentElicitationRequest Request) RemoveElicitation(string? expectedRole, string requestId) =>
-        Remove(myElicitations, expectedRole, requestId, request => request.Role, request => request.RequestId);
+    public (string Role, AgentElicitationRequest Request) RemoveElicitation(string expectedRole, string requestId) =>
+        Remove(myElicitations, expectedRole, requestId);
 
     public ProtectedTranscriptEntry? TryRemoveProtectedTranscriptEntry(string role, string requestId)
     {
@@ -116,34 +116,16 @@ internal sealed class PendingInteractionRegistry
 
     private (string Role, TRequest Request) Remove<TRequest>(
         Dictionary<string, TRequest> requests,
-        string? expectedRole,
-        string requestId,
-        Func<TRequest, string> role,
-        Func<TRequest, string> id)
+        string expectedRole,
+        string requestId)
     {
         lock (myLock)
         {
-            if (expectedRole is not null)
+            if (requests.Remove(Key(expectedRole, requestId), out var request))
             {
-                if (requests.Remove(Key(expectedRole, requestId), out var request))
-                {
-                    return (expectedRole, request);
-                }
-                throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{expectedRole}'.");
+                return (expectedRole, request);
             }
-
-            var matches = requests.Values.Where(request => id(request) == requestId).ToArray();
-            switch (matches.Length)
-            {
-                case 1:
-                    var request = matches[0];
-                    requests.Remove(Key(role(request), requestId));
-                    return (role(request), request);
-                case 0:
-                    throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists.");
-                default:
-                    throw new InvalidOperationException($"Interaction ID '{requestId}' is pending for multiple roles; specify the role.");
-            }
+            throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{expectedRole}'.");
         }
     }
 
