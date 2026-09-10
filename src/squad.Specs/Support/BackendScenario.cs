@@ -22,6 +22,7 @@ public sealed class BackendScenario : IDisposable
     private int? myStartupGateAfterSessions;
     private bool myFailProviderBeforeRuntime;
     private int? myFailProviderAfterSessions;
+    private string? myFailProviderDisposalMessage;
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -143,6 +144,10 @@ public sealed class BackendScenario : IDisposable
             environmentOverrides[FakeProviderControlServer.FailAfterSessionsEnvironmentVariable] =
                 failAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+        if (myFailProviderDisposalMessage is { } failDisposalMessage)
+        {
+            environmentOverrides[FakeProviderControlServer.FailDisposalMessageEnvironmentVariable] = failDisposalMessage;
+        }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         IReadOnlyList<string> launchArguments = continueLaunch
             ? ["launch", "--continue", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root]
@@ -241,6 +246,10 @@ public sealed class BackendScenario : IDisposable
         {
             environmentOverrides[FakeProviderControlServer.FailAfterSessionsEnvironmentVariable] =
                 failAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        if (myFailProviderDisposalMessage is { } failDisposalMessage)
+        {
+            environmentOverrides[FakeProviderControlServer.FailDisposalMessageEnvironmentVariable] = failDisposalMessage;
         }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         myProcess = myWorkspace.StartProcess(
@@ -722,6 +731,15 @@ public sealed class BackendScenario : IDisposable
     /// never-started remainder are both independently observable across the control pipe.
     /// </summary>
     public void FailProviderAfterSessions(int count) => myFailProviderAfterSessions = count;
+
+    /// <summary>
+    /// Configures the next launch's fake provider runtime to fail its own disposal with the given message, after
+    /// every session it started has genuinely already been disposed - mirroring a real provider runtime whose
+    /// final retirement step independently fails even though every session it owned was properly torn down
+    /// first. Set before launch, so it can be paired deterministically with any independent primary startup or
+    /// runtime failure without racing that failure's own timing.
+    /// </summary>
+    public void FailProviderDisposal(string message) => myFailProviderDisposalMessage = message;
 
     /// <summary>
     /// Requests shutdown through the real "squad-hq shutdown" host-control command as soon as it is reachable at

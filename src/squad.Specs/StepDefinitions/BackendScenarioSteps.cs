@@ -69,6 +69,10 @@ public sealed class BackendScenarioSteps
     public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailAfterSessionHasStarted(int count) =>
         myScenario.FailProviderAfterSessions(count);
 
+    [Given("the backend scenario configures the fake provider to fail its cleanup with message {string}")]
+    public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailItsCleanupWithMessage(string message) =>
+        myScenario.FailProviderDisposal(message);
+
     [Given("the backend scenario isolates its temporary transcript directory")]
     public void GivenTheBackendScenarioIsolatesItsTemporaryTranscriptDirectory() =>
         myScenario.IsolateTemporaryDirectory();
@@ -245,6 +249,10 @@ public sealed class BackendScenarioSteps
             Is.True,
             $"Role '{role}''s session disposal was held, but its admitted send had not yet reached its own " +
             "canceled outcome by that moment - drain-before-dispose ordering was not observed.");
+
+    [Then("the backend scenario observes role {string}'s session disposal held")]
+    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeld(string role) =>
+        Await(myScenario.Agent(role).WaitForDisposalHeldAsync());
 
     [When("the backend scenario requests a host-control shutdown without waiting for the process to exit")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdownWithoutWaitingForTheProcessToExit() =>
@@ -1036,6 +1044,19 @@ public sealed class BackendScenarioSteps
             Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
             Assert.That(result.StdOut, Does.Contain("is ready"));
         });
+    }
+
+    // While cleanup is genuinely held, admission is already closed (a role never reports ready during it - the
+    // same closed-admission outcome ShutdownCommandAdmission.feature proves for an ordinary protocol command), so
+    // "squad-hq wait-for-agent" cannot itself report success here. What distinguishes a host that is still owned
+    // and genuinely reachable from one that has actually released ownership is the specific diagnostic: a still-
+    // owned host reports the role as not ready (this command's own real timeout), never "squad host unavailable" -
+    // the one diagnostic that only appears once host.json is gone and the control endpoint no longer exists.
+    [Then("the backend scenario confirms host control is still available for role {string}")]
+    public void ThenTheBackendScenarioConfirmsHostControlIsStillAvailableForRole(string role)
+    {
+        var result = myScenario.ConfirmHostControlUnavailable(role);
+        Assert.That(result.StdErr, Does.Not.Contain("squad host unavailable"));
     }
 
     [Then("the backend scenario confirms host control is unavailable for role {string}")]

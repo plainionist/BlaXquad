@@ -30,12 +30,6 @@ Feature: Squad ViewModel
     And the application waits for window closure
     Then SDK-shaped sessions were disposed in reverse registration order
 
-  Scenario: External shutdown stops a lease-owned application
-    Given a SquadApplication with recording roles and a host lease
-    When the leased SquadApplication starts
-    And an external client requests application shutdown
-    Then the lease-owned application resources are released
-
   Scenario: Server failure during blocked startup remains primary
     Given a controllable SquadApplication with blocked startup and a faulting server
     When the application lifecycle begins
@@ -49,25 +43,6 @@ Feature: Squad ViewModel
     And the controllable host requests shutdown
     Then the application stopped after readiness
     And readiness was announced once
-    And all controllable application resources were disposed
-
-  Scenario: Primary and cleanup failures are both reported
-    Given a controllable SquadApplication with startup and cleanup failures
-    When the application lifecycle runs
-    Then the application lifecycle contains "recording window start failed" and "recording handoff pump disposal failed"
-    And all controllable application resources were disposed
-
-  Scenario: Runtime and cleanup failures are both reported
-    Given a controllable SquadApplication with runtime and cleanup failures
-    When the application lifecycle reaches readiness
-    Then the application lifecycle contains "recording window close failed" and "recording handoff pump disposal failed"
-    And all controllable application resources were disposed
-
-  Scenario: A startup failure after terminal shutdown is reported
-    Given a controllable SquadApplication with a cancellation-failing startup and a faulting server
-    When the application lifecycle begins
-    And the controllable host fails its server
-    Then the application lifecycle contains "recording host server failed" and "recording startup cancellation failed"
     And all controllable application resources were disposed
 
   Scenario: Roles keep independent lifecycle state

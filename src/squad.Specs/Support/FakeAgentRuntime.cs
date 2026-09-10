@@ -133,6 +133,23 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
         {
             await myControl.DisposeAsync();
         }
+
+        // Read only now - after every session this runtime owned has already been genuinely disposed (and
+        // reported disposed) and the control client has already disconnected - so a configured failure here
+        // proves cleanup continued through every owned resource first, rather than short-circuiting it, and
+        // still surfaces this runtime's own retirement failure with a distinct diagnostic independent of
+        // whatever primary startup or runtime failure (if any) is what triggered cleanup in the first place.
+        var disposalFailureMessage = ReadDisposalFailureMessage();
+        if (disposalFailureMessage is not null)
+        {
+            throw new InvalidOperationException(disposalFailureMessage);
+        }
     }
+
+    /// <summary>Reads the test-owned disposal-failure message from the environment - the distinct diagnostic this
+    /// runtime's own disposal must fail with - or null if none was configured, matching ordinary behavior exactly
+    /// for every specification that never sets it.</summary>
+    private static string? ReadDisposalFailureMessage() =>
+        Environment.GetEnvironmentVariable(FakeProviderControlServer.FailDisposalMessageEnvironmentVariable);
 }
 

@@ -33,7 +33,6 @@ public sealed class ViewModelSteps
     private RecordingSleepInhibitor? myRecordingSleep;
     private RecordingHostLease? myRecordingHostLease;
     private FaultingHostLease? myFaultingHostLease;
-    private Task? myExternalShutdown;
     private RunResult? myApplicationRunResult;
     private Exception? myApplicationLifecycleFailure;
     private readonly List<string> mySdkInstructionsSentAfterRegistration = [];
@@ -106,42 +105,6 @@ public sealed class ViewModelSteps
             myRecordingWindow,
             myRecordingSleep,
             viewModel: viewModel);
-    }
-
-    [Given("a SquadApplication with recording roles and a host lease")]
-    public void GivenASquadApplicationWithRecordingRolesAndAHostLease()
-    {
-        GivenASquadApplicationWithRecordingRoles("coder");
-        myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        myApplication = new SquadApplication(SquadStartupPlanFactory.ForWorkspace(myApplicationContext!, new WorkspacePreparer(_ => { })), new RecordingAgentProviderFactory(myBackend), myRecordingPump!, myRecordingWindow!, myRecordingSleep!, viewModel: myApplication!.ViewModel, hostLease: myApplicationLease);
-    }
-
-    [When("the leased SquadApplication starts")]
-    public async Task WhenTheLeasedSquadApplicationStarts() => await StartApplicationUntilReadyAsync();
-
-    [When("an external client requests application shutdown")]
-    public async Task WhenAnExternalClientRequestsApplicationShutdown()
-    {
-        await BeginExternalShutdownAsync();
-        await myExternalShutdown!;
-    }
-
-    [Then("the lease-owned application resources are released")]
-    public void ThenTheLeaseOwnedApplicationResourcesAreReleased()
-    {
-        myExternalShutdown?.GetAwaiter().GetResult();
-        Assert.Multiple(() =>
-        {
-            Assert.That(myApplicationRun!.IsCompletedSuccessfully, Is.True);
-            Assert.That(File.Exists(Path.Combine(myApplicationRoot, ".blaxquad", "host.json")), Is.False);
-            Assert.That(HostLease.TryAcquireProbe(myApplicationRoot), Is.True);
-            // The backend runtime is only created once startup reaches session generation; if the
-            // application stopped before then, no runtime exists and nothing was ever owned/disposed.
-            Assert.That(myBackend.Disposed, Is.EqualTo(myBackend.RuntimeCreated));
-            Assert.That(myRecordingWindow!.DisposeCount, Is.EqualTo(1));
-            Assert.That(myRecordingPump!.Disposed, Is.True);
-            Assert.That(myRecordingSleep!.Disposed, Is.True);
-        });
     }
 
     [When("the SquadApplication starts")]
@@ -224,32 +187,6 @@ public sealed class ViewModelSteps
     public void GivenAControllableSquadApplicationWithBlockedStartupAndAFaultingServer() =>
         ConfigureControllableApplication(blockStartup: true, faultServer: true);
 
-    [Given("a controllable SquadApplication with startup and cleanup failures")]
-    public void GivenAControllableSquadApplicationWithStartupAndCleanupFailures()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myRecordingWindow!.FailOnStart = true;
-        myRecordingPump!.FailOnDispose = true;
-    }
-
-    [Given("a controllable SquadApplication with runtime and cleanup failures")]
-    public void GivenAControllableSquadApplicationWithRuntimeAndCleanupFailures()
-    {
-        ConfigureControllableApplication(useRealLease: true);
-        myRecordingWindow!.FailOnClose = true;
-        myRecordingPump!.FailOnDispose = true;
-    }
-
-    [Given("a controllable SquadApplication with a cancellation-failing startup and a faulting server")]
-    public void GivenAControllableSquadApplicationWithACancellationFailingStartupAndAFaultingServer()
-    {
-        ConfigureControllableApplication(blockStartup: true, faultServer: true);
-        myRecordingSleep!.FailWhenCanceled = true;
-    }
-
-    [When("the application lifecycle runs")]
-    public async Task WhenTheApplicationLifecycleRuns() => await RunApplicationToCompletionAsync();
-
     [When("the application lifecycle begins")]
     public async Task WhenTheApplicationLifecycleBegins()
     {
@@ -292,14 +229,6 @@ public sealed class ViewModelSteps
     {
         await CompleteApplicationRunAsync();
         Assert.That(ExceptionMessages(myApplicationLifecycleFailure), Does.Contain(message));
-    }
-
-    [Then("the application lifecycle contains {string} and {string}")]
-    public async Task ThenTheApplicationLifecycleContains(string first, string second)
-    {
-        await CompleteApplicationRunAsync();
-        var messages = ExceptionMessages(myApplicationLifecycleFailure);
-        Assert.That(messages, Does.Contain(first).And.Contain(second));
     }
 
     [Then("all controllable application resources were disposed")]
@@ -513,17 +442,13 @@ public sealed class ViewModelSteps
                 role.Effort)).ToArray(),
             new Dictionary<string, string>());
 
-    private void ConfigureControllableApplication(bool blockStartup = false, bool useRealLease = false, bool faultServer = false)
+    private void ConfigureControllableApplication(bool blockStartup = false, bool faultServer = false)
     {
         GivenASquadApplicationWithRecordingRoles("coder");
         myRecordingPump = new RecordingHandoffPump();
         myRecordingSleep = new RecordingSleepInhibitor { BlockStart = blockStartup };
-        myRecordingHostLease = useRealLease ? null : new RecordingHostLease();
+        myRecordingHostLease = new RecordingHostLease();
         myFaultingHostLease = null;
-        if (useRealLease)
-        {
-            myApplicationLease = HostLease.Acquire(myApplicationRoot);
-        }
         if (faultServer)
         {
             myApplicationLease = HostLease.Acquire(myApplicationRoot);
@@ -549,12 +474,6 @@ public sealed class ViewModelSteps
 
     private void StartApplicationRun() => myApplicationRun = myApplication!.RunAsync(AnnounceReadinessAsync, default);
 
-    private async Task BeginExternalShutdownAsync()
-    {
-        myExternalShutdown = HostControlClient.ShutdownAsync(myApplicationRoot, TimeSpan.FromSeconds(5));
-        await myApplicationLease!.ShutdownRequested.WaitAsync(TimeSpan.FromSeconds(2));
-    }
-
     private async Task StartApplicationUntilReadyAsync()
     {
         StartApplicationRun();
@@ -573,12 +492,6 @@ public sealed class ViewModelSteps
     {
         myApplicationReadyCount++;
         return Task.CompletedTask;
-    }
-
-    private async Task RunApplicationToCompletionAsync()
-    {
-        StartApplicationRun();
-        await CompleteApplicationRunAsync();
     }
 
     private async Task CompleteApplicationRunAsync()

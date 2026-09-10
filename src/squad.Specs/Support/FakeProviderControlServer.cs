@@ -42,6 +42,16 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// production assembly.
     /// </summary>
     public const string FailAfterSessionsEnvironmentVariable = "BLAXQUAD_FAKE_FAIL_AFTER_SESSIONS";
+    /// <summary>
+    /// Names the environment variable that tells the fake provider runtime to fail its own disposal with the
+    /// given message, after every session it started has already been disposed (and reported disposed across the
+    /// control pipe, when connected) and its control client has already disconnected - mirroring a real provider
+    /// runtime whose final retirement step fails even though every individual session it owned was genuinely torn
+    /// down first. Set before launch (never through a live control-pipe command), so a specification can pair it
+    /// deterministically with any independent primary startup or runtime failure without racing that failure's
+    /// own timing against when cleanup actually reaches this runtime. Never read by any production assembly.
+    /// </summary>
+    public const string FailDisposalMessageEnvironmentVariable = "BLAXQUAD_FAKE_FAIL_DISPOSAL_MESSAGE";
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
