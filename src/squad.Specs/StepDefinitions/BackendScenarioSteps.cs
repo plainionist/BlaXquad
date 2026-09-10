@@ -1048,15 +1048,16 @@ public sealed class BackendScenarioSteps
 
     // While cleanup is genuinely held, admission is already closed (a role never reports ready during it - the
     // same closed-admission outcome ShutdownCommandAdmission.feature proves for an ordinary protocol command), so
-    // "squad-hq wait-for-agent" cannot itself report success here. What distinguishes a host that is still owned
-    // and genuinely reachable from one that has actually released ownership is the specific diagnostic: a still-
-    // owned host reports the role as not ready (this command's own real timeout), never "squad host unavailable" -
-    // the one diagnostic that only appears once host.json is gone and the control endpoint no longer exists.
+    // "squad-hq wait-for-agent" cannot itself report success here. Proving the host is still owned and genuinely
+    // reachable - not merely that the released-host diagnostic is absent - requires observing the same live-host
+    // diagnostic "Then role {string} is not ready for a prompt" already uses as proof of contact: "agent not
+    // ready" only appears once the command has actually reached the live host and polled it for its own full
+    // timeout, whereas an unreachable endpoint (host.json gone, or present but not answering) never produces it.
     [Then("the backend scenario confirms host control is still available for role {string}")]
     public void ThenTheBackendScenarioConfirmsHostControlIsStillAvailableForRole(string role)
     {
         var result = myScenario.ConfirmHostControlUnavailable(role);
-        Assert.That(result.StdErr, Does.Not.Contain("squad host unavailable"));
+        Assert.That(result.StdErr, Does.Contain("agent not ready"), () => result.StdErr);
     }
 
     [Then("the backend scenario confirms host control is unavailable for role {string}")]
