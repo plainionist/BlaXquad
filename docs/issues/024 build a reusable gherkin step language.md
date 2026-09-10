@@ -293,6 +293,19 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 18 review (1d0186e9e8) — changes requested
+
+Finding 1 on 7b0c18e7ea is addressed: both early-shutdown races compose independently initiated shutdown, a separate user send, and an observe-completion step.
+
+Finding 2's launch-phrase unification is incomplete: the Echo vs fake split moved into a Gherkin Given that names the fake-provider control transport.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature` (`the fake-provider control transport is enabled`); `src/squad.Specs/StepDefinitions/HeadquartersLifecycleSteps.cs`.
+- **Violated behavior:** Migrated features must not mention a fake provider or a control pipe as a Gherkin actor. The agent-session module keeps the fake provider and its control transport behind those steps. Fixture selection stays behind bindings. The issue lists `the backend scenario has enabled the fake-provider control transport` as the example of test infrastructure becoming the actor.
+- **Root cause:** Unifying the no-handshake launch required opt-in session observation without hanging stdin-close-before-ready, and that opt-in was written as the old fixture Given without `backend scenario`.
+- **Required outcome:** Keep one no-handshake Headquarters launch phrase. Enable session-lifecycle observation behind bindings or as Headquarters-facing language that does not mention the fake provider or a control pipe. Do not put `fake-provider`, `control transport`, or `control pipe` in Gherkin.
+
 ## Slice 18 review (7b0c18e7ea) — changes requested
 
 Readiness watches, input closure, platform cancellation, launch/shutdown, and replacement reuse Headquarters lifecycle language. Two shutdown steps still hard-code a concurrent send.
