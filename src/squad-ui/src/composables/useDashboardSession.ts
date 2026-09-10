@@ -8,6 +8,7 @@ import type {
 } from '../protocol/messages'
 import { useFocusedRoleAbort } from './useFocusedRoleAbort'
 import { useInteractionDrafts } from './useInteractionDrafts'
+import { useIssueCatalog } from './useIssueCatalog'
 import { useRoleInteractions } from './useRoleInteractions'
 import { useTranscriptFeed } from './useTranscriptFeed'
 
@@ -47,6 +48,14 @@ export function useDashboardSession() {
     requestArchivedTranscriptEntry,
     dispose: disposeTranscriptFeed,
   } = useTranscriptFeed(bridge.send)
+  const {
+    issues,
+    isLoading: issuesLoading,
+    catalogError,
+    requestCatalog,
+    applyIssues,
+    applyProtocolError: applyCatalogProtocolError,
+  } = useIssueCatalog(bridge.send)
 
   bridge.onSnapshot((snapshot: Snapshot) => {
     applyTranscriptSnapshot(snapshot)
@@ -59,7 +68,11 @@ export function useDashboardSession() {
   bridge.onTranscriptUpdate(applyTranscriptUpdate)
   bridge.onTranscriptPage(applyTranscriptPage)
   bridge.onArchivedTranscriptEntry(applyArchivedTranscriptEntry)
-  bridge.onError((message) => { protocolError.value = message })
+  bridge.onIssues(applyIssues)
+  bridge.onError((message, requestId) => {
+    if (applyCatalogProtocolError(message, requestId)) return
+    protocolError.value = message
+  })
 
   const hasRoles = computed(() => roles.value.length > 0)
 
@@ -140,6 +153,10 @@ export function useDashboardSession() {
     rolesWithOlderTranscript,
     rolesWithTruncatedTranscript,
     publishedAnnouncementsByRole,
+    issues,
+    issuesLoading,
+    catalogError,
+    requestCatalog,
     permissionsFor,
     inputsFor,
     elicitationsFor,

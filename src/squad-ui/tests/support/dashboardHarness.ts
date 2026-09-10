@@ -1,9 +1,9 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import type { RoleSnapshot } from '../../src/protocol/messages'
+import type { IssueDescriptor, RoleSnapshot } from '../../src/protocol/messages'
 
 export const PROTOCOL_VERSION = 4
 
-interface ProtocolMessage {
+export interface ProtocolMessage {
   version: number
   type: string
   requestId?: string
@@ -37,6 +37,27 @@ export async function deliverHostMessages(
     clearClientMessagesAfter: options.clearClientMessagesAfter ?? false,
   })
 }
+
+export async function lastClientMessage(page: Page): Promise<ProtocolMessage> {
+  return page.evaluate(() => JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))
+}
+
+export const issueCatalog: IssueDescriptor[] = [
+  {
+    path: 'docs/issues/alpha.md',
+    title: 'Alpha issue',
+    priority: 1,
+    frontmatter: '---\ntitle: Alpha issue\npriority: 1\n---',
+    previewLines: ['First alpha line.', 'Second alpha line.'],
+  },
+  {
+    path: 'docs/issues/beta.md',
+    title: 'Beta issue',
+    priority: null,
+    frontmatter: '---\ntitle: Beta issue\n---',
+    previewLines: ['Contains <b>tag</b> literally.'],
+  },
+]
 
 export function roleTranscript(page: Page, role: string) {
   return page.locator('.role-panel')

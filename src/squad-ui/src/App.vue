@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ProtocolErrorBanner from './components/ProtocolErrorBanner.vue'
+import IssueExplorer from './components/IssueExplorer.vue'
 import RolePanel from './components/RolePanel.vue'
 import { useDashboardSession } from './composables/useDashboardSession'
 
@@ -10,6 +11,10 @@ const {
   rolesWithOlderTranscript,
   rolesWithTruncatedTranscript,
   publishedAnnouncementsByRole,
+  issues,
+  issuesLoading,
+  catalogError,
+  requestCatalog,
   permissionsFor,
   inputsFor,
   elicitationsFor,
@@ -38,6 +43,13 @@ const {
       v-if="protocolError"
       :error-message="protocolError"
       @dismiss="dismissProtocolError"
+    />
+
+    <IssueExplorer
+      :issues="issues"
+      :is-loading="issuesLoading"
+      :error="catalogError"
+      @open="requestCatalog"
     />
 
     <section v-if="hasRoles" class="role-grid" aria-label="Agent roles">
