@@ -17,14 +17,15 @@ public without requiring knowledge of the test implementation. `BackendScenario`
 Headquarters, an agent, a configured model, `squad`, `squad-hq`, `blaxquad/squad.json`, a transcript, and a handoff
 do.
 
-A baseline scan of `src/squad.Specs/Features/*.feature` and `src/squad.Specs/StepDefinitions/*.cs` found:
+A refreshed baseline scan of `src/squad.Specs/Features/*.feature` and
+`src/squad.Specs/StepDefinitions/*.cs` on 2026-09-10 found:
 
-- 52 authored feature files containing 164 scenarios and 1,372 step occurrences;
-- 361 binding attributes across 19 step-definition files;
-- 154 bindings, 43% of the suite, in `BackendScenarioSteps` alone;
-- 695 step occurrences, 51% of all feature steps, that literally mention `backend scenario`;
-- 366 distinct phrases after quoted and numeric example values are normalized; and
-- 191 normalized phrases, 52% of the vocabulary, that occur only once.
+- 45 authored feature files containing 146 scenarios and 1,254 step occurrences;
+- 340 binding attributes across 17 step-definition files;
+- 150 bindings, 44% of the suite, in `BackendScenarioSteps` alone;
+- 621 step occurrences, 50% of all feature steps, that literally mention `backend scenario`;
+- 343 distinct phrases after quoted and numeric example values are normalized; and
+- 174 normalized phrases, 51% of the vocabulary, that occur only once.
 
 The raw number of steps is not itself the defect. The problem is that equivalent concepts have separate dialects,
 data variation is encoded in prose and separate bindings, and scenario choreography is hidden inside one-off steps.
@@ -32,13 +33,13 @@ That makes a new scenario more likely to invent another phrase than compose exis
 
 ### Test infrastructure has become the actor
 
-Thirty-four feature files use `backend scenario` in their wording. The most repeated phrases include:
+Twenty-nine feature files use `backend scenario` in their wording. The most repeated phrases include:
 
-- `the backend scenario observes a session started for role ... across the control pipe` (62 occurrences);
-- `the backend scenario starts squad-hq with the fake provider fixture` (57 occurrences);
-- `the backend scenario has enabled the fake-provider control transport` (57 occurrences);
-- `the backend scenario observes an exit code of zero` (49 occurrences); and
-- `the backend scenario requests a host-control shutdown` (43 occurrences).
+- `the backend scenario observes a session started for role ... across the control pipe` (54 occurrences);
+- `the backend scenario has enabled the fake-provider control transport` (48 occurrences);
+- `the backend scenario starts squad-hq with the fake provider fixture` (47 occurrences);
+- `the backend scenario observes an exit code of zero` (38 occurrences); and
+- `the backend scenario requests a host-control shutdown` (32 occurrences).
 
 `BackendScenario` is a useful test-owned facade, but it is an implementation detail of the bindings. In use-case
 features the actors are the user, an agent, headquarters, the CLI, a project, or a transcript. The facade, fixture,
@@ -225,28 +226,72 @@ reimplementing protocol or domain rules.
 
 ## Implementation plan
 
-1. For every feature, identify its user and map its nouns and verbs to the glossary, manual, CLI help, configuration,
-  UI, or a documented public protocol. Mark test-only terms that must disappear.
-2. Produce the semantic binding inventory and add the user-language and canonical-vocabulary rules to the backend
-  test strategy.
-3. Migrate the common scenario spine first: project roles, Headquarters startup, session availability, shutdown,
-   prompt delivery, agent reply, and transcript content. Use it from all affected features before deleting aliases.
-4. Consolidate interaction requests and responses with typed values and tables for optional structured fields.
-5. Consolidate provider event streams and transcript observations, preserving ordering, incremental update,
-   synchronization, paging, and archival semantics.
-6. Consolidate CLI, handoff, delivery, and queue language only where concepts are genuinely shared; do not erase
-   their separate domain meanings.
-7. Review every remaining single-scenario binding. Merge data-only variants and retain a specialized phrase only
-   when it names a unique externally observable contract.
-8. Review features currently centered on `BackendScenario`, backend-spec workspace support, the headless test client,
-  or the fake-provider control protocol. Recast valuable coverage around the public executable, configuration, UI
-  protocol, or provider contract; remove scenarios that only specify test support. Do not preserve test-only
-  vocabulary as an exception.
-9. Remove obsolete bindings and split the remaining definitions into cohesive language modules. Do not edit
-   generated `*.feature.cs` files by hand.
+### Language architecture
 
-Run the black-box specification suite after each migration slice so ambiguous bindings, state leakage, and changed
-wait semantics are detected close to the edit that caused them.
+Use these language modules. The names describe responsibilities rather than requiring these exact C# type names:
+
+| Module | User perspective and vocabulary |
+| --- | --- |
+| Project configuration | A configuration author configures roles, worktrees, models, permissions, and receive modes in `blaxquad/squad.json`. Role collections and records use tables. |
+| Headquarters lifecycle | An operator launches, waits for, shuts down, or otherwise terminates Headquarters through `squad-hq`; process results and diagnostics remain explicit. |
+| Dashboard operations | A user sends prompts, aborts work, and answers interactions for a role; the dashboard shows role state, usage, interactions, and transcript content. |
+| Agent sessions | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, readiness, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
+| Transcript protocol | A UI-protocol client receives typed updates, synchronization, pages, archived entries, sequence positions, and truncation state. Ordered collections use tables. |
+| Role commands | A role agent runs the documented `squad` context, handoff, `ready-for-next`, and `done-with-current` commands from its worktree. |
+| Handoff delivery | An operator or role agent observes durable handoff fan-out, notification, retry, recovery, and queue state using glossary terms. |
+| Public adapters | An operator selects the documented UI or provider adapter, while UI-protocol and provider-SPI users exercise their respective public contracts. |
+
+Reqnroll must resolve one scenario-scoped owner of the `BackendScenario` facade for all language modules and one
+teardown owner for every process that owner creates. Named concurrent projects and replacement launches remain
+explicit children of that owner; binding classes must not construct independent default facades. Keep the facade and
+all fake-provider plumbing in test support rather than exposing them in Gherkin or adding production test APIs.
+
+Tables and parameter conversions must be strict: validate required and supported columns, parse booleans and enums
+as typed values, preserve row order where it is observable, and report malformed data clearly. Do not replace the
+current phrases with a generic event or action table that hides distinct behavior. Concurrent scenarios must compose
+separate start, pending, release, and observe steps while retaining the existing acknowledgements and bounded waits.
+
+### Migration slices
+
+Slices are executed in this order, with exactly one in progress. A feature listed in two slices is deliberately split
+by the named scenarios so that each handoff still has one acceptance claim.
+
+| # | Slice | Scope | Slice acceptance |
+| --- | --- | --- | --- |
+| 1 | Canonical configuration and healthy lifecycle | Add the complete language rules and examples to `docs/manual/test-strategy.md`; migrate `HeadquartersLifecycle.feature`; establish the shared scenario owner and lifecycle/configuration binding modules; remove `BackendScenarioLifecycle.feature` and its bindings because they specify only test-support disposal. | A configuration author can describe a multi-role project with a table, and an operator can launch a healthy Headquarters process, wait for its agents, shut it down, observe resource release and durable-worktree preservation, and relaunch it without any test-owned actor in the feature. |
+| 2 | Role-directed prompts, replies, and readiness | Migrate `PromptIsolationAndReadiness.feature` onto the shared modules. Fold the public request/reply path from `ProcessSpecificationDriver.feature` into this coverage, then remove that support-centric feature. Remove `FakeProviderControlProtocol.feature` and its bindings because the private transport has no user-facing contract. | Prompts reach only the addressed agent, same-role prompts serialize, different roles proceed independently, replies appear in the transcript, and `squad-hq wait-for-agent` follows session readiness using one vocabulary. |
+| 3 | Abort ordering | Migrate the six abort scenarios in `AbortSequencingAndTerminalRoleFailure.feature` and separate them from its terminal-failure scenario. Replace compound race phrases with reusable start, pending, release, receive, and non-receive operations. | An abort is role-scoped, cancels the active turn, cannot be overtaken by a following prompt, suppresses canceled-turn output, and remains retryable. |
+| 4 | Terminal session finality | Migrate the terminal-failure scenario separated in slice 3 together with `TerminatedSessionEventSuppression.feature`. | A completed or failed session remains terminal, ignores late events and interactions, rejects later commands for its role, leaves sibling roles usable, and cannot obstruct shutdown. |
+| 5 | Structured interaction publication and ownership | Migrate the first four scenarios of `PublishedInteractionsAndResponseOwnership.feature`. Use typed values and tables for choices, form values, URLs, optional fields, and booleans while keeping permission, input, and elicitation semantics distinct. | Every supported interaction field is published, a response reaches only its owning role and request, wrong or duplicate responses are rejected, and equal request IDs remain isolated by role. |
+| 6 | Interaction cancellation and retained context | Migrate the final three scenarios of `PublishedInteractionsAndResponseOwnership.feature` together with `TranscriptPendingInteractionRetention.feature`. | Abort, session failure, and shutdown cancel pending interactions, late responses are rejected, and a still-pending interaction retains visible transcript context across live-history eviction. |
+| 7 | Usage and readiness publication | Migrate `ActiveUsageRefresh.feature` into the dashboard and agent-session language modules. | Usage updates are visible while an agent is working, idle preserves the newest values, and a stale checkpoint cannot overwrite newer usage. |
+| 8 | Transcript entry streams | Migrate `TranscriptProtocolShape.feature` and `TranscriptStreamFinalization.feature`; introduce table-backed event emission and transcript observation only where the table has a fixed, typed schema. | All public entry sources retain their protocol fields, assistant and reasoning deltas update one entry, final messages replace drafts, and idle closes a reasoning stream. |
+| 9 | Transcript synchronization races | Migrate `TranscriptSynchronizationOrder.feature` using reusable independently-started synchronization and ordered event operations. | A synchronization racing a stream or concurrent publication reconciles every entry exactly once and in every order guaranteed by the protocol. |
+| 10 | Transcript history paging and cleanup | Migrate `TranscriptHistoryPaging.feature`. Keep request coordinates and archive paths behind bindings. | A UI-protocol client can combine bounded synchronization with previous pages without gaps or duplicates, retrieve retained archived entries, and observe temporary history disappear at shutdown. |
+| 11 | Transcript retention and truncation | Migrate `TranscriptActiveStreamRetention.feature` and `TranscriptOversizedContent.feature`. Replace repeated size-specific prose with typed counts or tables without hiding live, announcement, per-entry archive, and total-archive limits. | Active streams remain appendable across eviction, every independently bounded representation reports truncation accurately, and rotated content is reported unavailable. |
+| 12 | Tool lifecycle, output, and correlation | Migrate `TranscriptToolLifecycleState.feature`, `TranscriptToolOutputAggregation.feature`, and `TranscriptToolCallCorrelation.feature`. | Active-tool state follows lifecycle, cumulative output replaces one entry, progress stays separate, fallback output is used only when needed, and concurrent calls remain correlated by ID. |
+| 13 | Specialized transcript presentation | Migrate `TranscriptToolCommandPresentation.feature`, `TranscriptFileReadSummaries.feature`, `TranscriptSkillActivityPresentation.feature`, and `TranscriptSubagentPresentation.feature`. | Shell commands, unknown arguments, file reads, skills, and subagents retain their distinct public presentation and omission rules through reusable typed tool/event steps. |
+| 14 | Stdio UI transport and selection | Migrate `StdioUiProtocol.feature`, `StdioUiProtocolMultiRole.feature`, and `UiSelection.feature` into the public UI-protocol vocabulary. | `--ui stdio` honors readiness, paging, synchronization, diagnostic separation, shutdown, and concurrent line framing, while invalid UI selection reports the documented diagnostics. |
+| 15 | UI command validation | Migrate `UiProtocolValidation.feature`; use an examples table for invalid envelope shapes and keep raw JSON only where the wire shape itself is the contract. | Invalid envelopes and unknown roles produce their exact public protocol errors before provider dispatch, and a later valid command still succeeds. |
+| 16 | Shutdown admission and dispatch draining | Migrate `ShutdownCommandAdmission.feature` and `StdioTransportConcurrentDispatchAndShutdown.feature` with composable begin-shutdown, pending-operation, release, and exit steps. | Shutdown drains commands admitted before closure, rejects later commands without side effects, and waits for in-flight stdio dispatch before disposing the protocol session. |
+| 17 | Host ownership and project isolation | Migrate `HostOwnership.feature` and `HostCoexistence.feature`; share the same `squad-hq` command language for default, equivalent-path, linked-worktree, and named-project contexts. | One project has one host, readiness and shutdown discover the right host, stale ownership recovers, and stopping one project never affects another. |
+| 18 | Startup interruption and external termination | Migrate `HeadquartersEarlyShutdown.feature` and `HeadquartersTermination.feature`; express readiness watches, independently initiated shutdown, input closure, and platform cancellation as separate operations. | Headquarters terminates cleanly before or during startup and after readiness, never admits late work, disposes started sessions, preserves durable files, and permits replacement launch. |
+| 19 | Provider failure and cleanup | Migrate `HeadquartersPartialStartupFailure.feature`, `HeadquartersTerminalProviderFailure.feature`, and `HeadquartersCleanupDiagnostics.feature`. | Startup, per-session, backend-wide, and cleanup failures preserve their distinct outcomes and diagnostics, dispose only the appropriate sessions, retain durable files, release ownership, and permit replacement launch. |
+| 20 | Provider loading and packaging | Migrate `AgentProviderSelection.feature` and `ProviderPackaging.feature` to operator-facing `squad-hq` and public provider-adapter terms. | Explicit provider selection fails clearly for every invalid descriptor, the executable has no compile-time Copilot dependency, and publish variants contain exactly their documented provider assets. |
+| 21 | Role context | Migrate `Context.feature` with canonical project configuration and explicit `squad context` actions. | A role agent resolves its role from each worktree and JSON context identifies the project, role worktree, and shared source without a legacy environment variable. |
+| 22 | Handoff authoring | Migrate `Handoffs.feature`; represent recipient collections structurally rather than as comma-separated values. | `squad handoff` creates valid Git and note handoffs, reports all repairable draft errors, preserves invalid drafts, and exposes durable queue results in handoff vocabulary. |
+| 23 | Task and batch receive modes | Migrate `TaskQueue.feature`, `BatchQueue.feature`, and the role-command scenarios from `Recovery.feature`. Reuse command/result steps while retaining the distinct task and batch state machines. | `ready-for-next` and `done-with-current` select, resume, complete, and reject task or batch state exactly according to the configured receive mode, priority, and worktree identity. |
+| 24 | Handoff delivery and recovery | Migrate `Delivery.feature`, the delivery/restart scenarios from `Recovery.feature`, and `HeadquartersHandoffPumpFailure.feature`. Remove the final migrated aliases and delete `BackendScenarioSteps` if empty. | Delivery persists before notification, retries and restarts neither lose nor duplicate work, unavailable or busy recipients recover correctly, and a real delivery-pump failure reports its own diagnostic while preserving queued work. |
+
+### Definition of done for every slice
+
+- Rewrite the complete slice scope from its identified user perspective and keep every existing behavioral assertion.
+- Reuse or extend the shared language modules; do not introduce feature-specific dialects or another scenario facade.
+- Remove every alias and binding made unused by the slice rather than retaining compatibility wording.
+- Preserve deterministic synchronization through observable acknowledgements and bounded waits; do not add sleeps.
+- Run the focused scenarios for the slice and then the complete `squad.Specs` suite.
+- Do not change production behavior or add production APIs for test convenience.
+- Do not edit generated `*.feature.cs` files by hand.
 
 ## Acceptance criteria
 
