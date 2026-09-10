@@ -279,3 +279,19 @@ pre-request synchronization.
 
 **Slice acceptance:** Primary and cleanup failures are all visible in process diagnostics, cleanup continues through
 every owned resource, and host ownership is released only after provider retirement actually finishes.
+
+#### Review findings on 80caef7ffd
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/HeadquartersCleanupDiagnostics.feature`
+  (`Provider cleanup held at its acknowledged boundary keeps the host owned until it completes`),
+  `BackendScenarioSteps.ThenTheBackendScenarioConfirmsHostControlIsStillAvailableForRole`.
+- **Violated behavior:** Slice 9 item 3 requires proving the host remains owned while cleanup is held — the feature
+  text requires it to still answer a real host-control command.
+- **Root cause:** The step runs `wait-for-agent` and only asserts stderr does not contain `squad host unavailable`.
+  That also passes for `squad control endpoint unavailable` (metadata/lock still present, pipe not answering) and for
+  any other non-unavailable failure. It never asserts the live-host diagnostic `agent not ready` that
+  `Then role {string} is not ready for a prompt` already uses as proof of contact.
+- **Required outcome:** While disposal is held, observe a host-control probe that contacted the live host (for
+  example stderr contains `agent not ready`), not merely the absence of the released-host diagnostic.
