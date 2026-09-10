@@ -421,6 +421,18 @@ public sealed class BackendScenarioSteps
         Assert.That(message, Is.EqualTo(myExpectedInvalidMessageProtocolError));
     }
 
+    // Unlike the structurally invalid envelopes above, this message is well-formed and passes envelope validation;
+    // it is rejected only once command dispatch discovers the role has no configured session, so it shares the
+    // same exact-error, no-provider-invocation, and remains-usable assertions as the invalid-envelope matrix
+    // without being one of its structural cases.
+    [When("the backend scenario sends a prompt to the unknown role {string}")]
+    public void WhenTheBackendScenarioSendsAPromptToTheUnknownRole(string role)
+    {
+        myLastInvalidMessageCase = "unknown role";
+        myExpectedInvalidMessageProtocolError = $"Unknown role: {role}";
+        myScenario.SendPrompt(role, "hello");
+    }
+
     // Every invalid envelope in the matrix is validated (version, type, role, request id, or payload shape)
     // before command routing ever happens, so the correct proof is that whichever provider-observable effect its
     // command type would otherwise have produced never happened - never a broader "nothing at all happened"

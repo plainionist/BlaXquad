@@ -29,3 +29,9 @@ Feature: UI protocol validation
       | invalid integer payload          |
       | invalid synchronization payload  |
       | malformed JSON                   |
+
+  Scenario: A prompt sent to an unknown role is reported as a protocol error without disturbing the process
+    When the backend scenario sends a prompt to the unknown role "not-a-configured-role"
+    Then the backend scenario observes its exact protocol error for the rejected message
+    And no provider-side command was invoked for the rejected message
+    And the backend scenario remains usable after the rejected message
