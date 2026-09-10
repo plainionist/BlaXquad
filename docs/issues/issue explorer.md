@@ -57,15 +57,21 @@ responsive presentation. Markdown and frontmatter previews are displayed as plai
 
 ## Protocol shape
 
-Add an `issues.list` command with no client-supplied path. Its response contains an ordered collection conceptually
-equivalent to:
+Add an `issues.list` command with no client-supplied path. The client assigns the request an envelope `requestId`;
+the matching `issues.list` response, or a `protocol.error` caused by that request, echoes that ID so the explorer can
+finish its own loading state without treating unrelated protocol failures as catalog failures. The successful payload
+is:
 
 ```text
-path: string
-title: string
-priority: number | null
-frontmatter: string
-previewLines: string[]
+issues: [
+  {
+    path: string
+    title: string
+    priority: number | null
+    frontmatter: string
+    previewLines: string[]
+  }
+]
 ```
 
 The fixed server-side directory prevents the command from becoming a general workspace-file API. A missing
@@ -75,48 +81,137 @@ protocol errors rather than reporting a misleading empty catalog.
 
 This is a protocol extension, so increment the protocol version in C# and TypeScript together.
 
-## High-level implementation plan
+## Resolved design decisions
 
-1. Define the issue descriptor and catalog operation at the UI-facing boundary.
-2. Implement a small read-only C# catalog for `<workspace>/docs/issues` using a YAML parser rather than ad hoc
-  frontmatter matching. Enumerate top-level `.md` files only, normalize returned paths, apply fallbacks, and sort
-  the final descriptors.
-3. Route `issues.list` through `UiProtocolSession` and wire the catalog from the headquarters composition root into
-  both Photino and stdio hosts. Keep issue filesystem concerns out of `SquadViewModel`.
-4. Extend the TypeScript protocol types and bridge with the issue-list response.
-5. Add an issue-explorer component and session state to the Vue dashboard. Request fresh data on open and implement
-  pointer, keyboard, empty, loading, and error states.
-6. Implement Copy with the browser clipboard API and accessible confirmation.
-7. Implement Play by updating the first role's existing draft state and focusing its composer. Make configured role
-  order an explicit, tested invariant rather than relying on incidental dictionary enumeration.
-8. Integrate the toolbar into the current responsive layout and ensure the menu and flyout remain within the
-  viewport on desktop and mobile.
+- Play replaces the first configured role's current draft immediately. It does not append or ask for confirmation.
+- The catalog is an independent, read-only filesystem concern. Put its transport-neutral descriptor and narrow
+  catalog contract in `squad.Ui.Abstractions`, implement it in a cohesive `squad.Issues` module, and inject it from
+  the `squad-hq` composition root. `SquadViewModel` remains unchanged by issue discovery.
+- Recognize frontmatter only when the first line is `---`; the next `---` line closes it. Return the source block,
+  including delimiters, with line endings normalized to `\n`. With an opening delimiter but no closing delimiter,
+  retain the remaining text as partial frontmatter and return no body preview.
+- Parse the text inside the delimiters with YamlDotNet. A valid title is a non-empty scalar. A valid priority is an
+  invariant-culture integer. Resolve title and priority independently so one invalid field does not discard the
+  other; malformed YAML falls back to the filename and a null priority.
+- Preview the first five non-blank body lines after frontmatter, preserving each returned line's text. A document
+  without frontmatter uses its first five non-blank lines.
+- Enumerate only regular, top-level files whose extension is `.md` case-insensitively. Do not recurse or follow file
+  or directory links outside the fixed catalog directory.
+- Sort prioritized issues by ascending priority, then filename using ordinal-ignore-case and ordinal tie-breakers.
+  Sort unprioritized issues after them by the same filename comparison.
+- Treat an absent directory and a present empty directory as successful empty catalogs. A non-directory occupying
+  `docs/issues`, enumeration failures, and file-read failures are protocol errors. YAML content errors are descriptor
+  fallbacks, not protocol errors.
+- Use the order in the configured `roles` array as the authoritative role order. Preserve it explicitly in snapshots
+  rather than relying on `Dictionary` enumeration.
 
-## Test strategy
+## Delivery plan
 
-Add black-box Gherkin coverage through the real stdio UI protocol for:
+### Slice 1 - List issues through the UI protocol (in progress)
 
-- priority ordering and deterministic tie-breaking;
-- title and priority fallbacks;
-- frontmatter and body-preview extraction;
-- a missing or empty `docs/issues` directory;
-- normalized workspace-relative paths; and
-- refreshing the result after issue files change during a running headquarters session.
+**Outcome:** A UI client can request a fresh, ordered issue catalog through the real headquarters protocol without
+gaining a general workspace-file API.
 
-Add focused Playwright coverage for:
+Implementation:
 
-- opening and closing the menu;
-- the disabled `<no issues>` entry;
-- mouse and keyboard selection with the corresponding flyout;
-- copying the exact relative path;
-- putting the exact prompt into the first configured role's draft;
-- preserving other roles' drafts and emitting no protocol command until the user submits;
-- disabling Play when no role is available; and
-- desktop and narrow-screen layout without clipping or overlap.
+1. Add one-file-per-type `IssueDescriptor` and `IIssueCatalog` contracts to `squad.Ui.Abstractions`.
+2. Add `squad.Issues` to `squad.slnx` and the module inventory. Implement `WorkspaceIssueCatalog` against the fixed
+   `<workspace>/docs/issues` location with YamlDotNet and the parsing, fallback, preview, path, link, and ordering
+   rules above.
+3. Construct the catalog in `squad-hq` and pass the same dependency through both `PhotinoWindowHost` and
+   `StdioWindowHost` to `UiProtocolSession`. Add `issues.list` routing without adding issue state to
+   `state.snapshot`.
+4. Echo the request ID on the `issues.list` response and on command failures. Preserve existing uncorrelated
+   protocol-error behavior for envelope failures that have no usable request ID.
+5. Add the TypeScript descriptor/payload types and bridge callback for `issues.list`. Increment the protocol version
+   from 3 to 4 in C#, TypeScript, backend test support, Playwright support, and all protocol fixtures in this slice.
+6. Add a focused Gherkin feature through the published `squad-hq --ui stdio` boundary. Extend
+   `ScenarioWorkspace`, `BackendScenario`, and `HeadlessUiClient` only with semantic issue-file arrangement,
+   catalog-request, and catalog-observation operations.
 
-## Decision for review
+Acceptance criteria:
 
-Playing an issue while the first role already has a non-empty draft can destroy user input. The recommended behavior
-is to ask for confirmation before replacing that draft. An alternative is to append the issue prompt on a new line,
-but that makes the resulting instruction less predictable.
+- A catalog response contains only top-level Markdown issues and returns workspace-relative `/`-separated paths.
+- One response proves priority ordering, deterministic tie-breaking, title and priority field-level fallbacks,
+  normalized raw frontmatter, and exactly five non-blank preview lines.
+- Missing and empty issue directories return `issues: []`.
+- Re-requesting after files change during the same headquarters session returns the changed catalog.
+- A real filesystem failure produces a correlated `protocol.error`, while malformed or partial YAML retains the
+  affected issue with the documented fallbacks.
+- Existing snapshot, transcript, Photino, and stdio behavior remains compatible with protocol version 4.
 
+### Slice 2 - Browse and preview issues (pending)
+
+**Outcome:** An operator can open the Issues menu and inspect the current catalog with equivalent pointer and keyboard
+behavior.
+
+Implementation:
+
+1. Add a focused issue-catalog composable around the shared bridge rather than mixing catalog lifecycle into
+   transcript or authoritative role state. Generate a new request ID and request `issues.list` on every closed-to-open
+   transition; track loading, the latest matching response, and a matching correlated error.
+2. Add an `IssueExplorer` component and a left-aligned toolbar above the role grid and empty-role view. Render loading,
+   error, ordered issue, and disabled `<no issues>` states without caching issue data in snapshots.
+3. Select an entry on pointer hover or focus within that entry. Show raw frontmatter and preview lines as text only;
+   do not use HTML injection.
+4. Toggle with the Issues trigger and close on Escape or an outside click, restoring focus to the trigger after an
+   Escape close. Keep menu/flyout focus order and accessible names explicit.
+5. Fit the toolbar, menu, and flyout inside both the current desktop grid and narrow stacked layout without obscuring
+   or horizontally expanding the role panels.
+6. Add focused Playwright coverage in a dedicated issue-explorer spec and shared harness support for correlated
+   catalog responses and errors.
+
+Acceptance criteria:
+
+- Every opening sends one fresh `issues.list` request, and only its matching response/error completes that load.
+- Hovering an issue and focusing its row or action controls select the same issue and show the same plain-text flyout.
+- The trigger, Escape, and an outside click close the menu; unrelated inside interaction does not.
+- Missing/empty results show a disabled `<no issues>` row, and catalog errors are visible and retry on the next open.
+- Desktop and 390-pixel-wide Playwright viewports contain the toolbar, menu, flyout, and role panels without clipping
+  or overlap.
+
+### Slice 3 - Copy an issue path (pending)
+
+**Outcome:** An operator can copy an issue's exact workspace-relative path even when no role is configured.
+
+Implementation:
+
+1. Add a clearly named icon button per issue that writes the descriptor's existing normalized `path` to the browser
+   clipboard without rebuilding or platform-normalizing it in Vue.
+2. Announce copy success through an `aria-live` status and surface clipboard rejection as an explicit, recoverable
+   error; do not report success when the browser rejects the write.
+3. Add Playwright coverage with a clipboard spy for the exact path, accessible action name, success announcement,
+   failure state, and availability with an empty roles snapshot.
+
+Acceptance criteria:
+
+- Copy writes exactly `docs/issues/issue explorer.md` for the example issue.
+- Copy remains enabled when no role exists and never sends a UI protocol command.
+- Assistive technology receives accurate success or failure feedback.
+
+### Slice 4 - Prepare the first role's prompt (pending)
+
+**Outcome:** Play replaces and focuses the first configured role's draft without submitting it or changing any other
+role's draft.
+
+Implementation:
+
+1. Make `SquadViewModel` preserve initialization/configuration order explicitly for role snapshots and transcript
+   projections. Add black-box multi-role Gherkin coverage that the `state.snapshot.roles` order matches
+   `blaxquad/squad.json`.
+2. Derive the Play target from the first role in that ordered snapshot. Set its draft to
+   `process this issue: '<relative path>'`, replacing any existing target draft immediately.
+3. Focus the target role's existing prompt textarea after Vue applies the draft. Keep this as presentation behavior;
+   do not add a backend command or duplicate draft state.
+4. Disable Play when the ordered role list is empty while leaving Copy enabled.
+5. Add Playwright coverage for exact replacement text, configured-order targeting, focus, preservation of other
+   drafts, disabled behavior with no roles, and no `prompt.send` until the operator explicitly submits.
+
+Acceptance criteria:
+
+- With roles configured as `reviewer, coder`, Play targets `reviewer` even if other runtime activity arrives first.
+- A non-empty target draft is replaced exactly; every non-target draft is unchanged.
+- The target textarea has focus and no protocol envelope is emitted by Play.
+- Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
+
+Only Slice 1 is active. Do not start a later slice until the reviewer accepts the current slice.
