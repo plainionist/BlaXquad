@@ -182,7 +182,7 @@ the exact `Unknown role: <role>` protocol error, no provider invocation, and con
 and `HeadlessUiClientSteps.cs` are removed; the `HeadlessUiClient` helper remains. Clean discovery is 171 expanded
 cases.
 
-### Slice 3 - Preserve interaction transcript coverage [queued]
+### Slice 3 - Preserve interaction transcript coverage [in progress]
 
 **Outcome:** Permission, input, and elicitation requests remain covered as published transcript interactions while
 fake-agent API self-tests are removed.
