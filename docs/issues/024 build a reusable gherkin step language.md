@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 9 review (61ec7d61fb) — changes requested
+
+Setup, prompt, incremental observation, and shutdown now use canonical vocabulary with no `backend scenario` actor. The concurrent-publication scenario still hard-codes the race in one step.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/TranscriptSynchronizationOrder.feature` (`When the "coder" agent concurrently emits these system messages while a transcript synchronization races them`); `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (`WhenTheAgentConcurrentlyEmitsTheseSystemMessagesWhileATranscriptSynchronizationRacesThem`).
+- **Violated behavior:** Slice 9 must migrate this feature using reusable independently-started synchronization and ordered event operations. Race language must compose start/pending/observe steps rather than one sentence that hard-codes a specific pair of concurrent actions. Exact race orchestration may stay atomic in the driver, but Gherkin must express the reusable relationship.
+- **Root cause:** The compound When is exclusive to this feature (other files only share the reconciled-transcript Then). It still fires `RequestTranscriptSynchronization` and the burst emits in one binding instead of an independently started synchronization plus a table of events.
+- **Required outcome:** In `TranscriptSynchronizationOrder.feature`, start synchronization independently of the burst, then emit the system messages as an ordered/table operation. Remove the compound binding if nothing else uses it. Keep deterministic race orchestration (do not await the sync acknowledgement before the emits).
+
 ## Slice 8 review (4dc5240d95) — accepted
 
 **Status: complete (4dc5240d95).** Finding on 186dad1e69 was addressed: both migrated features observe transcript updates and request synchronization in dashboard/user language, with no `backend scenario` actor. Old BackendScenarioSteps phrases remain as aliases for unmigrated transcript features.
