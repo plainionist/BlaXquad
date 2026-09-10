@@ -87,10 +87,6 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenariosTemporaryTranscriptHistoryNoLongerExists() =>
         Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.False);
 
-    [When("the backend scenario starts squad-hq with the echo provider fixture")]
-    public void WhenTheBackendScenarioStartsSquadHqWithTheEchoProviderFixture() =>
-        Await(myScenario.StartAsync<EchoAgentProviderFactory>());
-
     [When("the backend scenario starts squad-hq with the fake provider fixture")]
     public void WhenTheBackendScenarioStartsSquadHqWithTheFakeProviderFixture() =>
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
