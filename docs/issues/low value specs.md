@@ -271,7 +271,7 @@ separate transport smoke feature.
 covered by `HeadquartersLifecycle.feature`. Control-transport support is unchanged. Clean discovery is 158 expanded
 cases.
 
-### Slice 7 - Remove the redundant provider success case [in progress]
+### Slice 7 - Remove the redundant provider success case [done]
 
 **Outcome:** Provider selection specifications retain every distinct operator-visible failure while successful
 explicit loading remains covered by the vertical process proof.
@@ -286,6 +286,10 @@ explicit loading remains covered by the vertical process proof.
 
 - The four provider failure scenarios pass with their distinct diagnostics.
 - `ProcessSpecificationDriver.feature` still proves successful explicit provider loading and construction.
+
+**Status: complete (610f0cd863).** The successful explicit-provider scenario is removed from
+`AgentProviderSelection.feature`. The four failure diagnostics remain. Unreferenced launch/host-lease steps are
+gone; `ValidProviderFixtureFactory` stays for the duplicate-option case. Clean discovery is 157 expanded cases.
 
 ### Slice 8 - Remove the redundant owned-host happy path [queued]
 
