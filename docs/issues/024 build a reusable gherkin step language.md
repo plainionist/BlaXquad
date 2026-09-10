@@ -293,6 +293,15 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 2 review (95c2f67f47) — changes requested
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/PromptIsolationAndReadiness.feature` (prompt-send and transcript-observation steps; feature description); `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (`WhenTheBackendScenarioSendsThePromptToRole`, `ThenTheBackendScenarioObservesTheTranscriptForRoleContaining`).
+- **Violated behavior:** Slice 2 must rewrite `PromptIsolationAndReadiness.feature` from its identified user perspective onto the shared modules. Definition of done for every slice requires that rewrite and forbids a test-owned actor in the migrated feature. Dashboard operations own sending a prompt; transcript observation is a user-visible outcome. `BackendScenario` and the fake-agent control pipe must not appear as a Gherkin actor, observation channel, or specified result. Slice 1 already showed the required pattern: introduce canonical wording in the migrated feature and keep old aliases only while unmigrated features still use them.
+- **Root cause:** The migration reused `the backend scenario sends the prompt ...` and `the backend scenario observes the transcript ...` so it would not add parallel phrases, instead of adding dashboard/transcript vocabulary and using that in this feature. The feature description still names the fake-agent control pipe as an observation channel.
+- **Required outcome:** In `PromptIsolationAndReadiness.feature`, an identifiable user sends prompts and a user-visible transcript assertion observes replies — matching the canonical examples in `docs/manual/test-strategy.md`. Do not name `backend scenario` or the fake-agent control pipe in that feature. Keep the old BackendScenarioSteps phrases only as aliases for files this slice does not migrate.
+
 ## Slice 1 review (1018ba7c76) — accepted
 
 **Status: complete (1018ba7c76).** Findings on 5cc7996c17 were addressed: launch/relaunch Gherkin no longer names test providers, `test-strategy.md` states the language-architecture and strict-table rules, and the configuration table validates required/supported columns.
