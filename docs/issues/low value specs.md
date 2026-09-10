@@ -109,7 +109,7 @@ to the authored specifications.
 Implement the consolidation in the following independently reviewed slices. Keep only the named current slice in
 progress; queue each later slice only after the reviewer accepts its predecessor.
 
-### Slice 1 - Isolate generated Reqnroll code [in progress]
+### Slice 1 - Isolate generated Reqnroll code [done]
 
 **Outcome:** Clean test discovery is authoritative because generated feature code lives only in intermediate output
 and deleted features cannot survive as source-tree artifacts.
@@ -151,6 +151,11 @@ with shared-environment scheduling contention rather than a regression from this
 (`AnExplicitValidProviderDescriptorLoadsAndConstructsSuccessfully`, `AZeroReadinessTimeoutIsRejectedBeforeProjectDiscovery`,
 `ShutdownIsIdempotentForAnEmptyProject`, `WaitingOutsideASquadProjectFailsBeforePolling`) are pre-existing and
 unrelated to this slice. This is a baseline record, not a claim of a performance improvement.
+
+**Status: complete (753d91877d).** `ReqnrollUseIntermediateOutputPathForCodeBehind` is enabled so feature
+code-behind is generated under `obj`. A clean build leaves no `*.feature.cs` files beside authored features.
+Clean discovery reports 174 expanded cases from 52 source features. Recorded suite duration is 2 m 44 s / 2 m 21 s
+without a performance claim.
 
 ### Slice 2 - Preserve unknown-role prompt validation [queued]
 
