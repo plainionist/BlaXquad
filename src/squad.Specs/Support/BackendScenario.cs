@@ -24,6 +24,7 @@ public sealed class BackendScenario : IDisposable
     private int? myFailProviderAfterSessions;
     private string? myFailProviderDisposalMessage;
     private bool myDisposed;
+    private readonly List<string> myConfiguredRoles = [];
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -35,6 +36,11 @@ public sealed class BackendScenario : IDisposable
 
     /// <summary>Whether the launched backend process has not (yet) exited.</summary>
     public bool IsRunning => myProcess is { HasExited: false };
+
+    /// <summary>Every role name configured so far through <see cref="ConfigureRole"/> or <see cref="ConfigureRoles"/>,
+    /// in configuration order - for step definitions that must act on every configured role without the feature
+    /// naming each one explicitly (e.g. arming every role's automatic reply once its session has started).</summary>
+    public IReadOnlyList<string> ConfiguredRoles => myConfiguredRoles;
 
     /// <summary>Creates one Git project configured with a single role at the project root worktree.</summary>
     public void ConfigureRole(string role)
@@ -51,6 +57,7 @@ public sealed class BackendScenario : IDisposable
             }
             """ + "\n");
         myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
+        myConfiguredRoles.Add(role);
     }
 
     /// <summary>
@@ -59,7 +66,12 @@ public sealed class BackendScenario : IDisposable
     /// session live in the same launched process - for example a sender role whose own "squad handoff" CLI
     /// invocation and a recipient role whose fake session observes the resulting wake-up.
     /// </summary>
-    public IReadOnlyDictionary<string, string> ConfigureRoles(params string[] roles) => myWorkspace.ConfigureProject(roles);
+    public IReadOnlyDictionary<string, string> ConfigureRoles(params string[] roles)
+    {
+        var worktrees = myWorkspace.ConfigureProject(roles);
+        myConfiguredRoles.AddRange(roles);
+        return worktrees;
+    }
 
     /// <summary>
     /// Enables the private fake-provider control transport for the next <see cref="StartAsync{TProviderFactory}"/>
