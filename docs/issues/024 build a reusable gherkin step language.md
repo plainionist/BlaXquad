@@ -258,7 +258,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 
 | # | Slice | Scope | Slice acceptance |
 | --- | --- | --- | --- |
-| 1 | Canonical configuration and healthy lifecycle | Add the complete language rules and examples to `docs/manual/test-strategy.md`; migrate `HeadquartersLifecycle.feature`; establish the shared scenario owner and lifecycle/configuration binding modules; remove `BackendScenarioLifecycle.feature` and its bindings because they specify only test-support disposal. | A configuration author can describe a multi-role project with a table, and an operator can launch a healthy Headquarters process, wait for its agents, shut it down, observe resource release and durable-worktree preservation, and relaunch it without any test-owned actor in the feature. |
+| 1 | Canonical configuration and healthy lifecycle [done] | Add the complete language rules and examples to `docs/manual/test-strategy.md`; migrate `HeadquartersLifecycle.feature`; establish the shared scenario owner and lifecycle/configuration binding modules; remove `BackendScenarioLifecycle.feature` and its bindings because they specify only test-support disposal. | A configuration author can describe a multi-role project with a table, and an operator can launch a healthy Headquarters process, wait for its agents, shut it down, observe resource release and durable-worktree preservation, and relaunch it without any test-owned actor in the feature. |
 | 2 | Role-directed prompts, replies, and readiness | Migrate `PromptIsolationAndReadiness.feature` onto the shared modules. Fold the public request/reply path from `ProcessSpecificationDriver.feature` into this coverage, then remove that support-centric feature. Remove `FakeProviderControlProtocol.feature` and its bindings because the private transport has no user-facing contract. | Prompts reach only the addressed agent, same-role prompts serialize, different roles proceed independently, replies appear in the transcript, and `squad-hq wait-for-agent` follows session readiness using one vocabulary. |
 | 3 | Abort ordering | Migrate the six abort scenarios in `AbortSequencingAndTerminalRoleFailure.feature` and separate them from its terminal-failure scenario. Replace compound race phrases with reusable start, pending, release, receive, and non-receive operations. | An abort is role-scoped, cancels the active turn, cannot be overtaken by a following prompt, suppresses canceled-turn output, and remains retryable. |
 | 4 | Terminal session finality | Migrate the terminal-failure scenario separated in slice 3 together with `TerminatedSessionEventSuppression.feature`. | A completed or failed session remains terminal, ignores late events and interactions, rejects later commands for its role, leaves sibling roles usable, and cannot obstruct shutdown. |
@@ -293,7 +293,9 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
-## Slice 1 review (5cc7996c17) — changes requested
+## Slice 1 review (1018ba7c76) — accepted
+
+**Status: complete (1018ba7c76).** Findings on 5cc7996c17 were addressed: launch/relaunch Gherkin no longer names test providers, `test-strategy.md` states the language-architecture and strict-table rules, and the configuration table validates required/supported columns.
 
 ### Finding 1 — High
 
