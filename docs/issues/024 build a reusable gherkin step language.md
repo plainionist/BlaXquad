@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 17 review (bf4e3dc2c3) — changes requested
+
+`HostCoexistence.feature` now uses operator Headquarters launch/shutdown and UI-protocol-client wording. `HostOwnership.feature` only renamed `the executable` to `the operator` and still speaks a second command dialect.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/HostOwnership.feature` (shutdown and `wait-for-agent` steps); `src/squad.Specs/StepDefinitions/HostOwnershipSteps.cs`.
+- **Violated behavior:** Slice 17 must share the same `squad-hq` command language for default, equivalent-path, linked-worktree, and named-project contexts. Definition of done requires reusing shared language modules and forbids a feature-specific dialect. Headquarters lifecycle already has `the operator shuts down Headquarters`, `Headquarters exits with code 0`, and `the operator begins waiting for role ... to become ready with squad-hq wait-for-agent`. `HostCoexistence.feature` already shuts down Headquarters and asserts exit code 0.
+- **Root cause:** The migration renamed the actor but kept HostOwnership-only verbs (`requests squad shutdown`, `the operator's shutdown succeeds`, `the host process exits`, `begins waiting for the ... agent`) and a privately constructed `BackendScenario`, so those scenarios cannot reuse the Headquarters lifecycle steps.
+- **Required outcome:** In both migrated features, launch, shutdown, and wait-for-agent use the shared Headquarters/`squad-hq` vocabulary. Equivalent-path, linked-worktree, empty-project, and named-project stay as context on those same verbs. Do not keep a second "squad host" / "requests squad shutdown" dialect in `HostOwnership.feature`.
+
 ## Slice 16 review (5d11e09ec0) — accepted
 
 **Status: complete (5d11e09ec0).** Finding on 56b3f5623e was addressed: the unused `the backend scenario observes a protocol error mentioning` binding is gone. Canonical user-observation wording remains; session-disposal hold/complete aliases stay for `HeadquartersCleanupDiagnostics.feature`.
