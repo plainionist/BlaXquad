@@ -279,7 +279,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 19 | Provider failure and cleanup [done] | Migrate `HeadquartersPartialStartupFailure.feature`, `HeadquartersTerminalProviderFailure.feature`, and `HeadquartersCleanupDiagnostics.feature`. | Startup, per-session, backend-wide, and cleanup failures preserve their distinct outcomes and diagnostics, dispose only the appropriate sessions, retain durable files, release ownership, and permit replacement launch. |
 | 20 | Provider loading and packaging [done] | Migrate `AgentProviderSelection.feature` and `ProviderPackaging.feature` to operator-facing `squad-hq` and public provider-adapter terms. | Explicit provider selection fails clearly for every invalid descriptor, the executable has no compile-time Copilot dependency, and publish variants contain exactly their documented provider assets. |
 | 21 | Role context [done] | Migrate `Context.feature` with canonical project configuration and explicit `squad context` actions. | A role agent resolves its role from each worktree and JSON context identifies the project, role worktree, and shared source without a legacy environment variable. |
-| 22 | Handoff authoring | Migrate `Handoffs.feature`; represent recipient collections structurally rather than as comma-separated values. | `squad handoff` creates valid Git and note handoffs, reports all repairable draft errors, preserves invalid drafts, and exposes durable queue results in handoff vocabulary. |
+| 22 | Handoff authoring [done] | Migrate `Handoffs.feature`; represent recipient collections structurally rather than as comma-separated values. | `squad handoff` creates valid Git and note handoffs, reports all repairable draft errors, preserves invalid drafts, and exposes durable queue results in handoff vocabulary. |
 | 23 | Task and batch receive modes | Migrate `TaskQueue.feature`, `BatchQueue.feature`, and the role-command scenarios from `Recovery.feature`. Reuse command/result steps while retaining the distinct task and batch state machines. | `ready-for-next` and `done-with-current` select, resume, complete, and reject task or batch state exactly according to the configured receive mode, priority, and worktree identity. |
 | 24 | Handoff delivery and recovery | Migrate `Delivery.feature`, the delivery/restart scenarios from `Recovery.feature`, and `HeadquartersHandoffPumpFailure.feature`. Remove the final migrated aliases and delete `BackendScenarioSteps` if empty. | Delivery persists before notification, retries and restarts neither lose nor duplicate work, unavailable or busy recipients recover correctly, and a real delivery-pump failure reports its own diagnostic while preserving queued work. |
 
@@ -292,6 +292,10 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Run the focused scenarios for the slice and then the complete `squad.Specs` suite.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
+
+## Slice 22 review (e2cb2d4a2c) — accepted
+
+**Status: complete (e2cb2d4a2c).** Finding on e2dfc8b692 was addressed: queueing is an explicit `squad handoff` action by the role agent from its worktree. Structural recipient tables, invalid-draft wire format, and the Delivery keep-list `"coder" queues the handoff` binding remain.
 
 ## Slice 22 review (e2dfc8b692) — changes requested
 
