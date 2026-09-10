@@ -205,7 +205,7 @@ fake-agent API self-tests are removed.
 field-coverage scenario both as protocol pending state and as transcript content. `FakeAgentEventSurface.feature` is
 removed; unreferenced helper-only bindings were pruned. Clean discovery is 164 expanded cases.
 
-### Slice 4 - Consolidate vertical process proofs [in progress]
+### Slice 4 - Consolidate vertical process proofs [done]
 
 **Outcome:** One architectural process proof covers startup, provider lifecycle, and prompt/reply behavior instead of
 three weaker subset features.
@@ -222,6 +222,11 @@ three weaker subset features.
 - Both `ProcessSpecificationDriver.feature` scenarios pass, preserving the full vertical proof and bounded-wait
   diagnostics.
 - No remaining feature step loses its binding.
+
+**Status: complete (b7413361f3).** `BackendScenario.feature`, `MinimalFakeProvider.feature`, and
+`RoleControllerPromptsAndReplies.feature` are removed. The vertical proof and bounded-wait diagnostics remain in
+`ProcessSpecificationDriver.feature`. The unreferenced echo-provider start binding is gone; `BackendScenario` and
+the fake-provider/role-controller support remain. Clean discovery is 161 expanded cases.
 
 ### Slice 5 - Remove workspace-wrapper self-specification [queued]
 
