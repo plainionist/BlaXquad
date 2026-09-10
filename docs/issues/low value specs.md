@@ -42,7 +42,7 @@ contain 17 scenario declarations and about 200 lines of Gherkin.
 | [`MinimalFakeProvider.feature`](../../src/squad.Specs/Features/MinimalFakeProvider.feature) | The lifecycle-only scenario is a strict subset of the vertical proof. | `ProcessSpecificationDriver.feature` loads the same explicit provider, observes its session, exchanges a prompt and reply, and shuts down cleanly. |
 | [`FakeProviderControlTransport.feature`](../../src/squad.Specs/Features/FakeProviderControlTransport.feature) | The single start/dispose transport proof is repeated through the same pipe in stronger lifecycle scenarios. | [`HeadquartersLifecycle.feature`](../../src/squad.Specs/Features/HeadquartersLifecycle.feature) observes start and disposal for two roles and also verifies readiness, durable state, host release, and relaunch. Several failure/termination features independently observe disposal. |
 | [`RoleControllerPromptsAndReplies.feature`](../../src/squad.Specs/Features/RoleControllerPromptsAndReplies.feature) | Its prompt/reply round trip is step-for-step contained in the vertical proof. | The first `ProcessSpecificationDriver.feature` scenario retains the real UI -> provider -> UI round trip. |
-| [`HeadlessUiClient.feature`](../../src/squad.Specs/Features/HeadlessUiClient.feature) | Three scenarios re-prove the wrapper: ready handshake and prompt output are covered by [`StdioUiProtocol.feature`](../../src/squad.Specs/Features/StdioUiProtocol.feature), and combined timeout diagnostics are covered more strongly by the second vertical-proof scenario. | Move the one unique product case, prompt delivery to an unknown role, into [`UiProtocolValidation.feature`](../../src/squad.Specs/Features/UiProtocolValidation.feature) before deleting this feature. |
+| [`HeadlessUiClient.feature`](../../src/squad.Specs/Features/HeadlessUiClient.feature) | Four scenarios exercise the wrapper: ready handshake and prompt output are covered by [`StdioUiProtocol.feature`](../../src/squad.Specs/Features/StdioUiProtocol.feature), combined timeout diagnostics are covered more strongly by the second vertical-proof scenario, and only unknown-role prompt delivery is unique. | Move the one unique product case, prompt delivery to an unknown role, into [`UiProtocolValidation.feature`](../../src/squad.Specs/Features/UiProtocolValidation.feature) before deleting this feature. |
 | [`FakeAgentEventSurface.feature`](../../src/squad.Specs/Features/FakeAgentEventSurface.feature) | Its seven scenarios were useful while building the fake-agent API, but now primarily prove that test helper methods work. Every event family is exercised by stronger product behavior: transcript shape, abort sequencing, interaction ownership, transcript streaming/tools, active usage, and terminated-session suppression. | Fold its unique assertions that permission, input, and elicitation requests also appear in the transcript into the existing published-interactions scenario. All other assertions already have stronger coverage. |
 
 Remove two individual scenarios from otherwise valuable features:
@@ -106,28 +106,162 @@ to the authored specifications.
 
 ## Plan
 
-1. Establish a reliable baseline. Configure Reqnroll to generate code-behind under `obj`, run a clean build once,
-	verify that no `*.feature.cs` files remain beside source features, and run clean test discovery. Record the actual
-	expanded case count and suite duration.
-2. Preserve the two unique product observations. Add an unknown-role prompt scenario to `UiProtocolValidation.feature`
-	that asserts the exact protocol error, no provider invocation, and continued usability. Add transcript assertions
-	for permission, input, and elicitation requests to the existing published-interactions field-coverage scenario.
-3. Run the two recipient features before deleting anything. This is the gap-prevention gate for the consolidation.
-4. Delete the seven high-confidence feature files listed above. Delete their dedicated binding classes
-	`BackendSpecWorkspaceSteps.cs` and `HeadlessUiClientSteps.cs`; the other candidate features use shared bindings.
-5. Delete the one redundant successful-provider scenario and the one redundant basic-shutdown scenario from their
-	otherwise retained features.
-6. Search every remaining Gherkin step before pruning support. Remove only bindings and helper methods with no
-	remaining feature reference; retain `BackendScenario`, `HeadlessUiClient`, the fake provider, and the control
-	protocol because the product-facing suite depends on them extensively.
-7. Run focused acceptance tests for `UiProtocolValidation`, `PublishedInteractionsAndResponseOwnership`,
-	`ProcessSpecificationDriver`, `HeadquartersLifecycle`, `BackendScenarioLifecycle`,
-	`FakeProviderControlProtocol`, `AgentProviderSelection`, and `HostOwnership`.
-8. Run the complete backend suite from a clean generated state twice. The second run is a cheap check that removing
-	infrastructure smoke scenarios did not expose ordering, teardown, or stale-artifact flakiness. Confirm the target
-	source inventory of 45 features and 146 scenario declarations.
-9. Run the unchanged Playwright suite once as the final cross-boundary regression check. No browser spec removal is
-	planned by this issue.
-10. Update this issue with final before/after case counts, duration, and test results. Do not claim a runtime reduction
-	 until those measurements are taken from clean, comparable runs.
+Implement the consolidation in the following independently reviewed slices. Keep only the named current slice in
+progress; queue each later slice only after the reviewer accepts its predecessor.
 
+### Slice 1 - Isolate generated Reqnroll code [in progress]
+
+**Outcome:** Clean test discovery is authoritative because generated feature code lives only in intermediate output
+and deleted features cannot survive as source-tree artifacts.
+
+**Implementation:**
+
+- Enable `ReqnrollUseIntermediateOutputPathForCodeBehind` in `squad.Specs.csproj` using the existing Reqnroll 3.3.4
+  support.
+- Run a clean build once so the legacy ignored `*.feature.cs` files beside authored features, including the six
+  orphans listed above, are removed.
+- Run clean backend test discovery and record the discovered case count and suite duration in this issue as the
+  trustworthy before-consolidation baseline.
+
+**Acceptance criteria:**
+
+- No generated `*.feature.cs` file remains beside a source `.feature` file.
+- A clean build generates feature code beneath `obj` and clean discovery reports only tests backed by current source
+  features.
+- The issue records the actual expanded baseline count and duration without claiming a performance improvement.
+
+### Slice 2 - Preserve unknown-role prompt validation [queued]
+
+**Outcome:** Unknown-role prompt delivery remains a product-level UI protocol contract while redundant headless-client
+wrapper specifications are removed.
+
+**Implementation:**
+
+- Move the unknown-role prompt case into `UiProtocolValidation.feature`.
+- Assert the exact protocol error, no provider invocation, and successful subsequent protocol use.
+- Run the recipient feature as a gap-prevention gate, then delete `HeadlessUiClient.feature` and its dedicated
+  `HeadlessUiClientSteps.cs`.
+- Remove only support made unreferenced by this slice; retain the `HeadlessUiClient` helper itself because process
+  specifications still use it.
+
+**Acceptance criteria:**
+
+- `UiProtocolValidation` proves all three unknown-role invariants through the supported protocol boundary.
+- The focused `UiProtocolValidation` and `ProcessSpecificationDriver` scenarios pass without
+  `HeadlessUiClient.feature` or its dedicated bindings.
+
+### Slice 3 - Preserve interaction transcript coverage [queued]
+
+**Outcome:** Permission, input, and elicitation requests remain covered as published transcript interactions while
+fake-agent API self-tests are removed.
+
+**Implementation:**
+
+- Add the three request-family transcript assertions to the existing published-interactions field-coverage scenario.
+- Run that recipient scenario as a gap-prevention gate, then delete `FakeAgentEventSurface.feature`.
+- Remove only bindings or helper methods made unreferenced by this slice; retain the fake provider and its event
+  surface used by product-facing scenarios.
+
+**Acceptance criteria:**
+
+- The retained published-interactions scenario observes permission, input, and elicitation requests with their
+  supported transcript fields.
+- Focused published-interaction, abort, transcript-streaming, usage, and terminated-session scenarios pass after the
+  helper-only feature is removed.
+
+### Slice 4 - Consolidate vertical process proofs [queued]
+
+**Outcome:** One architectural process proof covers startup, provider lifecycle, and prompt/reply behavior instead of
+three weaker subset features.
+
+**Implementation:**
+
+- Delete `BackendScenario.feature`, `MinimalFakeProvider.feature`, and
+  `RoleControllerPromptsAndReplies.feature`.
+- Remove only support made unreferenced by those deletions; retain `BackendScenario`, the fake provider, and shared
+  role-controller bindings used by the stronger process suite.
+
+**Acceptance criteria:**
+
+- Both `ProcessSpecificationDriver.feature` scenarios pass, preserving the full vertical proof and bounded-wait
+  diagnostics.
+- No remaining feature step loses its binding.
+
+### Slice 5 - Remove workspace-wrapper self-specification [queued]
+
+**Outcome:** The suite verifies the packaged provider-free artifact and launched process, not its own workspace and
+command-result wrappers.
+
+**Implementation:**
+
+- Delete `BackendSpecWorkspace.feature` and its dedicated `BackendSpecWorkspaceSteps.cs`.
+- Remove only helper methods made unreferenced by this deletion; retain the workspace and command-result support used
+  by process-facing scenarios.
+
+**Acceptance criteria:**
+
+- `ProviderPackaging.feature` and `ProcessSpecificationDriver.feature` pass with full command diagnostics available
+  on failures.
+- No remaining feature references a deleted workspace binding.
+
+### Slice 6 - Consolidate control-transport lifecycle coverage [queued]
+
+**Outcome:** Product lifecycle scenarios retain start and disposal coverage across the fake-provider pipe without a
+separate transport smoke feature.
+
+**Implementation:**
+
+- Delete `FakeProviderControlTransport.feature`.
+- Remove only support made unreferenced by this deletion; retain the control transport and protocol implementation
+  required for deterministic process tests.
+
+**Acceptance criteria:**
+
+- `HeadquartersLifecycle.feature` still observes session start, readiness, disposal, durable state, host release, and
+  relaunch.
+- `BackendScenarioLifecycle.feature` and `FakeProviderControlProtocol.feature` continue to protect cleanup,
+  diagnostics, concurrency, authentication, versioning, correlation, and stale-session rejection.
+
+### Slice 7 - Remove the redundant provider success case [queued]
+
+**Outcome:** Provider selection specifications retain every distinct operator-visible failure while successful
+explicit loading remains covered by the vertical process proof.
+
+**Implementation:**
+
+- Delete `An explicit valid provider descriptor loads and constructs successfully` from
+  `AgentProviderSelection.feature`.
+- Remove only step support made unreferenced by that scenario.
+
+**Acceptance criteria:**
+
+- The four provider failure scenarios pass with their distinct diagnostics.
+- `ProcessSpecificationDriver.feature` still proves successful explicit provider loading and construction.
+
+### Slice 8 - Remove the redundant owned-host happy path [queued]
+
+**Outcome:** Host ownership retains its edge, recovery, readiness, and stdio-shutdown contracts without a lifecycle
+happy path already contained in headquarters behavior.
+
+**Implementation:**
+
+- Delete `The executable shuts down an owned host` from `HostOwnership.feature`.
+- Remove only step support made unreferenced by that scenario.
+
+**Acceptance criteria:**
+
+- The retained equivalent-path, duplicate-host, abrupt-termination, readiness, idempotent-empty-project, and stdio
+  shutdown scenarios pass.
+- `HeadquartersLifecycle.feature` proves healthy owned-host shutdown, host release, and replacement launch.
+
+### Completion gate
+
+After Slice 8 is accepted:
+
+- Search all remaining Gherkin steps and remove only truly unreferenced bindings or helpers attributable to this
+  issue.
+- Run the complete backend suite twice from a clean generated state; confirm 45 source feature files, 146 scenario
+  declarations, and the actual expanded case count.
+- Run the unchanged Playwright suite once as the final cross-boundary regression check.
+- Record final counts, comparable duration, and results here. Claim a runtime reduction only if the clean before/after
+  measurements demonstrate one.
