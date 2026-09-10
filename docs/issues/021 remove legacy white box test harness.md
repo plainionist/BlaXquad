@@ -72,7 +72,7 @@ are asserted on `HeadlessUiClient`. Duplicate malformed-JSON and post-terminatio
 in favor of `UiProtocolValidation` and `HostOwnership`. `EchoAgentProviderFactory` remains only for specs that still
 use it.
 
-### Slice 3: Sever product assembly references and remove dead harness artifacts
+### Slice 3 [done]: Sever product assembly references and remove dead harness artifacts
 
 1. Replace the remaining direct product calls in test support: issue non-blocking shutdown by starting the published
    `squad-hq shutdown` command through the process driver, and create the Windows handoff-outbox junction through the
@@ -94,6 +94,13 @@ use it.
 **Slice acceptance:** `squad.Specs` compiles with only the provider-abstractions product reference, all executables are
 exercised solely as published processes, no obsolete or orphaned white-box harness artifact remains, and every retained
 scenario passes alone and in the complete suite.
+
+**Status: complete (5d96147b37).** `squad.Specs` compiles with only the `squad.AgentProvider.Abstractions` product
+reference; `squad` and provider-free `squad-hq` remain MSBuild publish dependencies. Non-blocking shutdown is issued as
+published `squad-hq shutdown` through the process driver, and the Windows handoff-outbox junction is created through
+the test-owned command runner. `ObservingHandoffPump` is removed. Provider-selection fixtures are one top-level type
+per file. Bindings no longer import or name product implementation types. The duplicate prompt-observation step
+binding is removed.
 
 ## Acceptance criteria
 
