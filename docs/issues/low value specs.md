@@ -157,7 +157,7 @@ code-behind is generated under `obj`. A clean build leaves no `*.feature.cs` fil
 Clean discovery reports 174 expanded cases from 52 source features. Recorded suite duration is 2 m 44 s / 2 m 21 s
 without a performance claim.
 
-### Slice 2 - Preserve unknown-role prompt validation [queued]
+### Slice 2 - Preserve unknown-role prompt validation [in progress]
 
 **Outcome:** Unknown-role prompt delivery remains a product-level UI protocol contract while redundant headless-client
 wrapper specifications are removed.
