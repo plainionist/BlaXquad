@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 21 review (08463b6d57) — changes requested
+
+Canonical `blaxquad/squad.json` configuration is in place. The context queries still hide `squad context` behind worktree-as-actor phrasing.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/Context.feature` (`the {role} worktree queries its role context ...`, `the {role} worktree queries JSON context ...`); `src/squad.Specs/StepDefinitions/ContextSteps.cs`.
+- **Violated behavior:** Slice 21 must migrate with explicit `squad context` actions. The role-commands module is a role agent running documented `squad context` from its worktree. Slice acceptance is that a role agent resolves its role from each worktree.
+- **Root cause:** Only the comma-separated project Given was replaced. The When steps still make the worktree the actor and paraphrase the command as "queries its role context" / "queries JSON context".
+- **Required outcome:** In `Context.feature`, role-context queries are explicit `squad context` actions by the role agent from its worktree. Keep the no-legacy-environment-variable distinction and JSON identification of project, role worktree, and shared source. Do not keep a "worktree queries" dialect that hides the command.
+
 ## Slice 20 review (26dedd14fc) — accepted
 
 **Status: complete (26dedd14fc).** Finding on e110106d06 was addressed: invalid `--provider` selection uses `the operator launches Headquarters with ...` and keeps `the launch fails with a provider diagnostic containing`. Packaging was already in squad-hq / public provider-adapter terms.
