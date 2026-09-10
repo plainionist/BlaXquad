@@ -130,6 +130,28 @@ and deleted features cannot survive as source-tree artifacts.
   features.
 - The issue records the actual expanded baseline count and duration without claiming a performance improvement.
 
+**Baseline (recorded after implementation):**
+
+`ReqnrollUseIntermediateOutputPathForCodeBehind` is now `true` in `squad.Specs.csproj`. A `dotnet clean` removed all
+52 previously ignored `*.feature.cs` files from `src/squad.Specs/Features`; none of the six orphans named above were
+present in this worktree at clean time, so nothing needed manual deletion here. A subsequent `dotnet build` confirmed
+all 52 code-behind files are regenerated under `obj/Debug/net10.0`, with zero `*.feature.cs` files left beside the
+source `.feature` files.
+
+Clean `dotnet test --list-tests` discovery reports **174 expanded cases** from the current 52 feature files (matching
+the 164 scenario declarations plus the two scenario-outline expansions described in the Analysis), confirming
+discovery is now trustworthy.
+
+An actual `dotnet test` run of that baseline completed in **2 m 44 s** with **158 passed, 12 failed, 4 skipped** (174
+total). A second run completed in **2 m 21 s** with **159 passed, 11 failed, 4 skipped**, a different failure subset
+each time. All failures are process/protocol timeouts in real-subprocess scenarios (for example
+`AbortingARoleWithAnOutstandingPromptCancelsThatPromptsOperation`, `TheClientCompletesTheRealUi_ReadyHandshake`), not
+missing bindings or references to deleted suites, and the set of failing tests differs between runs -- consistent
+with shared-environment scheduling contention rather than a regression from this change. The 4 skips
+(`AnExplicitValidProviderDescriptorLoadsAndConstructsSuccessfully`, `AZeroReadinessTimeoutIsRejectedBeforeProjectDiscovery`,
+`ShutdownIsIdempotentForAnEmptyProject`, `WaitingOutsideASquadProjectFailsBeforePolling`) are pre-existing and
+unrelated to this slice. This is a baseline record, not a claim of a performance improvement.
+
 ### Slice 2 - Preserve unknown-role prompt validation [queued]
 
 **Outcome:** Unknown-role prompt delivery remains a product-level UI protocol contract while redundant headless-client

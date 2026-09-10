@@ -7,6 +7,7 @@
     <RollForward>Major</RollForward>
     <InvariantGlobalization>false</InvariantGlobalization>
     <ReqnrollDeleteObsoleteCodeBehindFilesOnClean>true</ReqnrollDeleteObsoleteCodeBehindFilesOnClean>
+    <ReqnrollUseIntermediateOutputPathForCodeBehind>true</ReqnrollUseIntermediateOutputPathForCodeBehind>
     <SquadProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad\squad.csproj'))</SquadProject>
     <squadHQProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad-hq\squad-hq.csproj'))</squadHQProject>
   </PropertyGroup>
