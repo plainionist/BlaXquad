@@ -123,6 +123,21 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
+    /// <summary>Waits until a "state.snapshot" message reports the given role at the given working state with the
+    /// given context-token and AI-credit usage together - the combined shape the active-usage-refresh policy
+    /// contract needs to prove usage reported while still working reaches the ui before idle, and that idle
+    /// preserves the latest reported values.</summary>
+    public Task WaitForRoleUsageSnapshotAsync(
+        string role, bool isWorking, long contextUsedTokens, long contextLimitTokens, decimal aicUsed,
+        TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        WaitForMessageAsync(
+            element => IsStateSnapshot(element)
+                && RoleHasUsageSnapshot(element, role, isWorking, contextUsedTokens, contextLimitTokens, aicUsed),
+            $"role '{role}' to report {(isWorking ? "working" : "idle")} with context usage {contextUsedTokens} of " +
+            $"{contextLimitTokens} and AI-credit usage {aicUsed}",
+            timeout,
+            additionalDiagnostics);
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given active tool.</summary>
     public Task WaitForRoleActiveToolAsync(
         string role, string activeTool, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
@@ -844,6 +859,48 @@ public sealed class HeadlessUiClient
             {
                 return true;
             }
+        }
+        return false;
+    }
+
+    /// <summary>Matches a role's published "isWorking", "contextUsedTokens", "contextLimitTokens", and "aicUsed"
+    /// fields together, so a caller can prove the exact combination reported while still working or after idle,
+    /// rather than checking each field in isolation against a possibly different snapshot.</summary>
+    private static bool RoleHasUsageSnapshot(
+        JsonElement element, string role, bool isWorking, long contextUsedTokens, long contextLimitTokens, decimal aicUsed)
+    {
+        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (!roleElement.TryGetProperty("role", out var name) || name.GetString() != role)
+            {
+                continue;
+            }
+            if (!roleElement.TryGetProperty("isWorking", out var isWorkingElement)
+                || isWorkingElement.ValueKind != JsonValueKind.True && isWorkingElement.ValueKind != JsonValueKind.False
+                || isWorkingElement.GetBoolean() != isWorking)
+            {
+                return false;
+            }
+            if (!roleElement.TryGetProperty("contextUsedTokens", out var used)
+                || used.ValueKind != JsonValueKind.Number || used.GetInt64() != contextUsedTokens)
+            {
+                return false;
+            }
+            if (!roleElement.TryGetProperty("contextLimitTokens", out var limit)
+                || limit.ValueKind != JsonValueKind.Number || limit.GetInt64() != contextLimitTokens)
+            {
+                return false;
+            }
+            if (!roleElement.TryGetProperty("aicUsed", out var aic)
+                || aic.ValueKind != JsonValueKind.Number || aic.GetDecimal() != aicUsed)
+            {
+                return false;
+            }
+            return true;
         }
         return false;
     }

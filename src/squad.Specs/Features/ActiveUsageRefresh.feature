@@ -6,28 +6,26 @@ Feature: Active usage refresh reaches the ui before idle
   Copilot smoke run.
 
   Background:
-    Given a git project configured with a "coder" role using the controllable provider fixture
+    Given a git project configured with a "coder" role using the fake provider fixture
 
   Scenario: Usage reported while still working reaches the ui before idle, and idle preserves the latest usage
-    When squad-hq is launched with "--ui stdio" using the controllable provider fixture
-    And the ui completes the ready handshake
-    And the controllable provider session for role "coder" has started
+    When squad-hq is launched with "--ui stdio" using the fake provider fixture
+    And the fake provider session for role "coder" has started
     And the ui sends prompt "hello" to role "coder"
-    And the controllable provider reports context usage 100 of 1000 and AIC usage 0.25 for role "coder"
+    And the fake provider reports context usage 100 of 1000 and AIC usage 0.25 for role "coder"
     Then a "state.snapshot" message reports role "coder" as working with context usage 100 of 1000 and AIC usage 0.25
-    When the controllable provider goes idle for role "coder" with context usage 150 of 1000 and AIC usage 0.5
+    When the fake provider goes idle for role "coder" with context usage 150 of 1000 and AIC usage 0.5
     Then a "state.snapshot" message reports role "coder" as idle with context usage 150 of 1000 and AIC usage 0.5
 
   Scenario: A stale AIC usage checkpoint cannot overwrite a newer one while working or after idle
-    When squad-hq is launched with "--ui stdio" using the controllable provider fixture
-    And the ui completes the ready handshake
-    And the controllable provider session for role "coder" has started
+    When squad-hq is launched with "--ui stdio" using the fake provider fixture
+    And the fake provider session for role "coder" has started
     And the ui sends prompt "hello" to role "coder"
-    And the controllable provider reports context usage 100 of 1000 and AIC usage 3.5 for role "coder"
+    And the fake provider reports context usage 100 of 1000 and AIC usage 3.5 for role "coder"
     Then a "state.snapshot" message reports role "coder" as working with context usage 100 of 1000 and AIC usage 3.5
-    When the controllable provider reports context usage 150 of 1000 and AIC usage 0 for role "coder"
+    When the fake provider reports context usage 150 of 1000 and AIC usage 0 for role "coder"
     Then a "state.snapshot" message reports role "coder" as working with context usage 150 of 1000 and AIC usage 3.5
     And no "state.snapshot" message reports role "coder" with AIC usage 0 within 2 seconds
-    When the controllable provider goes idle for role "coder" with context usage 200 of 1000 and AIC usage 0
+    When the fake provider goes idle for role "coder" with context usage 200 of 1000 and AIC usage 0
     Then a "state.snapshot" message reports role "coder" as idle with context usage 200 of 1000 and AIC usage 3.5
     And no "state.snapshot" message reports role "coder" with AIC usage 0 within 2 seconds

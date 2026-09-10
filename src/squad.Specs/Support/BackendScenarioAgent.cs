@@ -189,6 +189,25 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     public Task EmitContextUsageAsync(long usedTokens, long limitTokens, TimeSpan? timeout = null) =>
         control.EmitContextUsageAsync(role, usedTokens, limitTokens, timeout, uiDiagnostics);
 
+    /// <summary>Publishes newer context-token and AI-credit usage for this role's session while its current send
+    /// remains outstanding (still "working") - the semantic operation an active-usage-refresh policy scenario uses
+    /// to prove mid-turn usage reaches the ui before the role ever goes idle.</summary>
+    public async Task ReportUsageAsync(long usedTokens, long limitTokens, decimal aicUsed, TimeSpan? timeout = null)
+    {
+        await EmitContextUsageAsync(usedTokens, limitTokens, timeout);
+        await EmitUsageAsync(aicUsed, timeout);
+    }
+
+    /// <summary>Publishes the final context-token and AI-credit usage for this role's session and then its idle
+    /// transition - the semantic operation an active-usage-refresh policy scenario uses to complete a still-working
+    /// send and prove idle preserves the latest reported usage.</summary>
+    public async Task CompleteWithIdleUsageAsync(long usedTokens, long limitTokens, decimal aicUsed, TimeSpan? timeout = null)
+    {
+        await EmitContextUsageAsync(usedTokens, limitTokens, timeout);
+        await EmitUsageAsync(aicUsed, timeout);
+        await EmitIdleAsync(timeout);
+    }
+
     /// <summary>Emits a permission request for this role's session.</summary>
     public Task RequestPermissionAsync(string requestId, string description, TimeSpan? timeout = null) =>
         control.RequestPermissionAsync(role, requestId, description, timeout, uiDiagnostics);

@@ -514,6 +514,15 @@ public sealed class BackendScenario : IDisposable
     public Task WaitForRoleUsageAsync(string role, decimal aicUsed, TimeSpan? timeout = null) =>
         RequireUi().WaitForRoleUsageAsync(role, aicUsed, timeout, DescribeControlDiagnostics());
 
+    /// <summary>Waits until a "state.snapshot" message reports the given role at the given working state with the
+    /// given context-token and AI-credit usage together - the combined shape an active-usage-refresh policy
+    /// scenario needs to prove usage reported while still working reaches the ui before idle, and that idle
+    /// preserves the latest reported values.</summary>
+    public Task WaitForRoleUsageSnapshotAsync(
+        string role, bool isWorking, long contextUsedTokens, long contextLimitTokens, decimal aicUsed, TimeSpan? timeout = null) =>
+        RequireUi().WaitForRoleUsageSnapshotAsync(
+            role, isWorking, contextUsedTokens, contextLimitTokens, aicUsed, timeout, DescribeControlDiagnostics());
+
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given active tool - proving
     /// the UI protocol exposes a running tool call as the role's active tool.</summary>
     public Task WaitForRoleActiveToolAsync(string role, string activeTool, TimeSpan? timeout = null) =>
