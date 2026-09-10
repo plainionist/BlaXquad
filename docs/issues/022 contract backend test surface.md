@@ -37,7 +37,7 @@ call sites: remove dead members, make assembly-local implementation types intern
 only when the production composition root or a documented SPI consumes them. Do not replace removed access with
 friend assemblies, reflection, test switches, or another facade.
 
-### Slice 1: Narrow headquarters lifecycle composition
+### Slice 1 [done]: Narrow headquarters lifecycle composition
 
 1. Replace the two `SquadApplication` construction paths with the single production composition path used by
    `squad-hq`; remove the direct constructor, optional event sink, optional view-model and host-lease branches, and
@@ -57,6 +57,12 @@ friend assemblies, reflection, test switches, or another facade.
 **Slice acceptance:** Headquarters retains its externally observed startup, failure, shutdown, and cleanup behavior
 through the published process while `SquadApplication` exposes no construction alternative, callback, result, or
 session/view-model inspection surface used only by tests.
+
+**Status: complete (d18b26c889).** `SquadApplication` is composed only through `Create` with required collaborators.
+The direct constructor, optional event sink, optional view-model and host-lease branches, `ViewModel`/`Sessions`
+projections, `RunAsync` readiness callback, and `RunResult` are removed. Session ownership stays private to the
+active runtime generation. `SquadStartupPlan` requires context preparation, `SquadStartupPlanFactory` is internal,
+and unused synchronous workspace-preparation helpers are gone.
 
 ### Slice 2: Encapsulate authoritative application and transcript state
 
