@@ -5,7 +5,7 @@
       "worktree": "master",
       "agent": {
         "model": "gpt-5.6-sol",
-        "effort": "high",
+        "effort": "max",
         "permissions": "approveAll"
       }
     },
@@ -23,7 +23,7 @@
       "worktree": "reviewer",
       "agent": {
         "model": "grok-4.6",
-        "effort": "high",
+        "effort": "xhigh",
         "permissions": "approveAll"
       }
     }
