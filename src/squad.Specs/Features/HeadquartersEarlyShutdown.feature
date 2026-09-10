@@ -14,9 +14,12 @@ Feature: Stopping safely before and during startup
       | role  |
       | coder |
     And role "coder" has a durable file "notes.md" containing "Keep this note."
+    And the fake-provider control transport is enabled
     When the operator launches Headquarters without completing the ready handshake
     And the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
-    And the operator requests shutdown as soon as it is reachable while sending "too late" to role "coder"
+    And the operator requests shutdown as soon as it is reachable
+    And the user sends "too late" to role "coder"
+    And Headquarters' pending shutdown completes
     Then Headquarters exits with code 0
     And role "coder" was never reported ready
     And Headquarters never starts an agent session for role "coder"
@@ -37,7 +40,9 @@ Feature: Stopping safely before and during startup
     Then Headquarters starts an agent session for role "coder"
     And Headquarters never starts an agent session for role "reviewer"
     When the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
-    And the operator requests shutdown while sending "too late" to role "reviewer"
+    And the operator begins shutting down Headquarters without waiting for it to exit
+    And the user sends "too late" to role "reviewer"
+    And Headquarters' process exits on its own
     Then Headquarters exits with code 0
     And role "coder" was never reported ready
     And Headquarters disposes the agent session for role "coder"

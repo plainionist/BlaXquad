@@ -27,7 +27,7 @@ Feature: Headquarters termination on UI closure and caller cancellation
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
-    When the operator launches a squad host without completing the ready handshake
+    When the operator launches Headquarters without completing the ready handshake
     And the operator closes Headquarters' standard input
     Then Headquarters exits with code 0
     And the operator finds Headquarters unavailable for role "coder"

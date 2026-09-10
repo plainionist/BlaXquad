@@ -816,15 +816,11 @@ public sealed class BackendScenario : IDisposable
     /// itself rather than deliberately waiting for any later, more convenient point. Only one attempt is ever in
     /// flight at a time - each retry waits for its own attempt process to finish before deciding whether another
     /// is needed - so a slow first attempt never causes a pile-up of overlapping "squad-hq shutdown" child
-    /// processes. The very first attempt is issued as a background process rather than awaited synchronously, so
-    /// - immediately after it is issued, before the launched process has necessarily terminated - this can also
-    /// deliver a UI-protocol prompt for <paramref name="sendPromptToRole"/> (when supplied), proving a command
-    /// sent once shutdown has already been requested never reaches a provider session. A broken-pipe failure from
-    /// sending that prompt after the process has already fully exited is swallowed, since that failure is itself
-    /// further proof no session ever received it.
+    /// processes. Returns a running task rather than requiring the caller to await it immediately, so a
+    /// specification can compose a racing send (through the ordinary UI-protocol prompt path) between this
+    /// request being initiated and its own completion being observed.
     /// </summary>
-    public async Task<int> RequestShutdownAsSoonAsReachableAsync(
-        TimeSpan? timeout = null, string? sendPromptToRole = null, string? promptContent = null)
+    public async Task<int> RequestShutdownAsSoonAsReachableAsync(TimeSpan? timeout = null)
     {
         if (myProcess is null || myUi is null)
         {
@@ -832,26 +828,9 @@ public sealed class BackendScenario : IDisposable
         }
 
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
-        var firstAttemptIssued = false;
         while (true)
         {
             var attempt = myWorkspace.StartProcess(myWorkspace.BackendSpecSquadHqExecutablePath, ["shutdown", myWorkspace.Root]);
-            if (!firstAttemptIssued)
-            {
-                firstAttemptIssued = true;
-                if (sendPromptToRole is not null)
-                {
-                    try
-                    {
-                        myUi.SendPrompt(sendPromptToRole, promptContent!);
-                    }
-                    catch (IOException)
-                    {
-                        // The process had already fully exited by the time this prompt was sent - itself further
-                        // proof no session ever received it.
-                    }
-                }
-            }
 
             var remaining = deadline - DateTime.UtcNow;
             if (remaining > TimeSpan.Zero)
@@ -886,42 +865,6 @@ public sealed class BackendScenario : IDisposable
         catch (OperationCanceledException)
         {
         }
-    }
-
-    /// <summary>
-    /// Requests shutdown through the real "squad-hq shutdown" host-control command exactly like
-    /// <see cref="ShutdownAsync"/>, but issues the request as its own background process instead of awaiting it,
-    /// sends the given role a UI-protocol prompt immediately afterward - before termination has necessarily
-    /// finished - then awaits the launched process's own clean exit, so a specification can prove a command sent
-    /// once shutdown is already in flight never reaches a provider session.
-    /// </summary>
-    public Task<int> ShutdownWhileSendingPromptAsync(string role, string prompt, TimeSpan? timeout = null)
-    {
-        if (myProcess is null || myUi is null)
-        {
-            throw new InvalidOperationException("The backend process has not been started.");
-        }
-
-        myWorkspace.StartProcess(myWorkspace.BackendSpecSquadHqExecutablePath, ["shutdown", myWorkspace.Root]);
-        try
-        {
-            myUi.SendPrompt(role, prompt);
-        }
-        catch (IOException)
-        {
-            // The process had already fully exited by the time this prompt was sent - itself further proof no
-            // session ever received it.
-        }
-
-        var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
-        if (!myProcess.WaitForExit(deadlineMilliseconds))
-        {
-            throw new HeadlessUiWaitTimeoutException(
-                "the backend process to exit after requesting shutdown while sending a prompt",
-                myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
-        }
-
-        return Task.FromResult(myProcess.ExitCode);
     }
 
     /// <summary>

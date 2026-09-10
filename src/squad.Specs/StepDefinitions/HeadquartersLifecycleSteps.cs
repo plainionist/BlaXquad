@@ -17,6 +17,7 @@ public sealed class HeadquartersLifecycleSteps
     private readonly BackendScenario myScenario;
     private BackendScenario? myReplacementHeadquarters;
     private int myExitCode;
+    private Task<int>? myPendingShutdown;
     private readonly Dictionary<string, BackendScenarioCommand> myReadinessWaits = new(StringComparer.Ordinal);
 
     public HeadquartersLifecycleSteps(BackendScenario scenario)
@@ -45,19 +46,18 @@ public sealed class HeadquartersLifecycleSteps
     public void GivenHeadquartersStartupPausesAfterSessionHasStarted(int count) =>
         myScenario.GateProviderStartupAfterSessions(count);
 
-    [When("the operator launches Headquarters without completing the ready handshake")]
-    public void WhenTheOperatorLaunchesHeadquartersWithoutCompletingTheReadyHandshake()
-    {
+    // Only scenarios that go on to observe role-session activity through the fake-provider control pipe (for
+    // example, proving a session was or was never started) need this. It stays a separate, composable Given
+    // rather than something the launch step below always turns on, because always enabling it would make the
+    // launched role's session wait on a control-pipe connection that a scenario proving plain process
+    // termination never drives to completion.
+    [Given("the fake-provider control transport is enabled")]
+    public void GivenTheFakeProviderControlTransportIsEnabled() =>
         myScenario.EnableFakeProviderControl();
-        myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
-    }
 
-    // A distinct, simpler fixture from the one above: a single role, no fake-provider control pipe, proving
-    // standard input closed before readiness terminates the process cleanly even without any session ever having
-    // been asked to start.
-    [When("the operator launches a squad host without completing the ready handshake")]
-    public void WhenTheOperatorLaunchesASquadHostWithoutCompletingTheReadyHandshake() =>
-        myScenario.LaunchWithoutReadyHandshake<EchoAgentProviderFactory>();
+    [When("the operator launches Headquarters without completing the ready handshake")]
+    public void WhenTheOperatorLaunchesHeadquartersWithoutCompletingTheReadyHandshake() =>
+        myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
 
     [When("the operator launches a cancellable Headquarters")]
     public void WhenTheOperatorLaunchesACancellableHeadquarters()
@@ -126,13 +126,16 @@ public sealed class HeadquartersLifecycleSteps
         Assert.That(result.StdOut, Does.Not.Contain("is ready"), () => result.StdErr);
     }
 
-    [When("the operator requests shutdown as soon as it is reachable while sending {string} to role {string}")]
-    public void WhenTheOperatorRequestsShutdownAsSoonAsItIsReachableWhileSendingToRole(string prompt, string role) =>
-        myExitCode = Await(myScenario.RequestShutdownAsSoonAsReachableAsync(sendPromptToRole: role, promptContent: prompt));
+    [When("the operator requests shutdown as soon as it is reachable")]
+    public void WhenTheOperatorRequestsShutdownAsSoonAsItIsReachable() =>
+        // Fired without awaiting completion, so a specification can compose a racing prompt send (through the
+        // ordinary "the user sends ... to role ..." dashboard operation) before this request's own completion is
+        // later observed through "Headquarters' pending shutdown completes".
+        myPendingShutdown = myScenario.RequestShutdownAsSoonAsReachableAsync();
 
-    [When("the operator requests shutdown while sending {string} to role {string}")]
-    public void WhenTheOperatorRequestsShutdownWhileSendingToRole(string prompt, string role) =>
-        myExitCode = Await(myScenario.ShutdownWhileSendingPromptAsync(role, prompt));
+    [When("Headquarters' pending shutdown completes")]
+    public void WhenHeadquartersPendingShutdownCompletes() =>
+        myExitCode = Await(myPendingShutdown!);
 
     [When("the operator closes Headquarters' standard input")]
     public void WhenTheOperatorClosesHeadquartersStandardInput()
