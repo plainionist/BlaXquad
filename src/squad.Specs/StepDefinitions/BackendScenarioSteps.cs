@@ -24,7 +24,6 @@ public sealed class BackendScenarioSteps
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
     private readonly Dictionary<string, BackendScenarioCommand> myReadinessWatches = new(StringComparer.Ordinal);
     private string? myLastInvalidMessageCase;
-    private string? myExpectedInvalidMessageProtocolError;
 
     public BackendScenarioSteps(BackendScenario scenario)
     {
@@ -332,32 +331,33 @@ public sealed class BackendScenarioSteps
         Assert.That(message, Does.Contain(text));
     }
 
-    [When("the backend scenario sends the invalid {string} ui message")]
-    public void WhenTheBackendScenarioSendsTheInvalidUiMessage(string messageCase)
+    // The envelope shape and its exact error text live in the scenario outline's own examples table - this
+    // binding only frames a UI-protocol client's wire send, never reinterprets the contract in C#, so a
+    // regression in the real UiMessageReader/UiCommandHandler validation pipeline (squad.Ui.Protocol) changes
+    // the assertion's outcome rather than silently passing.
+    [When("a UI-protocol client sends the invalid {string} envelope:")]
+    public void WhenAUiProtocolClientSendsTheInvalidEnvelope(string messageCase, string envelope)
     {
-        var (envelope, expectedError) = InvalidUiMessage(messageCase);
         myLastInvalidMessageCase = messageCase;
-        myExpectedInvalidMessageProtocolError = expectedError;
         myScenario.SendRawEnvelope(envelope);
     }
 
-    [Then("the backend scenario observes its exact protocol error for the rejected message")]
-    public void ThenTheBackendScenarioObservesItsExactProtocolErrorForTheRejectedMessage()
+    [Then("a UI-protocol client observes the protocol error {string}")]
+    public void ThenAUiProtocolClientObservesTheProtocolError(string expectedError)
     {
         var message = Await(myScenario.WaitForProtocolErrorAsync(skip: myProtocolErrorsObserved));
         myProtocolErrorsObserved++;
-        Assert.That(message, Is.EqualTo(myExpectedInvalidMessageProtocolError));
+        Assert.That(message, Is.EqualTo(expectedError));
     }
 
     // Unlike the structurally invalid envelopes above, this message is well-formed and passes envelope validation;
     // it is rejected only once command dispatch discovers the role has no configured session, so it shares the
-    // same exact-error, no-provider-invocation, and remains-usable assertions as the invalid-envelope matrix
+    // same exact-error, no-provider-invocation, and still-succeeds assertions as the invalid-envelope matrix
     // without being one of its structural cases.
-    [When("the backend scenario sends a prompt to the unknown role {string}")]
-    public void WhenTheBackendScenarioSendsAPromptToTheUnknownRole(string role)
+    [When("a UI-protocol client sends a prompt to the unknown role {string}")]
+    public void WhenAUiProtocolClientSendsAPromptToTheUnknownRole(string role)
     {
         myLastInvalidMessageCase = "unknown role";
-        myExpectedInvalidMessageProtocolError = $"Unknown role: {role}";
         myScenario.SendPrompt(role, "hello");
     }
 
@@ -383,63 +383,14 @@ public sealed class BackendScenarioSteps
         }
     }
 
-    [Then("the backend scenario remains usable after the rejected message")]
-    public void ThenTheBackendScenarioRemainsUsableAfterTheRejectedMessage()
+    [Then("a UI-protocol client's later command still succeeds")]
+    public void ThenAUiProtocolClientsLaterCommandStillSucceeds()
     {
         Assert.That(myScenario.IsRunning, Is.True);
         const string prompt = "still usable after the rejected message";
         myScenario.SendPrompt("coder", prompt);
         Assert.That(Await(myScenario.Agent("coder").WaitForPromptAsync(observed => observed == prompt)), Is.EqualTo(prompt));
     }
-
-    // Mirrors the exact envelope shapes and error text the real UiMessageReader/UiCommandHandler validation
-    // pipeline produces (squad.Ui.Protocol) - not this test's own interpretation of the contract - so a
-    // regression in that validation logic changes this assertion's outcome rather than silently passing.
-    private static (string Envelope, string ExpectedError) InvalidUiMessage(string messageCase) =>
-        messageCase switch
-        {
-            "unsupported version" => (
-                """{"version":2,"type":"role.abort","role":"coder"}""",
-                "The UI protocol version is not supported."),
-            "missing type" => (
-                """{"version":3}""",
-                "The UI message is missing a type."),
-            "unknown type" => (
-                """{"version":3,"type":"unknown"}""",
-                "Unknown UI message type 'unknown'."),
-            // Every envelope below must be a single line: the real stdio transport frames one protocol message
-            // per newline-delimited line, unlike the in-memory ReceiveMessageAsync call the old direct
-            // construction used, which never had to respect that framing.
-            "missing role" => (
-                """{"version":3,"type":"prompt.send","payload":{"prompt":"hello"}}""",
-                "The UI message is missing role."),
-            "missing request ID" => (
-                """{"version":3,"type":"permission.respond","role":"coder","payload":{"approved":true}}""",
-                "The UI message is missing requestId."),
-            "invalid string payload" => (
-                """{"version":3,"type":"prompt.send","role":"coder","payload":{"prompt":42}}""",
-                "The UI message is missing payload.prompt."),
-            "invalid boolean payload" => (
-                """{"version":3,"type":"permission.respond","role":"coder","requestId":"permission-1","payload":{"approved":"yes"}}""",
-                "The UI message is missing payload.approved."),
-            "invalid integer payload" => (
-                """{"version":3,"type":"transcript.page","role":"coder","payload":{"beforeIndex":"five"}}""",
-                "The requested operation requires an element of type "
-                + "'Number', but the target element has type 'String'."),
-            "invalid synchronization payload" => (
-                """{"version":3,"type":"transcript.synchronize","payload":{"roles":"coder"}}""",
-                "The UI message contains invalid transcript positions."),
-            "malformed JSON" => (
-                "{",
-                "Expected depth to be zero at the end of the JSON payload. "
-                + "There is an open JSON object or array that should be closed. "
-                + "LineNumber: 0 | BytePositionInLine: 1."),
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(messageCase),
-                messageCase,
-                "Unknown invalid message case."),
-        };
-
 
     [When("the {string} agent emits the reasoning {string}")]
     public void WhenTheAgentEmitsTheReasoning(string role, string content) =>
