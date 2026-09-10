@@ -34,8 +34,6 @@ public sealed class TranscriptArchive : IDisposable
             $"blaxquad-transcript-history-{Guid.NewGuid():N}");
     }
 
-    public string DirectoryPath => myDirectory;
-
     internal void Apply(TranscriptUpdate update)
     {
         lock (myStateLock)

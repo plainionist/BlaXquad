@@ -6,7 +6,6 @@ using squad.Application.RoleOperations;
 using squad.Transcripts;
 using squad.Ui.Abstractions;
 using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Threading.Channels;
 
@@ -34,27 +33,15 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private ISessionAdmission myAdmission;
 
     public SquadViewModel()
-        : this(new TranscriptRetentionOptions())
     {
-    }
-
-    public SquadViewModel(TranscriptRetentionOptions transcriptRetentionOptions)
-    {
-        ValidateTranscriptRetentionOptions(transcriptRetentionOptions);
-        myTranscriptRetentionOptions = transcriptRetentionOptions;
-        myTranscriptArchive = new TranscriptArchive(transcriptRetentionOptions);
+        myTranscriptRetentionOptions = new TranscriptRetentionOptions();
+        myTranscriptArchive = new TranscriptArchive(myTranscriptRetentionOptions);
         myEventProjector = new AgentEventProjector(myInteractions);
         myStandaloneAdmission = new StandaloneSessionAdmission(this);
         myAdmission = myStandaloneAdmission;
         myEventLoop = RunEventLoopAsync();
     }
 
-    public ReadOnlyDictionary<string, AgentRoleState> Roles => new(myRoles);
-    public IReadOnlyCollection<AgentPermissionRequest> PendingPermissions => myInteractions.Permissions;
-    public IReadOnlyCollection<AgentInputRequest> PendingInputs => myInteractions.Inputs;
-    public IReadOnlyCollection<AgentElicitationRequest> PendingElicitations => myInteractions.Elicitations;
-    public string TranscriptHistoryDirectory => myTranscriptArchive.DirectoryPath;
-    public event Action? StateChanged;
     public event Action<UiRefreshPriority>? SnapshotRequested;
     public event Action<TranscriptUpdate>? TranscriptChanged;
 
@@ -87,13 +74,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 contextLimitTokens = role.ContextLimitTokens,
                 eventCount = role.EventCount,
             }),
-            permissions = PendingPermissions.Select(permission => new
+            permissions = myInteractions.Permissions.Select(permission => new
             {
                 requestId = permission.RequestId,
                 role = permission.Role,
                 description = permission.Description,
             }),
-            inputs = PendingInputs.Select(input => new
+            inputs = myInteractions.Inputs.Select(input => new
             {
                 requestId = input.RequestId,
                 role = input.Role,
@@ -101,7 +88,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 choices = input.Choices,
                 allowFreeform = input.AllowFreeform,
             }),
-            elicitations = PendingElicitations.Select(elicitation => new
+            elicitations = myInteractions.Elicitations.Select(elicitation => new
             {
                 requestId = elicitation.RequestId,
                 role = elicitation.Role,
@@ -149,7 +136,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     /// Returns <see langword="null"/> for an unknown role, <see langword="false"/> when work is inadmissible, and
     /// otherwise the readiness inferred from serialized local state.
     /// </summary>
-    public bool? GetRoleReadiness(string role)
+    private bool? GetRoleReadiness(string role)
     {
         if (!myRoles.TryGetValue(role, out var state))
         {
@@ -249,7 +236,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }, myShutdown.Token);
     }
 
-    public void BeginStopping()
+    private void BeginStopping()
     {
         myStandaloneAdmission.BeginStopping();
         myCommands.Writer.TryComplete();
@@ -269,29 +256,11 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public Task AbortAsync(string role, CancellationToken cancellationToken = default) =>
         AbortRoleAndWaitAsync(role, cancellationToken);
 
-    public Task RequestPermissionAsync(AgentPermissionRequest request, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => EnqueueCoreAsync(() => ApplyEventAsync(request.Role, request), cancellationToken));
-
-    public Task RequestInputAsync(AgentInputRequest request, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => EnqueueCoreAsync(() => ApplyEventAsync(request.Role, request), cancellationToken));
-
-    public Task RequestElicitationAsync(AgentElicitationRequest request, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => EnqueueCoreAsync(() => ApplyEventAsync(request.Role, request), cancellationToken));
-
-    public Task CompletePermissionAsync(string requestId, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => CompletePermissionCoreAsync(null, requestId, new AgentPermissionResponse(true), cancellationToken));
-
     public Task CompletePermissionAsync(string role, string requestId, bool approved, CancellationToken cancellationToken = default) =>
         TrackCommand(() => CompletePermissionCoreAsync(role, requestId, new AgentPermissionResponse(approved), cancellationToken));
 
-    public Task CompleteInputAsync(string requestId, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => CompleteInputCoreAsync(null, requestId, new AgentInputResponse(null, true), cancellationToken));
-
     public Task CompleteInputAsync(string role, string requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
         TrackCommand(() => CompleteInputCoreAsync(role, requestId, new AgentInputResponse(answer, wasFreeform), cancellationToken));
-
-    public Task CompleteElicitationAsync(string requestId, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => CompleteElicitationCoreAsync(null, requestId, new AgentElicitationResponse("cancel", null), cancellationToken));
 
     public Task CompleteElicitationAsync(string role, string requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
         TrackCommand(() => CompleteElicitationCoreAsync(role, requestId, new AgentElicitationResponse(action, content), cancellationToken));
@@ -569,25 +538,25 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
     }
 
-    private Task CompletePermissionCoreAsync(string? expectedRole, string requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
+    private Task CompletePermissionCoreAsync(string expectedRole, string requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
             myInteractions.RemovePermission, myInteractions.RegisterPermission, expectedRole, requestId,
             (session, token) => session.RespondToPermissionAsync(requestId, response, token), cancellationToken), cancellationToken);
 
-    private Task CompleteInputCoreAsync(string? expectedRole, string requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
+    private Task CompleteInputCoreAsync(string expectedRole, string requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
             myInteractions.RemoveInput, myInteractions.RegisterInput, expectedRole, requestId,
             (session, token) => session.RespondToInputAsync(requestId, response, token), cancellationToken), cancellationToken);
 
-    private Task CompleteElicitationCoreAsync(string? expectedRole, string requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
+    private Task CompleteElicitationCoreAsync(string expectedRole, string requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
             myInteractions.RemoveElicitation, myInteractions.RegisterElicitation, expectedRole, requestId,
             (session, token) => session.RespondToElicitationAsync(requestId, response, token), cancellationToken), cancellationToken);
 
     private async Task CompleteInteractionCoreAsync<TRequest>(
-        Func<string?, string, (string Role, TRequest Request)> remove,
+        Func<string, string, (string Role, TRequest Request)> remove,
         Action<TRequest> restore,
-        string? expectedRole,
+        string expectedRole,
         string requestId,
         Func<IAgentSession, CancellationToken, Task> respond,
         CancellationToken cancellationToken)
@@ -654,47 +623,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
     }
 
-    private static void ValidateTranscriptRetentionOptions(TranscriptRetentionOptions options)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxRetainedEntries);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxRetainedContentCharacters);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxRetainedEntryCharacters);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxArchivedEntries);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxArchivedContentCharacters);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxArchivedEntryCharacters);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxAnnouncementCharacters);
-        if (options.MaxRetainedEntries < 2)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(options),
-                "At least two retained entries are required for concurrent assistant and reasoning streams.");
-        }
-        if (options.MaxRetainedContentCharacters < 2)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(options),
-                "At least two retained content characters are required for concurrent assistant and reasoning streams.");
-        }
-        if (options.MaxRetainedEntryCharacters > options.MaxRetainedContentCharacters)
-        {
-            throw new ArgumentException(
-                "The retained entry limit cannot exceed the retained content limit.",
-                nameof(options));
-        }
-        if (options.MaxArchivedEntryCharacters > options.MaxArchivedContentCharacters)
-        {
-            throw new ArgumentException(
-                "The archived entry limit cannot exceed the archived content limit.",
-                nameof(options));
-        }
-        if (options.MaxArchivedEntryCharacters <= options.MaxRetainedEntryCharacters)
-        {
-            throw new ArgumentException(
-                "The archived entry limit must exceed the retained entry limit.",
-                nameof(options));
-        }
-    }
-
     private void EnsureAccepting()
     {
         if (!myAdmission.IsAccepting)
@@ -705,16 +633,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private void NotifyStateChanged(bool immediate = true)
     {
-        foreach (Action listener in StateChanged?.GetInvocationList() ?? [])
-        {
-            try
-            {
-                listener();
-            }
-            catch
-            {
-            }
-        }
         foreach (Action<UiRefreshPriority> listener in SnapshotRequested?.GetInvocationList() ?? [])
         {
             try

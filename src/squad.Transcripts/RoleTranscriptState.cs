@@ -40,15 +40,6 @@ public sealed class RoleTranscriptState
         mySyncRoot = syncRoot;
     }
 
-    public IReadOnlyList<TranscriptEntry> Entries
-    {
-        get
-        {
-            lock (mySyncRoot)
-                return CreateTranscriptEntries().Select(entry => entry.Entry).ToArray();
-        }
-    }
-
     /// <summary>
     /// Returns the newest retained entries and the sequence through which they are current, with flags indicating
     /// whether older or truncated archive history exists.

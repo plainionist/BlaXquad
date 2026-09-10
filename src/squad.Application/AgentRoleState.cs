@@ -7,7 +7,7 @@ namespace squad.Application;
 /// Holds the synchronized, mutable projection of one role's agent state and transcript. State and transcript
 /// mutations share one lock so snapshots cannot observe partial event application.
 /// </summary>
-public sealed class AgentRoleState
+internal sealed class AgentRoleState
 {
     private readonly object myStateLock = new();
     private readonly RoleTranscriptState myTranscript;
@@ -33,7 +33,6 @@ public sealed class AgentRoleState
     public long? ContextUsedTokens { get; internal set; }
     public long? ContextLimitTokens { get; internal set; }
     public int EventCount { get; internal set; }
-    public IReadOnlyList<TranscriptEntry> TranscriptEntries => myTranscript.Entries;
 
     internal object SyncRoot => myStateLock;
     internal RoleTranscriptState Transcript => myTranscript;
