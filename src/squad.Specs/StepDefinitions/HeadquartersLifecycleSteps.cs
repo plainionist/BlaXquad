@@ -92,6 +92,18 @@ public sealed class HeadquartersLifecycleSteps
     public void WhenTheOperatorShutsDownHeadquarters() =>
         myExitCode = Await(myScenario.ShutdownAsync());
 
+    // A composable alternative to "the operator shuts down Headquarters" for scenarios that must observe
+    // in-flight cleanup (for example a held session disposal) before the process is allowed to exit: awaiting the
+    // shutdown command's own completion, as the plain shutdown above does, would block up to its own timeout
+    // waiting for host release and deadlock against that still-held state.
+    [When("the operator begins shutting down Headquarters without waiting for it to exit")]
+    public void WhenTheOperatorBeginsShuttingDownHeadquartersWithoutWaitingForItToExit() =>
+        Await(myScenario.RequestShutdownWithoutWaitingForExit());
+
+    [When("Headquarters' process exits on its own")]
+    public void WhenHeadquartersSProcessExitsOnItsOwn() =>
+        myExitCode = Await(myScenario.WaitForProcessExitAsync());
+
     [Then("Headquarters exits with code {int}")]
     public void ThenHeadquartersExitsWithCode(int exitCode) =>
         Assert.That(myExitCode, Is.EqualTo(exitCode));

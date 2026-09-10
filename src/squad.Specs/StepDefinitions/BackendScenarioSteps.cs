@@ -207,6 +207,22 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentFailsItsNextAbortWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailNextAbortAsync(message));
 
+    [When("the {string} agent holds its next session disposal pending")]
+    public void WhenTheAgentHoldsItsNextSessionDisposalPending(string role) =>
+        Await(myScenario.Agent(role).ArmPendingDisposalAsync());
+
+    [When("the {string} agent releases its pending session disposal")]
+    public void WhenTheAgentReleasesItsPendingSessionDisposal(string role) =>
+        Await(myScenario.Agent(role).CompletePendingDisposalAsync());
+
+    [Then("the {string} agent's session disposal is held after its admitted send is already canceled")]
+    public void ThenTheAgentSSessionDisposalIsHeldAfterItsAdmittedSendIsAlreadyCanceled(string role) =>
+        Assert.That(
+            Await(myScenario.Agent(role).WaitForDisposalHeldAsync()),
+            Is.True,
+            $"Role '{role}''s session disposal was held, but its admitted send had not yet reached its own " +
+            "canceled outcome by that moment - drain-before-dispose ordering was not observed.");
+
     [When("the backend scenario arms role {string} to hold its next session disposal pending")]
     public void WhenTheBackendScenarioArmsRoleToHoldItsNextSessionDisposalPending(string role) =>
         Await(myScenario.Agent(role).ArmPendingDisposalAsync());
@@ -214,14 +230,6 @@ public sealed class BackendScenarioSteps
     [When("the backend scenario completes the pending session disposal for role {string}")]
     public void WhenTheBackendScenarioCompletesThePendingSessionDisposalForRole(string role) =>
         Await(myScenario.Agent(role).CompletePendingDisposalAsync());
-
-    [Then("the backend scenario observes role {string}'s session disposal held after its admitted send was already canceled")]
-    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeldAfterItsAdmittedSendWasAlreadyCanceled(string role) =>
-        Assert.That(
-            Await(myScenario.Agent(role).WaitForDisposalHeldAsync()),
-            Is.True,
-            $"Role '{role}''s session disposal was held, but its admitted send had not yet reached its own " +
-            "canceled outcome by that moment - drain-before-dispose ordering was not observed.");
 
     [Then("the backend scenario observes role {string}'s session disposal held")]
     public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeld(string role) =>
@@ -246,11 +254,6 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes no pending permission {string} for role {string}")]
     public void ThenTheBackendScenarioObservesNoPendingPermissionForRole(string requestId, string role) =>
         Await(myScenario.WaitForNoPendingPermissionAsync(role, requestId));
-
-    [Then("the backend scenario does not observe the transcript for role {string} containing {string} within {int} seconds")]
-    public void ThenTheBackendScenarioDoesNotObserveTheTranscriptForRoleContainingWithinSeconds(string role, string content, int seconds) =>
-        Assert.CatchAsync<TimeoutException>(
-            () => myScenario.WaitForTranscriptAsync(role, content, TimeSpan.FromSeconds(seconds)));
 
     [Then("the {string} agent observes its pending interactions were cancelled")]
     public void ThenTheAgentObservesItsPendingInteractionsWereCancelled(string role) =>
