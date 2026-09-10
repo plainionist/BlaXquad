@@ -281,7 +281,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 21 | Role context [done] | Migrate `Context.feature` with canonical project configuration and explicit `squad context` actions. | A role agent resolves its role from each worktree and JSON context identifies the project, role worktree, and shared source without a legacy environment variable. |
 | 22 | Handoff authoring [done] | Migrate `Handoffs.feature`; represent recipient collections structurally rather than as comma-separated values. | `squad handoff` creates valid Git and note handoffs, reports all repairable draft errors, preserves invalid drafts, and exposes durable queue results in handoff vocabulary. |
 | 23 | Task and batch receive modes [done] | Migrate `TaskQueue.feature`, `BatchQueue.feature`, and the role-command scenarios from `Recovery.feature`. Reuse command/result steps while retaining the distinct task and batch state machines. | `ready-for-next` and `done-with-current` select, resume, complete, and reject task or batch state exactly according to the configured receive mode, priority, and worktree identity. |
-| 24 | Handoff delivery and recovery | Migrate `Delivery.feature`, the delivery/restart scenarios from `Recovery.feature`, and `HeadquartersHandoffPumpFailure.feature`. Remove the final migrated aliases and delete `BackendScenarioSteps` if empty. | Delivery persists before notification, retries and restarts neither lose nor duplicate work, unavailable or busy recipients recover correctly, and a real delivery-pump failure reports its own diagnostic while preserving queued work. |
+| 24 | Handoff delivery and recovery [done] | Migrate `Delivery.feature`, the delivery/restart scenarios from `Recovery.feature`, and `HeadquartersHandoffPumpFailure.feature`. Remove the final migrated aliases and delete `BackendScenarioSteps` if empty. | Delivery persists before notification, retries and restarts neither lose nor duplicate work, unavailable or busy recipients recover correctly, and a real delivery-pump failure reports its own diagnostic while preserving queued work. |
 
 ### Definition of done for every slice
 
@@ -292,6 +292,10 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Run the focused scenarios for the slice and then the complete `squad.Specs` suite.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
+
+## Slice 24 review (dd713b5152) — accepted
+
+**Status: complete (dd713b5152).** Finding on 25d5666a61 was addressed: Delivery and Recovery use structural `to:` recipient tables, including invalid fan-out; the comma-separated note-prepare binding is gone. Canonical Headquarters launch, explicit `squad handoff`, and pump-failure lifecycle language remain. `BackendScenarioSteps` is kept because it still owns shared agent/transcript bindings.
 
 ## Slice 24 review (25d5666a61) — changes requested
 
