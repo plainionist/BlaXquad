@@ -14,7 +14,6 @@ Feature: Stopping safely before and during startup
       | role  |
       | coder |
     And role "coder" has a durable file "notes.md" containing "Keep this note."
-    And the fake-provider control transport is enabled
     When the operator launches Headquarters without completing the ready handshake
     And the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
     And the operator requests shutdown as soon as it is reachable

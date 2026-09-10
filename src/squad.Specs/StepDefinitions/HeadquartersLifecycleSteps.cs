@@ -46,18 +46,12 @@ public sealed class HeadquartersLifecycleSteps
     public void GivenHeadquartersStartupPausesAfterSessionHasStarted(int count) =>
         myScenario.GateProviderStartupAfterSessions(count);
 
-    // Only scenarios that go on to observe role-session activity through the fake-provider control pipe (for
-    // example, proving a session was or was never started) need this. It stays a separate, composable Given
-    // rather than something the launch step below always turns on, because always enabling it would make the
-    // launched role's session wait on a control-pipe connection that a scenario proving plain process
-    // termination never drives to completion.
-    [Given("the fake-provider control transport is enabled")]
-    public void GivenTheFakeProviderControlTransportIsEnabled() =>
-        myScenario.EnableFakeProviderControl();
-
     [When("the operator launches Headquarters without completing the ready handshake")]
-    public void WhenTheOperatorLaunchesHeadquartersWithoutCompletingTheReadyHandshake() =>
+    public void WhenTheOperatorLaunchesHeadquartersWithoutCompletingTheReadyHandshake()
+    {
+        myScenario.EnableFakeProviderControl();
         myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
+    }
 
     [When("the operator launches a cancellable Headquarters")]
     public void WhenTheOperatorLaunchesACancellableHeadquarters()

@@ -18,6 +18,7 @@ public sealed class BackendScenario : IDisposable
     private System.Diagnostics.Process? myProcess;
     private HeadlessUiClient? myUi;
     private FakeProviderControlServer? myControl;
+    private Task? myControlConnectionTask;
     private string? myIsolatedTempDirectory;
     private int? myStartupGateAfterSessions;
     private bool myFailProviderBeforeRuntime;
@@ -173,10 +174,7 @@ public sealed class BackendScenario : IDisposable
         myUi = new HeadlessUiClient(myProcess);
         await myUi.CompleteReadyHandshakeAsync(timeout, DescribeControlDiagnostics());
         IsReady = true;
-        if (myControl is not null)
-        {
-            await myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
-        }
+        await EnsureControlConnectedAsync(timeout);
     }
 
     /// <summary>
@@ -217,10 +215,7 @@ public sealed class BackendScenario : IDisposable
         myUi = new HeadlessUiClient(myProcess, standardInput, standardOutput, standardError);
         await myUi.CompleteReadyHandshakeAsync(timeout, DescribeControlDiagnostics());
         IsReady = true;
-        if (myControl is not null)
-        {
-            await myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
-        }
+        await EnsureControlConnectedAsync(timeout);
     }
 
     /// <summary>
@@ -271,6 +266,17 @@ public sealed class BackendScenario : IDisposable
             environment,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);
+        // Started in the background, unawaited: a specification using this launch may shut the process down, or
+        // simply never complete the ready handshake, before any role session ever attempts to connect across the
+        // control pipe - and unlike the launched role's own client-side connect, this server-side accept never
+        // blocks anything such a specification itself observes. Starting it immediately (rather than only once a
+        // later handshake completes, which some specifications here never reach) keeps the accept from arriving
+        // late relative to a role session that starts regardless of readiness, which otherwise leaves that
+        // session's own connection attempt - and later its disposal - stuck. Any failure (for example, a timeout
+        // because no session ever attempts to connect) is observed here so it never surfaces as an unobserved
+        // task exception later.
+        _ = EnsureControlConnectedAsync().ContinueWith(
+            task => _ = task.Exception, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
     }
 
     /// <summary>
@@ -586,10 +592,27 @@ public sealed class BackendScenario : IDisposable
     {
         await RequireUi().CompleteReadyHandshakeAsync(timeout, DescribeControlDiagnostics());
         IsReady = true;
-        if (myControl is not null)
+        await EnsureControlConnectedAsync(timeout);
+    }
+
+    /// <summary>
+    /// Starts (idempotently) waiting for the fake-provider control pipe's client connection when
+    /// <see cref="EnableFakeProviderControl"/> was called, and returns the single shared task every caller awaits
+    /// or races against, so at most one accept is ever in flight on the underlying pipe. <see
+    /// cref="LaunchWithoutReadyHandshake{TProviderFactory}"/> starts this immediately, in the background, rather
+    /// than waiting for a later ready handshake that a specification proving early termination may never
+    /// complete - otherwise the launched role's own session would still be attempting its client-side connection
+    /// when standard input closes or shutdown wins its race, and disposing that stuck session would hang. A
+    /// specification whose role session never starts before it exits (shutdown wins the race, or the ready
+    /// handshake never completes) simply lets this task keep waiting until disposal cancels it.
+    /// </summary>
+    private Task EnsureControlConnectedAsync(TimeSpan? timeout = null)
+    {
+        if (myControl is null)
         {
-            await myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
+            return Task.CompletedTask;
         }
+        return myControlConnectionTask ??= myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
     }
 
     private HeadlessUiClient RequireUi() =>
