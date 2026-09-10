@@ -42,12 +42,6 @@ internal sealed class AgentEventProjector
                 state.Error = error.Message;
                 transcriptUpdate = AddTranscriptEntry(state, agentEvent.OccurredAt, "error", error.Message);
                 break;
-            case AgentEventError error:
-                state.Status = "error";
-                state.IsWorking = false;
-                state.Error = error.Message;
-                transcriptUpdate = AddTranscriptEntry(state, agentEvent.OccurredAt, "error", error.Message);
-                break;
             case AgentIdleEvent:
                 state.Status = "idle";
                 state.IsWorking = false;

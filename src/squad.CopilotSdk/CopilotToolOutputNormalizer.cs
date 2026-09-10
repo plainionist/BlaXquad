@@ -4,7 +4,7 @@ namespace squad.CopilotSdk;
 /// Normalizes SDK tool output that may arrive as cumulative snapshots or independent deltas into cumulative
 /// content for each tool call.
 /// </summary>
-public sealed class CopilotToolOutputNormalizer
+internal sealed class CopilotToolOutputNormalizer
 {
     private readonly Dictionary<string, ToolOutputState> myOutputs = new(StringComparer.Ordinal);
     private readonly object myStateLock = new();

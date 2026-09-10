@@ -146,6 +146,19 @@ scenarios, plus a Headquarters regression pass.
 **Slice acceptance:** Provider selection and the test-owned fake providers still work solely through the documented
 provider SPI, while Copilot implementation details and production-invariant tuning controls are no longer public.
 
+**Status: complete.** `CopilotSdkBackend`, `CopilotSdkAgentSession`, and `CopilotToolOutputNormalizer` are internal;
+only the reflection-loaded `CopilotSdkAgentProviderFactory` remains public from `squad.CopilotSdk`. `AgentEventChannel`
+was relocated from `squad.AgentProvider.Abstractions` into `squad.CopilotSdk` as an internal type, since it is a pure
+Copilot implementation helper with no test-suite dependency (the fake provider uses its own independent
+`TestAgentEventStream`). Its unused `Depth` observation property is removed, and its caller-configurable `capacity`
+and `writeTimeout` constructor parameters, along with `CopilotSdkAgentSession`'s `capacity`/`writeTimeout`/
+`failureTeardownTimeout` parameters, are now fixed internal policy since no production or test call site ever varied
+them; the genuinely necessary `escalateTeardownFailure` callback and `onOverload` callback remain. `AgentEventError`,
+an `AgentEvent` variant no production or test provider ever constructed, is removed along with its dead consumption
+in `SquadViewModel.IsImmediateUiEvent` and the duplicate `AgentEventProjector` case. Verified via targeted
+`dotnet test` filters covering provider loading/packaging, fake-provider control, active usage, overload/failure,
+session cleanup, and the provider-free `squad-hq` publication, plus a Headquarters regression pass.
+
 ### Slice 5: Remove host-control test seams
 
 1. Replace the test-substitution-only `IHostLease` indirection with the concrete production lease in headquarters

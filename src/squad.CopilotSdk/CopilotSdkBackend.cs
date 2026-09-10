@@ -6,7 +6,7 @@ namespace squad.CopilotSdk;
 /// Creates independent Copilot SDK runtime generations and surfaces failures that require the shared provider
 /// process to be abandoned.
 /// </summary>
-public sealed class CopilotSdkBackend : IAgentBackend, IAgentBackendFailureSource
+internal sealed class CopilotSdkBackend : IAgentBackend, IAgentBackendFailureSource
 {
     private readonly AgentBackendContext myContext;
     private readonly TaskCompletionSource myFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -8,11 +8,11 @@ namespace squad.CopilotSdk;
 /// Adapts one Copilot SDK session to the provider-neutral event and interaction contract. It owns pending
 /// interaction completion, event backpressure, usage refreshes, and teardown of the attached SDK session.
 /// </summary>
-public sealed class CopilotSdkAgentSession : IAgentSession
+internal sealed class CopilotSdkAgentSession : IAgentSession
 {
     private static readonly TimeSpan myDefaultFailureTeardownTimeout = TimeSpan.FromSeconds(5);
     private readonly AgentEventChannel myEvents;
-    private readonly TimeSpan myFailureTeardownTimeout;
+    private readonly TimeSpan myFailureTeardownTimeout = myDefaultFailureTeardownTimeout;
     private readonly Action<Exception>? myEscalateTeardownFailure;
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object myInteractionLock = new();
@@ -30,17 +30,11 @@ public sealed class CopilotSdkAgentSession : IAgentSession
     private Exception? myFailure;
     private bool myDisposed;
 
-    public CopilotSdkAgentSession(
-        string role,
-        int capacity = 100,
-        TimeSpan? writeTimeout = null,
-        TimeSpan? failureTeardownTimeout = null,
-        Action<Exception>? escalateTeardownFailure = null)
+    public CopilotSdkAgentSession(string role, Action<Exception>? escalateTeardownFailure = null)
     {
         Role = role;
-        myFailureTeardownTimeout = failureTeardownTimeout ?? myDefaultFailureTeardownTimeout;
         myEscalateTeardownFailure = escalateTeardownFailure;
-        myEvents = new AgentEventChannel(capacity, writeTimeout, FailSession);
+        myEvents = new AgentEventChannel(FailSession);
     }
 
     public string Role { get; }

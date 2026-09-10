@@ -646,7 +646,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     }
 
     private static bool IsImmediateUiEvent(AgentEvent agentEvent) =>
-        agentEvent is AgentErrorEvent or AgentEventError or AgentReadinessEvent or AgentIdleEvent or AgentStoppedEvent
+        agentEvent is AgentErrorEvent or AgentReadinessEvent or AgentIdleEvent or AgentStoppedEvent
             or AgentPermissionRequest or AgentInputRequest or AgentElicitationRequest;
 
     /// <summary>
