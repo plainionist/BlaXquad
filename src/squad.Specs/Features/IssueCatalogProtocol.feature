@@ -69,6 +69,38 @@ Feature: Issue catalog protocol
       | docs/issues/invalid-priority.md | Invalid priority issue |          |
       | docs/issues/no-priority.md      | No priority issue      |          |
 
+  Scenario: The catalog includes only top-level Markdown files, matched case-insensitively, and excludes nested and non-Markdown siblings
+    Given an issue file "included.md" with this content:
+      """
+      ---
+      title: Included issue
+      ---
+      Body line.
+      """
+    And an issue file "CASED.MD" with this content:
+      """
+      ---
+      title: Cased issue
+      ---
+      Body line.
+      """
+    And an issue file "notes.txt" with this content:
+      """
+      Not a markdown issue.
+      """
+    And an issue file "sub/nested.md" with this content:
+      """
+      ---
+      title: Nested issue
+      ---
+      Body line.
+      """
+    When the ui requests the issue catalog with request id "req-exclusive"
+    Then the issue catalog response for request id "req-exclusive" reports issues in this order:
+      | path                    | title          | priority |
+      | docs/issues/CASED.MD    | Cased issue    |          |
+      | docs/issues/included.md | Included issue |          |
+
   Scenario: A document without a resolvable title falls back to its filename, independently of a valid priority
     Given an issue file "untitled.md" with this content:
       """
@@ -127,6 +159,50 @@ Feature: Issue catalog protocol
     Then the issue catalog response for request id "req-malformed" reports issues in this order:
       | path                     | title        | priority |
       | docs/issues/malformed.md | malformed.md |          |
+
+  Scenario: An unclosed opening frontmatter delimiter retains the whole source as frontmatter and has no preview
+    Given an issue file "unclosed.md" with this content:
+      """
+      ---
+      title: Unclosed issue
+      priority: 6
+      Body line without a closing delimiter.
+      """
+    When the ui requests the issue catalog with request id "req-unclosed"
+    Then the issue catalog response for request id "req-unclosed" reports issues in this order:
+      | path                    | title       | priority |
+      | docs/issues/unclosed.md | unclosed.md |          |
+    And the issue catalog response for request id "req-unclosed" includes an issue at path "docs/issues/unclosed.md" with frontmatter:
+      """
+      ---
+      title: Unclosed issue
+      priority: 6
+      Body line without a closing delimiter.
+      """
+    And that issue reports these preview lines:
+      | line |
+
+  Scenario: A document without any frontmatter delimiter has empty frontmatter and previews its first five non-blank lines
+    Given an issue file "plain.md" with this content:
+      """
+      First line.
+
+      Second line.
+      Third line.
+
+      Fourth line.
+      Fifth line.
+      Sixth line, never previewed.
+      """
+    When the ui requests the issue catalog with request id "req-plain"
+    Then the issue catalog response for request id "req-plain" includes an issue at path "docs/issues/plain.md" with empty frontmatter
+    And that issue reports these preview lines:
+      | line         |
+      | First line.  |
+      | Second line. |
+      | Third line.  |
+      | Fourth line. |
+      | Fifth line.  |
 
   Scenario: Re-requesting the catalog after files change during the same session reports the changed catalog
     Given an issue file "first.md" with this content:

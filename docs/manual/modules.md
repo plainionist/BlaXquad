@@ -72,6 +72,12 @@ and failures, and starts and stops handoff, window, and sleep resources.
 Defines the narrow platform-hosting contracts for the desktop window lifecycle
 and system sleep inhibition.
 
+## `squad.Issues`
+
+Discovers and parses the fixed workspace `docs/issues` Markdown catalog. It splits and parses YAML frontmatter,
+resolves title and priority fallbacks independently, extracts a bounded body preview, normalizes workspace-relative
+paths, and orders the catalog by ascending priority and filename.
+
 ## `squad.Photino`
 
 Implements the hosting contracts with Photino and platform-specific sleep

@@ -197,6 +197,15 @@ public sealed class StdioUiProtocolSteps
         Assert.That(myReferencedIssue!.Frontmatter, Is.EqualTo(normalizedFrontmatter));
     }
 
+    [Then("the issue catalog response for request id {string} includes an issue at path {string} with empty frontmatter")]
+    public void ThenTheIssueCatalogResponseForRequestIdIncludesAnIssueAtPathWithEmptyFrontmatter(string requestId, string path)
+    {
+        var issues = Await(myScenario.WaitForIssuesAsync(requestId));
+        myReferencedIssue = issues.SingleOrDefault(issue => issue.Path == path);
+        Assert.That(myReferencedIssue, Is.Not.Null, $"No issue at path '{path}' was reported.");
+        Assert.That(myReferencedIssue!.Frontmatter, Is.Empty);
+    }
+
     [Then("that issue reports these preview lines:")]
     public void ThenThatIssueReportsThesePreviewLines(DataTable table)
     {
