@@ -28,9 +28,12 @@ public sealed class HeadquartersLifecycleSteps
     public void GivenRoleHasADurableFileContaining(string role, string relativePath, string content) =>
         myScenario.SeedDurableRoleFile(role, relativePath, content);
 
-    [When("the operator launches Headquarters with the fake provider")]
-    public void WhenTheOperatorLaunchesHeadquartersWithTheFakeProvider()
+    [When("the operator launches Headquarters")]
+    public void WhenTheOperatorLaunchesHeadquarters()
     {
+        // The fake provider and its control transport are test setup, not specified behavior: this scenario
+        // proves session start/disposal and readiness through the real "squad-hq" surface, so the choice of
+        // provider fixture stays behind this binding rather than becoming a second Gherkin dialect.
         myScenario.EnableFakeProviderControl();
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
     }
@@ -77,8 +80,11 @@ public sealed class HeadquartersLifecycleSteps
     public void ThenRoleSDurableFileStillContains(string role, string relativePath, string content) =>
         Assert.That(myScenario.DurableRoleFileIsPreserved(role, relativePath, content), Is.True);
 
-    [When("the operator launches a new Headquarters against the same project with the echo provider")]
-    public void WhenTheOperatorLaunchesANewHeadquartersAgainstTheSameProjectWithTheEchoProvider() =>
+    [When("the operator launches a new Headquarters against the same project")]
+    public void WhenTheOperatorLaunchesANewHeadquartersAgainstTheSameProject() =>
+        // A replacement launch is a child of the same scenario owner (StartReplacementAsync targets this
+        // instance's own workspace), not an independent default facade; the echo provider is again a test-setup
+        // choice kept out of Gherkin.
         myReplacementHeadquarters = Await(myScenario.StartReplacementAsync<EchoAgentProviderFactory>());
 
     [Then("the new Headquarters process reports ready")]

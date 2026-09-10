@@ -13,7 +13,7 @@ Feature: Healthy headquarters lifecycle
       | coder    |
       | reviewer |
     And role "coder" has a durable file "notes.md" containing "Keep this note."
-    When the operator launches Headquarters with the fake provider
+    When the operator launches Headquarters
     Then Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
     And the "coder" agent observes a harness message
@@ -28,5 +28,5 @@ Feature: Healthy headquarters lifecycle
     And Headquarters disposes the agent session for role "reviewer"
     And the operator finds Headquarters unavailable for role "coder"
     And role "coder"'s durable file "notes.md" still contains "Keep this note."
-    When the operator launches a new Headquarters against the same project with the echo provider
+    When the operator launches a new Headquarters against the same project
     Then the new Headquarters process reports ready

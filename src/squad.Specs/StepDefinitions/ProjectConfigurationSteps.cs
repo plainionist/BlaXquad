@@ -10,6 +10,10 @@ namespace squad.Specs.StepDefinitions;
 [Binding]
 public sealed class ProjectConfigurationSteps
 {
+    /// <summary>The only column this slice's `ConfigureRoles` can actually apply. A table naming any other
+    /// column would silently appear to configure a field (e.g. a model or receive mode) that is never written.</summary>
+    private static readonly IReadOnlySet<string> SupportedColumns = new HashSet<string>(StringComparer.Ordinal) { "role" };
+
     private readonly BackendScenario myScenario;
 
     public ProjectConfigurationSteps(BackendScenario scenario)
@@ -18,6 +22,31 @@ public sealed class ProjectConfigurationSteps
     }
 
     [Given("`blaxquad\\/squad.json` configures:")]
-    public void GivenBlaxquadSquadJsonConfigures(Table roles) =>
-        myScenario.ConfigureRoles(roles.Rows.Select(row => row["role"]).ToArray());
+    public void GivenBlaxquadSquadJsonConfigures(Table table)
+    {
+        var unknownColumns = table.Header.Where(column => !SupportedColumns.Contains(column)).ToList();
+        if (unknownColumns.Count > 0)
+        {
+            throw new ArgumentException(
+                $"Project configuration table declares unsupported column(s): {string.Join(", ", unknownColumns)}. " +
+                $"Supported column(s): {string.Join(", ", SupportedColumns)}.");
+        }
+
+        if (!table.Header.Contains("role"))
+        {
+            throw new ArgumentException("Project configuration table must declare a \"role\" column.");
+        }
+
+        var roles = table.Rows.Select((row, index) =>
+        {
+            var role = row["role"];
+            if (string.IsNullOrWhiteSpace(role))
+            {
+                throw new ArgumentException($"Project configuration table row {index + 1} has an empty \"role\".");
+            }
+            return role;
+        }).ToArray();
+
+        myScenario.ConfigureRoles(roles);
+    }
 }

@@ -340,6 +340,10 @@ Replace comma-separated lists and string-encoded booleans with a table or typed 
 communicates the contract. Do not replace many narrow, meaningful phrases with one opaque mega-step whose generic
 table is a programming language in disguise.
 
+Tables and parameter conversions must be strict: validate that a table declares only its required and supported
+columns and rejects an unrecognized one, parse booleans and enums as typed values, preserve row order where it is
+observable, and report malformed data clearly rather than silently ignoring or defaulting it.
+
 ### Compose, do not hard-code, orderings and races
 
 For concurrent and failure scenarios, express reusable concepts - a pending operation, an independently started
@@ -355,6 +359,14 @@ uses: binding classes request `BackendScenario` (or another shared collaborator)
 of constructing their own, so Reqnroll's container creates and shares exactly one instance per scenario. Only one
 binding class disposes a given process or resource it did not itself create an independent copy of.
 
+Named concurrent projects and replacement launches remain explicit children of that same scenario-scoped owner
+(for example, requesting a replacement backend process from the existing facade rather than constructing a second
+one from scratch); binding classes must not construct independent default facades. Keep the facade and all
+fake-provider plumbing - fixture selection, control-pipe wiring, and provider factories - in test support rather
+than exposing them in Gherkin or adding production test APIs. Keep fixture selection in test setup when it is not
+part of the behavior under specification: a scenario proving operator-facing lifecycle behavior must not name
+"the fake provider" or "the echo provider" in its steps merely because a binding needs one internally.
+
 Remove a phrase's binding as soon as no feature uses it any longer. A migration must not retain both the old and
 the new wording for the same behavior.
 
@@ -368,7 +380,7 @@ Given `blaxquad/squad.json` configures:
   | coder    |
   | reviewer |
 
-When the operator launches Headquarters with the fake provider
+When the operator launches Headquarters
 Then Headquarters starts an agent session for role "coder"
 
 When the user sends "Review the change" to the architect
