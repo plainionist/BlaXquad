@@ -41,9 +41,38 @@ public sealed class HeadquartersLifecycleSteps
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
     }
 
+    [Given("Headquarters' startup pauses after {int} session has started")]
+    public void GivenHeadquartersStartupPausesAfterSessionHasStarted(int count) =>
+        myScenario.GateProviderStartupAfterSessions(count);
+
+    [When("the operator launches Headquarters without completing the ready handshake")]
+    public void WhenTheOperatorLaunchesHeadquartersWithoutCompletingTheReadyHandshake()
+    {
+        myScenario.EnableFakeProviderControl();
+        myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
+    }
+
+    // A distinct, simpler fixture from the one above: a single role, no fake-provider control pipe, proving
+    // standard input closed before readiness terminates the process cleanly even without any session ever having
+    // been asked to start.
+    [When("the operator launches a squad host without completing the ready handshake")]
+    public void WhenTheOperatorLaunchesASquadHostWithoutCompletingTheReadyHandshake() =>
+        myScenario.LaunchWithoutReadyHandshake<EchoAgentProviderFactory>();
+
+    [When("the operator launches a cancellable Headquarters")]
+    public void WhenTheOperatorLaunchesACancellableHeadquarters()
+    {
+        myScenario.EnableFakeProviderControl();
+        Await(myScenario.StartCancellableAsync<FakeAgentProviderFactory>());
+    }
+
     [Then("Headquarters starts an agent session for role {string}")]
     public void ThenHeadquartersStartsAnAgentSessionForRole(string role) =>
         Await(myScenario.WaitForRoleSessionStartedAsync(role));
+
+    [Then("Headquarters never starts an agent session for role {string}")]
+    public void ThenHeadquartersNeverStartsAnAgentSessionForRole(string role) =>
+        Assert.That(myScenario.RoleSessionNeverStarted(role), Is.True);
 
     [Then("Headquarters disposes the agent session for role {string}")]
     public void ThenHeadquartersDisposesTheAgentSessionForRole(string role) =>
@@ -86,6 +115,37 @@ public sealed class HeadquartersLifecycleSteps
             Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
             Assert.That(result.StdOut, Does.Contain("is ready"));
         });
+    }
+
+    [Then("role {string} was never reported ready")]
+    public async Task ThenRoleWasNeverReportedReady(string role)
+    {
+        // The watch itself was started with its own 10s "wait-for-agent --timeout" bound; the extra margin here
+        // only bounds how long a genuinely broken watch is allowed to hang before this assertion gives up.
+        var result = await myReadinessWaits[role].WaitForCompletionAsync(TimeSpan.FromSeconds(20));
+        Assert.That(result.StdOut, Does.Not.Contain("is ready"), () => result.StdErr);
+    }
+
+    [When("the operator requests shutdown as soon as it is reachable while sending {string} to role {string}")]
+    public void WhenTheOperatorRequestsShutdownAsSoonAsItIsReachableWhileSendingToRole(string prompt, string role) =>
+        myExitCode = Await(myScenario.RequestShutdownAsSoonAsReachableAsync(sendPromptToRole: role, promptContent: prompt));
+
+    [When("the operator requests shutdown while sending {string} to role {string}")]
+    public void WhenTheOperatorRequestsShutdownWhileSendingToRole(string prompt, string role) =>
+        myExitCode = Await(myScenario.ShutdownWhileSendingPromptAsync(role, prompt));
+
+    [When("the operator closes Headquarters' standard input")]
+    public void WhenTheOperatorClosesHeadquartersStandardInput()
+    {
+        myScenario.CloseStandardInput();
+        myExitCode = Await(myScenario.WaitForProcessExitAsync());
+    }
+
+    [When("the platform delivers its cancellation signal to Headquarters")]
+    public void WhenThePlatformDeliversItsCancellationSignalToHeadquarters()
+    {
+        myScenario.RequestCallerCancellation();
+        myExitCode = Await(myScenario.WaitForProcessExitAsync());
     }
 
     [When("the operator shuts down Headquarters")]
