@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 13 review (6e965716b6) — changes requested
+
+The four presentation features now use canonical launch/shutdown, dashboard transcript-update and active-tool observations, and user-requested synchronization. Unused transcript-update and active-tool aliases were removed. One unused alias remains.
+
+### Finding 1 — Medium
+
+- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (`When("the backend scenario requests a fresh transcript synchronization")`).
+- **Violated behavior:** Definition of done requires removing every alias this slice made unused. Slice 13 migrated the last callers of this phrase to `the user requests a fresh transcript synchronization for role`.
+- **Root cause:** After the four presentation features switched to the canonical user-request step, the BackendScenarioSteps phrase was left even though no remaining feature uses it.
+- **Required outcome:** Delete the unused `the backend scenario requests a fresh transcript synchronization` binding. Keep `the user requests a fresh transcript synchronization for role` as the canonical wording. Keep `the backend scenario does not observe the transcript...` until `ShutdownCommandAdmission.feature` migrates.
+
 ## Slice 12 review (13e2b4de60) — accepted
 
 **Status: complete (13e2b4de60).** The three tool features use canonical launch/shutdown, dashboard active-tool and transcript-update observations, and user-requested synchronization. Unused `most recently observed` index bindings were removed; `backend scenario` transcript-update and active-tool aliases remain for slice 13.
