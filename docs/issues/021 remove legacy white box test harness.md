@@ -45,7 +45,7 @@ process, while the shared fake provider and scenario facade are their only provi
 and idle; `WaitForRoleUsageSnapshotAsync` keeps the working-then-idle ordering and stale-AIC assertions.
 `ControllableAgentProviderFactory`, its backend/runtime/session types, and `UsageControlChannel` are removed.
 
-### Slice 2: Centralize stdio and multi-process scenarios on the process driver
+### Slice 2 [done]: Centralize stdio and multi-process scenarios on the process driver
 
 1. Add only the missing raw-wire and lifecycle operations to `BackendScenario` and `HeadlessUiClient`: send malformed
    lines or explicit envelopes, observe typed protocol output and stdout/stderr separation, inspect bounded process
@@ -64,6 +64,13 @@ and idle; `WaitForRoleUsageSnapshotAsync` keeps the working-then-idle ordering a
 **Slice acceptance:** Stdio framing, semantic headless-client behavior, and independent-host coexistence remain
 observable through real published processes, with one shared process driver and no echo-provider or binding-owned
 process harness.
+
+**Status: complete (d2f65cbf4f).** `StdioUiProtocol`, `StdioUiProtocolMultiRole`, `HeadlessUiClient`, and
+`HostCoexistence` drive published `squad-hq` processes through `BackendScenario` and `FakeAgentProviderFactory`.
+`EnableAutoEchoAsync` supplies the echo reply over the existing control pipe. Framing and stdout/stderr separation
+are asserted on `HeadlessUiClient`. Duplicate malformed-JSON and post-termination ownership scenarios were removed
+in favor of `UiProtocolValidation` and `HostOwnership`. `EchoAgentProviderFactory` remains only for specs that still
+use it.
 
 ### Slice 3: Sever product assembly references and remove dead harness artifacts
 
