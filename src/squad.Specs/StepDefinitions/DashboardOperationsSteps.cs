@@ -18,6 +18,7 @@ public sealed class DashboardOperationsSteps
     private readonly BackendScenario myScenario;
     private int myProtocolErrorsObserved;
     private TranscriptSynchronizationObservation? myAwaitedTranscriptSynchronization;
+    private readonly List<TranscriptUpdateObservation> myReceivedTranscriptUpdates = [];
 
     public DashboardOperationsSteps(BackendScenario scenario)
     {
@@ -38,6 +39,57 @@ public sealed class DashboardOperationsSteps
     public void ThenTheTranscriptForRoleDoesNotContainWithinSeconds(string role, string content, int seconds) =>
         Assert.CatchAsync<TimeoutException>(
             () => myScenario.WaitForTranscriptAsync(role, content, TimeSpan.FromSeconds(seconds)));
+
+    [Then("the dashboard receives a transcript update for role {string} with source {string}")]
+    public async Task ThenTheDashboardReceivesATranscriptUpdateForRoleWithSource(string role, string source) =>
+        myReceivedTranscriptUpdates.Add(await myScenario.WaitForTranscriptUpdateAsync(role, source));
+
+    [Then("the dashboard receives a transcript update for role {string} with source {string} and content {string}")]
+    public async Task ThenTheDashboardReceivesATranscriptUpdateForRoleWithSourceAndContent(string role, string source, string content) =>
+        myReceivedTranscriptUpdates.Add(await myScenario.WaitForTranscriptUpdateAsync(role, source, content));
+
+    [Then("the dashboard receives a transcript update for role {string} with operation {string} and content {string}")]
+    public async Task ThenTheDashboardReceivesATranscriptUpdateForRoleWithOperationAndContent(string role, string operation, string content) =>
+        myReceivedTranscriptUpdates.Add(await myScenario.WaitForTranscriptUpdateByOperationAsync(role, operation, content));
+
+    [Then("the most recently received transcript updates for role {string} report the same entry index")]
+    public void ThenTheMostRecentlyReceivedTranscriptUpdatesForRoleReportTheSameEntryIndex(string role)
+    {
+        var (previous, current) = TwoMostRecentlyReceivedTranscriptUpdates(role);
+        Assert.That(current.EntryIndex, Is.EqualTo(previous.EntryIndex));
+    }
+
+    [Then("the most recently received transcript updates for role {string} report different entry indices")]
+    public void ThenTheMostRecentlyReceivedTranscriptUpdatesForRoleReportDifferentEntryIndices(string role)
+    {
+        var (previous, current) = TwoMostRecentlyReceivedTranscriptUpdates(role);
+        Assert.That(current.EntryIndex, Is.Not.EqualTo(previous.EntryIndex));
+    }
+
+    [Then("every transcript update received for role {string} reports a strictly increasing sequence and entry index")]
+    public void ThenEveryTranscriptUpdateReceivedForRoleReportsAStrictlyIncreasingSequenceAndEntryIndex(string role)
+    {
+        var updatesForRole = myReceivedTranscriptUpdates.Where(update => update.Role == role).ToList();
+        Assert.That(updatesForRole, Has.Count.GreaterThan(1));
+        for (var index = 1; index < updatesForRole.Count; index++)
+        {
+            var previous = updatesForRole[index - 1];
+            var current = updatesForRole[index];
+            Assert.Multiple(() =>
+            {
+                Assert.That(current.Sequence, Is.GreaterThan(previous.Sequence));
+                Assert.That(current.EntryIndex, Is.GreaterThan(previous.EntryIndex));
+                Assert.That(current.Operation, Is.EqualTo("append"));
+            });
+        }
+    }
+
+    private (TranscriptUpdateObservation Previous, TranscriptUpdateObservation Current) TwoMostRecentlyReceivedTranscriptUpdates(string role)
+    {
+        var updatesForRole = myReceivedTranscriptUpdates.Where(update => update.Role == role).ToList();
+        Assert.That(updatesForRole, Has.Count.GreaterThanOrEqualTo(2));
+        return (updatesForRole[^2], updatesForRole[^1]);
+    }
 
     [Then("the user observes a protocol error mentioning {string}")]
     public async Task ThenTheUserObservesAProtocolErrorMentioning(string text)

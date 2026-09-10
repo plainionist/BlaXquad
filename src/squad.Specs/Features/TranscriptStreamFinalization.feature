@@ -14,18 +14,18 @@ Feature: Assistant and reasoning stream finalization
   Scenario: Consecutive assistant deltas aggregate into one entry despite a snapshot mid-stream, and the final message replaces the draft without losing earlier entries
     When the user sends "What should I build?" to role "coder"
     Then the "coder" agent observes the prompt "What should I build?"
-    And the backend scenario observes a transcript update for role "coder" with source "user" and content "What should I build?"
+    And the dashboard receives a transcript update for role "coder" with source "user" and content "What should I build?"
     When the "coder" agent emits an assistant delta "Hello "
-    Then the backend scenario observes a transcript update for role "coder" with source "assistant" and content "Hello "
-    When the backend scenario requests a fresh transcript synchronization
+    Then the dashboard receives a transcript update for role "coder" with source "assistant" and content "Hello "
+    When the user requests a fresh transcript synchronization for role "coder"
     Then the transcript synchronization for role "coder" includes an entry with source "assistant" and content "Hello "
     When the "coder" agent emits an assistant delta "world"
-    Then the backend scenario observes a transcript update for role "coder" with operation "append-content" and content "world"
-    And the most recently observed transcript updates for role "coder" report the same entry index
+    Then the dashboard receives a transcript update for role "coder" with operation "append-content" and content "world"
+    And the most recently received transcript updates for role "coder" report the same entry index
     When the "coder" agent emits a final assistant message "Hello world"
-    Then the backend scenario observes a transcript update for role "coder" with operation "replace" and content "Hello world"
-    And the most recently observed transcript updates for role "coder" report the same entry index
-    When the backend scenario requests a fresh transcript synchronization
+    Then the dashboard receives a transcript update for role "coder" with operation "replace" and content "Hello world"
+    And the most recently received transcript updates for role "coder" report the same entry index
+    When the user requests a fresh transcript synchronization for role "coder"
     Then the transcript synchronization for role "coder" includes exactly these entries:
       | source    | content              |
       | user      | What should I build? |
@@ -36,13 +36,13 @@ Feature: Assistant and reasoning stream finalization
   Scenario: A final reasoning message replaces the streamed draft without losing the earlier entry
     When the user sends "What should I build?" to role "coder"
     Then the "coder" agent observes the prompt "What should I build?"
-    And the backend scenario observes a transcript update for role "coder" with source "user" and content "What should I build?"
+    And the dashboard receives a transcript update for role "coder" with source "user" and content "What should I build?"
     When the "coder" agent emits a reasoning delta "draft"
-    Then the backend scenario observes a transcript update for role "coder" with source "reasoning" and content "draft"
+    Then the dashboard receives a transcript update for role "coder" with source "reasoning" and content "draft"
     When the "coder" agent emits a final reasoning message "final"
-    Then the backend scenario observes a transcript update for role "coder" with operation "replace" and content "final"
-    And the most recently observed transcript updates for role "coder" report the same entry index
-    When the backend scenario requests a fresh transcript synchronization
+    Then the dashboard receives a transcript update for role "coder" with operation "replace" and content "final"
+    And the most recently received transcript updates for role "coder" report the same entry index
+    When the user requests a fresh transcript synchronization for role "coder"
     Then the transcript synchronization for role "coder" includes exactly these entries:
       | source    | content               |
       | user      | What should I build? |
@@ -52,12 +52,12 @@ Feature: Assistant and reasoning stream finalization
 
   Scenario: Idle finalizes a reasoning stream before the next delta starts a new entry
     When the "coder" agent emits a reasoning delta "first"
-    Then the backend scenario observes a transcript update for role "coder" with source "reasoning" and content "first"
+    Then the dashboard receives a transcript update for role "coder" with source "reasoning" and content "first"
     When the "coder" agent emits idle
     And the "coder" agent emits a reasoning delta "second"
-    Then the backend scenario observes a transcript update for role "coder" with source "reasoning" and content "second"
-    And the most recently observed transcript updates for role "coder" report different entry indices
-    When the backend scenario requests a fresh transcript synchronization
+    Then the dashboard receives a transcript update for role "coder" with source "reasoning" and content "second"
+    And the most recently received transcript updates for role "coder" report different entry indices
+    When the user requests a fresh transcript synchronization for role "coder"
     Then the transcript synchronization for role "coder" includes exactly these entries:
       | source    | content |
       | reasoning | first   |
