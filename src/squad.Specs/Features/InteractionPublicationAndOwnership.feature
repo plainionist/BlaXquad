@@ -18,12 +18,14 @@ Feature: Interaction publication and ownership
     When the "coder" agent requests permission "permission-1" with description "Run the deploy script?"
     Then the dashboard shows a pending permission "permission-1" for role "coder" with description "Run the deploy script?"
     And the transcript for role "coder" contains "Permission required: Run the deploy script?."
-    When the "coder" agent requests input "input-1" with prompt "Which branch should I use?":
-      | choices       | freeform |
-      | main, develop | false    |
-    Then the dashboard shows a pending input "input-1" for role "coder" with prompt "Which branch should I use?":
-      | choices       | freeform |
-      | main, develop | false    |
+    When the "coder" agent requests input "input-1" with prompt "Which branch should I use?" and freeform "false":
+      | choice  |
+      | main    |
+      | develop |
+    Then the dashboard shows a pending input "input-1" for role "coder" with prompt "Which branch should I use?" and freeform "false":
+      | choice  |
+      | main    |
+      | develop |
     And the transcript for role "coder" contains "Which branch should I use?"
     When the "coder" agent requests elicitation "elicitation-1" with prompt "Confirm the deployment?":
       | mode | url |
@@ -45,12 +47,10 @@ Feature: Interaction publication and ownership
     When the user responds to permission "permission-1" for role "coder" with approved "true"
     Then the "coder" agent observes a permission response for "permission-1" approved "true"
     And the "reviewer" agent has not observed a permission response
-    When the "reviewer" agent requests input "input-1" with prompt "Which branch should I use?":
-      | choices | freeform |
-      |         | true     |
-    Then the dashboard shows a pending input "input-1" for role "reviewer" with prompt "Which branch should I use?":
-      | choices | freeform |
-      |         | true     |
+    When the "reviewer" agent requests input "input-1" with prompt "Which branch should I use?" and freeform "true":
+      | choice |
+    Then the dashboard shows a pending input "input-1" for role "reviewer" with prompt "Which branch should I use?" and freeform "true":
+      | choice |
     When the user responds to input "input-1" for role "reviewer" with answer "main"
     Then the "reviewer" agent observes an input response for "input-1" with answer "main"
     And the "coder" agent has not observed an input response

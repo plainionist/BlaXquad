@@ -284,12 +284,9 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentRequestsInputWithPrompt(string role, string requestId, string prompt) =>
         Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt));
 
-    [When("the {string} agent requests input {string} with prompt {string}:")]
-    public void WhenTheAgentRequestsInputWithPromptAndFields(string role, string requestId, string prompt, Table table)
-    {
-        var row = SingleRow(table, InputRequestColumns, "input request");
-        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt, ParseChoices(row["choices"]), bool.Parse(row["freeform"])));
-    }
+    [When("the {string} agent requests input {string} with prompt {string} and freeform {string}:")]
+    public void WhenTheAgentRequestsInputWithPromptAndFreeform(string role, string requestId, string prompt, string allowFreeform, Table table) =>
+        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt, ChoicesFromRows(table), bool.Parse(allowFreeform)));
 
     [Then("the {string} agent observes an input response for {string} with answer {string}")]
     public void ThenTheAgentObservesAnInputResponseForWithAnswer(string role, string requestId, string answer)
@@ -347,16 +344,6 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesAPendingInputForRoleWithPromptAndChoicesAndFreeform(
         string requestId, string role, string prompt, string commaSeparatedChoices, string allowFreeform) =>
         Await(myScenario.WaitForPendingInputAsync(role, requestId, prompt, ParseChoices(commaSeparatedChoices), bool.Parse(allowFreeform)));
-
-    [Then("the backend scenario observes a pending elicitation {string} for role {string} with prompt {string} and mode {string}")]
-    public void ThenTheBackendScenarioObservesAPendingElicitationForRoleWithPromptAndMode(
-        string requestId, string role, string prompt, string mode) =>
-        Await(myScenario.WaitForPendingElicitationAsync(role, requestId, prompt, mode));
-
-    [Then("the backend scenario observes a pending elicitation {string} for role {string} with prompt {string} and mode {string} and url {string}")]
-    public void ThenTheBackendScenarioObservesAPendingElicitationForRoleWithPromptAndModeAndUrl(
-        string requestId, string role, string prompt, string mode, string url) =>
-        Await(myScenario.WaitForPendingElicitationAsync(role, requestId, prompt, mode, url));
 
     [Then("the backend scenario observes a protocol error mentioning {string}")]
     public void ThenTheBackendScenarioObservesAProtocolErrorMentioning(string text)
@@ -1124,7 +1111,19 @@ public sealed class BackendScenarioSteps
     /// model reported), not the literal empty string.</summary>
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 
-    private static readonly IReadOnlySet<string> InputRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "choices", "freeform" };
+    /// <summary>Reads a variable-length "choice" table as a list of individual choice values, or null when the
+    /// table has no data rows - representing an input request published or observed without any choices at all,
+    /// rather than an empty choices list or a comma-encoded value.</summary>
+    private static IReadOnlyList<string>? ChoicesFromRows(Table table)
+    {
+        if (table.Header.Count != 1 || table.Header.Single() != "choice")
+        {
+            throw new ArgumentException("choices table must declare exactly one \"choice\" column.");
+        }
+
+        return table.RowCount == 0 ? null : table.Rows.Select(row => row["choice"]).ToList();
+    }
+
     private static readonly IReadOnlySet<string> ElicitationRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "mode", "url" };
     private static readonly IReadOnlySet<string> ElicitationResponseColumns = new HashSet<string>(StringComparer.Ordinal) { "form value" };
 

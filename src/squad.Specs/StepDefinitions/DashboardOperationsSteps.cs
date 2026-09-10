@@ -63,12 +63,10 @@ public sealed class DashboardOperationsSteps
     public async Task ThenTheDashboardShowsNoPendingPermissionForRole(string requestId, string role) =>
         await myScenario.WaitForNoPendingPermissionAsync(role, requestId);
 
-    [Then("the dashboard shows a pending input {string} for role {string} with prompt {string}:")]
-    public async Task ThenTheDashboardShowsAPendingInputForRoleWithPrompt(string requestId, string role, string prompt, Table table)
-    {
-        var row = SingleRow(table, InputRequestColumns, "pending input");
-        await myScenario.WaitForPendingInputAsync(role, requestId, prompt, ParseChoices(row["choices"]), bool.Parse(row["freeform"]));
-    }
+    [Then("the dashboard shows a pending input {string} for role {string} with prompt {string} and freeform {string}:")]
+    public async Task ThenTheDashboardShowsAPendingInputForRoleWithPromptAndFreeform(
+        string requestId, string role, string prompt, string allowFreeform, Table table) =>
+        await myScenario.WaitForPendingInputAsync(role, requestId, prompt, ChoicesFromRows(table), bool.Parse(allowFreeform));
 
     [Then("the dashboard shows a pending elicitation {string} for role {string} with prompt {string}:")]
     public async Task ThenTheDashboardShowsAPendingElicitationForRoleWithPrompt(string requestId, string role, string prompt, Table table)
@@ -116,16 +114,21 @@ public sealed class DashboardOperationsSteps
             Is.False);
     }
 
-    private static readonly IReadOnlySet<string> InputRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "choices", "freeform" };
     private static readonly IReadOnlySet<string> ElicitationRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "mode", "url" };
     private static readonly IReadOnlySet<string> ElicitationResponseColumns = new HashSet<string>(StringComparer.Ordinal) { "form value" };
 
-    /// <summary>Splits a comma-separated choices column into a list, or null for an empty column - representing
-    /// a pending input shown without any choices at all, rather than an empty choices list.</summary>
-    private static IReadOnlyList<string>? ParseChoices(string commaSeparatedChoices) =>
-        commaSeparatedChoices.Length == 0
-            ? null
-            : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    /// <summary>Reads a variable-length "choice" table as a list of individual choice values, or null when the
+    /// table has no data rows - representing a pending input shown without any choices at all, rather than an
+    /// empty choices list or a comma-encoded value.</summary>
+    private static IReadOnlyList<string>? ChoicesFromRows(Table table)
+    {
+        if (table.Header.Count != 1 || table.Header.Single() != "choice")
+        {
+            throw new ArgumentException("choices table must declare exactly one \"choice\" column.");
+        }
+
+        return table.RowCount == 0 ? null : table.Rows.Select(row => row["choice"]).ToList();
+    }
 
     /// <summary>Returns the single data row of a record-shaped step table, after validating it declares only its
     /// supported column(s) and exactly one row - one field per column, an empty cell meaning that field is absent,
