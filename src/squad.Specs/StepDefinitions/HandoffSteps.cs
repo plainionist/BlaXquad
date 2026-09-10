@@ -39,15 +39,8 @@ public sealed class HandoffSteps
             myDrafts.WriteGitHandoffDraft(role, RecipientsFrom(recipients), priority, task, myWorkspace.Get<string>(CommitKey)));
     }
 
-    [Given("{string} prepares a note to {string} with priority {string} and message {string}")]
-    [When("{string} prepares a note to {string} with priority {string} and message {string}")]
-    public void GivenRolePreparesANote(string role, string recipients, string priority, string message)
-    {
-        myWorkspace.Set(SenderRoleKey, role);
-        myWorkspace.Set(DraftPathKey, myDrafts.WriteNoteDraft(role, recipients, priority, message));
-    }
-
     [Given("{string} prepares a note with priority {string} and message {string} to:")]
+    [When("{string} prepares a note with priority {string} and message {string} to:")]
     public void GivenRolePreparesANoteToRecipients(string role, string priority, string message, Table recipients)
     {
         myWorkspace.Set(SenderRoleKey, role);

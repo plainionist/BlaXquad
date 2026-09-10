@@ -30,9 +30,9 @@ public sealed class DeliverySteps
         myMailbox = new HandoffMailboxObserver(workspace);
     }
 
-    [When("{string} durably queues an invalid note to {string}")]
-    public void WhenRoleDurablyQueuesAnInvalidNoteTo(string role, string recipients) =>
-        myMailbox.SeedInvalidOutboundNote(role, recipients, "Ready for review.");
+    [When("{string} durably queues an invalid note to:")]
+    public void WhenRoleDurablyQueuesAnInvalidNoteTo(string role, Table recipients) =>
+        myMailbox.SeedInvalidOutboundNote(role, string.Join(",", recipients.Rows.Select(row => row["role"])), "Ready for review.");
 
     [Given("{string} is busy with a prompt")]
     public async Task GivenRoleIsBusyWithAPrompt(string role)

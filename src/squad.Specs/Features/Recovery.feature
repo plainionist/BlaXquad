@@ -6,7 +6,9 @@ Feature: Recovering durable work
       | role     |
       | coder    |
       | reviewer |
-    And "coder" prepares a note to "reviewer" with priority "50" and message "Ready for review."
+    And "coder" prepares a note with priority "50" and message "Ready for review." to:
+      | role     |
+      | reviewer |
     And the "coder" role agent runs `squad handoff` from its worktree
     And "reviewer" already has the recipient copy
     When the operator launches Headquarters, continuing from durable state
@@ -35,7 +37,9 @@ Feature: Recovering durable work
       | reviewer |
     When the operator launches Headquarters, continuing from durable state
     And "reviewer"'s session <lifecycle>
-    And "coder" prepares a note to "reviewer" with priority "50" and message "Ready for review."
+    And "coder" prepares a note with priority "50" and message "Ready for review." to:
+      | role     |
+      | reviewer |
     And the "coder" role agent runs `squad handoff` from its worktree
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
