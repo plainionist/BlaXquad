@@ -274,7 +274,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 14 | Stdio UI transport and selection [done] | Migrate `StdioUiProtocol.feature`, `StdioUiProtocolMultiRole.feature`, and `UiSelection.feature` into the public UI-protocol vocabulary. | `--ui stdio` honors readiness, paging, synchronization, diagnostic separation, shutdown, and concurrent line framing, while invalid UI selection reports the documented diagnostics. |
 | 15 | UI command validation [done] | Migrate `UiProtocolValidation.feature`; use an examples table for invalid envelope shapes and keep raw JSON only where the wire shape itself is the contract. | Invalid envelopes and unknown roles produce their exact public protocol errors before provider dispatch, and a later valid command still succeeds. |
 | 16 | Shutdown admission and dispatch draining [done] | Migrate `ShutdownCommandAdmission.feature` and `StdioTransportConcurrentDispatchAndShutdown.feature` with composable begin-shutdown, pending-operation, release, and exit steps. | Shutdown drains commands admitted before closure, rejects later commands without side effects, and waits for in-flight stdio dispatch before disposing the protocol session. |
-| 17 | Host ownership and project isolation | Migrate `HostOwnership.feature` and `HostCoexistence.feature`; share the same `squad-hq` command language for default, equivalent-path, linked-worktree, and named-project contexts. | One project has one host, readiness and shutdown discover the right host, stale ownership recovers, and stopping one project never affects another. |
+| 17 | Host ownership and project isolation [done] | Migrate `HostOwnership.feature` and `HostCoexistence.feature`; share the same `squad-hq` command language for default, equivalent-path, linked-worktree, and named-project contexts. | One project has one host, readiness and shutdown discover the right host, stale ownership recovers, and stopping one project never affects another. |
 | 18 | Startup interruption and external termination | Migrate `HeadquartersEarlyShutdown.feature` and `HeadquartersTermination.feature`; express readiness watches, independently initiated shutdown, input closure, and platform cancellation as separate operations. | Headquarters terminates cleanly before or during startup and after readiness, never admits late work, disposes started sessions, preserves durable files, and permits replacement launch. |
 | 19 | Provider failure and cleanup | Migrate `HeadquartersPartialStartupFailure.feature`, `HeadquartersTerminalProviderFailure.feature`, and `HeadquartersCleanupDiagnostics.feature`. | Startup, per-session, backend-wide, and cleanup failures preserve their distinct outcomes and diagnostics, dispose only the appropriate sessions, retain durable files, release ownership, and permit replacement launch. |
 | 20 | Provider loading and packaging | Migrate `AgentProviderSelection.feature` and `ProviderPackaging.feature` to operator-facing `squad-hq` and public provider-adapter terms. | Explicit provider selection fails clearly for every invalid descriptor, the executable has no compile-time Copilot dependency, and publish variants contain exactly their documented provider assets. |
@@ -293,9 +293,9 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
-## Slice 17 review (bf4e3dc2c3) — changes requested
+## Slice 17 review (94f1f13a72) — accepted
 
-`HostCoexistence.feature` now uses operator Headquarters launch/shutdown and UI-protocol-client wording. `HostOwnership.feature` only renamed `the executable` to `the operator` and still speaks a second command dialect.
+**Status: complete (94f1f13a72).** Finding on bf4e3dc2c3 was addressed: `HostOwnershipSteps` uses the scenario-scoped `BackendScenario`, and live-host shutdown/wait-for-agent reuse Headquarters lifecycle vocabulary. Equivalent-path, linked-worktree, empty-project, and named-project stay as context on those verbs.
 
 ### Finding 1 — High
 
