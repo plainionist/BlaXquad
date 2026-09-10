@@ -10,22 +10,19 @@ namespace squad.Host.Runtime;
 
 /// <summary>
 /// Owns the process-wide startup, running, and cleanup lifecycle, including the window, backend generation,
-/// handoff pump, sleep inhibitor, and optional host lease.
+/// handoff pump, sleep inhibitor, and host lease.
 /// </summary>
 public sealed class SquadApplication : IAsyncDisposable
 {
     private static readonly Task myNever = Task.Delay(Timeout.InfiniteTimeSpan);
-    private static readonly IReadOnlyDictionary<string, IAgentSession> myEmptySessions =
-        new Dictionary<string, IAgentSession>(StringComparer.Ordinal);
     private readonly SquadStartupPlan myStartupPlan;
     private readonly IAgentProviderFactory myAgentProviderFactory;
     private readonly IHandoffPump myHandoffPump;
     private readonly IWindowHost myWindowHost;
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
-    private readonly IHostLease? myHostLease;
+    private readonly IHostLease myHostLease;
     private readonly SessionRegistry mySessionRegistry;
-    private readonly Action<AgentEvent> myEventSink;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
     private IAgentBackend? myAgentBackend;
@@ -33,31 +30,9 @@ public sealed class SquadApplication : IAsyncDisposable
     private Task<IReadOnlyList<Exception>>? myCleanup;
     private bool myWindowStarted;
 
-    public SquadApplication(
-        SquadStartupPlan startupPlan,
-        IAgentProviderFactory agentProviderFactory,
-        IHandoffPump handoffPump,
-        IWindowHost windowHost,
-        ISleepInhibitor sleepInhibitor,
-        Action<AgentEvent>? eventSink = null,
-        SquadViewModel? viewModel = null,
-        IHostLease? hostLease = null)
-        : this(
-            startupPlan,
-            agentProviderFactory,
-            handoffPump,
-            windowHost,
-            sleepInhibitor,
-            new SessionRegistry(),
-            eventSink,
-            viewModel,
-            hostLease)
-    {
-    }
-
     /// <summary>
     /// Creates an application whose handoff notifier and command dispatch share one session registry, keeping
-    /// notification routing atomic with lifecycle admission.
+    /// notification routing atomic with lifecycle admission. This is the single production composition path.
     /// </summary>
     public static SquadApplication Create(
         SquadStartupPlan startupPlan,
@@ -65,13 +40,13 @@ public sealed class SquadApplication : IAsyncDisposable
         Func<IRoleNotifier, IHandoffPump> handoffPumpFactory,
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
-        Action<AgentEvent>? eventSink = null,
-        SquadViewModel? viewModel = null,
-        IHostLease? hostLease = null)
+        SquadViewModel viewModel,
+        IHostLease hostLease)
     {
         ArgumentNullException.ThrowIfNull(handoffPumpFactory);
+        ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(hostLease);
 
-        viewModel ??= new SquadViewModel();
         var sessionRegistry = new SessionRegistry();
         var notifier = new SessionRoleNotifier(sessionRegistry, viewModel);
         var handoffPump = handoffPumpFactory(notifier);
@@ -82,53 +57,44 @@ public sealed class SquadApplication : IAsyncDisposable
             windowHost,
             sleepInhibitor,
             sessionRegistry,
-            eventSink,
             viewModel,
             hostLease);
     }
 
-    // Internal composition seam used exclusively by Create above: lets the production creation path share one
+    // Private composition seam used exclusively by Create above: lets the production creation path share one
     // SessionRegistry instance between SquadApplication and SessionRoleNotifier without exposing the
     // registry-sharing constructor as public API.
-    internal SquadApplication(
+    private SquadApplication(
         SquadStartupPlan startupPlan,
         IAgentProviderFactory agentProviderFactory,
         IHandoffPump handoffPump,
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SessionRegistry sessionRegistry,
-        Action<AgentEvent>? eventSink = null,
-        SquadViewModel? viewModel = null,
-        IHostLease? hostLease = null)
+        SquadViewModel viewModel,
+        IHostLease hostLease)
     {
         myStartupPlan = startupPlan;
         myAgentProviderFactory = agentProviderFactory;
         myHandoffPump = handoffPump;
         myWindowHost = windowHost;
         mySleepInhibitor = sleepInhibitor;
-        myViewModel = viewModel ?? new SquadViewModel();
+        myViewModel = viewModel;
         myHostLease = hostLease;
         mySessionRegistry = sessionRegistry;
-        myEventSink = eventSink ?? (_ => { });
         myViewModel.UseAdmission(sessionRegistry);
     }
-
-    public IReadOnlyDictionary<string, IAgentSession> Sessions => myRuntimeController?.Sessions ?? myEmptySessions;
-    public SquadViewModel ViewModel => myViewModel;
 
     /// <summary>
     /// Runs startup through readiness, then waits for shutdown, window closure, cancellation, or an owned-resource
     /// failure. Cleanup always runs; cleanup failures are preserved alongside the primary failure.
     /// </summary>
-    public async Task<RunResult> RunAsync(Func<Task> onReady, CancellationToken cancellationToken = default)
+    public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(onReady);
-
         ExceptionDispatchInfo? primary = null;
-        RunResult? result = null;
         using var startupCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var shutdown = myHostLease?.ShutdownRequested ?? myNever;
-        var serverFailure = myHostLease?.ServerFailure ?? myNever;
+        var shutdown = myHostLease.ShutdownRequested;
+        var serverFailure = myHostLease.ServerFailure;
         var handoffFailure = myHandoffPump.Failure;
         // The backend does not exist until startup reaches provider creation, so no fatal-backend signal can fire
         // before then; it is recomputed from the now-owned backend once the startup task has fully completed.
@@ -149,8 +115,6 @@ public sealed class SquadApplication : IAsyncDisposable
             backendFailure = (myAgentBackend as IAgentBackendFailureSource)?.Failure ?? myNever;
             ThrowForTerminalSignal(serverFailure, handoffFailure, backendFailure, shutdown, cancellationToken);
 
-            await onReady();
-
             var close = myWindowHost.WaitForCloseAsync(cancellationToken);
             await Task.WhenAny(close, shutdown, serverFailure, handoffFailure, backendFailure, cancellation);
             if (serverFailure.IsCompleted)
@@ -168,18 +132,15 @@ public sealed class SquadApplication : IAsyncDisposable
             if (shutdown.IsCompleted)
             {
                 shutdown.GetAwaiter().GetResult();
-                result = RunResult.StoppedAfterReady;
             }
             else
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await close;
-                result = RunResult.StoppedAfterReady;
             }
         }
         catch (ShutdownBeforeReadyException)
         {
-            result = RunResult.ShutdownBeforeReady;
         }
         catch (Exception exception)
         {
@@ -205,7 +166,6 @@ public sealed class SquadApplication : IAsyncDisposable
             ThrowWithCleanup(primary, cleanupFailures);
         }
         ThrowCleanupFailures(cleanupFailures);
-        return result ?? RunResult.ShutdownBeforeReady;
     }
 
     public async ValueTask DisposeAsync()
@@ -222,12 +182,12 @@ public sealed class SquadApplication : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
         myAgentBackend = await myAgentProviderFactory.CreateAsync(backendContext, cancellationToken);
         myRuntimeController = new SquadRuntimeController(
-            mySessionRegistry, myAgentBackend, myEventSink, myViewModel, myHandoffPump, myStopping.Token);
+            mySessionRegistry, myAgentBackend, myViewModel, myHandoffPump, myStopping.Token);
         cancellationToken.ThrowIfCancellationRequested();
         await mySleepInhibitor.StartAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         myViewModel.InitializeRoles(myStartupPlan.DiscoverRoles());
-        myHostLease?.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
+        myHostLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
         myStartupPlan.PrepareWorkspace();
         cancellationToken.ThrowIfCancellationRequested();
         await myStartupPlan.PrepareConfiguredWorktreesForLaunchAsync(cancellationToken);
@@ -270,10 +230,7 @@ public sealed class SquadApplication : IAsyncDisposable
         await AttemptCleanupAsync("handoff pump disposal", () => myHandoffPump.DisposeAsync().AsTask(), failures);
         await AttemptCleanupAsync("sleep inhibitor", () => mySleepInhibitor.DisposeAsync().AsTask(), failures);
         await AttemptCleanupAsync("view model", () => myViewModel.DisposeAsync().AsTask(), failures);
-        if (myHostLease is not null)
-        {
-            await AttemptCleanupAsync("host lease", () => myHostLease.DisposeAsync().AsTask(), failures);
-        }
+        await AttemptCleanupAsync("host lease", () => myHostLease.DisposeAsync().AsTask(), failures);
         myStopping.Dispose();
         return failures;
     }

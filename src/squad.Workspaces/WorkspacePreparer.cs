@@ -16,20 +16,6 @@ public sealed class WorkspacePreparer
         myFail = fail;
     }
 
-    public void InitializeGitRepo(Ctx ctx)
-    {
-        if (Directory.Exists(Path.Combine(ctx.WorkingDir, ".git")) || File.Exists(Path.Combine(ctx.WorkingDir, ".git")))
-        {
-            return;
-        }
-
-        Run("git", "init", ctx.WorkingDir);
-        Run("git", "-C", ctx.WorkingDir, "branch", "-M", "master");
-        EnsureInitialGitignore(ctx);
-        Run("git", "-C", ctx.WorkingDir, "add", ".");
-        Run("git", "-C", ctx.WorkingDir, "commit", "-m", "Initial squad repository");
-    }
-
     public async Task InitializeGitRepoAsync(Ctx ctx, CancellationToken cancellationToken)
     {
         if (Directory.Exists(Path.Combine(ctx.WorkingDir, ".git")) || File.Exists(Path.Combine(ctx.WorkingDir, ".git")))
@@ -43,16 +29,6 @@ public sealed class WorkspacePreparer
         EnsureInitialGitignore(ctx);
         await RunAsync("git", ["-C", ctx.WorkingDir, "add", "."], cancellationToken);
         await RunAsync("git", ["-C", ctx.WorkingDir, "commit", "-m", "Initial squad repository"], cancellationToken);
-    }
-
-    public void EnsureRuntimeGitExcludes(Ctx ctx)
-    {
-        var gitPath = ProcessRunner.RunChecked(
-            "git", ["-C", ctx.WorkingDir, "rev-parse", "--git-path", "info/exclude"], workingDirectory: ctx.WorkingDir).StdOut.Trim();
-        var excludeFile = ResolveGitPath(ctx, gitPath);
-        Directory.CreateDirectory(Path.GetDirectoryName(excludeFile)!);
-        EnsureInFile(excludeFile, ".blaxquad/");
-        EnsureInFile(excludeFile, ".worktrees/");
     }
 
     public async Task EnsureRuntimeGitExcludesAsync(Ctx ctx, CancellationToken cancellationToken)
@@ -72,11 +48,6 @@ public sealed class WorkspacePreparer
     // explicitly so exclude-file resolution never depends on this process's own working directory.
     private static string ResolveGitPath(Ctx ctx, string gitPath) =>
         Path.IsPathRooted(gitPath) ? gitPath : Path.GetFullPath(gitPath, ctx.WorkingDir);
-
-    public void WriteAgentInstructionFile(string role, string promptFile) =>
-        File.WriteAllText(promptFile,
-            "Read blaxquad/constitution.prompt, then read every file it refers to recursively, and obey all of those instructions.\n" +
-            $"Read blaxquad/roles/{role}.prompt, then read every file it refers to recursively, and follow all of those instructions.\n");
 
     public void Parse(Ctx ctx)
     {
@@ -123,23 +94,6 @@ public sealed class WorkspacePreparer
             Directory.CreateDirectory(dir);
         }
         CheckHelperScripts(ctx);
-    }
-
-    public void PrepareWorktrees(Ctx ctx)
-    {
-        foreach (var row in ctx.Roles)
-        {
-            if (row.WorktreeName is "none" or "master")
-            {
-                continue;
-            }
-            var gitPath = Path.Combine(row.WorktreePath, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-            {
-                continue;
-            }
-            Run("git", "-C", ctx.WorkingDir, "worktree", "add", "--force", "-B", $"squad-{row.WorktreeName}", row.WorktreePath, "HEAD");
-        }
     }
 
     public async Task PrepareWorktreesAsync(Ctx ctx, CancellationToken cancellationToken)

@@ -159,13 +159,12 @@ static class Launch
                         LogHandoff),
                     runtime.WindowHost,
                     runtime.SleepInhibitor,
-                    _ => { },
                     viewModel,
-                    hostLease: hostLease);
+                    hostLease: hostLease!);
                 hostLease = null;
                 try
                 {
-                    application.RunAsync(() => Task.CompletedTask, consoleCancellation.Token).GetAwaiter().GetResult();
+                    application.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
                 }
                 catch (OperationCanceledException) when (consoleCancellation.IsCancellationRequested)
                 {

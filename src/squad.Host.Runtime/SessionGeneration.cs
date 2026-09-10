@@ -13,7 +13,6 @@ namespace squad.Host.Runtime;
 internal sealed class SessionGeneration
 {
     private readonly IAgentBackend myAgentBackend;
-    private readonly Action<AgentEvent> myEventSink;
     private readonly SquadViewModel myViewModel;
     private readonly CancellationToken myStoppingToken;
     private readonly Dictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
@@ -26,17 +25,13 @@ internal sealed class SessionGeneration
 
     public SessionGeneration(
         IAgentBackend agentBackend,
-        Action<AgentEvent> eventSink,
         SquadViewModel viewModel,
         CancellationToken stoppingToken)
     {
         myAgentBackend = agentBackend;
-        myEventSink = eventSink;
         myViewModel = viewModel;
         myStoppingToken = stoppingToken;
     }
-
-    public IReadOnlyDictionary<string, IAgentSession> Sessions => mySessions;
 
     public async Task StartAsync(Func<IAgentSession, Task> onSessionRegistered, CancellationToken cancellationToken = default)
     {
@@ -125,7 +120,6 @@ internal sealed class SessionGeneration
         {
             await foreach (var agentEvent in session.Events(cancellationToken))
             {
-                myEventSink(agentEvent);
                 await myViewModel.EnqueueEventAsync(session.Role, agentEvent);
             }
         }

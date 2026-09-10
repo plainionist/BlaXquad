@@ -7,13 +7,7 @@ namespace squad.Host.Runtime;
 /// </summary>
 public sealed class SquadStartupPlan
 {
-    private static readonly AgentBackendContext myEmptyContext = new(
-        string.Empty,
-        string.Empty,
-        [],
-        new Dictionary<string, string>());
-
-    private readonly Func<CancellationToken, Task<AgentBackendContext>>? myPrepareContextAsync;
+    private readonly Func<CancellationToken, Task<AgentBackendContext>> myPrepareContextAsync;
     private readonly Func<IEnumerable<string>> myDiscoverRoles;
     private readonly Action myPrepareWorkspace;
     private readonly Func<bool, CancellationToken, Task> myPrepareConfiguredWorktreesForLaunchAsync;
@@ -26,7 +20,7 @@ public sealed class SquadStartupPlan
         Func<bool, CancellationToken, Task> prepareConfiguredWorktreesForLaunchAsync,
         Action prepareHandoffDirs,
         bool continueLaunch,
-        Func<CancellationToken, Task<AgentBackendContext>>? prepareContextAsync = null)
+        Func<CancellationToken, Task<AgentBackendContext>> prepareContextAsync)
     {
         myDiscoverRoles = discoverRoles;
         myPrepareWorkspace = prepareWorkspace;
@@ -41,7 +35,7 @@ public sealed class SquadStartupPlan
     /// Runs before role discovery.
     /// </summary>
     public Task<AgentBackendContext> PrepareContextAsync(CancellationToken cancellationToken) =>
-        myPrepareContextAsync?.Invoke(cancellationToken) ?? Task.FromResult(myEmptyContext);
+        myPrepareContextAsync(cancellationToken);
 
     /// <summary>Discovers the configured roles. Must only be called after <see cref="PrepareContextAsync"/> completes.</summary>
     public IEnumerable<string> DiscoverRoles() => myDiscoverRoles();

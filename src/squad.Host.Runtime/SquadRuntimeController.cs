@@ -21,7 +21,6 @@ internal sealed class SquadRuntimeController
     public SquadRuntimeController(
         SessionRegistry sessionRegistry,
         IAgentBackend agentBackend,
-        Action<AgentEvent> eventSink,
         SquadViewModel viewModel,
         IHandoffPump handoffPump,
         CancellationToken stoppingToken)
@@ -29,10 +28,8 @@ internal sealed class SquadRuntimeController
         mySessionRegistry = sessionRegistry;
         myViewModel = viewModel;
         myHandoffPump = handoffPump;
-        mySessionGeneration = new SessionGeneration(agentBackend, eventSink, viewModel, stoppingToken);
+        mySessionGeneration = new SessionGeneration(agentBackend, viewModel, stoppingToken);
     }
-
-    public IReadOnlyDictionary<string, IAgentSession> Sessions => mySessionGeneration.Sessions;
 
     public async Task StartAsync(Func<CancellationToken, Task> onSessionsStarted, CancellationToken cancellationToken)
     {
