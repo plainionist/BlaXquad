@@ -291,7 +291,7 @@ explicit loading remains covered by the vertical process proof.
 `AgentProviderSelection.feature`. The four failure diagnostics remain. Unreferenced launch/host-lease steps are
 gone; `ValidProviderFixtureFactory` stays for the duplicate-option case. Clean discovery is 157 expanded cases.
 
-### Slice 8 - Remove the redundant owned-host happy path [queued]
+### Slice 8 - Remove the redundant owned-host happy path [in progress]
 
 **Outcome:** Host ownership retains its edge, recovery, readiness, and stdio-shutdown contracts without a lifecycle
 happy path already contained in headquarters behavior.
@@ -309,7 +309,7 @@ happy path already contained in headquarters behavior.
 
 ### Completion gate
 
-After Slice 8 is accepted:
+As part of Slice 8, before review:
 
 - Search all remaining Gherkin steps and remove only truly unreferenced bindings or helpers attributable to this
   issue.
