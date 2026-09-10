@@ -29,7 +29,14 @@ public static class HostControlClient
             {
                 throw new InvalidOperationException($"The squad has no agent role named '{role}'.");
             }
-            lastStatus = status == "not-ready" ? "agent not ready" : status;
+            if (status == "not-ready")
+            {
+                lastStatus = "agent not ready";
+            }
+            else if (lastStatus == "squad host unavailable")
+            {
+                lastStatus = status;
+            }
             remaining = timeout - elapsed.Elapsed;
             if (remaining <= TimeSpan.Zero)
             {
