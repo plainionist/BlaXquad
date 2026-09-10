@@ -168,6 +168,13 @@ public sealed class DashboardOperationsSteps
         myAwaitedTranscriptSynchronization = await myScenario.WaitForNextTranscriptSynchronizationAsync(role, skip);
     }
 
+    [When("the user begins a fresh transcript synchronization")]
+    public void WhenTheUserBeginsAFreshTranscriptSynchronization() =>
+        // Fires the request without awaiting any acknowledgement (the protocol has none) or a later synchronization
+        // response - the independently-started half of a reusable race operation, composed with a following ordered
+        // event-emission step so a scenario can race this request against concurrent publication.
+        myScenario.RequestTranscriptSynchronization();
+
     [Then("the freshly synchronized transcript for role {string} does not contain {string}")]
     public void ThenTheFreshlySynchronizedTranscriptForRoleDoesNotContain(string role, string content)
     {

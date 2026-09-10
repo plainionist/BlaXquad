@@ -29,7 +29,8 @@ Feature: Transcript synchronization order
     Then Headquarters exits with code 0
 
   Scenario: A transcript synchronization racing a concurrent burst of publications loses and duplicates nothing
-    When the "coder" agent concurrently emits these system messages while a transcript synchronization races them:
+    When the user begins a fresh transcript synchronization
+    And the "coder" agent concurrently emits these system messages:
       | content |
       | burst-1 |
       | burst-2 |

@@ -554,16 +554,12 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentInvokesSkill(string role, string name) =>
         Await(myScenario.Agent(role).EmitSkillInvokedAsync(name));
 
-    [When("the {string} agent concurrently emits these system messages while a transcript synchronization races them:")]
-    public void WhenTheAgentConcurrentlyEmitsTheseSystemMessagesWhileATranscriptSynchronizationRacesThem(string role, Table contents)
-    {
-        // Firing the synchronize request without awaiting an acknowledgement (it has none) before starting every
-        // emit concurrently creates a genuine race between this UI-protocol request and the fake provider's
-        // control-pipe emits, proving reconciliation stays correct regardless of how much of the burst the
-        // synchronization response actually captured.
-        myScenario.RequestTranscriptSynchronization();
+    [When("the {string} agent concurrently emits these system messages:")]
+    public void WhenTheAgentConcurrentlyEmitsTheseSystemMessages(string role, Table contents) =>
+        // Awaiting every row's emit together (rather than sequentially) genuinely races each one against whatever
+        // synchronization request a preceding independently-started step already fired, without this step itself
+        // waiting on that request's acknowledgement (the protocol has none) or its eventual response.
         Await(Task.WhenAll(contents.Rows.Select(row => myScenario.Agent(role).EmitSystemMessageAsync(row["content"]))));
-    }
 
     [Then("the backend scenario observes a transcript update for role {string} with source {string}")]
     public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSource(string role, string source) =>
