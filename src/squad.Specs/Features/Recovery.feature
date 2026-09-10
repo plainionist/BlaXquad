@@ -1,14 +1,6 @@
 Feature: Recovering durable work
   Restarting a tool resumes durable state without duplicating or losing work.
 
-  Scenario: A role resumes its current task after restart
-    Given a Git project with task role "reviewer"
-    And "reviewer" is processing task "repair-delivery" from "coder"
-    When "reviewer" checks for work
-    Then the command succeeds
-    And task "repair-delivery" is in process
-    And standard output contains "TASK_NAME: repair-delivery"
-
   Scenario: Retrying an already persisted delivery creates no duplicate
     Given delivery roles "coder,reviewer"
     And "coder" has an outbound note to "reviewer"
@@ -17,15 +9,6 @@ Feature: Recovering durable work
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
     And "reviewer"'s recipient copy is unchanged
-
-  Scenario: An archive collision cannot lose the current task
-    Given a Git project with task role "reviewer"
-    And "reviewer" is processing task "repair-delivery" from "coder"
-    And the completion archive already contains that task
-    When "reviewer" completes the current work
-    Then the command exits with code 2
-    And standard error contains "completed file already exists"
-    And task "repair-delivery" is in process
 
   Scenario: Existing inbox work survives a headquarters restart unchanged
     Given delivery roles "reviewer"

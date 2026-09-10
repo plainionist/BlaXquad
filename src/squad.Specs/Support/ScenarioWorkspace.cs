@@ -140,9 +140,19 @@ public sealed class ScenarioWorkspace : IDisposable
     /// records each role's worktree path behind this workspace (see <see cref="RunRoleTool"/>),
     /// and also returns those paths so specifications do not duplicate project bootstrap.
     /// </summary>
-    public IReadOnlyDictionary<string, string> ConfigureProject(params string[] roles)
+    public IReadOnlyDictionary<string, string> ConfigureProject(params string[] roles) =>
+        ConfigureProject(roles.Select(role => (Role: role, ReceiveMode: (string?)null)).ToArray());
+
+    /// <summary>
+    /// Creates a uniquely rooted, configured Git project with one linked worktree per role, optionally declaring
+    /// each role's `receiveMode` (a null entry omits the field so the tool applies its own default), and records
+    /// each role's worktree path behind this workspace (see <see cref="RunRoleTool"/>). Lets scenarios that arrange
+    /// an unsupported, missing, or batch receive mode do so as one semantic workspace operation instead of
+    /// serializing configuration in step definitions.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureProject(IReadOnlyList<(string Role, string? ReceiveMode)> roles)
     {
-        if (roles.Length == 0)
+        if (roles.Count == 0)
         {
             throw new ArgumentException("At least one role is required.", nameof(roles));
         }
@@ -150,7 +160,7 @@ public sealed class ScenarioWorkspace : IDisposable
         InitializeGitRepository();
         WriteFile("blaxquad/constitution.prompt", "Follow the project constitution.\n");
 
-        foreach (var role in roles)
+        foreach (var (role, _) in roles)
         {
             WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
             var worktreePath = PathInWorkspace(".worktrees", role);
@@ -158,8 +168,7 @@ public sealed class ScenarioWorkspace : IDisposable
             myRoleWorktrees[role] = worktreePath;
         }
 
-        var rolesJson = string.Join(",\n", roles.Select(role =>
-            $$"""    { "name": "{{role}}", "worktree": "{{role}}", "agent": {} }"""));
+        var rolesJson = string.Join(",\n", roles.Select(entry => RoleJson(entry.Role, entry.ReceiveMode)));
         WriteFile("blaxquad/squad.json", $$"""
             {
               "roles": [
@@ -172,19 +181,28 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
-    /// Rewrites a single role already configured by <see cref="ConfigureProject"/> to the given receive mode,
-    /// including an empty string, while keeping its existing worktree mapping. Lets scenarios that arrange an
-    /// unsupported or missing receive mode do so as a semantic workspace operation instead of serializing
-    /// configuration in step definitions.
+    /// Rewrites `blaxquad/squad.json` for every role already established by <see cref="ConfigureProject"/> to
+    /// declare an explicit receive mode (including an empty string) for the given role, preserving every other
+    /// configured role's worktree mapping and default receive mode unchanged. Lets scenarios arrange an
+    /// unsupported or missing receive mode after Background configuration as one semantic workspace operation,
+    /// without repeating Git project bootstrap.
     /// </summary>
-    public void SetRoleReceiveMode(string role, string receiveMode) =>
+    public void ConfigureReceiveMode(string role, string receiveMode)
+    {
+        var rolesJson = string.Join(",\n", myRoleWorktrees.Keys.Select(configuredRole =>
+            RoleJson(configuredRole, configuredRole == role ? receiveMode : null)));
         WriteFile("blaxquad/squad.json", $$"""
             {
               "roles": [
-                { "name": "{{role}}", "worktree": "{{role}}", "receiveMode": "{{receiveMode}}", "agent": {} }
+            {{rolesJson}}
               ]
             }
             """ + "\n");
+    }
+
+    private static string RoleJson(string role, string? receiveMode) => receiveMode is null
+        ? $$"""    { "name": "{{role}}", "worktree": "{{role}}", "agent": {} }"""
+        : $$"""    { "name": "{{role}}", "worktree": "{{role}}", "receiveMode": "{{receiveMode}}", "agent": {} }""";
 
     /// <summary>
     /// Creates a Git project where every named role maps onto the same repository root (a "master" worktree)

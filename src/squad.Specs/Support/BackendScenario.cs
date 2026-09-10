@@ -67,10 +67,18 @@ public sealed class BackendScenario : IDisposable
     /// session live in the same launched process - for example a sender role whose own "squad handoff" CLI
     /// invocation and a recipient role whose fake session observes the resulting wake-up.
     /// </summary>
-    public IReadOnlyDictionary<string, string> ConfigureRoles(params string[] roles)
+    public IReadOnlyDictionary<string, string> ConfigureRoles(params string[] roles) =>
+        ConfigureRoles(roles.Select(role => (Role: role, ReceiveMode: (string?)null)).ToArray());
+
+    /// <summary>
+    /// Creates one Git project configured with a real linked worktree per given role and its declared
+    /// `receiveMode` (delegating to <see cref="ScenarioWorkspace.ConfigureProject"/>), for scenarios that declare
+    /// a role's receive mode as part of its project configuration rather than as a separate workspace operation.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureRoles(IReadOnlyList<(string Role, string? ReceiveMode)> roles)
     {
         var worktrees = myWorkspace.ConfigureProject(roles);
-        myConfiguredRoles.AddRange(roles);
+        myConfiguredRoles.AddRange(roles.Select(entry => entry.Role));
         return worktrees;
     }
 

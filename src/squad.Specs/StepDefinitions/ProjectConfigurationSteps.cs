@@ -10,9 +10,9 @@ namespace squad.Specs.StepDefinitions;
 [Binding]
 public sealed class ProjectConfigurationSteps
 {
-    /// <summary>The only column this slice's `ConfigureRoles` can actually apply. A table naming any other
-    /// column would silently appear to configure a field (e.g. a model or receive mode) that is never written.</summary>
-    private static readonly IReadOnlySet<string> SupportedColumns = new HashSet<string>(StringComparer.Ordinal) { "role" };
+    /// <summary>The only columns this slice's `ConfigureRoles` can actually apply. A table naming any other
+    /// column would silently appear to configure a field (e.g. a model) that is never written.</summary>
+    private static readonly IReadOnlySet<string> SupportedColumns = new HashSet<string>(StringComparer.Ordinal) { "role", "receive mode" };
 
     private readonly BackendScenario myScenario;
 
@@ -37,6 +37,7 @@ public sealed class ProjectConfigurationSteps
             throw new ArgumentException("Project configuration table must declare a \"role\" column.");
         }
 
+        var declaresReceiveMode = table.Header.Contains("receive mode");
         var roles = table.Rows.Select((row, index) =>
         {
             var role = row["role"];
@@ -44,7 +45,8 @@ public sealed class ProjectConfigurationSteps
             {
                 throw new ArgumentException($"Project configuration table row {index + 1} has an empty \"role\".");
             }
-            return role;
+            var receiveMode = declaresReceiveMode ? row["receive mode"] : null;
+            return (Role: role, ReceiveMode: receiveMode);
         }).ToArray();
 
         myScenario.ConfigureRoles(roles);
