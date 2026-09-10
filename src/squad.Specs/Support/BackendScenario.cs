@@ -655,23 +655,24 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Requests shutdown through the real "squad-hq shutdown" host-control command's own underlying pipe request
-    /// (<see cref="squad.Host.Control.HostControlClient.RequestShutdownAsync"/>) without waiting for the host to
-    /// release ownership or for the launched process itself to exit, so a scenario can observe backend cleanup
-    /// unfold - for example holding at the real provider boundary through
+    /// Issues the real "squad-hq shutdown" host-control command as its own background process and returns as soon
+    /// as it has been started, without waiting for the host to release ownership or for either the shutdown
+    /// command or the launched process itself to exit, so a scenario can observe backend cleanup unfold - for
+    /// example holding at the real provider boundary through
     /// <see cref="BackendScenarioAgent.ArmPendingDisposalAsync"/> - before later waiting for the process's own
-    /// bounded exit through <see cref="WaitForProcessExitAsync"/>. The full "squad-hq shutdown" CLI command itself
-    /// cannot be used here because it always blocks up to its own timeout waiting for host release, which would
-    /// deadlock against a still-held disposal.
+    /// bounded exit through <see cref="WaitForProcessExitAsync"/>. Awaiting the full "squad-hq shutdown" CLI
+    /// command's own completion (as <see cref="ShutdownAsync"/> does) cannot be used here because it always blocks
+    /// up to its own timeout waiting for host release, which would deadlock against a still-held disposal.
     /// </summary>
-    public async Task RequestShutdownWithoutWaitingForExit()
+    public Task RequestShutdownWithoutWaitingForExit()
     {
         if (myProcess is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
         }
 
-        await squad.Host.Control.HostControlClient.RequestShutdownAsync(myWorkspace.Root);
+        myWorkspace.StartProcess(myWorkspace.BackendSpecSquadHqExecutablePath, ["shutdown", myWorkspace.Root]);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -743,9 +744,8 @@ public sealed class BackendScenario : IDisposable
 
     /// <summary>
     /// Poisons the given role's handoff outbox directory (see <see cref="ScenarioWorkspace.PoisonRoleHandoffOutbox"/>)
-    /// so the next real poll by the launched process's own
-    /// <see cref="squad.Handoffs.Delivery.InProcessHandoffPoller"/> genuinely faults - a deterministic, real
-    /// filesystem fault, never an injected <see cref="squad.Handoffs.Delivery.IHandoffPump.Failure"/>.
+    /// so the next real poll by the launched process's own handoff poller genuinely faults - a deterministic, real
+    /// filesystem fault, never an injected pump failure.
     /// </summary>
     public void PoisonHandoffOutbox(string role) => myWorkspace.PoisonRoleHandoffOutbox(role);
 

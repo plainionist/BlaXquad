@@ -49,9 +49,8 @@ public sealed class ScenarioWorkspace : IDisposable
     /// <summary>
     /// Poisons a role's already-created handoff outbox directory by replacing it with a directory link (a Windows
     /// junction, or a symbolic link elsewhere) whose target no longer exists, so the real, filesystem-polling
-    /// <see cref="squad.Handoffs.Delivery.InProcessHandoffPoller"/> genuinely faults the next time it scans that
-    /// role's outbox - a deterministic, real filesystem fault, never an injected
-    /// <see cref="squad.Handoffs.Delivery.IHandoffPump.Failure"/> or any other test hook. The link itself still
+    /// production handoff poller genuinely faults the next time it scans that role's outbox - a deterministic,
+    /// real filesystem fault, never an injected pump failure or any other test hook. The link itself still
     /// resolves as a present directory, but enumerating its contents throws because its target is gone, matching a
     /// real, unrecoverable filesystem fault a production deployment could hit (for example a broken mount or a
     /// directory removed out from under a running process). <see cref="Dispose"/> already knows how to remove a
@@ -69,7 +68,7 @@ public sealed class ScenarioWorkspace : IDisposable
         Directory.CreateDirectory(brokenTarget);
         if (OperatingSystem.IsWindows())
         {
-            squad.Process.ProcessRunner.RunChecked("cmd", ["/c", "mklink", "/J", outboxDir, brokenTarget]);
+            AssertSuccessful(Run("cmd", ["/c", "mklink", "/J", outboxDir, brokenTarget]));
         }
         else
         {

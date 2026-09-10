@@ -215,10 +215,6 @@ public sealed class BackendScenarioSteps
     [Then("the {string} agent observes {int} aborts")]
     public void ThenTheAgentObservesAborts(string role, int count) => Await(myScenario.Agent(role).WaitForAbortCountAsync(count));
 
-    [Then("the {string} agent has only observed the prompt {string}")]
-    public void ThenTheAgentHasOnlyObservedThePrompt(string role, string expectedPrompt) =>
-        Assert.That(myScenario.Agent(role).LatestPrompt(), Is.EqualTo(expectedPrompt));
-
     [Then("the {string} agent has not received the prompt {string} within {int} seconds")]
     public void ThenTheAgentHasNotReceivedThePromptWithinSeconds(string role, string prompt, int seconds) =>
         Assert.CatchAsync<TimeoutException>(

@@ -400,8 +400,8 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     private long NextGeneration() => Interlocked.Increment(ref myGeneration);
 
     /// <summary>Reports whether the given generation is still this session's latest minted readiness generation -
-    /// the admission check production <see cref="squad.Application.SquadViewModel"/> uses to discard a stale
-    /// readiness observation instead of letting it overwrite newer operation state.</summary>
+    /// the same admission check production headquarters uses to discard a stale readiness observation instead of
+    /// letting it overwrite newer operation state.</summary>
     public bool IsReadinessGenerationCurrent(long generation) => Interlocked.Read(ref myGeneration) == generation;
 
     /// <summary>Advances this session's readiness generation so any readiness observation already computed under
