@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 11 review (e4292c53ed) — changes requested
+
+Setup, transcript updates, synchronization, paging, and archive requests now use canonical vocabulary, and unused `backend scenario` page/archive aliases were removed. Repeated size-specific prose remains.
+
+### Finding 1 — Medium
+
+- **Location:** `src/squad.Specs/Features/TranscriptActiveStreamRetention.feature` (both scenarios: five consecutive `the "coder" agent emits a system message with 250000 characters` steps).
+- **Violated behavior:** Slice 11 must replace repeated size-specific prose with typed counts or tables without hiding live, announcement, per-entry archive, and total-archive limits. The suite already has `the {string} agent emits {int} system messages with {int} characters each`.
+- **Root cause:** The migration rewrote actors but left the live-retention crossing burst as five identical one-message steps instead of one typed count of 5 messages at the 250000-character live bound.
+- **Required outcome:** In both active-stream scenarios, emit the crossing burst as one typed count (5 messages of 250000 characters each). Keep the 250000 live-retention bound visible; do not fold assistant and reasoning into one step that hides those distinct streams.
+
 ## Slice 10 review (1f66184f55) — accepted
 
 **Status: complete (1f66184f55).** `TranscriptHistoryPaging.feature` uses canonical launch/shutdown, dashboard synchronization, and UI-protocol-client paging/archive requests. Page coordinates stay behind bindings; old `backend scenario` page/archive aliases remain for slice 11.
