@@ -183,9 +183,6 @@ public sealed class BackendScenarioSteps
     public void ThenTheAgentObservesAHarnessMessage(string role) =>
         myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
 
-    [When("the backend scenario requests an abort for role {string}")]
-    public void WhenTheBackendScenarioRequestsAnAbortForRole(string role) => myScenario.RequestAbort(role);
-
     [Then("the {string} agent observes an abort")]
     public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());
 
@@ -265,10 +262,6 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentRequestsPermissionWithDescription(string role, string requestId, string description) =>
         Await(myScenario.Agent(role).RequestPermissionAsync(requestId, description));
 
-    [When("the backend scenario responds to permission {string} for role {string} with approved {string}")]
-    public void WhenTheBackendScenarioRespondsToPermissionForRoleWithApproved(string requestId, string role, string approved) =>
-        myScenario.RespondToPermission(role, requestId, bool.Parse(approved));
-
     [Then("the {string} agent observes a permission response for {string} approved {string}")]
     public void ThenTheAgentObservesAPermissionResponseForApproved(string role, string requestId, string approved)
     {
@@ -279,10 +272,6 @@ public sealed class BackendScenarioSteps
             Assert.That(response.Approved, Is.EqualTo(bool.Parse(approved)));
         });
     }
-
-    [When("the {string} agent requests input {string} with prompt {string}")]
-    public void WhenTheAgentRequestsInputWithPrompt(string role, string requestId, string prompt) =>
-        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt));
 
     [When("the {string} agent requests input {string} with prompt {string} and freeform {string}:")]
     public void WhenTheAgentRequestsInputWithPromptAndFreeform(string role, string requestId, string prompt, string allowFreeform, Table table) =>
@@ -335,15 +324,6 @@ public sealed class BackendScenarioSteps
     [Then("the {string} agent has not observed an elicitation response")]
     public void ThenTheAgentHasNotObservedAnElicitationResponse(string role) =>
         Assert.That(myScenario.Agent(role).HasReceivedElicitationResponse(), Is.False);
-
-    [Then("the backend scenario observes a pending permission {string} for role {string} with description {string}")]
-    public void ThenTheBackendScenarioObservesAPendingPermissionForRoleWithDescription(string requestId, string role, string description) =>
-        Await(myScenario.WaitForPendingPermissionAsync(role, requestId, description));
-
-    [Then("the backend scenario observes a pending input {string} for role {string} with prompt {string} and choices {string} and freeform {string}")]
-    public void ThenTheBackendScenarioObservesAPendingInputForRoleWithPromptAndChoicesAndFreeform(
-        string requestId, string role, string prompt, string commaSeparatedChoices, string allowFreeform) =>
-        Await(myScenario.WaitForPendingInputAsync(role, requestId, prompt, ParseChoices(commaSeparatedChoices), bool.Parse(allowFreeform)));
 
     [Then("the backend scenario observes a protocol error mentioning {string}")]
     public void ThenTheBackendScenarioObservesAProtocolErrorMentioning(string text)
@@ -1098,13 +1078,6 @@ public sealed class BackendScenarioSteps
     private static string DecodeEscapes(string value) =>
         value.Replace("\\r", "\r", StringComparison.Ordinal)
             .Replace("\\n", "\n", StringComparison.Ordinal);
-
-    /// <summary>Splits a comma-separated choices column into a list, or null for an empty column - representing
-    /// an input request published or observed without any choices at all, rather than an empty choices list.</summary>
-    private static IReadOnlyList<string>? ParseChoices(string commaSeparatedChoices) =>
-        commaSeparatedChoices.Length == 0
-            ? null
-            : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>Treats an empty step-table cell as an absent (null) value - used for the subagent metadata
     /// columns, where an empty column represents a real production fallback (no agent name, display name, or

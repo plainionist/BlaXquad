@@ -114,6 +114,16 @@ public sealed class DashboardOperationsSteps
             Is.False);
     }
 
+    [Then("the freshly synchronized transcript for role {string} contains an entry with source {string} and content {string}")]
+    public void ThenTheFreshlySynchronizedTranscriptForRoleContainsAnEntryWithSourceAndContent(string role, string source, string content)
+    {
+        Assert.That(myAwaitedTranscriptSynchronization, Is.Not.Null);
+        Assert.That(myAwaitedTranscriptSynchronization!.Role, Is.EqualTo(role));
+        Assert.That(
+            myAwaitedTranscriptSynchronization.Entries.Any(entry => entry.Source == source && entry.Content == content),
+            Is.True);
+    }
+
     private static readonly IReadOnlySet<string> ElicitationRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "mode", "url" };
     private static readonly IReadOnlySet<string> ElicitationResponseColumns = new HashSet<string>(StringComparer.Ordinal) { "form value" };
 
