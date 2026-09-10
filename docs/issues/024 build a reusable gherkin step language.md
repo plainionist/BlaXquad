@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 24 review (25d5666a61) — changes requested
+
+Canonical configuration, Headquarters launch, explicit `squad handoff`, and pump-failure lifecycle language are in place. Backend-scenario Gherkin is gone. Recipient collections in delivery/recovery still use comma-separated strings.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/Delivery.feature` (`prepares a note to "reviewer" ...`, `durably queues an invalid note to "reviewer,missing"`); `src/squad.Specs/Features/Recovery.feature` (the same note-prepare phrase); `src/squad.Specs/StepDefinitions/HandoffSteps.cs`; `src/squad.Specs/StepDefinitions/DeliverySteps.cs`.
+- **Violated behavior:** Slice 22 required recipient collections as structural `to:` tables, not comma-separated values, and kept the string note-prepare only until Delivery migrated. Slice 24 must reuse that language module. Definition of done forbids a second recipient dialect.
+- **Root cause:** Delivery and Recovery still pass recipients as a string, including the invalid fan-out collection `reviewer,missing`, instead of the table form Handoffs.feature already uses.
+- **Required outcome:** In `Delivery.feature` and `Recovery.feature`, recipients use the structural `to:` table. Invalid fan-out recipients are a table, not `reviewer,missing`. Remove the comma-separated `prepares a note to {string}` binding if nothing else uses it. Keep seeding the invalid durable artifact inside the binding; do not require `squad handoff` to accept an invalid draft.
+
 ## Slice 23 review (807384f42b) — accepted
 
 **Status: complete (807384f42b).** Task and batch queues share explicit `squad ready-for-next` / `squad done-with-current` role-agent actions and canonical `blaxquad/squad.json` configuration with optional receive mode. Distinct task vs batch observations remain. Recovery's role-command scenarios moved into TaskQueue; delivery/restart scenarios stay for slice 24.
