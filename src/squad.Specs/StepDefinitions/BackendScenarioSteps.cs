@@ -573,27 +573,6 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithOperationAndContent(string role, string operation, string content) =>
         myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateByOperationAsync(role, operation, content)));
 
-    [Then("the most recently observed transcript updates for role {string} report the same entry index")]
-    public void ThenTheMostRecentlyObservedTranscriptUpdatesForRoleReportTheSameEntryIndex(string role)
-    {
-        var (previous, current) = TwoMostRecentlyObservedTranscriptUpdates(role);
-        Assert.That(current.EntryIndex, Is.EqualTo(previous.EntryIndex));
-    }
-
-    [Then("the most recently observed transcript updates for role {string} report different entry indices")]
-    public void ThenTheMostRecentlyObservedTranscriptUpdatesForRoleReportDifferentEntryIndices(string role)
-    {
-        var (previous, current) = TwoMostRecentlyObservedTranscriptUpdates(role);
-        Assert.That(current.EntryIndex, Is.Not.EqualTo(previous.EntryIndex));
-    }
-
-    private (TranscriptUpdateObservation Previous, TranscriptUpdateObservation Current) TwoMostRecentlyObservedTranscriptUpdates(string role)
-    {
-        var updatesForRole = myObservedTranscriptUpdates.Where(update => update.Role == role).ToList();
-        Assert.That(updatesForRole, Has.Count.GreaterThanOrEqualTo(2));
-        return (updatesForRole[^2], updatesForRole[^1]);
-    }
-
     private void RecordPagedEntries(string role, IReadOnlyList<TranscriptEntryObservation> entries)
     {
         if (!myPagedTranscriptEntries.TryGetValue(role, out var recorded))

@@ -46,11 +46,11 @@ public sealed class DashboardOperationsSteps
 
     [Then("the dashboard receives a transcript update for role {string} with source {string} and content {string}")]
     public async Task ThenTheDashboardReceivesATranscriptUpdateForRoleWithSourceAndContent(string role, string source, string content) =>
-        myReceivedTranscriptUpdates.Add(await myScenario.WaitForTranscriptUpdateAsync(role, source, content));
+        myReceivedTranscriptUpdates.Add(await myScenario.WaitForTranscriptUpdateAsync(role, source, DecodeEscapes(content)));
 
     [Then("the dashboard receives a transcript update for role {string} with operation {string} and content {string}")]
     public async Task ThenTheDashboardReceivesATranscriptUpdateForRoleWithOperationAndContent(string role, string operation, string content) =>
-        myReceivedTranscriptUpdates.Add(await myScenario.WaitForTranscriptUpdateByOperationAsync(role, operation, content));
+        myReceivedTranscriptUpdates.Add(await myScenario.WaitForTranscriptUpdateByOperationAsync(role, operation, DecodeEscapes(content)));
 
     [Then("the most recently received transcript updates for role {string} report the same entry index")]
     public void ThenTheMostRecentlyReceivedTranscriptUpdatesForRoleReportTheSameEntryIndex(string role)
@@ -118,6 +118,14 @@ public sealed class DashboardOperationsSteps
     [Then("the dashboard shows role {string}'s latest status as {string}")]
     public async Task ThenTheDashboardShowsRoleSLatestStatusAs(string role, string status) =>
         await myScenario.WaitForLatestRoleStatusAsync(role, status);
+
+    [Then("the dashboard shows role {string} with active tool {string}")]
+    public async Task ThenTheDashboardShowsRoleWithActiveTool(string role, string tool) =>
+        await myScenario.WaitForRoleActiveToolAsync(role, tool);
+
+    [Then("the dashboard shows role {string} with no active tool")]
+    public async Task ThenTheDashboardShowsRoleWithNoActiveTool(string role) =>
+        await myScenario.WaitForNoActiveToolAsync(role);
 
     [Then("the dashboard shows a pending permission {string} for role {string} with description {string}")]
     public async Task ThenTheDashboardShowsAPendingPermissionForRoleWithDescription(string requestId, string role, string description) =>
@@ -197,6 +205,13 @@ public sealed class DashboardOperationsSteps
 
     private static readonly IReadOnlySet<string> ElicitationRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "mode", "url" };
     private static readonly IReadOnlySet<string> ElicitationResponseColumns = new HashSet<string>(StringComparer.Ordinal) { "form value" };
+
+    /// <summary>Decodes the literal "\n"/"\r" escape sequences a step's string argument may contain - Reqnroll
+    /// passes step text through verbatim, so a Gherkin step written with an escape sequence would otherwise never
+    /// match the real newline character production actually reports.</summary>
+    private static string DecodeEscapes(string value) =>
+        value.Replace("\\r", "\r", StringComparison.Ordinal)
+            .Replace("\\n", "\n", StringComparison.Ordinal);
 
     /// <summary>Reads a variable-length "choice" table as a list of individual choice values, or null when the
     /// table has no data rows - representing a pending input shown without any choices at all, rather than an
