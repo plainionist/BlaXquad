@@ -293,6 +293,24 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 5 review (109fc0af0a) — changes requested
+
+The first four scenarios moved to `InteractionPublicationAndOwnership.feature` with dashboard/agent wording and no test-owned actor. Permission, input, and elicitation stay distinct, and the deferred cancellation scenarios were copied verbatim. Two defects remain in this slice's language form.
+
+### Finding 1 — Medium
+
+- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (`Then("the backend scenario observes a pending elicitation {string} for role {string} with prompt {string} and mode {string}")` and the sibling binding that adds `and url {string}`).
+- **Violated behavior:** Definition of done requires removing every alias this slice made unused. Slice 5 also forbids two bindings that differ only by an optional field; URL presence belongs in one table, which the migrated feature already uses.
+- **Root cause:** Those two observation phrases were exclusive to the migrated publication scenario. After the dashboard table step replaced them, they were left in `BackendScenarioSteps` even though no remaining feature uses them.
+- **Required outcome:** Delete both unused pending-elicitation observation bindings. Keep only aliases still required by `PendingInteractionCancellation.feature` or `TranscriptPendingInteractionRetention.feature`.
+
+### Finding 2 — Medium
+
+- **Location:** `src/squad.Specs/Features/InteractionPublicationAndOwnership.feature` (input request/observation tables with a `choices` column); `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` and `DashboardOperationsSteps.cs` (`ParseChoices` on that column).
+- **Violated behavior:** Slice 5 must use typed values and tables for choices, and the language rules forbid comma-separated lists when a table can express the collection. Moving `main,develop` from step text into a single table cell does not replace that encoding.
+- **Root cause:** The new input record table treats `choices` as a comma-separated cell (now with trimmed spaces) instead of a collection of rows, so the canonical vocabulary still parses a CSV list.
+- **Required outcome:** In the migrated feature, express choices as a table of values (one choice per row; omit or use an empty table when there are none) and keep freeform as a typed boolean. Retain the old CSV observation/request aliases only while unmigrated features still use them.
+
 ## Slice 4 review (ff2a535116) — accepted
 
 **Status: complete (ff2a535116).** `TerminalSessionFinality.feature` covers the four terminal-session scenarios in dashboard, agent, and Headquarters-lifecycle language without a test-owned actor. Unused latest-status and compound-synchronization bindings were removed; aliases still required by later slices remain.
