@@ -127,7 +127,7 @@ it) along with both hosts' implementations. `ISleepInhibitor.CommandPrefix` is r
 selection, stdio transport, protocol validation, transcript paging/recovery/ordering, and shutdown-with-open-stdin
 scenarios, plus a Headquarters regression pass.
 
-### Slice 4: Reduce the provider implementation to the documented SPI
+### Slice 4 [done]: Reduce the provider implementation to the documented SPI
 
 1. Keep `IAgentProviderFactory`, `IAgentBackend`, `IAgentRuntime`, `IAgentSession`, readiness/failure capabilities,
    and typed `AgentEvent` values as the provider SPI used by the production and test providers.
@@ -146,7 +146,7 @@ scenarios, plus a Headquarters regression pass.
 **Slice acceptance:** Provider selection and the test-owned fake providers still work solely through the documented
 provider SPI, while Copilot implementation details and production-invariant tuning controls are no longer public.
 
-**Status: complete.** `CopilotSdkBackend`, `CopilotSdkAgentSession`, and `CopilotToolOutputNormalizer` are internal;
+**Status: complete (db3bd99e71).** `CopilotSdkBackend`, `CopilotSdkAgentSession`, and `CopilotToolOutputNormalizer` are internal;
 only the reflection-loaded `CopilotSdkAgentProviderFactory` remains public from `squad.CopilotSdk`. `AgentEventChannel`
 was relocated from `squad.AgentProvider.Abstractions` into `squad.CopilotSdk` as an internal type, since it is a pure
 Copilot implementation helper with no test-suite dependency (the fake provider uses its own independent
