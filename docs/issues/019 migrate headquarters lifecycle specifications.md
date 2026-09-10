@@ -263,7 +263,7 @@ scenarios were removed with their `RecordingAgentSession` controls. `17f2ff449c`
 findings that post-delay status rematched an earlier snapshot and that transcript absence was proven against a
 pre-request synchronization.
 
-### Slice 9: Preserve primary and cleanup diagnostics through final release
+### Slice 9 [done]: Preserve primary and cleanup diagnostics through final release
 
 1. Add fake-provider failure modes that independently fail a primary startup/runtime operation and one or more
    provider cleanup stages, with distinct diagnostic messages and acknowledged entry into cleanup.
@@ -280,18 +280,12 @@ pre-request synchronization.
 **Slice acceptance:** Primary and cleanup failures are all visible in process diagnostics, cleanup continues through
 every owned resource, and host ownership is released only after provider retirement actually finishes.
 
-#### Review findings on 80caef7ffd
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad.Specs/Features/HeadquartersCleanupDiagnostics.feature`
-  (`Provider cleanup held at its acknowledged boundary keeps the host owned until it completes`),
-  `BackendScenarioSteps.ThenTheBackendScenarioConfirmsHostControlIsStillAvailableForRole`.
-- **Violated behavior:** Slice 9 item 3 requires proving the host remains owned while cleanup is held — the feature
-  text requires it to still answer a real host-control command.
-- **Root cause:** The step runs `wait-for-agent` and only asserts stderr does not contain `squad host unavailable`.
-  That also passes for `squad control endpoint unavailable` (metadata/lock still present, pipe not answering) and for
-  any other non-unavailable failure. It never asserts the live-host diagnostic `agent not ready` that
-  `Then role {string} is not ready for a prompt` already uses as proof of contact.
-- **Required outcome:** While disposal is held, observe a host-control probe that contacted the live host (for
-  example stderr contains `agent not ready`), not merely the absence of the released-host diagnostic.
+**Status: complete (26d430ba13).** `HeadquartersCleanupDiagnostics.feature` covers slice 9 through the process
+boundary: a startup failure after one session and a post-readiness backend-wide failure each pair with an independent
+provider-disposal failure, both distinct diagnostics appear on stderr, the process exits non-zero without an
+unhandled dump, started sessions are disposed, host control is unavailable, seeded `notes.md` is preserved, and a
+replacement Echo-provider process reaches ready. Held session disposal keeps the host answering `wait-for-agent` with
+`agent not ready` until release, then exit 0, disposed, unavailable, preserved notes, and a fresh launch. Covered
+ViewModel primary/cleanup, runtime/cleanup, cancellation-failing startup, and lease-owned external-shutdown scenarios
+were removed. `26d430ba13` closes the review finding that held ownership was only inferred from the absence of
+`squad host unavailable`.
