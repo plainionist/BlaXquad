@@ -293,6 +293,22 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 1 review (5cc7996c17) — changes requested
+
+### Finding 1 — High
+
+- **Location:** `docs/manual/test-strategy.md` (Gherkin language examples and Agent sessions / Headquarters lifecycle wording); `src/squad.Specs/Features/HeadquartersLifecycle.feature` launch and relaunch steps; `src/squad.Specs/StepDefinitions/HeadquartersLifecycleSteps.cs` (`WhenTheOperatorLaunchesHeadquartersWithTheFakeProvider`, `WhenTheOperatorLaunchesANewHeadquartersAgainstTheSameProjectWithTheEchoProvider`).
+- **Violated behavior:** Slice 1 must add the complete language rules and migrate the healthy-lifecycle feature without exposing test-owned plumbing in Gherkin. The language architecture requires keeping the facade and all fake-provider plumbing in test support rather than Gherkin, keeping fixture selection in test setup when it is not the specified behavior, and teaching launch as `squad-hq launch`. An operator must be able to launch, wait, shut down, and relaunch without a test-owned actor or fixture in the feature.
+- **Root cause:** The canonical examples and the migrated spine kept provider-fixture selection (`fake provider`, `echo provider`) as visible Gherkin instead of hiding it in the launch bindings. The test-strategy examples therefore contradict both the issue's candidate form and the Agent sessions rule that the fake provider stays behind those steps. The Gherkin language section also omits the language-architecture constraints on one scenario-scoped facade owner, replacement launches as children of that owner, no independent default facades, and keeping fake-provider plumbing out of Gherkin.
+- **Required outcome:** `docs/manual/test-strategy.md` carries the complete language-architecture rules, and its examples do not name the fake or echo providers. `HeadquartersLifecycle.feature` launch and relaunch steps name only operator/`squad-hq` behavior; fake and echo factory selection stays in bindings or test setup.
+
+### Finding 2 — Medium
+
+- **Location:** `src/squad.Specs/StepDefinitions/ProjectConfigurationSteps.cs` (`GivenBlaxquadSquadJsonConfigures`); `docs/manual/test-strategy.md` table conventions (missing strict-validation rule).
+- **Violated behavior:** Tables and parameter conversions must be strict: validate required and supported columns, parse booleans and enums as typed values, preserve row order where it is observable, and report malformed data clearly. Slice 1 must add that complete rule to the test strategy and apply it to the new configuration table.
+- **Root cause:** The new step reads only `row["role"]`, silently ignores every other column, and has no header or malformed-data check, so a table that includes `model` or `receive mode` appears to configure those fields while `ConfigureRoles` still writes default agent records.
+- **Required outcome:** The project-configuration table step declares the columns it actually applies (at least `role` for this slice), rejects missing or unknown columns with a clear error, preserves row order, and writes every accepted column into `blaxquad/squad.json`. The same strict-table rule is stated in `docs/manual/test-strategy.md`.
+
 ## Acceptance criteria
 
 - `docs/manual/test-strategy.md` requires a user perspective and defines the canonical actors, public nouns, verbs,
