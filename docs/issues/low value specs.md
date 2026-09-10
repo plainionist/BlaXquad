@@ -228,7 +228,7 @@ three weaker subset features.
 `ProcessSpecificationDriver.feature`. The unreferenced echo-provider start binding is gone; `BackendScenario` and
 the fake-provider/role-controller support remain. Clean discovery is 161 expanded cases.
 
-### Slice 5 - Remove workspace-wrapper self-specification [in progress]
+### Slice 5 - Remove workspace-wrapper self-specification [done]
 
 **Outcome:** The suite verifies the packaged provider-free artifact and launched process, not its own workspace and
 command-result wrappers.
@@ -244,6 +244,10 @@ command-result wrappers.
 - `ProviderPackaging.feature` and `ProcessSpecificationDriver.feature` pass with full command diagnostics available
   on failures.
 - No remaining feature references a deleted workspace binding.
+
+**Status: complete (95bd130c8f).** `BackendSpecWorkspace.feature` and `BackendSpecWorkspaceSteps.cs` are removed.
+The still-referenced `a configured project with roles` step moved to `CommonSteps`. Workspace and command-result
+support used by process-facing scenarios remains. Clean discovery is 159 expanded cases.
 
 ### Slice 6 - Consolidate control-transport lifecycle coverage [queued]
 
