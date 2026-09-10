@@ -15,11 +15,7 @@ Feature: Transcript active stream retention
   Scenario: An active assistant stream keeps receiving its later delta after unrelated activity crosses the live-retention boundary
     When the "coder" agent emits an assistant delta "Hello "
     Then the dashboard receives a transcript update for role "coder" with source "assistant" and content "Hello "
-    When the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
+    When the "coder" agent emits 5 system messages with 250000 characters each
     And the "coder" agent emits an assistant delta "world"
     Then the dashboard receives a transcript update for role "coder" with operation "append-content" and content "world"
     And the most recently received transcript updates for role "coder" report the same entry index
@@ -29,11 +25,7 @@ Feature: Transcript active stream retention
   Scenario: An active reasoning stream keeps receiving its later delta after unrelated activity crosses the live-retention boundary
     When the "coder" agent emits a reasoning delta "draft "
     Then the dashboard receives a transcript update for role "coder" with source "reasoning" and content "draft "
-    When the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
-    And the "coder" agent emits a system message with 250000 characters
+    When the "coder" agent emits 5 system messages with 250000 characters each
     And the "coder" agent emits a reasoning delta "final"
     Then the dashboard receives a transcript update for role "coder" with operation "append-content" and content "final"
     And the most recently received transcript updates for role "coder" report the same entry index
