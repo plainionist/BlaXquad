@@ -196,13 +196,6 @@ public sealed class BackendScenarioSteps
     public void ThenTheAgentObservesAHarnessMessage(string role) =>
         myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
 
-    [Then("the observed harness message appears in the transcript for role {string}")]
-    public void ThenTheObservedHarnessMessageAppearsInTheTranscriptForRole(string role)
-    {
-        Assert.That(myObservedHarnessMessage, Is.Not.Null);
-        Await(myScenario.WaitForTranscriptAsync(role, myObservedHarnessMessage!));
-    }
-
     [When("the backend scenario requests an abort for role {string}")]
     public void WhenTheBackendScenarioRequestsAnAbortForRole(string role) => myScenario.RequestAbort(role);
 
@@ -1018,10 +1011,6 @@ public sealed class BackendScenarioSteps
         Assert.That(actualEntries, Has.Count.EqualTo(expectedEntries.Count));
     }
 
-    [When("the {string} agent emits a full tool lifecycle for tool call {string} named {string}")]
-    public void WhenTheAgentEmitsAFullToolLifecycleForToolCallNamed(string role, string toolCallId, string toolName) =>
-        Await(EmitFullToolLifecycleAsync(role, toolCallId, toolName));
-
     [When("the {string} agent starts tool call {string} named {string}")]
     public void WhenTheAgentStartsToolCallNamed(string role, string toolCallId, string toolName) =>
         Await(myScenario.Agent(role).EmitToolStartedAsync(toolCallId, toolName));
@@ -1072,14 +1061,6 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent emits readiness {string}")]
     public void WhenTheAgentEmitsReadiness(string role, string state) => Await(myScenario.Agent(role).EmitReadinessAsync(state));
 
-    [When("the {string} agent emits usage {string}")]
-    public void WhenTheAgentEmitsUsage(string role, string aicUsed) =>
-        Await(myScenario.Agent(role).EmitUsageAsync(decimal.Parse(aicUsed)));
-
-    [Then("the backend scenario observes role {string} at AI-credit usage {string}")]
-    public void ThenTheBackendScenarioObservesRoleAtAiCreditUsage(string role, string aicUsed) =>
-        Await(myScenario.WaitForRoleUsageAsync(role, decimal.Parse(aicUsed)));
-
     [When("the {string} agent completes its session")]
     public void WhenTheAgentCompletesItsSession(string role) => Await(myScenario.Agent(role).CompleteSessionAsync());
 
@@ -1090,15 +1071,6 @@ public sealed class BackendScenarioSteps
     [When("the backend scenario fails the fake provider's backend with message {string}")]
     public void WhenTheBackendScenarioFailsTheFakeProvidersBackendWithMessage(string message) =>
         Await(myScenario.FailProviderBackendAsync(message));
-
-    private async Task EmitFullToolLifecycleAsync(string role, string toolCallId, string toolName)
-    {
-        var agent = myScenario.Agent(role);
-        await agent.EmitToolStartedAsync(toolCallId, toolName);
-        await agent.EmitToolProgressAsync(toolCallId, "Running...");
-        await agent.EmitToolOutputChangedAsync(toolCallId, "partial output");
-        await agent.EmitToolCompletedAsync(toolCallId, toolName, succeeded: true);
-    }
 
     [When("the backend scenario requests a host-control shutdown")]
     public void WhenTheBackendScenarioRequestsAHostControlShutdown() =>

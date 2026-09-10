@@ -1,12 +1,12 @@
 Feature: Published interactions and response ownership
 
   Permission, input, and elicitation requests are published through the real "state.snapshot" UI protocol message
-  with every supported field, a response sent through "permission.respond", "input.respond", or
-  "elicitation.respond" reaches only the addressed role's fake session, wrong-role, duplicate, and late responses
-  produce the documented "protocol.error", identical request IDs pending for two roles remain independent, and a
-  role's pending interaction is cancelled by that role's abort, its session failing, or a host-control shutdown -
-  observed only through the real UI protocol and the fake-agent control pipe, never through SquadViewModel, its
-  pending-interaction collections, or "Recording*" objects.
+  with every supported field and also appear in the real transcript, a response sent through "permission.respond",
+  "input.respond", or "elicitation.respond" reaches only the addressed role's fake session, wrong-role, duplicate,
+  and late responses produce the documented "protocol.error", identical request IDs pending for two roles remain
+  independent, and a role's pending interaction is cancelled by that role's abort, its session failing, or a
+  host-control shutdown - observed only through the real UI protocol and the fake-agent control pipe, never
+  through SquadViewModel, its pending-interaction collections, or "Recording*" objects.
 
   Background:
     Given a backend scenario configured with roles "coder,reviewer"
@@ -18,10 +18,13 @@ Feature: Published interactions and response ownership
   Scenario: Published UI state contains every supported field for permission, input, and elicitation requests
     When the "coder" agent requests permission "permission-1" with description "Run the deploy script?"
     Then the backend scenario observes a pending permission "permission-1" for role "coder" with description "Run the deploy script?"
+    And the backend scenario observes the transcript for role "coder" containing "Permission required: Run the deploy script?."
     When the "coder" agent requests input "input-1" with prompt "Which branch should I use?" and choices "main,develop" and freeform "false"
     Then the backend scenario observes a pending input "input-1" for role "coder" with prompt "Which branch should I use?" and choices "main,develop" and freeform "false"
+    And the backend scenario observes the transcript for role "coder" containing "Which branch should I use?"
     When the "coder" agent requests elicitation "elicitation-1" with prompt "Confirm the deployment?" and mode "confirm"
     Then the backend scenario observes a pending elicitation "elicitation-1" for role "coder" with prompt "Confirm the deployment?" and mode "confirm"
+    And the backend scenario observes the transcript for role "coder" containing "Confirm the deployment?"
     When the "coder" agent requests URL elicitation "elicitation-2" with prompt "Complete sign-in" and url "https://example.test/authorize"
     Then the backend scenario observes a pending elicitation "elicitation-2" for role "coder" with prompt "Complete sign-in" and mode "url" and url "https://example.test/authorize"
 
