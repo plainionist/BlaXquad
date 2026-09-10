@@ -13,13 +13,6 @@ public sealed class ContextSteps
         myWorkspace = workspace;
     }
 
-    [Given("a Git project with context roles {string}")]
-    public void GivenAGitProjectWithContextRoles(string commaSeparatedRoles)
-    {
-        var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        myWorkspace.ConfigureProject(roles);
-    }
-
     [When("the {string} worktree queries its role context without a legacy role environment variable")]
     public void WhenTheWorktreeQueriesItsRoleContextWithoutALegacyRoleEnvironmentVariable(string role) =>
         myWorkspace.RunRoleTool(role, "squad", ["context", "--field", "role"]);
