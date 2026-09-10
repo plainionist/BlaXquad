@@ -12,6 +12,13 @@ public sealed class CommonSteps
         myWorkspace = workspace;
     }
 
+    [Given("a configured project with roles {string}")]
+    public void GivenAConfiguredProjectWithRoles(string commaSeparatedRoles)
+    {
+        var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        myWorkspace.ConfigureProject(roles);
+    }
+
     [Then("the command succeeds")]
     public void ThenTheCommandSucceeds()
     {
