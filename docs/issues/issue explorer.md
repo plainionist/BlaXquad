@@ -140,6 +140,47 @@ Acceptance criteria:
   affected issue with the documented fallbacks.
 - Existing snapshot, transcript, Photino, and stdio behavior remains compatible with protocol version 4.
 
+**Status: changes requested (919a082df7)**
+
+#### Review findings on 919a082df7
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/IssueCatalogProtocol.feature` (ordering, fallback, refresh, and empty-catalog
+  scenarios).
+- **Violated behavior:** Slice 1 requires that a catalog response contain only top-level Markdown issues, with `.md`
+  matched case-insensitively, no recursion, and no out-of-directory links.
+- **Root cause:** Every arranged file is a top-level `*.md`. Nested Markdown, non-Markdown siblings, and
+  case-variant extensions are never present, so a recursive or extension-agnostic listing would still satisfy the
+  current order and count assertions.
+- **Required outcome:** In one real `issues.list` response, observe that a nested Markdown file and a non-Markdown
+  sibling are absent, a case-variant `*.MD` file is present, and returned paths stay workspace-relative with `/`
+  separators. Keep arrangement and observation semantic.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/Features/IssueCatalogProtocol.feature` (frontmatter/preview and malformed-YAML
+  scenarios).
+- **Violated behavior:** Slice 1 requires documented fallbacks for partial frontmatter and for documents without
+  frontmatter: an opening `---` without a closing delimiter retains the remaining text as frontmatter and returns no
+  body preview; a document without frontmatter uses its first five non-blank lines as the preview.
+- **Root cause:** The feature only exercises closed delimiter blocks. Malformed YAML still has a closing `---`. No
+  scenario observes an unclosed opening delimiter or a file whose first line is not `---`.
+- **Required outcome:** Observe both cases through the real protocol: unclosed frontmatter keeps the remaining source
+  (including delimiters, `\n`-normalized) and an empty preview; a no-frontmatter document returns empty frontmatter
+  and exactly its first five non-blank body lines.
+
+**Finding 3 — low**
+
+- **Location:** `docs/manual/modules.md`.
+- **Violated behavior:** Slice 1 implementation item 2 requires adding `squad.Issues` to `squad.slnx` and the module
+  inventory.
+- **Root cause:** The project was added to `squad.slnx` and wired from `squad-hq`, but the module inventory was not
+  updated.
+- **Required outcome:** Document `squad.Issues` in the module inventory with the same scope as the implemented
+  catalog (fixed `docs/issues` discovery, YAML frontmatter parsing, fallbacks, preview, path normalization, and
+  ordering).
+
 ### Slice 2 - Browse and preview issues (pending)
 
 **Outcome:** An operator can open the Issues menu and inspect the current catalog with equivalent pointer and keyboard
