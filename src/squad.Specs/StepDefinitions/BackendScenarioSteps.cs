@@ -23,7 +23,6 @@ public sealed class BackendScenarioSteps
     private readonly Dictionary<string, int> myAssistantDeltaCounts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> myLatestSynchronizedSequence = new(StringComparer.Ordinal);
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
-    private TranscriptSynchronizationObservation? myAwaitedTranscriptSynchronization;
     private readonly Dictionary<string, BackendScenarioCommand> myReadinessWatches = new(StringComparer.Ordinal);
     private string? myLastInvalidMessageCase;
     private string? myExpectedInvalidMessageProtocolError;
@@ -157,10 +156,6 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes role {string} at status {string}")]
     public void ThenTheBackendScenarioObservesRoleAtStatus(string role, string status) =>
         Await(myScenario.WaitForRoleStatusAsync(role, status));
-
-    [Then("the backend scenario observes role {string}'s latest published status as {string}")]
-    public void ThenTheBackendScenarioObservesRoleSLatestPublishedStatusAs(string role, string status) =>
-        Await(myScenario.WaitForLatestRoleStatusAsync(role, status));
 
     [Then("the backend scenario observes a session started for role {string} across the control pipe")]
     public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
@@ -928,30 +923,6 @@ public sealed class BackendScenarioSteps
             .Where(content => content.StartsWith("message-", StringComparison.Ordinal))
             .ToList();
         Assert.That(observedContents, Is.EquivalentTo(expectedContents));
-    }
-
-    [When("the backend scenario requests a fresh transcript synchronization and awaits role {string}'s response")]
-    public void WhenTheBackendScenarioRequestsAFreshTranscriptSynchronizationAndAwaitsRoleSResponse(string role)
-    {
-        // Snapshotting the count of synchronizations already captured for this role - before issuing the request -
-        // and then waiting for that count-plus-first one to appear identifies exactly the response this specific
-        // request produced (never an earlier one, such as the initial "ui.ready" handshake, that happened to
-        // already satisfy some later content assertion).
-        var skip = myScenario.CountTranscriptSynchronizations(role);
-        myScenario.RequestTranscriptSynchronization();
-        myAwaitedTranscriptSynchronization = Await(myScenario.WaitForNextTranscriptSynchronizationAsync(role, skip));
-    }
-
-    [Then("the freshly synchronized transcript for role {string} does not contain {string}")]
-    public void ThenTheFreshlySynchronizedTranscriptForRoleDoesNotContain(string role, string content)
-    {
-        Assert.That(myAwaitedTranscriptSynchronization, Is.Not.Null);
-        Assert.That(myAwaitedTranscriptSynchronization!.Role, Is.EqualTo(role));
-
-        var decodedContent = DecodeEscapes(content);
-        Assert.That(
-            myAwaitedTranscriptSynchronization.Entries.Any(entry => entry.Content.Contains(decodedContent, StringComparison.Ordinal)),
-            Is.False);
     }
 
     [Then("the reconciled transcript for role {string} contains exactly these entries in order:")]
