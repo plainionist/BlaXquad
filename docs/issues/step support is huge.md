@@ -1,6 +1,6 @@
 ---
 title: Organize and simplify acceptance-test support
-priority: 2
+priority: 10
 ---
 
 # Organize and simplify acceptance-test support
