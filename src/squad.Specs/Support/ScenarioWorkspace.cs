@@ -301,8 +301,6 @@ public sealed class ScenarioWorkspace : IDisposable
     public void InitializeGitRepository()
     {
         AssertSuccessful(RunGit("init", "--quiet"));
-        AssertSuccessful(RunGit("config", "user.name", "BlaXquad Acceptance"));
-        AssertSuccessful(RunGit("config", "user.email", "acceptance@example.invalid"));
         WriteFile("README.md", "# Acceptance fixture\n");
         AssertSuccessful(RunGit("add", "."));
         AssertSuccessful(RunGit("commit", "--quiet", "-m", "Initial fixture"));
@@ -443,6 +441,13 @@ public sealed class ScenarioWorkspace : IDisposable
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        if (executable == "git")
+        {
+            startInfo.Environment["GIT_AUTHOR_NAME"] = "BlaXquad Acceptance";
+            startInfo.Environment["GIT_AUTHOR_EMAIL"] = "acceptance@example.invalid";
+            startInfo.Environment["GIT_COMMITTER_NAME"] = "BlaXquad Acceptance";
+            startInfo.Environment["GIT_COMMITTER_EMAIL"] = "acceptance@example.invalid";
+        }
         if (environment is not null)
         {
             foreach (var (name, value) in environment)
