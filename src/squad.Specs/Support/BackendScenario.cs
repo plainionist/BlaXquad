@@ -23,6 +23,7 @@ public sealed class BackendScenario : IDisposable
     private bool myFailProviderBeforeRuntime;
     private int? myFailProviderAfterSessions;
     private string? myFailProviderDisposalMessage;
+    private bool myDisposed;
 
     public BackendScenario(ScenarioWorkspace workspace)
     {
@@ -968,10 +969,19 @@ public sealed class BackendScenario : IDisposable
     /// Requests shutdown one more time on a best-effort basis, waits a bounded grace period for the exact process
     /// this scenario launched to exit on its own, and only then forcibly terminates that same process - never any
     /// other process, even one launched by another concurrently running scenario. Never throws, so a cleanup
-    /// failure here can never replace a scenario's real failure.
+    /// failure here can never replace a scenario's real failure. Idempotent: a scenario-scoped consumer disposes
+    /// this instance explicitly (so cleanup runs before <see cref="ScenarioWorkspace.Dispose"/> may otherwise
+    /// dispose the same tracked process out from under it), while Reqnroll's container disposes it a second time
+    /// as the constructor-injected owner of this shared instance; the second call is a safe no-op.
     /// </summary>
     public void Dispose()
     {
+        if (myDisposed)
+        {
+            return;
+        }
+        myDisposed = true;
+
         try
         {
             DisposeControl();

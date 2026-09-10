@@ -297,11 +297,80 @@ The target architecture does not require:
 
 Once scenarios use the process boundary, these surfaces can be removed based on production call sites.
 
-## Scenario design
+## Gherkin language
 
-Prefer scenarios that cross a meaningful boundary:
+Every feature specifies behavior for one identifiable user: an operator, a role's agent, a configuration author, or
+a UI-protocol client or provider implementer exercising a documented public contract. Choose that user first, then
+write only in terms that user can know - the exact names published by the manual, CLI help, the configuration
+schema, the visible dashboard, and supported protocols.
+
+`BackendScenario`, a role-interaction scenario, a backend-spec fixture, the fake-provider fixture or its private
+control pipe, a recording object, and any other test-support type are implementation details of the bindings. They
+must never appear as a feature's actor or observable outcome. A feature devoted only to that test infrastructure
+must be recast around the public behavior it enables, or removed if it has no independent user-facing contract.
+
+### Canonical vocabulary modules
+
+Each module below owns one coherent vocabulary, derived from `docs/manual/glossary.md`, the rest of the manual, CLI
+help, the public configuration shape, and documented protocols. A binding class may implement several modules, but
+it must not invent a second dialect for a module another binding class already owns, and a term is not user
+language merely because it is technically precise or names a C# type.
+
+| Module | User perspective and vocabulary |
+| --- | --- |
+| Project configuration | A configuration author configures roles, worktrees, models, permissions, and receive modes in `blaxquad/squad.json`. Role collections and records use tables. |
+| Headquarters lifecycle | An operator launches, waits for, shuts down, or otherwise terminates Headquarters through `squad-hq`; process results and diagnostics remain explicit. |
+| Dashboard operations | A user sends prompts, aborts work, and answers interactions for a role; the dashboard shows role state, usage, interactions, and transcript content. |
+| Agent sessions | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, readiness, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
+| Transcript protocol | A UI-protocol client receives typed updates, synchronization, pages, archived entries, sequence positions, and truncation state. Ordered collections use tables. |
+| Role commands | A role agent runs the documented `squad` context, handoff, `ready-for-next`, and `done-with-current` commands from its worktree. |
+| Handoff delivery | An operator or role agent observes durable handoff fan-out, notification, retry, recovery, and queue state using glossary terms. |
+| Public adapters | An operator selects the documented UI or provider adapter, while UI-protocol and provider-SPI users exercise their respective public contracts. |
+
+### Choose the smallest form of variation
+
+- Use a typed parameter (`{string}`, `{int}`, ...) when one scalar value varies.
+- Use a data table for collections, records with optional fields, ordered event streams, or groups of related
+  observations.
+- Use a scenario outline when the same behavior is exercised across a matrix of examples.
+- Use separate steps only when the behavior or externally observable meaning is actually different - never for
+  singular versus plural wording, a boolean, a count, content length, or the presence of an optional field.
+
+Replace comma-separated lists and string-encoded booleans with a table or typed conversion wherever the shape itself
+communicates the contract. Do not replace many narrow, meaningful phrases with one opaque mega-step whose generic
+table is a programming language in disguise.
+
+### Compose, do not hard-code, orderings and races
+
+For concurrent and failure scenarios, express reusable concepts - a pending operation, an independently started
+command, a released operation, an action performed while another is pending - rather than one sentence that
+hard-codes a specific pair of concurrent actions. Synchronization must stay deterministic through observable
+acknowledgements and bounded waits, never sleeps.
+
+### Organize bindings by language module, not by feature
+
+Split responsibilities into binding classes named after the vocabulary they implement, not one class per feature.
+Reqnroll resolves one scenario-scoped owner of the `BackendScenario` facade for every language module a scenario
+uses: binding classes request `BackendScenario` (or another shared collaborator) through their constructor instead
+of constructing their own, so Reqnroll's container creates and shares exactly one instance per scenario. Only one
+binding class disposes a given process or resource it did not itself create an independent copy of.
+
+Remove a phrase's binding as soon as no feature uses it any longer. A migration must not retain both the old and
+the new wording for the same behavior.
+
+### Examples
+
+Prefer scenarios that cross a meaningful boundary, written from the chosen user's vocabulary:
 
 ```gherkin
+Given `blaxquad/squad.json` configures:
+  | role     |
+  | coder    |
+  | reviewer |
+
+When the operator launches Headquarters with the fake provider
+Then Headquarters starts an agent session for role "coder"
+
 When the user sends "Review the change" to the architect
 Then the architect agent receives "Review the change"
 

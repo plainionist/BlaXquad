@@ -29,17 +29,18 @@ public sealed class BackendScenarioSteps
     private string? myLastInvalidMessageCase;
     private string? myExpectedInvalidMessageProtocolError;
 
-    public BackendScenarioSteps(ScenarioWorkspace workspace)
+    public BackendScenarioSteps(BackendScenario scenario)
     {
-        myScenario = new BackendScenario(workspace);
+        myScenario = scenario;
     }
 
     /// <summary>
-    /// Disposes the scenario's <see cref="BackendScenario"/> after every scenario - not just the ones that reach a
-    /// normal host-control shutdown. This is the teardown path that actually runs for every process-driver
-    /// scenario (Reqnroll disposes the injected <see cref="ScenarioWorkspace"/> automatically, but never this
-    /// manually constructed composition root), so it is the only place a leaked, never-disposed session can be
-    /// reported.
+    /// Disposes the scenario's shared <see cref="BackendScenario"/> after every scenario - not just the ones that
+    /// reach a normal host-control shutdown. This explicit call must run before <see cref="ScenarioWorkspace"/>'s
+    /// own disposal (which Reqnroll's container also triggers automatically, and which forcibly disposes every
+    /// process it tracked, including this one's), so <see cref="BackendScenario.Dispose"/> can still request a
+    /// clean shutdown and inspect real process state. Reqnroll's container disposes this same constructor-injected
+    /// instance a second time as its resolved owner; that second call is a safe no-op.
     /// </summary>
     [AfterScenario]
     public void CleanUp()
