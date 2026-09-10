@@ -51,6 +51,18 @@ public sealed class DashboardOperationsSteps
     public async Task ThenTheDashboardShowsRoleAtStatus(string role, string status) =>
         await myScenario.WaitForRoleStatusAsync(role, status);
 
+    [Then("the dashboard shows role {string} as working with context usage {int} of {int} and AIC usage {decimal}")]
+    public async Task ThenTheDashboardShowsRoleAsWorkingWithUsage(string role, int contextUsed, int contextLimit, decimal aicUsed) =>
+        await myScenario.WaitForRoleUsageSnapshotAsync(role, isWorking: true, contextUsed, contextLimit, aicUsed);
+
+    [Then("the dashboard shows role {string} as idle with context usage {int} of {int} and AIC usage {decimal}")]
+    public async Task ThenTheDashboardShowsRoleAsIdleWithUsage(string role, int contextUsed, int contextLimit, decimal aicUsed) =>
+        await myScenario.WaitForRoleUsageSnapshotAsync(role, isWorking: false, contextUsed, contextLimit, aicUsed);
+
+    [Then("the dashboard does not show role {string} at AIC usage {decimal} within {int} seconds")]
+    public void ThenTheDashboardDoesNotShowRoleAtAicUsageWithinSeconds(string role, decimal aicUsed, int seconds) =>
+        Assert.CatchAsync<TimeoutException>(() => myScenario.WaitForRoleUsageAsync(role, aicUsed, TimeSpan.FromSeconds(seconds)));
+
     [Then("the dashboard shows role {string}'s latest status as {string}")]
     public async Task ThenTheDashboardShowsRoleSLatestStatusAs(string role, string status) =>
         await myScenario.WaitForLatestRoleStatusAsync(role, status);
