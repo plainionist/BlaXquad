@@ -157,7 +157,7 @@ code-behind is generated under `obj`. A clean build leaves no `*.feature.cs` fil
 Clean discovery reports 174 expanded cases from 52 source features. Recorded suite duration is 2 m 44 s / 2 m 21 s
 without a performance claim.
 
-### Slice 2 - Preserve unknown-role prompt validation [in progress]
+### Slice 2 - Preserve unknown-role prompt validation [done]
 
 **Outcome:** Unknown-role prompt delivery remains a product-level UI protocol contract while redundant headless-client
 wrapper specifications are removed.
@@ -176,6 +176,11 @@ wrapper specifications are removed.
 - `UiProtocolValidation` proves all three unknown-role invariants through the supported protocol boundary.
 - The focused `UiProtocolValidation` and `ProcessSpecificationDriver` scenarios pass without
   `HeadlessUiClient.feature` or its dedicated bindings.
+
+**Status: complete (b7e3446ad3).** Unknown-role prompt delivery is a `UiProtocolValidation` scenario that asserts
+the exact `Unknown role: <role>` protocol error, no provider invocation, and continued usability. `HeadlessUiClient.feature`
+and `HeadlessUiClientSteps.cs` are removed; the `HeadlessUiClient` helper remains. Clean discovery is 171 expanded
+cases.
 
 ### Slice 3 - Preserve interaction transcript coverage [queued]
 
