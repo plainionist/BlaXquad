@@ -26,6 +26,8 @@ public sealed class BackendScenarioSteps
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
     private TranscriptSynchronizationObservation? myAwaitedTranscriptSynchronization;
     private readonly Dictionary<string, BackendScenarioCommand> myReadinessWatches = new(StringComparer.Ordinal);
+    private string? myLastInvalidMessageCase;
+    private string? myExpectedInvalidMessageProtocolError;
 
     public BackendScenarioSteps(ScenarioWorkspace workspace)
     {
@@ -405,6 +407,102 @@ public sealed class BackendScenarioSteps
         myProtocolErrorsObserved++;
         Assert.That(message, Does.Contain(text));
     }
+
+    [When("the backend scenario sends the invalid {string} ui message")]
+    public void WhenTheBackendScenarioSendsTheInvalidUiMessage(string messageCase)
+    {
+        var (envelope, expectedError) = InvalidUiMessage(messageCase);
+        myLastInvalidMessageCase = messageCase;
+        myExpectedInvalidMessageProtocolError = expectedError;
+        myScenario.SendRawEnvelope(envelope);
+    }
+
+    [Then("the backend scenario observes its exact protocol error for the rejected message")]
+    public void ThenTheBackendScenarioObservesItsExactProtocolErrorForTheRejectedMessage()
+    {
+        var message = Await(myScenario.WaitForProtocolErrorAsync(skip: myProtocolErrorsObserved));
+        myProtocolErrorsObserved++;
+        Assert.That(message, Is.EqualTo(myExpectedInvalidMessageProtocolError));
+    }
+
+    // Every invalid envelope in the matrix is validated (version, type, role, request id, or payload shape)
+    // before command routing ever happens, so the correct proof is that whichever provider-observable effect its
+    // command type would otherwise have produced never happened - never a broader "nothing at all happened"
+    // sweep the fake session has no API to express.
+    [Then("no provider-side command was invoked for the rejected message")]
+    public void ThenNoProviderSideCommandWasInvokedForTheRejectedMessage()
+    {
+        switch (myLastInvalidMessageCase)
+        {
+            case "unsupported version":
+                Assert.That(myScenario.Agent("coder").HasObservedAbort(), Is.False);
+                break;
+            case "missing request ID":
+            case "invalid boolean payload":
+                Assert.That(myScenario.Agent("coder").HasReceivedPermissionResponse(), Is.False);
+                break;
+            default:
+                Assert.That(myScenario.Agent("coder").LatestPrompt(), Is.Null);
+                break;
+        }
+    }
+
+    [Then("the backend scenario remains usable after the rejected message")]
+    public void ThenTheBackendScenarioRemainsUsableAfterTheRejectedMessage()
+    {
+        Assert.That(myScenario.IsRunning, Is.True);
+        const string prompt = "still usable after the rejected message";
+        myScenario.SendPrompt("coder", prompt);
+        Assert.That(Await(myScenario.Agent("coder").WaitForPromptAsync(observed => observed == prompt)), Is.EqualTo(prompt));
+    }
+
+    // Mirrors the exact envelope shapes and error text the real UiMessageReader/UiCommandHandler validation
+    // pipeline produces (squad.Ui.Protocol) - not this test's own interpretation of the contract - so a
+    // regression in that validation logic changes this assertion's outcome rather than silently passing.
+    private static (string Envelope, string ExpectedError) InvalidUiMessage(string messageCase) =>
+        messageCase switch
+        {
+            "unsupported version" => (
+                """{"version":2,"type":"role.abort","role":"coder"}""",
+                "The UI protocol version is not supported."),
+            "missing type" => (
+                """{"version":3}""",
+                "The UI message is missing a type."),
+            "unknown type" => (
+                """{"version":3,"type":"unknown"}""",
+                "Unknown UI message type 'unknown'."),
+            // Every envelope below must be a single line: the real stdio transport frames one protocol message
+            // per newline-delimited line, unlike the in-memory ReceiveMessageAsync call the old direct
+            // construction used, which never had to respect that framing.
+            "missing role" => (
+                """{"version":3,"type":"prompt.send","payload":{"prompt":"hello"}}""",
+                "The UI message is missing role."),
+            "missing request ID" => (
+                """{"version":3,"type":"permission.respond","role":"coder","payload":{"approved":true}}""",
+                "The UI message is missing requestId."),
+            "invalid string payload" => (
+                """{"version":3,"type":"prompt.send","role":"coder","payload":{"prompt":42}}""",
+                "The UI message is missing payload.prompt."),
+            "invalid boolean payload" => (
+                """{"version":3,"type":"permission.respond","role":"coder","requestId":"permission-1","payload":{"approved":"yes"}}""",
+                "The UI message is missing payload.approved."),
+            "invalid integer payload" => (
+                """{"version":3,"type":"transcript.page","role":"coder","payload":{"beforeIndex":"five"}}""",
+                "The requested operation requires an element of type "
+                + "'Number', but the target element has type 'String'."),
+            "invalid synchronization payload" => (
+                """{"version":3,"type":"transcript.synchronize","payload":{"roles":"coder"}}""",
+                "The UI message contains invalid transcript positions."),
+            "malformed JSON" => (
+                "{",
+                "Expected depth to be zero at the end of the JSON payload. "
+                + "There is an open JSON object or array that should be closed. "
+                + "LineNumber: 0 | BytePositionInLine: 1."),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(messageCase),
+                messageCase,
+                "Unknown invalid message case."),
+        };
 
 
     [When("the {string} agent emits the reasoning {string}")]

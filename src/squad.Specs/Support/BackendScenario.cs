@@ -419,6 +419,13 @@ public sealed class BackendScenario : IDisposable
     /// instead of re-matching one already caused by an earlier command.</summary>
     public Task<string> WaitForProtocolErrorAsync(int skip = 0, TimeSpan? timeout = null) => RequireUi().WaitForProtocolErrorAsync(skip, timeout);
 
+    /// <summary>Sends one already-serialized protocol line verbatim through the launched process's standard
+    /// input - see <see cref="HeadlessUiClient.SendRawEnvelope"/> - for specifications proving the real
+    /// "protocol.error" validation contract at the wire boundary for envelope shapes (unsupported version,
+    /// missing or unknown type, missing role or request id, mistyped payload fields, or unparsable JSON) no
+    /// semantic command method could construct.</summary>
+    public void SendRawEnvelope(string rawJsonLine) => RequireUi().SendRawEnvelope(rawJsonLine);
+
     /// <summary>Waits until the given role's real transcript, projected from production provider events, contains
     /// the given content - proving a reply crossed all the way from the provider into the observable UI state.
     /// </summary>

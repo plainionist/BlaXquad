@@ -385,6 +385,19 @@ public sealed class HeadlessUiClient
     }
 
     /// <summary>
+    /// Sends one already-serialized line verbatim, exactly as written - never through <see cref="SendEnvelope"/>'s
+    /// semantic envelope construction. Exists solely for protocol-validation specifications proving the exact
+    /// "protocol.error" contract for an envelope shape no semantic command method could produce: an unsupported
+    /// version, a missing or unknown type, a missing role or request id, a mistyped payload field, or JSON that
+    /// does not parse at all.
+    /// </summary>
+    public void SendRawEnvelope(string rawJsonLine)
+    {
+        myStandardInput.WriteLine(rawJsonLine);
+        myStandardInput.Flush();
+    }
+
+    /// <summary>
     /// Builds a diagnostics snapshot of the launched process's command/lifecycle state, its captured standard
     /// output and standard error, and the most recently observed UI state. Exposed so callers beyond this
     /// client's own semantic waits (for example lifecycle cleanup awaiting process exit) can report the same
