@@ -5,7 +5,7 @@ namespace squad.Handoffs.Delivery;
 /// Polls role outboxes in-process and exposes unexpected loop termination separately from controlled stopping.
 /// Start and stop are idempotent, and a stopped poller may be started again before disposal.
 /// </summary>
-public sealed class InProcessHandoffPoller : IHandoffPump
+public sealed class InProcessHandoffPoller : IAsyncDisposable
 {
     private static readonly TimeSpan myPollInterval = TimeSpan.FromSeconds(1);
     private readonly Func<IReadOnlyList<RoleRow>> myRolesProvider;
@@ -20,11 +20,6 @@ public sealed class InProcessHandoffPoller : IHandoffPump
     {
         myRolesProvider = rolesProvider;
         myDelivery = new HandoffDeliveryService(notifier, log);
-    }
-
-    public InProcessHandoffPoller(IReadOnlyList<RoleRow> roles, IRoleNotifier notifier, Action<string[]> log)
-        : this(() => roles, notifier, log)
-    {
     }
 
     public Task Failure => myFailure.Task;

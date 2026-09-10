@@ -23,7 +23,7 @@ sealed class HandoffDeliveryService
         myLog = log;
     }
 
-    public async Task ProcessOnceAsync(IReadOnlyList<RoleRow> roles, Func<bool>? stopRequested = null, CancellationToken cancellationToken = default)
+    public async Task ProcessOnceAsync(IReadOnlyList<RoleRow> roles, CancellationToken cancellationToken = default)
     {
         var roleMap = roles.ToDictionary(r => r.Role);
         foreach (var (roleName, roleInfo) in roleMap)
@@ -31,10 +31,6 @@ sealed class HandoffDeliveryService
             var outboxDir = Path.Combine(roleInfo.WorktreePath, ".blaxquad", "handoffs", "outbox");
             foreach (var path in HandoffQueue.HandoffFiles(outboxDir))
             {
-                if (stopRequested?.Invoke() == true)
-                {
-                    return;
-                }
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {

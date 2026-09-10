@@ -14,7 +14,7 @@ internal sealed class SquadRuntimeController
 {
     private readonly SessionRegistry mySessionRegistry;
     private readonly SquadViewModel myViewModel;
-    private readonly IHandoffPump myHandoffPump;
+    private readonly InProcessHandoffPoller myHandoffPump;
     private readonly SessionGeneration mySessionGeneration;
     private bool myHandoffStarted;
 
@@ -22,7 +22,7 @@ internal sealed class SquadRuntimeController
         SessionRegistry sessionRegistry,
         IAgentBackend agentBackend,
         SquadViewModel viewModel,
-        IHandoffPump handoffPump,
+        InProcessHandoffPoller handoffPump,
         CancellationToken stoppingToken)
     {
         mySessionRegistry = sessionRegistry;

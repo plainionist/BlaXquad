@@ -209,6 +209,23 @@ relaunch after clean shutdown). No restart-button/UI-relaunch behavior from `res
 surface is justified entirely by production composition or documented provider/UI SPIs, and the complete process-
 boundary suite passes without a supported behavior change.
 
+**Status: complete.** `IHandoffPump` is removed; `SquadRuntimeController` and `SquadApplication` (including its
+`handoffPumpFactory` composition parameter) now depend on the concrete `InProcessHandoffPoller` directly, while
+`IRoleNotifier` remains the real cross-module callback from delivery to the active role sessions (its sole
+production implementer, `SessionRoleNotifier`, is unchanged). `InProcessHandoffPoller`'s fixed-role constructor
+overload is removed (it had zero callers; production always supplies the live role provider), and
+`HandoffDeliveryService.ProcessOnceAsync` no longer accepts a `stopRequested` delegate, since its only caller
+(`InProcessHandoffPoller.PollAsync`) always relied solely on the cancellation token. An audit of
+`squad.Configuration`, `squad.Workspaces`, `squad.Process`, and `squad.Handoffs` found their public surface already
+justified by cross-assembly production callers (chiefly the `squad`/`squad-hq` composition roots), so no further
+narrowing was needed there; `docs/manual/test-strategy.md` already documents "handoff polling and delivery"
+generically and needed no update since `IHandoffPump` was deleted rather than promoted to a documented SPI.
+Verified via targeted `dotnet test` filters covering delivery, recovery, and handoff-pump-failure scenarios, plus
+the complete backend specification suite and a full product build (170 tests; the handful of failures seen only
+under full-suite parallel load reproduce the pre-existing, load-dependent `FakeProviderControlTimeoutException`
+flakiness and pass in isolation — not a regression). `squad.Specs` retains only its `squad.AgentProvider.Abstractions`
+project reference.
+
 ## Acceptance criteria
 
 - Every remaining public member has a production caller or is an intentional provider/UI SPI documented in

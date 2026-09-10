@@ -17,7 +17,7 @@ public sealed class SquadApplication : IAsyncDisposable
     private static readonly Task myNever = Task.Delay(Timeout.InfiniteTimeSpan);
     private readonly SquadStartupPlan myStartupPlan;
     private readonly IAgentProviderFactory myAgentProviderFactory;
-    private readonly IHandoffPump myHandoffPump;
+    private readonly InProcessHandoffPoller myHandoffPump;
     private readonly IWindowHost myWindowHost;
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
@@ -37,7 +37,7 @@ public sealed class SquadApplication : IAsyncDisposable
     public static SquadApplication Create(
         SquadStartupPlan startupPlan,
         IAgentProviderFactory agentProviderFactory,
-        Func<IRoleNotifier, IHandoffPump> handoffPumpFactory,
+        Func<IRoleNotifier, InProcessHandoffPoller> handoffPumpFactory,
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
@@ -67,7 +67,7 @@ public sealed class SquadApplication : IAsyncDisposable
     private SquadApplication(
         SquadStartupPlan startupPlan,
         IAgentProviderFactory agentProviderFactory,
-        IHandoffPump handoffPump,
+        InProcessHandoffPoller handoffPump,
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SessionRegistry sessionRegistry,
@@ -277,7 +277,7 @@ public sealed class SquadApplication : IAsyncDisposable
         }
     }
 
-    // Re-labels a fatal IHandoffPump.Failure as itself rather than letting it surface through the generic
+    // Re-labels a fatal InProcessHandoffPoller.Failure as itself rather than letting it surface through the generic
     // startup-failure path: the handoff pump can fail this way at any point after it starts, not only during
     // startup, so callers must be able to tell the two apart from the exception type alone.
     private static void ThrowHandoffFailure(Task handoffFailure)
