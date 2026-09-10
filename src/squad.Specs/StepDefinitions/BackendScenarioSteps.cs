@@ -15,7 +15,6 @@ public sealed class BackendScenarioSteps
     private int myExitCode;
     private string? myObservedHarnessMessage;
     private int myProtocolErrorsObserved;
-    private readonly List<TranscriptUpdateObservation> myObservedTranscriptUpdates = [];
     private readonly Dictionary<string, int> myTranscriptPageFrontier = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> myTranscriptPagesObserved = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TranscriptPageObservation> myLatestTranscriptPage = new(StringComparer.Ordinal);
@@ -561,18 +560,6 @@ public sealed class BackendScenarioSteps
         // waiting on that request's acknowledgement (the protocol has none) or its eventual response.
         Await(Task.WhenAll(contents.Rows.Select(row => myScenario.Agent(role).EmitSystemMessageAsync(row["content"]))));
 
-    [Then("the backend scenario observes a transcript update for role {string} with source {string}")]
-    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSource(string role, string source) =>
-        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source)));
-
-    [Then("the backend scenario observes a transcript update for role {string} with source {string} and content {string}")]
-    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSourceAndContent(string role, string source, string content) =>
-        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source, DecodeEscapes(content))));
-
-    [Then("the backend scenario observes a transcript update for role {string} with operation {string} and content {string}")]
-    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithOperationAndContent(string role, string operation, string content) =>
-        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateByOperationAsync(role, operation, content)));
-
     private void RecordPagedEntries(string role, IReadOnlyList<TranscriptEntryObservation> entries)
     {
         if (!myPagedTranscriptEntries.TryGetValue(role, out var recorded))
@@ -580,24 +567,6 @@ public sealed class BackendScenarioSteps
             myPagedTranscriptEntries[role] = recorded = [];
         }
         recorded.AddRange(entries);
-    }
-
-    [Then("every observed transcript update for role {string} reports a strictly increasing sequence and entry index")]
-    public void ThenEveryObservedTranscriptUpdateForRoleReportsAStrictlyIncreasingSequenceAndEntryIndex(string role)
-    {
-        var updatesForRole = myObservedTranscriptUpdates.Where(update => update.Role == role).ToList();
-        Assert.That(updatesForRole, Has.Count.GreaterThan(1));
-        for (var index = 1; index < updatesForRole.Count; index++)
-        {
-            var previous = updatesForRole[index - 1];
-            var current = updatesForRole[index];
-            Assert.Multiple(() =>
-            {
-                Assert.That(current.Sequence, Is.GreaterThan(previous.Sequence));
-                Assert.That(current.EntryIndex, Is.GreaterThan(previous.EntryIndex));
-                Assert.That(current.Operation, Is.EqualTo("append"));
-            });
-        }
     }
 
     [When("the backend scenario requests a fresh transcript synchronization")]
@@ -933,14 +902,6 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent reports progress {string} for tool call {string}")]
     public void WhenTheAgentReportsProgressForToolCall(string role, string progress, string toolCallId) =>
         Await(myScenario.Agent(role).EmitToolProgressAsync(toolCallId, progress));
-
-    [Then("the backend scenario observes role {string} with active tool {string}")]
-    public void ThenTheBackendScenarioObservesRoleWithActiveTool(string role, string tool) =>
-        Await(myScenario.WaitForRoleActiveToolAsync(role, tool));
-
-    [Then("the backend scenario observes role {string} with no active tool")]
-    public void ThenTheBackendScenarioObservesRoleWithNoActiveTool(string role) =>
-        Await(myScenario.WaitForNoActiveToolAsync(role));
 
     [When("the {string} agent emits idle")]
     public void WhenTheAgentEmitsIdle(string role) => Await(myScenario.Agent(role).EmitIdleAsync());
