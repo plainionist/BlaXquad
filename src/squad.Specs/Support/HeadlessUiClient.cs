@@ -571,15 +571,28 @@ public sealed class HeadlessUiClient
 
     private string DescribeDiagnostics(List<string> capturedStdOut, Func<string>? additionalDiagnostics)
     {
+        var stdOutText = capturedStdOut.Count switch
+        {
+            0 => "(none)",
+            <= 10 => string.Join('\n', capturedStdOut),
+            _ => $"... ({capturedStdOut.Count - 10} earlier lines omitted)\n" + string.Join('\n', capturedStdOut.TakeLast(10)),
+        };
+        var stdErrLines = CopyLines(myStdErrLines);
+        var stdErrText = stdErrLines.Count switch
+        {
+            0 => "(none)",
+            <= 10 => string.Join('\n', stdErrLines),
+            _ => $"... ({stdErrLines.Count - 10} earlier lines omitted)\n" + string.Join('\n', stdErrLines.TakeLast(10)),
+        };
         var core = $"""
             Process:
             {ProcessDiagnostics.Describe(myProcess)}
             Last known UI state:
             {SummarizeUiState(capturedStdOut)}
             StdOut:
-            {string.Join('\n', capturedStdOut)}
+            {stdOutText}
             StdErr:
-            {string.Join('\n', CopyLines(myStdErrLines))}
+            {stdErrText}
             """;
         return additionalDiagnostics is null ? core : $"{core}\n{additionalDiagnostics()}";
     }
