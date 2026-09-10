@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 16 review (56b3f5623e) — changes requested
+
+Shutdown admission and stdio dispatch-draining now use canonical launch, user prompt/error/transcript language, and composable begin-shutdown, hold, release, and exit steps. Unused transcript-absence and exclusive drain-before-dispose aliases were removed; session-disposal hold/complete aliases remain for slice 19. One unused alias remains.
+
+### Finding 1 — Medium
+
+- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (`Then("the backend scenario observes a protocol error mentioning {string}")`).
+- **Violated behavior:** Definition of done requires removing every alias this slice made unused. Slice 16 migrated the last callers of this phrase to `the user observes a protocol error mentioning`.
+- **Root cause:** After `ShutdownCommandAdmission.feature` switched to the canonical user-observation step, the BackendScenarioSteps phrase was left even though no remaining feature uses it.
+- **Required outcome:** Delete the unused `the backend scenario observes a protocol error mentioning` binding. Keep `the user observes a protocol error mentioning`. Keep `the backend scenario arms/completes... session disposal` until `HeadquartersCleanupDiagnostics.feature` migrates.
+
 ## Slice 15 review (67fbce653f) — accepted
 
 **Status: complete (67fbce653f).** `UiProtocolValidation.feature` uses canonical launch and a UI-protocol-client actor. Invalid envelope shapes and exact public errors live in the examples table; the C# `InvalidUiMessage` switch is gone. Unknown-role rejection and a later successful command remain.
