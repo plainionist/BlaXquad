@@ -94,7 +94,7 @@ Construction always uses the production retention policy (`ValidateTranscriptRet
 interaction, role-failure, readiness, transcript-retention, transcript-history, and transcript-synchronization
 scenarios pass through `BackendScenario` (verified via targeted `dotnet test` filters covering all of these areas).
 
-### Slice 3: Contract the UI protocol and hosting adapters
+### Slice 3 [done]: Contract the UI protocol and hosting adapters
 
 1. Make `SnapshotPublisher`, `TranscriptAnnouncementJournal`, `TranscriptProtocol`,
    `TranscriptRecoveryAnnouncement`, `SequencedTranscriptAnnouncement`, and other protocol implementation helpers
@@ -113,7 +113,7 @@ scenarios pass through `BackendScenario` (verified via targeted `dotnet test` fi
 **Slice acceptance:** Photino and stdio continue to expose the same versioned UI behavior, but only the production
 host/protocol contracts remain public and no test environment branch or callback remains.
 
-**Status: complete.** `SnapshotPublisher`, `TranscriptAnnouncementJournal`, `TranscriptProtocol`,
+**Status: complete (59a8a068b0).** `SnapshotPublisher`, `TranscriptAnnouncementJournal`, `TranscriptProtocol`,
 `TranscriptRecoveryAnnouncement`, and `SequencedTranscriptAnnouncement` are internal to `squad.Ui.Protocol`;
 `UiProtocolSession` remains the assembly-crossing protocol component used by `PhotinoWindowHost` and
 `StdioWindowHost`. The `BLAXQUAD_PHOTINO_SMOKE` branch and its shutdown callback are removed from
