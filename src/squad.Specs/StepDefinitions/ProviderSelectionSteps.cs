@@ -12,22 +12,22 @@ public sealed class ProviderSelectionSteps
         myWorkspace = workspace;
     }
 
-    [When("the executable launches with a provider assembly that does not exist")]
-    public void WhenTheExecutableLaunchesWithAMissingProviderAssembly() =>
+    [When("squad-hq launches with a provider assembly that does not exist")]
+    public void WhenSquadHqLaunchesWithAMissingProviderAssembly() =>
         Launch($"{myWorkspace.PathInWorkspace("does-not-exist.dll")};Whatever.Type");
 
-    [When("the executable launches with an incompatible provider type")]
-    public void WhenTheExecutableLaunchesWithAnIncompatibleProviderType() =>
+    [When("squad-hq launches with an incompatible provider type")]
+    public void WhenSquadHqLaunchesWithAnIncompatibleProviderType() =>
         Launch(Descriptor(typeof(IncompatibleProviderFixture)));
 
-    [When("the executable launches with the provider option specified twice")]
-    public void WhenTheExecutableLaunchesWithTheProviderOptionSpecifiedTwice() =>
+    [When("squad-hq launches with the provider option specified twice")]
+    public void WhenSquadHqLaunchesWithTheProviderOptionSpecifiedTwice() =>
         myWorkspace.RunTool(
             "squad-hq",
             ["launch", "--provider", Descriptor(typeof(ValidProviderFixtureFactory)), "--provider", Descriptor(typeof(ValidProviderFixtureFactory)), myWorkspace.Root]);
 
-    [When("the executable launches with a provider whose constructor throws")]
-    public void WhenTheExecutableLaunchesWithAThrowingProviderConstructor() =>
+    [When("squad-hq launches with a provider whose constructor throws")]
+    public void WhenSquadHqLaunchesWithAThrowingProviderConstructor() =>
         Launch(Descriptor(typeof(ThrowingProviderFixtureFactory)));
 
     [Then("the launch fails with a provider diagnostic containing {string}")]
