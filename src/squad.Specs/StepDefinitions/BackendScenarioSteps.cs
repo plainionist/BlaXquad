@@ -569,10 +569,6 @@ public sealed class BackendScenarioSteps
         recorded.AddRange(entries);
     }
 
-    [When("the backend scenario requests a fresh transcript synchronization")]
-    public void WhenTheBackendScenarioRequestsAFreshTranscriptSynchronization() =>
-        myScenario.RequestTranscriptSynchronization();
-
     [Then("the transcript synchronization for role {string} reports every supported entry source with dashboard protocol fields:")]
     public void ThenTheTranscriptSynchronizationForRoleReportsEverySupportedEntrySourceWithDashboardProtocolFields(string role, Table expected)
     {
