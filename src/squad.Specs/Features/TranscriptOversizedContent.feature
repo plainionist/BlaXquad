@@ -8,15 +8,16 @@ Feature: Transcript oversized content
   storage directly.
 
   Background:
-    Given a backend scenario configured with a "coder" role
-    And the backend scenario has enabled the fake-provider control transport
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
 
   Scenario: An oversized transcript entry remains bounded in memory while its full content stays available in the archive
     When the "coder" agent emits a system message with 300000 characters
     Then the transcript update for role "coder" reports archived content beyond the 250000 character retained bound
-    When the backend scenario requests the archived transcript entry 2 for role "coder"
+    When the UI-protocol client requests the archived transcript entry 2 for role "coder"
     Then the archived transcript entry has 300000 characters and is not truncated
 
   Scenario: An oversized transcript announcement is explicitly reported as truncated
@@ -26,7 +27,7 @@ Feature: Transcript oversized content
   Scenario: Archived streaming content beyond the storage limit is explicitly reported as truncated
     When the "coder" agent emits an assistant delta with 1200000 characters
     And the "coder" agent emits an assistant delta with 1200000 characters
-    And the backend scenario requests the archived transcript entry 2 for role "coder"
+    And the UI-protocol client requests the archived transcript entry 2 for role "coder"
     Then the archived transcript entry is truncated with 2400000 total characters at the 2000000 character archive bound
 
   Scenario: An entry that has rotated out of the archive is reported as unavailable while newer archived entries remain available
@@ -45,13 +46,13 @@ Feature: Transcript oversized content
     # must therefore surface exactly the remaining archived entries older than it (7 through 12) and report no
     # further history, since the rotated-out entries below 7 are gone from the archive entirely.
     When the "coder" agent emits 15 system messages with 2000000 characters each
-    And the backend scenario requests a fresh transcript synchronization
+    And the user requests a fresh transcript synchronization for role "coder"
     Then the transcript synchronization for role "coder" contains exactly 4 entries
-    When the backend scenario requests the archived transcript entry 2 for role "coder"
+    When the UI-protocol client requests the archived transcript entry 2 for role "coder"
     Then the archived transcript entry is unavailable for role "coder"
-    When the backend scenario requests the archived transcript entry 16 for role "coder"
+    When the UI-protocol client requests the archived transcript entry 16 for role "coder"
     Then the archived transcript entry has 2000000 characters and is not truncated
-    When the backend scenario requests the previous transcript page for role "coder"
+    When the UI-protocol client requests the previous transcript page for role "coder"
     Then the previous transcript page for role "coder" contains exactly 6 entries
     And the previous transcript page for role "coder" reports no more history
 
@@ -65,5 +66,5 @@ Feature: Transcript oversized content
     # available in transcript history.
     When the "coder" agent emits an assistant delta with 260000 characters
     And the "coder" agent emits 15 system messages with 2000000 characters each
-    And the backend scenario requests a fresh transcript synchronization
+    And the user requests a fresh transcript synchronization for role "coder"
     Then the transcript synchronization for role "coder" reports "assistant" content that is no longer available

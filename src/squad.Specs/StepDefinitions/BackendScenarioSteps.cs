@@ -708,13 +708,8 @@ public sealed class BackendScenarioSteps
         myLatestSynchronizedSequence[role] = synchronization.Sequence;
     }
 
-    [When("the backend scenario requests the previous transcript page for role {string}")]
-    public void WhenTheBackendScenarioRequestsThePreviousTranscriptPageForRole(string role) => RequestPreviousTranscriptPage(role);
-
     [When("the UI-protocol client requests the previous transcript page for role {string}")]
-    public void WhenTheUiProtocolClientRequestsThePreviousTranscriptPageForRole(string role) => RequestPreviousTranscriptPage(role);
-
-    private void RequestPreviousTranscriptPage(string role)
+    public void WhenTheUiProtocolClientRequestsThePreviousTranscriptPageForRole(string role)
     {
         if (!myTranscriptPageFrontier.TryGetValue(role, out var beforeIndex))
         {
@@ -745,15 +740,8 @@ public sealed class BackendScenarioSteps
     public void ThenThePreviousTranscriptPageForRoleReportsNoMoreHistory(string role) =>
         Assert.That(myLatestTranscriptPage[role].HasMore, Is.False);
 
-    [When("the backend scenario requests the archived transcript entry {int} for role {string}")]
-    public void WhenTheBackendScenarioRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role) =>
-        RequestArchivedTranscriptEntry(entryIndex, role);
-
     [When("the UI-protocol client requests the archived transcript entry {int} for role {string}")]
-    public void WhenTheUiProtocolClientRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role) =>
-        RequestArchivedTranscriptEntry(entryIndex, role);
-
-    private void RequestArchivedTranscriptEntry(int entryIndex, string role)
+    public void WhenTheUiProtocolClientRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role)
     {
         myScenario.RequestArchivedEntry(role, entryIndex);
         myLatestArchivedEntry = Await(myScenario.WaitForArchivedEntryAsync(role, entryIndex));
