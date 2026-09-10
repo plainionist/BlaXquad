@@ -175,6 +175,18 @@ session cleanup, and the provider-free `squad-hq` publication, plus a Headquarte
 behavior while no public lease probe, observation property, or alternate lease implementation remains solely for
 tests.
 
+**Status: complete.** `IHostLease` is removed; `squad.Host.Runtime.SquadApplication` and
+`squad-hq`'s `Launch` composition now depend on the concrete `HostLease` directly, so successful acquisition always
+transfers ownership to a real lease rather than a substitutable abstraction. `HostLease.PipeName` is removed (it had
+no external reader), and `RemoveStaleMetadata`, `TryAcquireProbe`, `TryAcquireCleanupLease`, and `PipeNameFor` are
+now `internal`, used only by `HostControlClient` within `squad.Host.Control`. `CleanupLease` is now an internal
+type, constructed and consumed only inside `squad.Host.Control`. `HostControlClient.RequestShutdownAsync` is now
+private, called only by the public `ShutdownAsync`; `WaitForAgentAsync` and `ShutdownAsync` remain the only public
+client operations, matching the `squad-hq wait-for-agent` and `shutdown` commands. Verified via targeted
+`dotnet test` filters covering host ownership, coexistence, shutdown admission, and cleanup diagnostics scenarios,
+plus a Headquarters regression pass (including the existing-inbox-survives-restart scenario covering healthy
+relaunch after clean shutdown). No restart-button/UI-relaunch behavior from `restart button.md` was introduced.
+
 ### Slice 6: Remove handoff-delivery test seams and close the surface audit
 
 1. Replace the test-substitution-only `IHandoffPump` abstraction with the production `InProcessHandoffPoller` where

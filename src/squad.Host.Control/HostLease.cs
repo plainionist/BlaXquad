@@ -9,7 +9,7 @@ namespace squad.Host.Control;
 /// Holds the cross-process project lock, publishes host metadata, and serves the local control pipe until disposal.
 /// Acquisition fails when another live host owns the same normalized project root.
 /// </summary>
-public sealed class HostLease : IHostLease
+public sealed class HostLease : IAsyncDisposable
 {
     private readonly string myProjectRoot;
     private readonly string myStateDir;
@@ -32,7 +32,6 @@ public sealed class HostLease : IHostLease
         ServerFailure = myServerFailure.Task;
     }
 
-    public string PipeName => myPipeName;
     public Task ShutdownRequested { get; }
     public Task ServerFailure { get; }
 
@@ -91,7 +90,7 @@ public sealed class HostLease : IHostLease
     }
 
     /// <summary>Removes host metadata only after acquiring the project lock, proving that the record is stale.</summary>
-    public static bool RemoveStaleMetadata(string projectRoot)
+    internal static bool RemoveStaleMetadata(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
         {
@@ -104,7 +103,7 @@ public sealed class HostLease : IHostLease
     }
 
     /// <summary>Returns whether the project lock can be acquired momentarily, indicating that no live host owns it.</summary>
-    public static bool TryAcquireProbe(string projectRoot)
+    internal static bool TryAcquireProbe(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
         {
@@ -118,7 +117,7 @@ public sealed class HostLease : IHostLease
     /// Acquires cleanup ownership only when no live host holds the project lock. The returned lease must remain
     /// alive while stale metadata is inspected or removed.
     /// </summary>
-    public static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
+    internal static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
@@ -140,7 +139,7 @@ public sealed class HostLease : IHostLease
         }
     }
 
-    public static string PipeNameFor(string projectRoot) =>
+    internal static string PipeNameFor(string projectRoot) =>
         "blaxquad-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(IdentityProjectRoot(projectRoot)))).ToLowerInvariant()[..24];
 
     private static string NormalizeProjectRoot(string projectRoot)

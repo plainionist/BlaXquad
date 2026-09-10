@@ -1,13 +1,13 @@
 namespace squad.Host.Control;
 
 /// <summary>Holds exclusive cleanup access to host metadata after proving that no live host owns the project.</summary>
-public sealed class CleanupLease : IDisposable
+internal sealed class CleanupLease : IDisposable
 {
     private readonly string myStateDir;
     private readonly FileStream myLockFile;
     private bool myDisposed;
 
-    public CleanupLease(string stateDir, FileStream lockFile)
+    internal CleanupLease(string stateDir, FileStream lockFile)
     {
         myStateDir = stateDir;
         myLockFile = lockFile;

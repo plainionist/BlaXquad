@@ -67,7 +67,7 @@ public static class HostControlClient
     }
 
     /// <summary>Returns <see langword="false"/> when no live host exists; otherwise sends but does not await shutdown.</summary>
-    public static async Task<bool> RequestShutdownAsync(string projectRoot)
+    private static async Task<bool> RequestShutdownAsync(string projectRoot)
     {
         projectRoot = Path.GetFullPath(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");

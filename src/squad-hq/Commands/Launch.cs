@@ -112,7 +112,7 @@ static class Launch
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var context = BuildContext(root);
             context.ContinueLaunch = continueLaunch;
-            IHostLease? hostLease = HostLease.Acquire(context.WorkingDir);
+            HostLease? hostLease = HostLease.Acquire(context.WorkingDir);
             SquadApplication? application = null;
             using var consoleCancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler? cancelHandler = (_, eventArgs) =>

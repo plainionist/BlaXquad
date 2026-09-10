@@ -21,7 +21,7 @@ public sealed class SquadApplication : IAsyncDisposable
     private readonly IWindowHost myWindowHost;
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
-    private readonly IHostLease myHostLease;
+    private readonly HostLease myHostLease;
     private readonly SessionRegistry mySessionRegistry;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
@@ -41,7 +41,7 @@ public sealed class SquadApplication : IAsyncDisposable
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
-        IHostLease hostLease)
+        HostLease hostLease)
     {
         ArgumentNullException.ThrowIfNull(handoffPumpFactory);
         ArgumentNullException.ThrowIfNull(viewModel);
@@ -72,7 +72,7 @@ public sealed class SquadApplication : IAsyncDisposable
         ISleepInhibitor sleepInhibitor,
         SessionRegistry sessionRegistry,
         SquadViewModel viewModel,
-        IHostLease hostLease)
+        HostLease hostLease)
     {
         myStartupPlan = startupPlan;
         myAgentProviderFactory = agentProviderFactory;
