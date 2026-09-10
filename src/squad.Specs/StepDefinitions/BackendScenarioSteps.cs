@@ -74,16 +74,16 @@ public sealed class BackendScenarioSteps
     public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailItsCleanupWithMessage(string message) =>
         myScenario.FailProviderDisposal(message);
 
-    [Given("the backend scenario isolates its temporary transcript directory")]
-    public void GivenTheBackendScenarioIsolatesItsTemporaryTranscriptDirectory() =>
+    [Given("Headquarters' temporary transcript directory is isolated")]
+    public void GivenHeadquartersTemporaryTranscriptDirectoryIsIsolated() =>
         myScenario.IsolateTemporaryDirectory();
 
-    [Then("the backend scenario's temporary transcript history exists")]
-    public void ThenTheBackendScenariosTemporaryTranscriptHistoryExists() =>
+    [Then("Headquarters' temporary transcript history exists")]
+    public void ThenHeadquartersTemporaryTranscriptHistoryExists() =>
         Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.True);
 
-    [Then("the backend scenario's temporary transcript history no longer exists")]
-    public void ThenTheBackendScenariosTemporaryTranscriptHistoryNoLongerExists() =>
+    [Then("Headquarters' temporary transcript history no longer exists")]
+    public void ThenHeadquartersTemporaryTranscriptHistoryNoLongerExists() =>
         Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.False);
 
     [When("the backend scenario starts squad-hq with the fake provider fixture")]
@@ -709,7 +709,12 @@ public sealed class BackendScenarioSteps
     }
 
     [When("the backend scenario requests the previous transcript page for role {string}")]
-    public void WhenTheBackendScenarioRequestsThePreviousTranscriptPageForRole(string role)
+    public void WhenTheBackendScenarioRequestsThePreviousTranscriptPageForRole(string role) => RequestPreviousTranscriptPage(role);
+
+    [When("the UI-protocol client requests the previous transcript page for role {string}")]
+    public void WhenTheUiProtocolClientRequestsThePreviousTranscriptPageForRole(string role) => RequestPreviousTranscriptPage(role);
+
+    private void RequestPreviousTranscriptPage(string role)
     {
         if (!myTranscriptPageFrontier.TryGetValue(role, out var beforeIndex))
         {
@@ -741,7 +746,14 @@ public sealed class BackendScenarioSteps
         Assert.That(myLatestTranscriptPage[role].HasMore, Is.False);
 
     [When("the backend scenario requests the archived transcript entry {int} for role {string}")]
-    public void WhenTheBackendScenarioRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role)
+    public void WhenTheBackendScenarioRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role) =>
+        RequestArchivedTranscriptEntry(entryIndex, role);
+
+    [When("the UI-protocol client requests the archived transcript entry {int} for role {string}")]
+    public void WhenTheUiProtocolClientRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role) =>
+        RequestArchivedTranscriptEntry(entryIndex, role);
+
+    private void RequestArchivedTranscriptEntry(int entryIndex, string role)
     {
         myScenario.RequestArchivedEntry(role, entryIndex);
         myLatestArchivedEntry = Await(myScenario.WaitForArchivedEntryAsync(role, entryIndex));
