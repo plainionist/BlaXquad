@@ -271,7 +271,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 11 | Transcript retention and truncation [done] | Migrate `TranscriptActiveStreamRetention.feature` and `TranscriptOversizedContent.feature`. Replace repeated size-specific prose with typed counts or tables without hiding live, announcement, per-entry archive, and total-archive limits. | Active streams remain appendable across eviction, every independently bounded representation reports truncation accurately, and rotated content is reported unavailable. |
 | 12 | Tool lifecycle, output, and correlation [done] | Migrate `TranscriptToolLifecycleState.feature`, `TranscriptToolOutputAggregation.feature`, and `TranscriptToolCallCorrelation.feature`. | Active-tool state follows lifecycle, cumulative output replaces one entry, progress stays separate, fallback output is used only when needed, and concurrent calls remain correlated by ID. |
 | 13 | Specialized transcript presentation [done] | Migrate `TranscriptToolCommandPresentation.feature`, `TranscriptFileReadSummaries.feature`, `TranscriptSkillActivityPresentation.feature`, and `TranscriptSubagentPresentation.feature`. | Shell commands, unknown arguments, file reads, skills, and subagents retain their distinct public presentation and omission rules through reusable typed tool/event steps. |
-| 14 | Stdio UI transport and selection | Migrate `StdioUiProtocol.feature`, `StdioUiProtocolMultiRole.feature`, and `UiSelection.feature` into the public UI-protocol vocabulary. | `--ui stdio` honors readiness, paging, synchronization, diagnostic separation, shutdown, and concurrent line framing, while invalid UI selection reports the documented diagnostics. |
+| 14 | Stdio UI transport and selection [done] | Migrate `StdioUiProtocol.feature`, `StdioUiProtocolMultiRole.feature`, and `UiSelection.feature` into the public UI-protocol vocabulary. | `--ui stdio` honors readiness, paging, synchronization, diagnostic separation, shutdown, and concurrent line framing, while invalid UI selection reports the documented diagnostics. |
 | 15 | UI command validation | Migrate `UiProtocolValidation.feature`; use an examples table for invalid envelope shapes and keep raw JSON only where the wire shape itself is the contract. | Invalid envelopes and unknown roles produce their exact public protocol errors before provider dispatch, and a later valid command still succeeds. |
 | 16 | Shutdown admission and dispatch draining | Migrate `ShutdownCommandAdmission.feature` and `StdioTransportConcurrentDispatchAndShutdown.feature` with composable begin-shutdown, pending-operation, release, and exit steps. | Shutdown drains commands admitted before closure, rejects later commands without side effects, and waits for in-flight stdio dispatch before disposing the protocol session. |
 | 17 | Host ownership and project isolation | Migrate `HostOwnership.feature` and `HostCoexistence.feature`; share the same `squad-hq` command language for default, equivalent-path, linked-worktree, and named-project contexts. | One project has one host, readiness and shutdown discover the right host, stale ownership recovers, and stopping one project never affects another. |
@@ -292,6 +292,10 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Run the focused scenarios for the slice and then the complete `squad.Specs` suite.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
+
+## Slice 14 review (184ab3de9a) — accepted
+
+**Status: complete (184ab3de9a).** Stdio protocol and UI-selection features use operator launch/shutdown, UI-protocol-client wire commands, and canonical configuration. `StdioUiProtocolSteps` shares the scenario-scoped `BackendScenario`; unused stdio-specific launch/shutdown bindings were removed.
 
 ## Slice 13 review (e422133608) — accepted
 
