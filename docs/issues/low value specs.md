@@ -205,7 +205,7 @@ fake-agent API self-tests are removed.
 field-coverage scenario both as protocol pending state and as transcript content. `FakeAgentEventSurface.feature` is
 removed; unreferenced helper-only bindings were pruned. Clean discovery is 164 expanded cases.
 
-### Slice 4 - Consolidate vertical process proofs [queued]
+### Slice 4 - Consolidate vertical process proofs [in progress]
 
 **Outcome:** One architectural process proof covers startup, provider lifecycle, and prompt/reply behavior instead of
 three weaker subset features.
