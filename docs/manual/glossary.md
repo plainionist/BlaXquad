@@ -29,7 +29,7 @@ the prompt recursively.
 
 The central process that runs and coordinates a squad. It prepares each role's
 worktree, starts its Copilot agent session, opens the desktop dashboard, moves
-handoffs between roles, and manages startup, relaunch, and shutdown.
+handoffs between roles, and manages startup and shutdown.
 
 The user runs headquarters through the `squad-hq` executable.
 
@@ -44,7 +44,7 @@ Example: GitHub Copilot (SDK/CLI).
 
 The adapter between headquarters and an agent provider. The current
 implementation uses the GitHub Copilot SDK, creates one agent session per role,
-and translates provider events and interaction requests into th typed runtime model.
+and translates provider events and interaction requests into the typed runtime model.
 
 ## Worktree
 
@@ -214,14 +214,16 @@ The lease prevents two hosts from managing the same project concurrently.
 
 ## Session generation
 
-The complete set of role sessions created by one startup or relaunch. A
-generation becomes active only after all of its sessions are registered.
-Generation identity prevents delayed events from retired sessions from mutating
-current role state.
+The complete set of role sessions created by one headquarters startup. A
+generation becomes active only after all of its sessions are registered, the UI
+has been notified, pending handoff notifications have been recovered, and the
+handoff poller has started.
 
-`SessionRegistry` currently only tracks session lookup and shutdown admission;
-it is not yet the authoritative generation lifecycle described above. That
-lifecycle aggregate is deferred to `restart button.md`.
+`SessionRegistry` is the process lifecycle and command-admission authority. It
+owns the Created, Starting, Running, Stopping, and Stopped phases, a generation
+number, and the current session catalog. `SessionGeneration` separately owns
+the provider runtime handle and the event/completion observers for that
+generation.
 
 ## UI protocol
 
@@ -232,7 +234,7 @@ transcript delivery, journaling, and recovery are owned by `squad.Ui.Protocol`.
 carries this protocol over the OS window; it has no envelope, delivery, or
 recovery logic of its own. The host publishes snapshots, transcript
 synchronization, updates, pages, archived entries, and protocol errors. The
-dashboard sends readiness, prompt, abort, relaunch, interaction response, and
+dashboard sends readiness, prompt, abort, interaction response, and
 transcript retrieval commands.
 
 ## Snapshot

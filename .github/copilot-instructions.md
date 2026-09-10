@@ -1,4 +1,14 @@
 
+## Knowledge base discovery
+
+- Primary knowledge base location: `docs/Manual`.
+- Use `docs/Manual` for stable project knowledge (domain, architecture, testing, process).
+- `docs/Manual` explains concepts/background; detailed behavior rules live in Gherkin `.feature` files inside `**/*.Specs` assemblies.
+- Do not use `docs/issues` as stable project knowledge unless the current task explicitly refers to an issue.
+- When scope is unclear, search `docs/Manual` with domain keywords before broad repository search.
+- Prefer the smallest relevant document(s). Do not load unrelated manual pages into context.
+- If manual guidance conflicts with the current task or observed code, report the conflict before making changes.
+
 ## Coding 
 
 - Name private instance fields with the `my` prefix followed by PascalCase, for example `myDaemonDirectory`.

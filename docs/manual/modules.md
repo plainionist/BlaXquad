@@ -1,5 +1,8 @@
 # Modules
 
+See [Current architecture](architecture.md) for the system context, runtime containers, component relationships,
+state ownership, and main execution flows.
+
 Each C# project in `squad.slnx` produces one module (assembly). The Vue
 dashboard in `src/squad-ui` is not included because it is a frontend package,
 not a .NET assembly.

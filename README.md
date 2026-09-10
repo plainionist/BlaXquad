@@ -78,6 +78,11 @@ any other name creates a dedicated worktree.
 
 Permissions are `prompt` by default and can be set to `approveAll`.
 
+## Architecture
+
+See the [current architecture](docs/manual/architecture.md) for C4 diagrams,
+runtime flows, state ownership, communication boundaries, and a code map.
+
 ## Acknowledgements
 
 Heavily inspired by [swarm-forge](https://github.com/unclebob/swarm-forge) by @unclebobmartin.
