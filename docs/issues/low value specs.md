@@ -249,7 +249,7 @@ command-result wrappers.
 The still-referenced `a configured project with roles` step moved to `CommonSteps`. Workspace and command-result
 support used by process-facing scenarios remains. Clean discovery is 159 expanded cases.
 
-### Slice 6 - Consolidate control-transport lifecycle coverage [in progress]
+### Slice 6 - Consolidate control-transport lifecycle coverage [done]
 
 **Outcome:** Product lifecycle scenarios retain start and disposal coverage across the fake-provider pipe without a
 separate transport smoke feature.
@@ -266,6 +266,10 @@ separate transport smoke feature.
   relaunch.
 - `BackendScenarioLifecycle.feature` and `FakeProviderControlProtocol.feature` continue to protect cleanup,
   diagnostics, concurrency, authentication, versioning, correlation, and stale-session rejection.
+
+**Status: complete (12ce0ed8ec).** `FakeProviderControlTransport.feature` is removed. Session start and disposal remain
+covered by `HeadquartersLifecycle.feature`. Control-transport support is unchanged. Clean discovery is 158 expanded
+cases.
 
 ### Slice 7 - Remove the redundant provider success case [queued]
 
