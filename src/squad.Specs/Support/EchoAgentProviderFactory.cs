@@ -51,7 +51,7 @@ internal sealed class EchoAgentRuntime(AgentBackendContext context) : IAgentRunt
 
 internal sealed class EchoAgentSession : IAgentSession
 {
-    private readonly AgentEventChannel myEvents = new();
+    private readonly TestAgentEventStream myEvents = new();
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public EchoAgentSession(string role)

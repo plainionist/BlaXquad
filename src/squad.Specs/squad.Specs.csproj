@@ -29,7 +29,6 @@
     <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj" />
     <ProjectReference Include="..\squad.Configuration\squad.Configuration.csproj" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
-    <ProjectReference Include="..\squad.CopilotSdk\squad.CopilotSdk.csproj" />
     <ProjectReference Include="..\squad.Application\squad.Application.csproj" />
     <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj" />
     <ProjectReference Include="..\squad.Handoffs.Delivery\squad.Handoffs.Delivery.csproj" />

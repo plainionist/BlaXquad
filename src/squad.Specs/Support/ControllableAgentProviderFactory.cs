@@ -83,7 +83,7 @@ internal sealed class ControllableAgentRuntime(AgentBackendContext context) : IA
 
 internal sealed class ControllableAgentSession : IAgentSession
 {
-    private readonly AgentEventChannel myEvents = new();
+    private readonly TestAgentEventStream myEvents = new();
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource mySendCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 

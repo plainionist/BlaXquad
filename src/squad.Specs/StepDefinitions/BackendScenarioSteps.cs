@@ -1027,9 +1027,9 @@ public sealed class BackendScenarioSteps
         Await(myScenario.Agent(role).EmitToolStartedAsync(
             toolCallId, toolName, JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = path })));
 
-    [When("the {string} agent emits partial tool output {string} for tool call {string}")]
-    public void WhenTheAgentEmitsPartialToolOutputForToolCall(string role, string partialOutput, string toolCallId) =>
-        Await(myScenario.Agent(role).EmitToolPartialOutputAsync(toolCallId, DecodeEscapes(partialOutput)));
+    [When("the {string} agent emits tool output {string} for tool call {string}")]
+    public void WhenTheAgentEmitsToolOutputForToolCall(string role, string output, string toolCallId) =>
+        Await(myScenario.Agent(role).EmitToolOutputChangedAsync(toolCallId, DecodeEscapes(output)));
 
     [When("the {string} agent completes tool call {string} named {string}")]
     public void WhenTheAgentCompletesToolCallNamed(string role, string toolCallId, string toolName) =>

@@ -25,7 +25,7 @@ Feature: Transcript tool lifecycle state
     Then the backend scenario observes a session started for role "coder" across the control pipe
     When the "coder" agent starts tool call "X" named "powershell"
     And the "coder" agent reports progress "Waiting" for tool call "X"
-    And the "coder" agent emits partial tool output "DONE" for tool call "X"
+    And the "coder" agent emits tool output "DONE" for tool call "X"
     And the "coder" agent reports progress "Finishing" for tool call "X"
     And the "coder" agent completes tool call "X" named "powershell" with detailed output "DONE\nmetadata"
     Then the reconciled transcript for role "coder" contains each of these entries exactly once:

@@ -52,11 +52,11 @@ Feature: Transcript ordinary tool command presentation
     When the backend scenario starts squad-hq with the fake provider fixture
     Then the backend scenario observes a session started for role "coder" across the control pipe
     When the "coder" agent starts tool call "P" named "preview"
-    And the "coder" agent emits partial tool output "preview output" for tool call "P"
+    And the "coder" agent emits tool output "preview output" for tool call "P"
     And the "coder" agent starts tool call "O" named "open_connection"
-    And the "coder" agent emits partial tool output "connection output" for tool call "O"
+    And the "coder" agent emits tool output "connection output" for tool call "O"
     And the "coder" agent starts tool call "T" named "thread_status"
-    And the "coder" agent emits partial tool output "thread output" for tool call "T"
+    And the "coder" agent emits tool output "thread output" for tool call "T"
     Then the backend scenario observes a transcript update for role "coder" with source "tool" and content "preview\npreview output"
     And the backend scenario observes a transcript update for role "coder" with source "tool" and content "open_connection\nconnection output"
     And the backend scenario observes a transcript update for role "coder" with source "tool" and content "thread_status\nthread output"

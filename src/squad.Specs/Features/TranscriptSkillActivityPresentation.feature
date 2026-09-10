@@ -25,7 +25,7 @@ Feature: Transcript skill activity presentation
       """
       {"skill":"project-setup"}
       """
-    And the "coder" agent emits partial tool output "full SKILL.md contents" for tool call "S"
+    And the "coder" agent emits tool output "full SKILL.md contents" for tool call "S"
     And the "coder" agent completes tool call "S" named "skill"
     Then the backend scenario observes role "coder" with no active tool
     When the "coder" agent starts tool call "B" named "dotnet build"

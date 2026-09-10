@@ -1,13 +1,12 @@
 using System.Text.Json;
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
-using squad.CopilotSdk;
 
 namespace squad.Specs.Support;
 
 /// <summary>
 /// Provider-side session for <see cref="FakeAgentProviderFactory"/>. Establishes itself by publishing the real
-/// "started" provider event through the production event channel. Without a control transport, <see cref="SendAsync"/>
+/// "started" provider event through its own test-owned event stream. Without a control transport, <see cref="SendAsync"/>
 /// mirrors the minimal Slice 6 behavior (publish the user message, then go idle) with no prompt handling,
 /// permission, or elicitation behavior. With a control transport, it instead reports the prompt across the pipe
 /// and awaits a semantic reply delivered through <see cref="DeliverReply"/>, publishing it as the real production
@@ -22,17 +21,9 @@ namespace squad.Specs.Support;
 /// </summary>
 internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
 {
-    // A generous capacity keeps a scenario's own rapid, synchronous burst of emits (for example hundreds of
-    // system messages driving transcript paging/retention boundaries) from ever needing the channel's overload
-    // path - real provider sessions size this the same way for the same reason. The overload callback still
-    // fails this session's own completion exactly like the real production session does, so a scenario that
-    // does manage to sustain an overload observes a fast, diagnosable failure instead of every event silently
-    // stopping with no observable error.
-    private const int myEventChannelCapacity = 4096;
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly AgentEventChannel myEvents;
+    private readonly TestAgentEventStream myEvents = new();
     private readonly FakeProviderControlClient? myControl;
-    private readonly CopilotToolOutputNormalizer myToolOutputNormalizer = new();
     private TaskCompletionSource<string>? myPendingReply;
     private bool mySendCanceledBeforeDisposal;
     private long myGeneration;
@@ -45,9 +36,6 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     {
         Role = role;
         myControl = control;
-        myEvents = new AgentEventChannel(
-            myEventChannelCapacity,
-            onOverload: exception => myCompletion.TrySetException(exception));
         myEvents.Publish(new AgentStartedEvent(DateTimeOffset.UtcNow));
     }
 
@@ -270,11 +258,9 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                 myEvents.Publish(new AgentSystemMessageEvent(now, data.GetProperty("content").GetString()!));
                 return null;
             case "tool-started":
-                var startedToolCallId = data.GetProperty("toolCallId").GetString()!;
-                myToolOutputNormalizer.Start(startedToolCallId);
                 myEvents.Publish(new AgentToolStartedEvent(
                     now,
-                    startedToolCallId,
+                    data.GetProperty("toolCallId").GetString()!,
                     data.GetProperty("toolName").GetString()!,
                     GetNullableString(data, "arguments"),
                     GetNullableString(data, "toolKind"),
@@ -288,26 +274,10 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                 myEvents.Publish(new AgentToolOutputChangedEvent(
                     now, data.GetProperty("toolCallId").GetString()!, data.GetProperty("output").GetString()!));
                 return null;
-            case "tool-partial-output":
-                // Applies the same real production CopilotToolOutputNormalizer the live Copilot SDK provider uses
-                // to correlate a tool call's raw partial output fragments - inferring cumulative-snapshot versus
-                // incremental-delta semantics from the data itself, exactly as production does - so a scenario can
-                // prove aggregation, deduplication, and rewritten-snapshot replacement through the real wire
-                // protocol instead of a pre-normalized "tool-output-changed" value.
-                var partialToolCallId = data.GetProperty("toolCallId").GetString()!;
-                var normalizedOutput = myToolOutputNormalizer.Apply(
-                    partialToolCallId, data.GetProperty("partialOutput").GetString()!);
-                if (normalizedOutput is not null)
-                {
-                    myEvents.Publish(new AgentToolOutputChangedEvent(now, partialToolCallId, normalizedOutput));
-                }
-                return null;
             case "tool-completed":
-                var completedToolCallId = data.GetProperty("toolCallId").GetString()!;
-                myToolOutputNormalizer.Complete(completedToolCallId);
                 myEvents.Publish(new AgentToolCompletedEvent(
                     now,
-                    completedToolCallId,
+                    data.GetProperty("toolCallId").GetString()!,
                     data.GetProperty("toolName").GetString()!,
                     data.GetProperty("succeeded").GetBoolean(),
                     GetNullableString(data, "displayOutputFallback"),

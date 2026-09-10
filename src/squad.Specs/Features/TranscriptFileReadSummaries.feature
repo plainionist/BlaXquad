@@ -34,10 +34,10 @@ Feature: Transcript file-read summaries without content leakage
       {"path":"C:\\work\\src\\Main.cs","view_range":[100,1000]}
       """
     Then the backend scenario observes a transcript update for role "coder" with source "read"
-    When the "coder" agent emits partial tool output "file contents" for tool call "R"
+    When the "coder" agent emits tool output "file contents" for tool call "R"
     And the "coder" agent completes tool call "R" named "view" with detailed output "diff --git"
     And the "coder" agent starts tool call "B" named "dotnet build"
-    And the "coder" agent emits partial tool output "Build succeeded" for tool call "B"
+    And the "coder" agent emits tool output "Build succeeded" for tool call "B"
     Then the backend scenario observes a transcript update for role "coder" with source "tool" and content "dotnet build\nBuild succeeded"
     When the backend scenario requests a fresh transcript synchronization
     # A single literal backslash in the actual path requires two literal backslash characters in this data-table
