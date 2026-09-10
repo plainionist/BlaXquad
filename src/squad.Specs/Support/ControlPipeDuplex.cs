@@ -53,6 +53,7 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
         try
         {
             await myWriter.WriteLineAsync(line.AsMemory(), cancellationToken);
+            await myWriter.FlushAsync(cancellationToken);
         }
         finally
         {
@@ -140,7 +141,7 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
                 continue;
             }
 
-            await myOnUnsolicited(root, CancellationToken.None);
+            _ = myOnUnsolicited(root, CancellationToken.None);
         }
 
         FailAllPending(new IOException("The fake-provider control pipe closed before a reply arrived."));

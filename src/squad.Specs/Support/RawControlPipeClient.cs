@@ -36,8 +36,11 @@ internal sealed class RawControlPipeClient : IAsyncDisposable
 
     /// <summary>Sends one raw, hand-built JSON line exactly as given - deliberately malformed for negative-path
     /// specs, unlike the well-formed envelopes the production client always sends.</summary>
-    public Task SendRawLineAsync(string json, CancellationToken cancellationToken = default) =>
-        myWriter.WriteLineAsync(json.AsMemory(), cancellationToken);
+    public async Task SendRawLineAsync(string json, CancellationToken cancellationToken = default)
+    {
+        await myWriter.WriteLineAsync(json.AsMemory(), cancellationToken);
+        await myWriter.FlushAsync(cancellationToken);
+    }
 
     /// <summary>Reads back exactly one response line, parsed for assertion.</summary>
     public async Task<JsonElement> ReadResponseAsync(CancellationToken cancellationToken = default)

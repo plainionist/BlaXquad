@@ -672,17 +672,20 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     {
         lock (myStateLock)
         {
-            var observations = myObservations.Count == 0
-                ? "(none)"
-                : string.Join('\n', myObservations.Select(observation =>
-                    $"{observation.Type} role='{observation.Role}' session='{observation.SessionId}'"));
+            var observations = myObservations.Count switch
+            {
+                0 => "(none)",
+                <= 10 => string.Join('\n', myObservations.Select(o => $"{o.Type} role='{o.Role}' session='{o.SessionId}'")),
+                _ => $"... ({myObservations.Count - 10} earlier observations omitted)\n"
+                    + string.Join('\n', myObservations.TakeLast(10).Select(o => $"{o.Type} role='{o.Role}' session='{o.SessionId}'")),
+            };
             var prompts = myLatestPromptByRole.Count == 0
                 ? "(none)"
                 : string.Join('\n', myLatestPromptByRole.Select(entry => $"role='{entry.Key}' prompt='{entry.Value}'"));
             var genericObservations = myLatestObservationByRoleAndKind.Count == 0
                 ? "(none)"
                 : string.Join('\n', myLatestObservationByRoleAndKind.Select(entry =>
-                    $"role='{entry.Key.Role}' kind='{entry.Key.Kind}' data={entry.Value}"));
+                    $"role='{entry.Key.Role}' kind='{entry.Key.Kind}' data={FormatObservationData(entry.Value)}"));
             var protocolErrors = myProtocolErrors.Count == 0 ? "(none)" : string.Join('\n', myProtocolErrors);
             var provider = $"""
                 Observations:
@@ -696,6 +699,12 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
                 """;
             return additionalDiagnostics is null ? provider : $"{provider}\n{additionalDiagnostics()}";
         }
+    }
+
+    private static string FormatObservationData(JsonElement data)
+    {
+        var raw = data.ToString();
+        return raw.Length <= 160 ? raw : raw[..157] + "...";
     }
 
     private async Task HandleUnsolicitedAsync(JsonElement envelope, CancellationToken cancellationToken)
