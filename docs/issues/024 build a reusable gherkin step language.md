@@ -293,6 +293,15 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 3 review (04cb1511c4) — changes requested
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (removed `When("the backend scenario requests an abort for role {string}")`); `src/squad.Specs/Features/PublishedInteractionsAndResponseOwnership.feature` (still uses that step).
+- **Violated behavior:** Slice 3 migrates only the six abort scenarios. Definition of done requires removing aliases that the slice made unused, not bindings still required by unmigrated features. Every existing behavioral assertion outside this slice must keep working.
+- **Root cause:** The abort-request binding was deleted when `AbortOrdering.feature` switched to `the user aborts role`, but `PublishedInteractionsAndResponseOwnership.feature` (slices 5–6) still says `the backend scenario requests an abort for role "coder"`. The hold/release/fail abort phrases were unused elsewhere and could be renamed; the abort-request phrase was not.
+- **Required outcome:** Restore `the backend scenario requests an abort for role {string}` as an alias of the same `RequestAbort` operation until no remaining feature uses it. Keep `the user aborts role` as the canonical wording in `AbortOrdering.feature`.
+
 ## Slice 2 review (d51034a07e) — accepted
 
 **Status: complete (d51034a07e).** Finding on 95c2f67f47 was addressed: `PromptIsolationAndReadiness.feature` uses dashboard-user prompt and transcript wording, does not name `backend scenario` or the fake-agent control pipe, and keeps the old BackendScenarioSteps phrases as aliases for unmigrated features.
