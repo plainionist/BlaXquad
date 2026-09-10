@@ -192,9 +192,6 @@ public sealed class BackendScenarioSteps
     public void ThenTheAgentObservesAHarnessMessage(string role) =>
         myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
 
-    [When("the backend scenario requests an abort for role {string}")]
-    public void WhenTheBackendScenarioRequestsAnAbortForRole(string role) => myScenario.RequestAbort(role);
-
     [Then("the {string} agent observes an abort")]
     public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());
 
@@ -209,16 +206,16 @@ public sealed class BackendScenarioSteps
         Assert.CatchAsync<TimeoutException>(
             () => myScenario.Agent(role).WaitForPromptAsync(observed => observed == prompt, TimeSpan.FromSeconds(seconds)));
 
-    [When("the backend scenario arms role {string} to hold its next abort pending")]
-    public void WhenTheBackendScenarioArmsRoleToHoldItsNextAbortPending(string role) =>
+    [When("the {string} agent holds its next abort pending")]
+    public void WhenTheAgentHoldsItsNextAbortPending(string role) =>
         Await(myScenario.Agent(role).ArmPendingAbortAsync());
 
-    [When("the backend scenario completes the pending abort for role {string}")]
-    public void WhenTheBackendScenarioCompletesThePendingAbortForRole(string role) =>
+    [When("the {string} agent releases its pending abort")]
+    public void WhenTheAgentReleasesItsPendingAbort(string role) =>
         Await(myScenario.Agent(role).CompletePendingAbortAsync());
 
-    [When("the backend scenario arms role {string} to fail its next abort with message {string}")]
-    public void WhenTheBackendScenarioArmsRoleToFailItsNextAbortWithMessage(string role, string message) =>
+    [When("the {string} agent fails its next abort with message {string}")]
+    public void WhenTheAgentFailsItsNextAbortWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailNextAbortAsync(message));
 
     [When("the backend scenario arms role {string} to hold its next session disposal pending")]

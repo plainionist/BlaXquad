@@ -3,18 +3,19 @@ using squad.Specs.Support;
 namespace squad.Specs.StepDefinitions;
 
 /// <summary>
-/// Dashboard-user language for sending a role-directed prompt and observing the resulting transcript content -
-/// the "Dashboard operations" canonical vocabulary module: a user sends prompts and the dashboard shows transcript
-/// content. Requests the scenario's single <see cref="BackendScenario"/> instance rather than constructing its
-/// own, so it observes the same running process other language modules' steps drive. Sends the prompt and awaits
-/// the real production transcript projection through that shared facade - never a test-owned actor name or the
-/// fake-agent control pipe - so this vocabulary is safe to reuse from any future migrated feature needing the same
-/// dashboard behavior.
+/// Dashboard-user language for sending a role-directed prompt, aborting a role's work, and observing the resulting
+/// transcript content or protocol error - the "Dashboard operations" canonical vocabulary module: a user sends
+/// prompts, aborts work, and the dashboard shows transcript content or a rejection. Requests the scenario's single
+/// <see cref="BackendScenario"/> instance rather than constructing its own, so it observes the same running process
+/// other language modules' steps drive. Drives the real production UI protocol and awaits the real production
+/// transcript projection through that shared facade - never a test-owned actor name or the fake-agent control pipe
+/// - so this vocabulary is safe to reuse from any future migrated feature needing the same dashboard behavior.
 /// </summary>
 [Binding]
 public sealed class DashboardOperationsSteps
 {
     private readonly BackendScenario myScenario;
+    private int myProtocolErrorsObserved;
 
     public DashboardOperationsSteps(BackendScenario scenario)
     {
@@ -24,7 +25,23 @@ public sealed class DashboardOperationsSteps
     [When("the user sends {string} to role {string}")]
     public void WhenTheUserSendsToRole(string prompt, string role) => myScenario.SendPrompt(role, prompt);
 
+    [When("the user aborts role {string}")]
+    public void WhenTheUserAbortsRole(string role) => myScenario.RequestAbort(role);
+
     [Then("the transcript for role {string} contains {string}")]
     public async Task ThenTheTranscriptForRoleContains(string role, string content) =>
         await myScenario.WaitForTranscriptAsync(role, content);
+
+    [Then("the transcript for role {string} does not contain {string} within {int} seconds")]
+    public void ThenTheTranscriptForRoleDoesNotContainWithinSeconds(string role, string content, int seconds) =>
+        Assert.CatchAsync<TimeoutException>(
+            () => myScenario.WaitForTranscriptAsync(role, content, TimeSpan.FromSeconds(seconds)));
+
+    [Then("the user observes a protocol error mentioning {string}")]
+    public async Task ThenTheUserObservesAProtocolErrorMentioning(string text)
+    {
+        var message = await myScenario.WaitForProtocolErrorAsync(skip: myProtocolErrorsObserved);
+        myProtocolErrorsObserved++;
+        Assert.That(message, Does.Contain(text));
+    }
 }
