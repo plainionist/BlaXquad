@@ -58,6 +58,24 @@ scenario.
 `squad-hq` process, the process remains usable after rejected input, and no snapshot, protocol-session, ViewModel, or
 application lifecycle component specification remains.
 
+#### Review findings on 10b6ff14b7
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (`InvalidUiMessage` case
+  `"invalid integer payload"`), `src/squad.Specs/Features/UiProtocolValidation.feature`.
+- **Violated behavior:** Slice 1 item 2 requires preserving the invalid-integer-payload case through JSON
+  input/output and asserting the documented `protocol.error`. The published process rejects a string
+  `beforeIndex` with `The UI message is missing payload.beforeIndex.`
+- **Root cause:** The expected text was copied from the deleted Photino table
+  (`The requested operation requires an element of type 'Number', but the target element has type 'String'.`).
+  `UiCommandHandler.RequirePayloadInt32` uses `TryGetInt32` and maps failure to the missing-payload message;
+  it never calls `JsonElement.GetInt32`. The new process-level scenario therefore asserts a `protocol.error`
+  the real `squad-hq` process does not emit.
+- **Required outcome:** Assert the documented error the published process actually produces for a non-numeric
+  `beforeIndex` (`The UI message is missing payload.beforeIndex.`), not the System.Text.Json `GetInt32`
+  exception text.
+
 ### Slice 2: Keep test providers behind the provider-neutral SPI
 
 1. Replace direct `AgentEventChannel` use in the fake, echo, and controllable provider fixtures with one test-owned
