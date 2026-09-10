@@ -1,0 +1,290 @@
+---
+title: Build a reusable Gherkin step language
+priority: 3
+---
+
+# Build a reusable Gherkin step language
+
+## Problem
+
+The acceptance suite has grown by adding wording for each new feature instead of extending a small language of
+reusable domain operations. The scenarios still cross the correct black-box boundaries, but many of their steps
+describe the test driver that performs an action rather than the actor, action, or observable outcome being
+specified.
+
+Gherkin is also user-facing specification. A feature should be understandable to the user for whom the behavior is
+public without requiring knowledge of the test implementation. `BackendScenario` has no meaning to that user;
+Headquarters, an agent, a configured model, `squad`, `squad-hq`, `blaxquad/squad.json`, a transcript, and a handoff
+do.
+
+A baseline scan of `src/squad.Specs/Features/*.feature` and `src/squad.Specs/StepDefinitions/*.cs` found:
+
+- 52 authored feature files containing 164 scenarios and 1,372 step occurrences;
+- 361 binding attributes across 19 step-definition files;
+- 154 bindings, 43% of the suite, in `BackendScenarioSteps` alone;
+- 695 step occurrences, 51% of all feature steps, that literally mention `backend scenario`;
+- 366 distinct phrases after quoted and numeric example values are normalized; and
+- 191 normalized phrases, 52% of the vocabulary, that occur only once.
+
+The raw number of steps is not itself the defect. The problem is that equivalent concepts have separate dialects,
+data variation is encoded in prose and separate bindings, and scenario choreography is hidden inside one-off steps.
+That makes a new scenario more likely to invent another phrase than compose existing ones.
+
+### Test infrastructure has become the actor
+
+Thirty-four feature files use `backend scenario` in their wording. The most repeated phrases include:
+
+- `the backend scenario observes a session started for role ... across the control pipe` (62 occurrences);
+- `the backend scenario starts squad-hq with the fake provider fixture` (57 occurrences);
+- `the backend scenario has enabled the fake-provider control transport` (57 occurrences);
+- `the backend scenario observes an exit code of zero` (49 occurrences); and
+- `the backend scenario requests a host-control shutdown` (43 occurrences).
+
+`BackendScenario` is a useful test-owned facade, but it is an implementation detail of the bindings. In use-case
+features the actors are the user, an agent, headquarters, the CLI, a project, or a transcript. The facade, fixture,
+and control pipe should not define the language merely because they implement it.
+
+Technical language is appropriate when it names a supported public surface. An operator knows the `squad` and
+`squad-hq` executables, a configuration author knows the checked-in configuration and model settings, and an
+integrator may know a documented UI protocol or agent-provider SPI. A fake-provider fixture, its private control
+pipe, and the `BackendScenario` driver are test implementation details, not public technical language. Features
+whose subject is only that test infrastructure must be recast around the public behavior it enables or removed.
+
+### The same concepts have several dialects
+
+Project and role setup is expressed as, among other variants:
+
+- `a backend scenario configured with a ... role`;
+- `a backend scenario configured with roles ...`;
+- `a configured project with role ...`;
+- `a configured project with roles ...`;
+- `a Git project with context roles ...`;
+- `a git project prepared with a ... role using the fake provider fixture`; and
+- `a role-interaction scenario configured with roles ...`.
+
+Sending a prompt is attributed variously to `the backend scenario`, `the role-interaction scenario`, `the ui`, or
+`the ui client`. Receiving one is `observes`, `has received`, `has eventually received`, or `has not observed`, with
+different bindings for timing and negation. Transcript observation, process startup, session availability, and
+shutdown have similar parallel vocabularies.
+
+These differences mostly identify which support class was introduced with a feature, not different product
+semantics.
+
+### Data variation is encoded as new prose
+
+Several binding families differ only in one value or optional field:
+
+- singular and plural role setup;
+- echo versus fake provider, cancellable startup, and startup without the ready handshake;
+- assistant, reasoning, system, tool, readiness, and usage events, including separate count and content-length
+  variants;
+- permission, input, and elicitation requests and responses with optional choices, URLs, form values, and
+  string-encoded booleans; and
+- transcript observations with different combinations of source, operation, content, state, and entry identity.
+
+The suite already demonstrates that structured tables work well for queue contents and transcript entries, but only
+14 feature files use tables and only two use scenario outlines. Other features encode lists as comma-separated
+strings, booleans as strings, or every supported field combination as a new sentence.
+
+### Some steps encode an entire scenario transition
+
+Steps such as `requests a host-control shutdown as soon as it is reachable while sending the prompt ...` combine
+actors, concurrency, timing, and two commands in one binding. They are difficult to reuse in the next ordering
+scenario. Exact race orchestration may remain an atomic driver operation, but the feature language should express a
+reusable ordering or concurrency relationship rather than the history of one scenario.
+
+## Goal
+
+Create a coherent Gherkin language from which new black-box scenarios can be composed without adding a binding for
+each scenario. Every feature must speak from the perspective of a user of the behavior and use terms from the
+product's public vocabulary. The language should carry variation as typed data and keep the test-owned facade behind
+the bindings.
+
+This is a behavior-preserving test refactoring. It must not change product behavior, weaken assertions, move
+authoritative rules into tests, or introduce production APIs for test convenience.
+
+## Required design
+
+### Write every feature from a user perspective
+
+Choose the user whose behavior is being specified, then write with concepts that user can know:
+
+- an operator knows the squad, Headquarters, the dashboard, roles, agents, models, worktrees, transcripts,
+  interactions, and startup or shutdown;
+- a role's agent knows its role context, worktree, prompts, and the public `squad` commands for handoffs and queued
+  work;
+- a configuration author knows `blaxquad/squad.json`, the constitution and role prompts, and documented
+  configuration fields such as role, model, permissions, worktree, and receive mode; and
+- an integration user knows the documented UI protocol, host-control commands, or agent-provider SPI that they
+  consume or implement.
+
+Use the exact names established by the manual, CLI help, configuration schema, visible dashboard, and supported
+protocols. A term is not user language merely because it is technically precise or names a C# type. Internal
+coordinators, scenario facades, fake implementations, fixtures, private pipes, recording objects, and test timing
+mechanisms stay behind the bindings.
+
+The perspective may be technical. A UI-protocol feature can name public envelope types and fields because its user
+is a protocol client. It must still describe what that client sends or receives, not how the test harness records
+the exchange. Likewise, provider specifications may use the public provider contract without naming the fake
+provider used to exercise it.
+
+### Define the vocabulary before migrating it
+
+Inventory the current bindings by semantic capability rather than by feature or support class. Derive canonical
+terms from `docs/manual/glossary.md`, the rest of the manual, CLI help, the public configuration shape, and documented
+protocols. Define language modules for these cohesive areas:
+
+- project, role, worktree, model, and prompt configuration;
+- Headquarters lifecycle and the public `squad-hq` commands;
+- dashboard actions and role-directed prompts;
+- role-local `squad` commands;
+- agent sessions, replies, failures, and operation control;
+- pending user interactions and responses;
+- transcript events, synchronization, paging, and archival;
+- handoffs, delivery, and task queues; and
+- documented UI-protocol and agent-provider contract behavior.
+
+Use one actor name and one verb for each meaning. A scenario facade may implement steps from several vocabularies,
+but its type name must not become a second actor. Keep genuinely different semantics separate even when their code
+could share a helper.
+
+The canonical vocabulary and the rules below belong in `docs/manual/test-strategy.md` so future scenarios extend the
+language instead of restarting it.
+
+### Choose the right form of variation
+
+Use the smallest form that preserves readable behavior:
+
+- use a typed parameter when one scalar value varies;
+- use a data table for collections, records with optional fields, ordered event streams, or groups of related
+  observations;
+- use a scenario outline when the same behavior is exercised for a matrix of examples; and
+- use separate steps when the behavior or externally observable meaning is actually different.
+
+Replace comma-separated lists and string-encoded booleans where a table or typed conversion communicates the shape.
+Do not replace many narrow phrases with one opaque mega-step whose generic table is a programming language in
+disguise.
+
+Candidate forms to validate during the migration include:
+
+```gherkin
+Given `blaxquad/squad.json` configures:
+  | role     | model     | receive mode |
+  | coder    | gpt-5     | task         |
+  | reviewer | gpt-5     | batch        |
+
+When the user launches Headquarters with `squad-hq launch`
+Then Headquarters starts agent sessions for:
+  | role     |
+  | coder    |
+  | reviewer |
+
+When the user sends "Review the change" to "reviewer"
+Then the "reviewer" agent receives "Review the change"
+
+When the "coder" agent emits these events:
+  | type            | content     |
+  | assistant-delta | Hello       |
+  | assistant-delta | world       |
+  | assistant       | Hello world |
+
+Then the transcript for "coder" publishes:
+  | operation      | source    | content     |
+  | append-entry   | assistant | Hello       |
+  | append-content |            | world       |
+  | replace        | assistant | Hello world |
+```
+
+These examples show direction, not mandatory final wording. The implemented vocabulary must fit all existing
+scenarios without losing distinctions such as incremental versus synchronized transcript state.
+
+### Make steps composable
+
+Each step should establish one meaningful precondition, perform one actor action, or observe one outcome from the
+chosen user's perspective. Repeated environment preparation may be one semantic `Given`; it does not need to expose
+every process and pipe operation.
+
+For concurrent and failure scenarios, introduce reusable concepts such as a pending operation, an independently
+started command, a released operation, or an action performed while another action is pending. Do not create a new
+sentence that hard-codes every pair of concurrent actions. Synchronization must remain deterministic and use the
+existing observable acknowledgements and bounded waits.
+
+Use `Background` for readable state shared by scenarios. Keep fixture selection in test setup when it is not part of
+the behavior under specification. Do not hide a contract-relevant precondition in a hook.
+
+### Organize bindings by language domain
+
+Split the responsibilities currently collected in `BackendScenarioSteps` into cohesive binding classes for the
+canonical vocabularies. Keep one scenario-scoped `BackendScenario` owner so splitting bindings does not construct
+multiple composition roots or duplicate teardown.
+
+Binding classes are language modules, not one class per feature. Remove migrated aliases instead of retaining old
+and new phrasings indefinitely. Shared parsing and table conversion may be extracted when it removes real
+duplication, but step methods should continue to delegate behavior to the test-owned scenario facade rather than
+reimplementing protocol or domain rules.
+
+## Implementation plan
+
+1. For every feature, identify its user and map its nouns and verbs to the glossary, manual, CLI help, configuration,
+  UI, or a documented public protocol. Mark test-only terms that must disappear.
+2. Produce the semantic binding inventory and add the user-language and canonical-vocabulary rules to the backend
+  test strategy.
+3. Migrate the common scenario spine first: project roles, Headquarters startup, session availability, shutdown,
+   prompt delivery, agent reply, and transcript content. Use it from all affected features before deleting aliases.
+4. Consolidate interaction requests and responses with typed values and tables for optional structured fields.
+5. Consolidate provider event streams and transcript observations, preserving ordering, incremental update,
+   synchronization, paging, and archival semantics.
+6. Consolidate CLI, handoff, delivery, and queue language only where concepts are genuinely shared; do not erase
+   their separate domain meanings.
+7. Review every remaining single-scenario binding. Merge data-only variants and retain a specialized phrase only
+   when it names a unique externally observable contract.
+8. Review features currently centered on `BackendScenario`, backend-spec workspace support, the headless test client,
+  or the fake-provider control protocol. Recast valuable coverage around the public executable, configuration, UI
+  protocol, or provider contract; remove scenarios that only specify test support. Do not preserve test-only
+  vocabulary as an exception.
+9. Remove obsolete bindings and split the remaining definitions into cohesive language modules. Do not edit
+   generated `*.feature.cs` files by hand.
+
+Run the black-box specification suite after each migration slice so ambiguous bindings, state leakage, and changed
+wait semantics are detected close to the edit that caused them.
+
+## Acceptance criteria
+
+- `docs/manual/test-strategy.md` requires a user perspective and defines the canonical actors, public nouns, verbs,
+  parameter conventions, and table conventions.
+- Every feature is written for an identifiable operator, role agent, configuration author, UI-protocol client,
+  provider implementer, or other user of a documented public surface.
+- Feature language comes from the glossary, manual, CLI help, public configuration, visible UI, or a supported
+  protocol/SPI. Public technical terms such as `squad`, `squad-hq`, `blaxquad/squad.json`, roles, agents, models,
+  Headquarters, transcripts, handoffs, and protocol messages remain available where relevant.
+- No feature names `BackendScenario`, a role-interaction scenario, a backend-spec fixture, a fake-provider fixture or
+  control pipe, a recording object, or another test-support type as an actor or observable result.
+- Features currently devoted to test infrastructure are either recast to specify public behavior or removed when
+  they provide no independent user-facing contract.
+- Project/role setup, headquarters lifecycle, prompt delivery, agent reply, transcript content, and shutdown each
+  have one canonical vocabulary used across feature files.
+- No two bindings differ only by singular versus plural wording, provider choice, a boolean, a count, content
+  length, or the presence of an optional field. Such variation uses typed parameters, tables, scenario outlines, or
+  explicit setup state as appropriate.
+- Lists and structured values are not passed as comma-separated or string-encoded values when a Reqnroll table or
+  typed conversion expresses them directly.
+- Ordered provider events and groups of transcript or interaction observations use reusable table-backed steps
+  where that improves composition; distinct observable semantics remain explicit.
+- Race and lifecycle scenarios compose reusable pending/start/release/observe operations instead of adding
+  scenario-specific multi-action sentences.
+- Every remaining binding used by only one scenario has been reviewed and represents a genuinely unique observable
+  contract, not data variation or support-class naming.
+- `BackendScenarioSteps` no longer owns unrelated lifecycle, interaction, transcript, provider-event, workspace, and
+  protocol vocabularies. The split bindings share one scenario-scoped facade and one teardown owner.
+- Migrated aliases and unused step definitions are removed. The refactoring leaves no compatibility vocabulary that
+  merely preserves the old wording.
+- All existing black-box behaviors and deterministic synchronization guarantees remain covered, and the complete
+  `squad.Specs` suite passes without production-code changes made solely for the tests.
+
+## Non-goals
+
+- Reorganizing `src/squad.Specs/Support`, deciding which support exceptions are necessary, or classifying fake
+  implementations. That work is tracked separately by `step support is huge.md`.
+- Replacing meaningful domain language with generic `execute action` or `observe value` steps.
+- Hiding fields, messages, commands, or failure details that are part of a documented public protocol or API.
+- Changing product behavior or adding lower-level tests.
