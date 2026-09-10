@@ -265,7 +265,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 5 | Structured interaction publication and ownership [done] | Migrate the first four scenarios of `PublishedInteractionsAndResponseOwnership.feature`. Use typed values and tables for choices, form values, URLs, optional fields, and booleans while keeping permission, input, and elicitation semantics distinct. | Every supported interaction field is published, a response reaches only its owning role and request, wrong or duplicate responses are rejected, and equal request IDs remain isolated by role. |
 | 6 | Interaction cancellation and retained context [done] | Migrate the final three scenarios of `PublishedInteractionsAndResponseOwnership.feature` together with `TranscriptPendingInteractionRetention.feature`. | Abort, session failure, and shutdown cancel pending interactions, late responses are rejected, and a still-pending interaction retains visible transcript context across live-history eviction. |
 | 7 | Usage and readiness publication [done] | Migrate `ActiveUsageRefresh.feature` into the dashboard and agent-session language modules. | Usage updates are visible while an agent is working, idle preserves the newest values, and a stale checkpoint cannot overwrite newer usage. |
-| 8 | Transcript entry streams | Migrate `TranscriptProtocolShape.feature` and `TranscriptStreamFinalization.feature`; introduce table-backed event emission and transcript observation only where the table has a fixed, typed schema. | All public entry sources retain their protocol fields, assistant and reasoning deltas update one entry, final messages replace drafts, and idle closes a reasoning stream. |
+| 8 | Transcript entry streams [done] | Migrate `TranscriptProtocolShape.feature` and `TranscriptStreamFinalization.feature`; introduce table-backed event emission and transcript observation only where the table has a fixed, typed schema. | All public entry sources retain their protocol fields, assistant and reasoning deltas update one entry, final messages replace drafts, and idle closes a reasoning stream. |
 | 9 | Transcript synchronization races | Migrate `TranscriptSynchronizationOrder.feature` using reusable independently-started synchronization and ordered event operations. | A synchronization racing a stream or concurrent publication reconciles every entry exactly once and in every order guaranteed by the protocol. |
 | 10 | Transcript history paging and cleanup | Migrate `TranscriptHistoryPaging.feature`. Keep request coordinates and archive paths behind bindings. | A UI-protocol client can combine bounded synchronization with previous pages without gaps or duplicates, retrieve retained archived entries, and observe temporary history disappear at shutdown. |
 | 11 | Transcript retention and truncation | Migrate `TranscriptActiveStreamRetention.feature` and `TranscriptOversizedContent.feature`. Replace repeated size-specific prose with typed counts or tables without hiding live, announcement, per-entry archive, and total-archive limits. | Active streams remain appendable across eviction, every independently bounded representation reports truncation accurately, and rotated content is reported unavailable. |
@@ -293,9 +293,9 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
-## Slice 8 review (186dad1e69) — changes requested
+## Slice 8 review (4dc5240d95) — accepted
 
-Background, prompt send, and shutdown now use canonical vocabulary, but the migrated features still name `backend scenario` as the actor that observes transcript updates and requests synchronization.
+**Status: complete (4dc5240d95).** Finding on 186dad1e69 was addressed: both migrated features observe transcript updates and request synchronization in dashboard/user language, with no `backend scenario` actor. Old BackendScenarioSteps phrases remain as aliases for unmigrated transcript features.
 
 ### Finding 1 — High
 
