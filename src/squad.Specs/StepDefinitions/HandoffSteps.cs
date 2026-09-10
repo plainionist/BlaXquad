@@ -64,6 +64,10 @@ public sealed class HandoffSteps
     public void WhenRoleQueuesTheHandoff(string role) =>
         myWorkspace.RunRoleTool(role, "squad", ["handoff", myWorkspace.Get<string>(DraftPathKey)]);
 
+    [When("the {string} role agent runs `squad handoff` from its worktree")]
+    public void WhenTheRoleAgentRunsSquadHandoffFromItsWorktree(string role) =>
+        myWorkspace.RunRoleTool(role, "squad", ["handoff", myWorkspace.Get<string>(DraftPathKey)]);
+
     [Then("the draft is removed")]
     public void ThenTheDraftIsRemoved() =>
         Assert.That(File.Exists(myWorkspace.Get<string>(DraftPathKey)), Is.False);

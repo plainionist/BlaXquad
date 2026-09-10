@@ -13,7 +13,7 @@ Feature: Creating outbound handoffs
     And "coder" prepares a Git handoff with priority "20" and task "implement-search" to:
       | role     |
       | reviewer |
-    When "coder" queues the handoff
+    When the "coder" role agent runs `squad handoff` from its worktree
     Then the command succeeds
     And the draft is removed
     And one handoff is queued
@@ -29,7 +29,7 @@ Feature: Creating outbound handoffs
       | role      |
       | reviewer  |
       | architect |
-    When "coder" queues the handoff
+    When the "coder" role agent runs `squad handoff` from its worktree
     Then the command succeeds
     And one handoff is queued
     And the queued handoff was sent by "coder" to:
@@ -47,7 +47,7 @@ Feature: Creating outbound handoffs
       completed_at: yesterday
       message: Please inspect the delivery result.
       """
-    When "coder" queues the handoff
+    When the "coder" role agent runs `squad handoff` from its worktree
     Then the command exits with code 2
     And standard error contains "priority"
     And standard error contains "reserved"
