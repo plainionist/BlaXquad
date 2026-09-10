@@ -326,14 +326,6 @@ public sealed class BackendScenarioSteps
     public void ThenTheAgentHasNotObservedAnElicitationResponse(string role) =>
         Assert.That(myScenario.Agent(role).HasReceivedElicitationResponse(), Is.False);
 
-    [Then("the backend scenario observes a protocol error mentioning {string}")]
-    public void ThenTheBackendScenarioObservesAProtocolErrorMentioning(string text)
-    {
-        var message = Await(myScenario.WaitForProtocolErrorAsync(skip: myProtocolErrorsObserved));
-        myProtocolErrorsObserved++;
-        Assert.That(message, Does.Contain(text));
-    }
-
     // The envelope shape and its exact error text live in the scenario outline's own examples table - this
     // binding only frames a UI-protocol client's wire send, never reinterprets the contract in C#, so a
     // regression in the real UiMessageReader/UiCommandHandler validation pipeline (squad.Ui.Protocol) changes
