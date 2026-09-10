@@ -63,6 +63,37 @@ public sealed class DashboardOperationsSteps
     public async Task ThenTheDashboardShowsNoPendingPermissionForRole(string requestId, string role) =>
         await myScenario.WaitForNoPendingPermissionAsync(role, requestId);
 
+    [Then("the dashboard shows a pending input {string} for role {string} with prompt {string}:")]
+    public async Task ThenTheDashboardShowsAPendingInputForRoleWithPrompt(string requestId, string role, string prompt, Table table)
+    {
+        var row = SingleRow(table, InputRequestColumns, "pending input");
+        await myScenario.WaitForPendingInputAsync(role, requestId, prompt, ParseChoices(row["choices"]), bool.Parse(row["freeform"]));
+    }
+
+    [Then("the dashboard shows a pending elicitation {string} for role {string} with prompt {string}:")]
+    public async Task ThenTheDashboardShowsAPendingElicitationForRoleWithPrompt(string requestId, string role, string prompt, Table table)
+    {
+        var row = SingleRow(table, ElicitationRequestColumns, "pending elicitation");
+        var url = row["url"];
+        await myScenario.WaitForPendingElicitationAsync(role, requestId, prompt, row["mode"], url.Length == 0 ? null : url);
+    }
+
+    [When("the user responds to permission {string} for role {string} with approved {string}")]
+    public void WhenTheUserRespondsToPermissionForRoleWithApproved(string requestId, string role, string approved) =>
+        myScenario.RespondToPermission(role, requestId, bool.Parse(approved));
+
+    [When("the user responds to input {string} for role {string} with answer {string}")]
+    public void WhenTheUserRespondsToInputForRoleWithAnswer(string requestId, string role, string answer) =>
+        myScenario.RespondToInput(role, requestId, answer);
+
+    [When("the user responds to elicitation {string} for role {string} with action {string}:")]
+    public void WhenTheUserRespondsToElicitationForRoleWithAction(string requestId, string role, string action, Table table)
+    {
+        var row = SingleRow(table, ElicitationResponseColumns, "elicitation response");
+        var formValue = row["form value"];
+        myScenario.RespondToElicitation(role, requestId, action, formValue.Length == 0 ? null : new { answer = formValue });
+    }
+
     [When("the user requests a fresh transcript synchronization for role {string}")]
     public async Task WhenTheUserRequestsAFreshTranscriptSynchronizationForRole(string role)
     {
@@ -83,5 +114,43 @@ public sealed class DashboardOperationsSteps
         Assert.That(
             myAwaitedTranscriptSynchronization.Entries.Any(entry => entry.Content.Contains(content, StringComparison.Ordinal)),
             Is.False);
+    }
+
+    private static readonly IReadOnlySet<string> InputRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "choices", "freeform" };
+    private static readonly IReadOnlySet<string> ElicitationRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "mode", "url" };
+    private static readonly IReadOnlySet<string> ElicitationResponseColumns = new HashSet<string>(StringComparer.Ordinal) { "form value" };
+
+    /// <summary>Splits a comma-separated choices column into a list, or null for an empty column - representing
+    /// a pending input shown without any choices at all, rather than an empty choices list.</summary>
+    private static IReadOnlyList<string>? ParseChoices(string commaSeparatedChoices) =>
+        commaSeparatedChoices.Length == 0
+            ? null
+            : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>Returns the single data row of a record-shaped step table, after validating it declares only its
+    /// supported column(s) and exactly one row - one field per column, an empty cell meaning that field is absent,
+    /// rather than a comma-encoded value or a second step text variant per combination of present/absent fields.</summary>
+    private static DataTableRow SingleRow(Table table, IReadOnlySet<string> supportedColumns, string tableName)
+    {
+        var unknownColumns = table.Header.Where(column => !supportedColumns.Contains(column)).ToList();
+        if (unknownColumns.Count > 0)
+        {
+            throw new ArgumentException(
+                $"{tableName} table declares unsupported column(s): {string.Join(", ", unknownColumns)}. " +
+                $"Supported column(s): {string.Join(", ", supportedColumns)}.");
+        }
+
+        var missingColumns = supportedColumns.Where(column => !table.Header.Contains(column)).ToList();
+        if (missingColumns.Count > 0)
+        {
+            throw new ArgumentException($"{tableName} table must declare column(s): {string.Join(", ", missingColumns)}.");
+        }
+
+        if (table.RowCount != 1)
+        {
+            throw new ArgumentException($"{tableName} table must declare exactly one row.");
+        }
+
+        return table.Rows[0];
     }
 }

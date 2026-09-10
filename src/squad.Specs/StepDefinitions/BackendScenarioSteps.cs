@@ -179,10 +179,6 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentRepliesWith(string role, string content) =>
         Await(myScenario.Agent(role).ReplyAsync(content));
 
-    [Then("the backend scenario observes the transcript for role {string} containing {string}")]
-    public void ThenTheBackendScenarioObservesTheTranscriptForRoleContaining(string role, string content) =>
-        Await(myScenario.WaitForTranscriptAsync(role, content));
-
     [Then("the {string} agent observes a harness message")]
     public void ThenTheAgentObservesAHarnessMessage(string role) =>
         myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
@@ -288,14 +284,12 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentRequestsInputWithPrompt(string role, string requestId, string prompt) =>
         Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt));
 
-    [When("the {string} agent requests input {string} with prompt {string} and choices {string} and freeform {string}")]
-    public void WhenTheAgentRequestsInputWithPromptAndChoicesAndFreeform(
-        string role, string requestId, string prompt, string commaSeparatedChoices, string allowFreeform) =>
-        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt, ParseChoices(commaSeparatedChoices), bool.Parse(allowFreeform)));
-
-    [When("the backend scenario responds to input {string} for role {string} with answer {string}")]
-    public void WhenTheBackendScenarioRespondsToInputForRoleWithAnswer(string requestId, string role, string answer) =>
-        myScenario.RespondToInput(role, requestId, answer);
+    [When("the {string} agent requests input {string} with prompt {string}:")]
+    public void WhenTheAgentRequestsInputWithPromptAndFields(string role, string requestId, string prompt, Table table)
+    {
+        var row = SingleRow(table, InputRequestColumns, "input request");
+        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt, ParseChoices(row["choices"]), bool.Parse(row["freeform"])));
+    }
 
     [Then("the {string} agent observes an input response for {string} with answer {string}")]
     public void ThenTheAgentObservesAnInputResponseForWithAnswer(string role, string requestId, string answer)
@@ -308,44 +302,28 @@ public sealed class BackendScenarioSteps
         });
     }
 
-    [When("the {string} agent requests elicitation {string} with prompt {string} and mode {string}")]
-    public void WhenTheAgentRequestsElicitationWithPromptAndMode(string role, string requestId, string prompt, string mode) =>
-        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, mode));
-
-    [When("the {string} agent requests URL elicitation {string} with prompt {string} and url {string}")]
-    public void WhenTheAgentRequestsUrlElicitationWithPromptAndUrl(string role, string requestId, string prompt, string url) =>
-        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, "url", url));
-
-    [When("the backend scenario responds to elicitation {string} for role {string} with action {string}")]
-    public void WhenTheBackendScenarioRespondsToElicitationForRoleWithAction(string requestId, string role, string action) =>
-        myScenario.RespondToElicitation(role, requestId, action);
-
-    [When("the backend scenario responds to elicitation {string} for role {string} with action {string} and form value {string}")]
-    public void WhenTheBackendScenarioRespondsToElicitationForRoleWithActionAndFormValue(
-        string requestId, string role, string action, string formValue) =>
-        myScenario.RespondToElicitation(role, requestId, action, new { answer = formValue });
-
-    [Then("the {string} agent observes an elicitation response for {string} with action {string}")]
-    public void ThenTheAgentObservesAnElicitationResponseForWithAction(string role, string requestId, string action)
+    [When("the {string} agent requests elicitation {string} with prompt {string}:")]
+    public void WhenTheAgentRequestsElicitationWithPromptAndFields(string role, string requestId, string prompt, Table table)
     {
-        var response = Await(myScenario.Agent(role).WaitForElicitationResponseAsync());
-        Assert.Multiple(() =>
-        {
-            Assert.That(response.RequestId, Is.EqualTo(requestId));
-            Assert.That(response.Action, Is.EqualTo(action));
-        });
+        var row = SingleRow(table, ElicitationRequestColumns, "elicitation request");
+        var url = row["url"];
+        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, row["mode"], url.Length == 0 ? null : url));
     }
 
-    [Then("the {string} agent observes an elicitation response for {string} with action {string} and form value {string}")]
-    public void ThenTheAgentObservesAnElicitationResponseForWithActionAndFormValue(
-        string role, string requestId, string action, string formValue)
+    [Then("the {string} agent observes an elicitation response for {string} with action {string}:")]
+    public void ThenTheAgentObservesAnElicitationResponseForWithActionAndFields(string role, string requestId, string action, Table table)
     {
+        var row = SingleRow(table, ElicitationResponseColumns, "elicitation response");
+        var formValue = row["form value"];
         var response = Await(myScenario.Agent(role).WaitForElicitationResponseAsync());
         Assert.Multiple(() =>
         {
             Assert.That(response.RequestId, Is.EqualTo(requestId));
             Assert.That(response.Action, Is.EqualTo(action));
-            Assert.That(response.Content?.GetProperty("answer").GetString(), Is.EqualTo(formValue));
+            if (formValue.Length > 0)
+            {
+                Assert.That(response.Content?.GetProperty("answer").GetString(), Is.EqualTo(formValue));
+            }
         });
     }
 
@@ -1137,10 +1115,43 @@ public sealed class BackendScenarioSteps
     /// <summary>Splits a comma-separated choices column into a list, or null for an empty column - representing
     /// an input request published or observed without any choices at all, rather than an empty choices list.</summary>
     private static IReadOnlyList<string>? ParseChoices(string commaSeparatedChoices) =>
-        commaSeparatedChoices.Length == 0 ? null : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        commaSeparatedChoices.Length == 0
+            ? null
+            : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>Treats an empty step-table cell as an absent (null) value - used for the subagent metadata
     /// columns, where an empty column represents a real production fallback (no agent name, display name, or
     /// model reported), not the literal empty string.</summary>
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
+
+    private static readonly IReadOnlySet<string> InputRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "choices", "freeform" };
+    private static readonly IReadOnlySet<string> ElicitationRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "mode", "url" };
+    private static readonly IReadOnlySet<string> ElicitationResponseColumns = new HashSet<string>(StringComparer.Ordinal) { "form value" };
+
+    /// <summary>Returns the single data row of a record-shaped step table, after validating it declares only its
+    /// supported column(s) and exactly one row - one field per column, an empty cell meaning that field is absent,
+    /// rather than a comma-encoded value or a second step text variant per combination of present/absent fields.</summary>
+    private static DataTableRow SingleRow(Table table, IReadOnlySet<string> supportedColumns, string tableName)
+    {
+        var unknownColumns = table.Header.Where(column => !supportedColumns.Contains(column)).ToList();
+        if (unknownColumns.Count > 0)
+        {
+            throw new ArgumentException(
+                $"{tableName} table declares unsupported column(s): {string.Join(", ", unknownColumns)}. " +
+                $"Supported column(s): {string.Join(", ", supportedColumns)}.");
+        }
+
+        var missingColumns = supportedColumns.Where(column => !table.Header.Contains(column)).ToList();
+        if (missingColumns.Count > 0)
+        {
+            throw new ArgumentException($"{tableName} table must declare column(s): {string.Join(", ", missingColumns)}.");
+        }
+
+        if (table.RowCount != 1)
+        {
+            throw new ArgumentException($"{tableName} table must declare exactly one row.");
+        }
+
+        return table.Rows[0];
+    }
 }
