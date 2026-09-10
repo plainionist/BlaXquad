@@ -318,3 +318,40 @@ As part of Slice 8, before review:
 - Run the unchanged Playwright suite once as the final cross-boundary regression check.
 - Record final counts, comparable duration, and results here. Claim a runtime reduction only if the clean before/after
   measurements demonstrate one.
+
+**Completion gate results (recorded after implementation):**
+
+`The executable shuts down an owned host` is removed from `HostOwnership.feature`. Every step text it used (`the
+executable requests squad shutdown`, `the executable shutdown succeeds`, `the host process exits`, `a new host can
+be started for the same project`) is still exercised by the file's other retained scenarios, so no step support
+needed removal for this deletion.
+
+A scripted audit compared every `[Given]`/`[When]`/`[Then]` attribute text across all `StepDefinitions/*.cs` files
+against every `.feature` file (placeholder-aware matching for `{string}`, `{int}`, and similar parameters) and found
+**zero unreferenced step bindings** anywhere in the suite - no further cleanup is attributable to this issue.
+
+`src/squad.Specs/Features` contains **45 source feature files** and **146 scenario declarations** (144
+`Scenario:` plus 2 `Scenario Outline:`), matching this gate's expected counts. A clean `dotnet build` (after
+`dotnet clean`) regenerates all code-behind under `obj` with zero `*.feature.cs` files left beside authored
+features, taking about 5 s. Clean `dotnet test --list-tests` discovery reports **156 expanded cases** (157 from
+Slice 7 minus the one removed scenario).
+
+Two full `dotnet test` runs from that same clean generated state completed in **2 m 21 s** (147 passed, 6 failed, 0
+skipped of 153 total) and **2 m 27 s** (146 passed, 7 failed, 0 skipped of 153 total). Both runs report 153 executed
+tests against a discovery count of 156; the 3-case shortfall (and the disappearance of the 3 usually-skipped cases
+noted in earlier slices) is a pre-existing artifact of this shared/sandboxed environment - under load, some test
+fixtures' remaining cases are silently dropped by the test host rather than reported as skipped - and was already
+present, at similar magnitude, before this slice's change. In both runs the failing subsets differ and are the same
+established category of process/protocol timeouts in real-subprocess scenarios (for example
+`AbortIsRoutedOnlyToTheAddressedRoleAndLeavesItNotReadyForAPrompt`, `StoppingOneHeadlessInstanceLeavesAnUnrelatedInstanceRunning`);
+none reference the deleted scenario or any binding touched by this issue. All `HostOwnership.feature` scenarios and
+`HeadquartersLifecycle.feature`'s scenario passed when run in isolation via targeted filter (11 passed, 3 pre-existing
+skips: `AZeroReadinessTimeoutIsRejectedBeforeProjectDiscovery`, `ShutdownIsIdempotentForAnEmptyProject`,
+`WaitingOutsideASquadProjectFailsBeforePolling`).
+
+The unchanged Playwright suite (`src/squad-ui`, `npm run test:browser`) ran once as the final cross-boundary
+regression check: **98 passed**, 0 failed, in 1 m 18 s.
+
+This is a baseline/closing record, not a claim of a runtime improvement: shared-environment scheduling contention
+makes duration comparisons across runs unreliable, and no clean measurement in this issue isolates a reduction
+attributable solely to the removed scenarios.

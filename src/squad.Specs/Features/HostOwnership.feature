@@ -10,13 +10,6 @@ Feature: Squad host ownership
     Then the executable shutdown succeeds
     And the host process exits
 
-  Scenario: The executable shuts down an owned host
-    Given a squad host is running
-    When the executable requests squad shutdown
-    Then the executable shutdown succeeds
-    And the host process exits
-    And a new host can be started for the same project
-
   Scenario: Shutdown accepts an equivalent project path
     Given a squad host is running
     When the executable requests shutdown for an equivalent project path
