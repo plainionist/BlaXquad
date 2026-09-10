@@ -23,7 +23,7 @@ fake-provider control, host-control commands, and filesystem setup stay behind t
 fixtures that intentionally exercise valid, incompatible, and throwing plug-in descriptors remain narrow test inputs,
 not alternate runtime harnesses.
 
-### Slice 1: Drive active usage through the shared fake-provider scenario
+### Slice 1 [done]: Drive active usage through the shared fake-provider scenario
 
 1. Extend the existing fake-provider control protocol and `BackendScenario`/`BackendScenarioAgent` facade with
    semantic operations for publishing context/AIC usage while a send remains active and for completing that send with
@@ -38,6 +38,12 @@ not alternate runtime harnesses.
 
 **Slice acceptance:** The active-usage scenarios retain their current observable ordering through the published
 process, while the shared fake provider and scenario facade are their only provider-control and process-driving path.
+
+**Status: complete (053fbe4a82).** `ActiveUsageRefresh` configures, launches, commands, and observes the published
+`squad-hq` process only through `BackendScenario` and `FakeAgentProviderFactory`. `ReportUsageAsync` and
+`CompleteWithIdleUsageAsync` publish context/AIC usage while a send remains active and complete it with final usage
+and idle; `WaitForRoleUsageSnapshotAsync` keeps the working-then-idle ordering and stale-AIC assertions.
+`ControllableAgentProviderFactory`, its backend/runtime/session types, and `UsageControlChannel` are removed.
 
 ### Slice 2: Centralize stdio and multi-process scenarios on the process driver
 
