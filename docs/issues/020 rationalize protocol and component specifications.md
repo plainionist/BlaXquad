@@ -64,7 +64,7 @@ application lifecycle component specification remains.
 `51d67b9326` closes the review finding on the integer-payload error text: `JsonElement.TryGetInt32` throws
 `InvalidOperationException` when `ValueKind` is not `Number`, so the asserted `protocol.error` matches production.
 
-### Slice 2: Keep test providers behind the provider-neutral SPI
+### Slice 2 [done]: Keep test providers behind the provider-neutral SPI
 
 1. Replace direct `AgentEventChannel` use in the fake, echo, and controllable provider fixtures with one test-owned
    event-stream implementation over framework primitives. Keep event publication, completion, cancellation, and
@@ -85,6 +85,12 @@ application lifecycle component specification remains.
 **Slice acceptance:** The backend suite still proves ordered provider events, tool-output publication, session failure,
 and clean shutdown through the process boundary, while no test constructs `AgentEventChannel` or
 `CopilotSdkAgentSession` and the test assembly has no `squad.CopilotSdk` dependency.
+
+**Status: complete (10f86944c5).** Fake, echo, and controllable fixtures publish through test-owned
+`TestAgentEventStream` and expose only `IAgentSession.Events`. `AgentEventChannelTests.cs` and direct
+`CopilotSdkAgentSession` tests are gone. The fake provider emits complete `AgentToolOutputChangedEvent` values
+without `CopilotToolOutputNormalizer`; tool-output features describe that provider-neutral contract.
+`squad.Specs` no longer references `squad.CopilotSdk`.
 
 ## Acceptance criteria
 
