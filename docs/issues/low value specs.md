@@ -182,7 +182,7 @@ the exact `Unknown role: <role>` protocol error, no provider invocation, and con
 and `HeadlessUiClientSteps.cs` are removed; the `HeadlessUiClient` helper remains. Clean discovery is 171 expanded
 cases.
 
-### Slice 3 - Preserve interaction transcript coverage [in progress]
+### Slice 3 - Preserve interaction transcript coverage [done]
 
 **Outcome:** Permission, input, and elicitation requests remain covered as published transcript interactions while
 fake-agent API self-tests are removed.
@@ -200,6 +200,10 @@ fake-agent API self-tests are removed.
   supported transcript fields.
 - Focused published-interaction, abort, transcript-streaming, usage, and terminated-session scenarios pass after the
   helper-only feature is removed.
+
+**Status: complete (dbd269532f).** Permission, input, and elicitation requests are observed in the published-interactions
+field-coverage scenario both as protocol pending state and as transcript content. `FakeAgentEventSurface.feature` is
+removed; unreferenced helper-only bindings were pruned. Clean discovery is 164 expanded cases.
 
 ### Slice 4 - Consolidate vertical process proofs [queued]
 
