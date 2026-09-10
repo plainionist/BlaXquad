@@ -4,6 +4,7 @@ using squad.Configuration;
 using squad.Handoffs;
 using squad.Handoffs.Delivery;
 using squad.Application;
+using squad.Issues;
 using squad.Photino;
 using squad.Stdio;
 using squad.Ui.Abstractions;
@@ -132,7 +133,8 @@ static class Launch
             {
                 var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var runtime = Create(context.WorkingDir, viewModel, agentProviderFactory, uiMode);
+                var issueCatalog = new WorkspaceIssueCatalog(context.WorkingDir);
+                var runtime = Create(context.WorkingDir, viewModel, issueCatalog, agentProviderFactory, uiMode);
                 var startupPlan = SquadStartupPlanFactory.ForWorkspace(
                     context,
                     preparer,
@@ -193,10 +195,10 @@ static class Launch
         }
     }
 
-    private static RuntimeMode Create(string workingDirectory, ISquadUi ui, IAgentProviderFactory agentProviderFactory, UiMode uiMode) =>
+    private static RuntimeMode Create(string workingDirectory, ISquadUi ui, IIssueCatalog issueCatalog, IAgentProviderFactory agentProviderFactory, UiMode uiMode) =>
         new(
             agentProviderFactory,
-            uiMode == UiMode.Stdio ? new StdioWindowHost(ui) : new PhotinoWindowHost(ui, workingDirectory),
+            uiMode == UiMode.Stdio ? new StdioWindowHost(ui, issueCatalog) : new PhotinoWindowHost(ui, issueCatalog, workingDirectory),
             new SleepInhibitor());
 
     // Built from data strings only (no squad.CopilotSdk source or assembly reference) so squad-hq stays

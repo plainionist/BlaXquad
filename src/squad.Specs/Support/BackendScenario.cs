@@ -500,6 +500,55 @@ public sealed class BackendScenario : IDisposable
         string role, int entryIndex, int skip = 0, TimeSpan? timeout = null) =>
         RequireUi().WaitForArchivedEntryAsync(role, entryIndex, skip, timeout, DescribeControlDiagnostics());
 
+    /// <summary>Writes one Markdown issue file directly under the fixed workspace <c>docs/issues</c> directory -
+    /// never a subdirectory - so a scenario can arrange the real filesystem catalog the "issues.list" command
+    /// discovers.</summary>
+    public void WriteIssueFile(string fileName, string content) => myWorkspace.WriteFile($"docs/issues/{fileName}", content);
+
+    /// <summary>Removes the fixed workspace <c>docs/issues</c> directory entirely, if present, so a scenario can
+    /// prove a missing issue directory is a successful empty catalog rather than a protocol error.</summary>
+    public void RemoveIssuesDirectory()
+    {
+        var path = myWorkspace.PathInWorkspace("docs", "issues");
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    /// <summary>Creates the fixed workspace <c>docs/issues</c> directory with no files inside it, so a scenario can
+    /// prove a present but empty issue directory is a successful empty catalog.</summary>
+    public void CreateEmptyIssuesDirectory() => Directory.CreateDirectory(myWorkspace.PathInWorkspace("docs", "issues"));
+
+    /// <summary>Replaces the fixed workspace <c>docs/issues</c> location with a plain file instead of a directory,
+    /// so the real "issues.list" command observes a genuine filesystem conflict and reports a correlated protocol
+    /// error rather than a misleading empty catalog.</summary>
+    public void ReplaceIssuesDirectoryWithFile()
+    {
+        var path = myWorkspace.PathInWorkspace("docs", "issues");
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "not a directory");
+    }
+
+    /// <summary>Requests the fixed workspace issue catalog through the real UI protocol, tagging the request with
+    /// the given request ID so the matching "issues.list" response or correlated "protocol.error" can be resolved
+    /// without treating an unrelated protocol failure as a catalog failure.</summary>
+    public void RequestIssues(string requestId) => RequireUi().RequestIssues(requestId);
+
+    /// <summary>Waits for the "issues.list" response carrying the given request ID, and returns the dashboard
+    /// protocol's typed, ordered issue descriptors.</summary>
+    public Task<IReadOnlyList<IssueDescriptorObservation>> WaitForIssuesAsync(string requestId, TimeSpan? timeout = null) =>
+        RequireUi().WaitForIssuesAsync(requestId, timeout, DescribeControlDiagnostics());
+
+    /// <summary>Waits for a "protocol.error" message carrying the given request ID and returns its human-readable
+    /// message - the observable outcome of a genuine issue-catalog filesystem failure.</summary>
+    public Task<string> WaitForCorrelatedProtocolErrorAsync(string requestId, TimeSpan? timeout = null) =>
+        RequireUi().WaitForCorrelatedProtocolErrorAsync(requestId, timeout);
+
     /// <summary>Reconciles the most recently published transcript synchronization for the given role with every
     /// transcript update published afterward, exactly as a reconnecting dashboard client must - proving the
     /// reconstructed transcript contains every entry exactly once and in order even when a synchronization
@@ -509,6 +558,7 @@ public sealed class BackendScenario : IDisposable
     public Task<IReadOnlyList<TranscriptEntryObservation>> WaitForReconciledTranscriptAsync(
         string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
         RequireUi().WaitForReconciledTranscriptAsync(role, matches, timeout, DescribeControlDiagnostics());
+
 
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given AI-credit usage.</summary>
     public Task WaitForRoleUsageAsync(string role, decimal aicUsed, TimeSpan? timeout = null) =>

@@ -12,7 +12,8 @@ internal sealed class UiCommandHandler
     private const int myMaxTranscriptPageEntries = 200;
     private readonly ISquadUi myUi;
     private readonly ITranscriptUi myTranscriptUi;
-    private readonly Action<string, object> mySend;
+    private readonly IIssueCatalog myIssueCatalog;
+    private readonly Action<string, object, string?> mySend;
     private readonly Action<
         bool,
         IReadOnlyDictionary<string, TranscriptSynchronizationPosition>?>
@@ -22,7 +23,8 @@ internal sealed class UiCommandHandler
     internal UiCommandHandler(
         ISquadUi ui,
         ITranscriptUi transcriptUi,
-        Action<string, object> send,
+        IIssueCatalog issueCatalog,
+        Action<string, object, string?> send,
         Action<
             bool,
             IReadOnlyDictionary<string, TranscriptSynchronizationPosition>?>
@@ -31,6 +33,7 @@ internal sealed class UiCommandHandler
     {
         myUi = ui;
         myTranscriptUi = transcriptUi;
+        myIssueCatalog = issueCatalog;
         mySend = send;
         myRequestTranscriptSynchronization =
             requestTranscriptSynchronization;
@@ -69,7 +72,8 @@ internal sealed class UiCommandHandler
                     myMaxTranscriptPageEntries);
                 mySend(
                     "transcript.page",
-                    TranscriptProtocol.CreatePagePayload(page));
+                    TranscriptProtocol.CreatePagePayload(page),
+                    null);
                 break;
             case "transcript.entry":
                 var entryRole = Require(message.Role, "role");
@@ -83,7 +87,8 @@ internal sealed class UiCommandHandler
                 mySend(
                     "transcript.entry",
                     TranscriptProtocol.CreateArchivedEntryPayload(
-                        archivedEntry));
+                        archivedEntry),
+                    null);
                 break;
             case "prompt.send":
                 await myUi.SendAsync(
@@ -131,6 +136,13 @@ internal sealed class UiCommandHandler
                         Require(request.Url, "pending elicitation URL"));
                 }
                 break;
+            case "issues.list":
+                var issues = await myIssueCatalog.ListIssuesAsync();
+                mySend(
+                    "issues.list",
+                    IssueProtocol.CreateListPayload(issues),
+                    message.RequestId);
+                break;
             default:
                 mySend(
                     "protocol.error",
@@ -138,7 +150,8 @@ internal sealed class UiCommandHandler
                     {
                         message =
                             $"Unknown UI message type '{message.Type}'.",
-                    });
+                    },
+                    null);
                 break;
         }
     }

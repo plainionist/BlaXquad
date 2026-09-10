@@ -19,6 +19,7 @@ public sealed class StdioUiProtocolSteps
     private readonly List<string> myRoles = [];
     private readonly Dictionary<string, int> mySynchronizationSkipByRole = new(StringComparer.Ordinal);
     private int myExitCode;
+    private IssueDescriptorObservation? myReferencedIssue;
 
     public StdioUiProtocolSteps(ScenarioWorkspace workspace)
     {
@@ -150,6 +151,63 @@ public sealed class StdioUiProtocolSteps
     [Then("standard error contains no protocol envelope")]
     public void ThenStandardErrorContainsNoProtocolEnvelope() =>
         Assert.That(myScenario.StandardErrorContainsNoProtocolEnvelope(), Is.True);
+
+    [Given("the issues directory exists and is empty")]
+    public void GivenTheIssuesDirectoryExistsAndIsEmpty() => myScenario.CreateEmptyIssuesDirectory();
+
+    [Given("the issues directory is replaced with a plain file")]
+    public void GivenTheIssuesDirectoryIsReplacedWithAPlainFile() => myScenario.ReplaceIssuesDirectoryWithFile();
+
+    [Given("an issue file {string} with this content:")]
+    public void GivenAnIssueFileWithThisContent(string fileName, string content) => myScenario.WriteIssueFile(fileName, content);
+
+    [When("the ui requests the issue catalog with request id {string}")]
+    public void WhenTheUiRequestsTheIssueCatalogWithRequestId(string requestId) => myScenario.RequestIssues(requestId);
+
+    [Then("the issue catalog response for request id {string} reports no issues")]
+    public void ThenTheIssueCatalogResponseForRequestIdReportsNoIssues(string requestId) =>
+        Assert.That(Await(myScenario.WaitForIssuesAsync(requestId)), Is.Empty);
+
+    [Then("the issue catalog response for request id {string} reports issues in this order:")]
+    public void ThenTheIssueCatalogResponseForRequestIdReportsIssuesInThisOrder(string requestId, DataTable table)
+    {
+        var issues = Await(myScenario.WaitForIssuesAsync(requestId));
+        Assert.That(issues, Has.Count.EqualTo(table.Rows.Count), "Unexpected number of catalog entries.");
+        for (var index = 0; index < table.Rows.Count; index++)
+        {
+            var row = table.Rows[index];
+            var issue = issues[index];
+            var expectedPriority = string.IsNullOrEmpty(row["priority"]) ? (int?)null : int.Parse(row["priority"]);
+            Assert.That(issue.Path, Is.EqualTo(row["path"]), $"Unexpected path at position {index}.");
+            Assert.That(issue.Title, Is.EqualTo(row["title"]), $"Unexpected title at position {index}.");
+            Assert.That(issue.Priority, Is.EqualTo(expectedPriority), $"Unexpected priority at position {index}.");
+        }
+    }
+
+    [Then("the issue catalog response for request id {string} includes an issue at path {string} with frontmatter:")]
+    public void ThenTheIssueCatalogResponseForRequestIdIncludesAnIssueAtPathWithFrontmatter(
+        string requestId, string path, string frontmatter)
+    {
+        var issues = Await(myScenario.WaitForIssuesAsync(requestId));
+        myReferencedIssue = issues.SingleOrDefault(issue => issue.Path == path);
+        Assert.That(myReferencedIssue, Is.Not.Null, $"No issue at path '{path}' was reported.");
+        // The docstring itself may carry "\r\n" line endings depending on how the feature file was checked out;
+        // the real catalog always normalizes them to "\n", so normalize the expectation the same way here.
+        var normalizedFrontmatter = frontmatter.Replace("\r\n", "\n").Replace("\r", "\n");
+        Assert.That(myReferencedIssue!.Frontmatter, Is.EqualTo(normalizedFrontmatter));
+    }
+
+    [Then("that issue reports these preview lines:")]
+    public void ThenThatIssueReportsThesePreviewLines(DataTable table)
+    {
+        Assert.That(myReferencedIssue, Is.Not.Null, "No issue has been referenced yet.");
+        var expectedLines = table.Rows.Select(row => row["line"]).ToArray();
+        Assert.That(myReferencedIssue!.PreviewLines, Is.EqualTo(expectedLines));
+    }
+
+    [Then("a correlated protocol error for request id {string} is reported")]
+    public void ThenACorrelatedProtocolErrorForRequestIdIsReported(string requestId) =>
+        Assert.That(Await(myScenario.WaitForCorrelatedProtocolErrorAsync(requestId)), Is.Not.Empty);
 
     private static void Await(Task task) => task.GetAwaiter().GetResult();
 

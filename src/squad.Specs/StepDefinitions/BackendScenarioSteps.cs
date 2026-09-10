@@ -463,32 +463,32 @@ public sealed class BackendScenarioSteps
                 """{"version":2,"type":"role.abort","role":"coder"}""",
                 "The UI protocol version is not supported."),
             "missing type" => (
-                """{"version":3}""",
+                """{"version":4}""",
                 "The UI message is missing a type."),
             "unknown type" => (
-                """{"version":3,"type":"unknown"}""",
+                """{"version":4,"type":"unknown"}""",
                 "Unknown UI message type 'unknown'."),
             // Every envelope below must be a single line: the real stdio transport frames one protocol message
             // per newline-delimited line, unlike the in-memory ReceiveMessageAsync call the old direct
             // construction used, which never had to respect that framing.
             "missing role" => (
-                """{"version":3,"type":"prompt.send","payload":{"prompt":"hello"}}""",
+                """{"version":4,"type":"prompt.send","payload":{"prompt":"hello"}}""",
                 "The UI message is missing role."),
             "missing request ID" => (
-                """{"version":3,"type":"permission.respond","role":"coder","payload":{"approved":true}}""",
+                """{"version":4,"type":"permission.respond","role":"coder","payload":{"approved":true}}""",
                 "The UI message is missing requestId."),
             "invalid string payload" => (
-                """{"version":3,"type":"prompt.send","role":"coder","payload":{"prompt":42}}""",
+                """{"version":4,"type":"prompt.send","role":"coder","payload":{"prompt":42}}""",
                 "The UI message is missing payload.prompt."),
             "invalid boolean payload" => (
-                """{"version":3,"type":"permission.respond","role":"coder","requestId":"permission-1","payload":{"approved":"yes"}}""",
+                """{"version":4,"type":"permission.respond","role":"coder","requestId":"permission-1","payload":{"approved":"yes"}}""",
                 "The UI message is missing payload.approved."),
             "invalid integer payload" => (
-                """{"version":3,"type":"transcript.page","role":"coder","payload":{"beforeIndex":"five"}}""",
+                """{"version":4,"type":"transcript.page","role":"coder","payload":{"beforeIndex":"five"}}""",
                 "The requested operation requires an element of type "
                 + "'Number', but the target element has type 'String'."),
             "invalid synchronization payload" => (
-                """{"version":3,"type":"transcript.synchronize","payload":{"roles":"coder"}}""",
+                """{"version":4,"type":"transcript.synchronize","payload":{"roles":"coder"}}""",
                 "The UI message contains invalid transcript positions."),
             "malformed JSON" => (
                 "{",

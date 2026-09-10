@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { RoleSnapshot } from '../../src/protocol/messages'
 
-export const PROTOCOL_VERSION = 3
+export const PROTOCOL_VERSION = 4
 
 interface ProtocolMessage {
   version: number

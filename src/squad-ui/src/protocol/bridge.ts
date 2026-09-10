@@ -2,6 +2,7 @@ import {
   PROTOCOL_VERSION,
   type ArchivedTranscriptEntry,
   type Envelope,
+  type IssueListPayload,
   type Snapshot,
   type TranscriptPage,
   type TranscriptSynchronization,
@@ -21,7 +22,8 @@ export function createBridge() {
   let transcriptUpdateListener: (update: TranscriptUpdate) => void = () => undefined
   let transcriptPageListener: (page: TranscriptPage) => void = () => undefined
   let archivedTranscriptEntryListener: (entry: ArchivedTranscriptEntry) => void = () => undefined
-  let errorListener: (message: string) => void = () => undefined
+  let issuesListener: (issues: IssueListPayload, requestId?: string) => void = () => undefined
+  let errorListener: (message: string, requestId?: string) => void = () => undefined
   const receive = (raw: string) => {
     try {
       const message = JSON.parse(raw) as Envelope
@@ -31,7 +33,8 @@ export function createBridge() {
       if (message.type === 'transcript.update') return transcriptUpdateListener(message.payload as TranscriptUpdate)
       if (message.type === 'transcript.page') return transcriptPageListener(message.payload as TranscriptPage)
       if (message.type === 'transcript.entry') return archivedTranscriptEntryListener(message.payload as ArchivedTranscriptEntry)
-      if (message.type === 'protocol.error') return errorListener((message.payload as { message?: string })?.message ?? 'The host rejected a message.')
+      if (message.type === 'issues.list') return issuesListener(message.payload as IssueListPayload, message.requestId)
+      if (message.type === 'protocol.error') return errorListener((message.payload as { message?: string })?.message ?? 'The host rejected a message.', message.requestId)
       errorListener(`Unknown host message '${message.type}'.`)
     } catch {
       errorListener('The host sent malformed protocol data.')
@@ -47,7 +50,8 @@ export function createBridge() {
     onTranscriptUpdate(listener: (update: TranscriptUpdate) => void) { transcriptUpdateListener = listener },
     onTranscriptPage(listener: (page: TranscriptPage) => void) { transcriptPageListener = listener },
     onArchivedTranscriptEntry(listener: (entry: ArchivedTranscriptEntry) => void) { archivedTranscriptEntryListener = listener },
-    onError(listener: (message: string) => void) { errorListener = listener },
+    onIssues(listener: (issues: IssueListPayload, requestId?: string) => void) { issuesListener = listener },
+    onError(listener: (message: string, requestId?: string) => void) { errorListener = listener },
     send(type: string, options: Omit<Envelope, 'version' | 'type'> = {}) {
       const message: Envelope = { version: PROTOCOL_VERSION, type, ...options }
       const serialized = JSON.stringify(message)

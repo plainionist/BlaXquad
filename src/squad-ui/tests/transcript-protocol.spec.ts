@@ -233,7 +233,7 @@ test('loads archived content for a truncated entry without accepting stale data'
     page.evaluate(() => window.__blaxquadHarness?.messages.length)).toBe(1)
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages[0]))).toEqual({
-    version: 3,
+    version: 4,
     type: 'transcript.entry',
     role: 'coder',
     payload: { entryIndex: 7 },
@@ -708,7 +708,7 @@ test('clears a pending archive request when the entry was evicted before the res
     page.evaluate(() => window.__blaxquadHarness?.messages.length)).toBe(1)
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages[0]))).toEqual({
-    version: 3,
+    version: 4,
     type: 'transcript.entry',
     role: 'coder',
     payload: { entryIndex: 7 },

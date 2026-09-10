@@ -13,7 +13,7 @@ namespace squad.Specs.Support;
 /// </summary>
 public sealed class HeadlessUiClient
 {
-    private const int ProtocolVersion = 3;
+    private const int ProtocolVersion = 4;
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
@@ -93,6 +93,11 @@ public sealed class HeadlessUiClient
     /// entirely.</summary>
     public void RequestArchivedEntry(string role, int entryIndex) =>
         SendEnvelope("transcript.entry", role, new { entryIndex });
+
+    /// <summary>Requests the fixed workspace issue catalog through the real "issues.list" command, tagging the
+    /// envelope with the given request ID so a later "issues.list" response or correlated "protocol.error" can be
+    /// matched to this specific request rather than an unrelated one.</summary>
+    public void RequestIssues(string requestId) => SendEnvelope("issues.list", requestId: requestId);
 
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
     public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
@@ -277,6 +282,51 @@ public sealed class HeadlessUiClient
             payload.TryGetProperty("hasMore", out var hasMore) && hasMore.GetBoolean(),
             payload.TryGetProperty("historyTruncated", out var historyTruncated) && historyTruncated.GetBoolean());
     }
+
+    /// <summary>Waits for the "issues.list" response carrying the given request ID - unlike transcript replies,
+    /// the issue catalog's response echoes the requesting envelope's own request ID, so a caller never needs to
+    /// count prior unrelated responses - and returns the dashboard protocol's typed, ordered issue descriptors.</summary>
+    public async Task<IReadOnlyList<IssueDescriptorObservation>> WaitForIssuesAsync(
+        string requestId, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var element = await WaitForMessageAsync(
+            candidate => IsType(candidate, "issues.list") && HasRequestId(candidate, requestId),
+            $"an issues.list response for request '{requestId}'",
+            timeout,
+            additionalDiagnostics);
+        if (!GetPayload(element).TryGetProperty("issues", out var issues) || issues.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+        return issues.EnumerateArray().Select(ParseIssueDescriptor).ToList();
+    }
+
+    /// <summary>Waits for a "protocol.error" message carrying the given request ID and returns its human-readable
+    /// message - the observable outcome of a genuine issue-catalog I/O failure, distinguished from any unrelated
+    /// protocol error by the echoed request ID rather than by counting prior occurrences.</summary>
+    public async Task<string> WaitForCorrelatedProtocolErrorAsync(string requestId, TimeSpan? timeout = null)
+    {
+        var element = await WaitForMessageAsync(
+            candidate => IsProtocolError(candidate) && HasRequestId(candidate, requestId),
+            $"a protocol.error message for request '{requestId}'",
+            timeout,
+            additionalDiagnostics: null);
+        return GetPayload(element).TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
+            ? message.GetString()!
+            : throw new InvalidOperationException("The protocol.error message did not include a message.");
+    }
+
+    private static IssueDescriptorObservation ParseIssueDescriptor(JsonElement issue) => new(
+        issue.GetProperty("path").GetString()!,
+        issue.GetProperty("title").GetString()!,
+        issue.TryGetProperty("priority", out var priority) && priority.ValueKind == JsonValueKind.Number
+            ? priority.GetInt32()
+            : null,
+        issue.GetProperty("frontmatter").GetString()!,
+        issue.GetProperty("previewLines").EnumerateArray().Select(line => line.GetString()!).ToList());
+
+    private static bool HasRequestId(JsonElement element, string requestId) =>
+        element.TryGetProperty("requestId", out var requestIdElement) && requestIdElement.GetString() == requestId;
 
     /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.entry" message for the given role
     /// and entry index has been published (the wire payload carries no correlation id back to its triggering

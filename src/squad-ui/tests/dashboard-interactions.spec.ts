@@ -17,7 +17,7 @@ test('keeps controls usable at standard desktop resolution', async ({ page }) =>
   await prompt.locator('..').getByRole('button', { name: 'Send', exact: true }).click()
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'prompt.send',
     role: 'coder',
     payload: {
@@ -44,7 +44,7 @@ test('sends prompts on exact Enter but not modified Enter', async ({ page }) => 
   await prompt.press('Enter')
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'prompt.send',
     role: 'reviewer',
     payload: {
@@ -61,7 +61,7 @@ test('sends binary permission and cancellation commands', async ({ page }) => {
   await page.getByTitle('Cancel current response').first().click()
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'role.abort',
     role: 'coder',
   })
@@ -99,7 +99,7 @@ test('aborts the role focused at the second Escape key event', async ({ page }) 
   expect(secondPrevented).toBe(true)
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'role.abort',
     role: 'reviewer',
   })
@@ -152,7 +152,7 @@ test('sends fixed-choice and free-form input response envelopes', async ({ page 
   await page.getByRole('button', { name: 'Quick' }).click()
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'input.respond',
     role: 'reviewer',
     requestId: 'input-1',
@@ -171,7 +171,7 @@ test('sends fixed-choice and free-form input response envelopes', async ({ page 
   await freeform.locator('..').getByRole('button', { name: 'Send' }).click()
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'input.respond',
     role: 'reviewer',
     requestId: 'input-1',
@@ -266,7 +266,7 @@ test('preserves IME composition and same-tick free-form submission', async ({ pa
   }, await sharedRequestFreeform.elementHandle())
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'input.respond',
     role: 'coder',
     requestId: 'input-1',
@@ -308,7 +308,7 @@ test('submits schema-driven elicitation values as an object', async ({ page }) =
   await page.getByRole('button', { name: 'Decline' }).click()
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'elicitation.respond',
     role: 'writer',
     requestId: 'elicitation-1',
@@ -328,7 +328,7 @@ test('requires explicit URL consent without webview navigation', async ({ page }
   await interaction.getByRole('button', { name: 'Open requested page' }).click()
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'elicitation.respond',
     role: 'writer',
     requestId: 'elicitation-url',
@@ -340,7 +340,7 @@ test('requires explicit URL consent without webview navigation', async ({ page }
   await interaction.getByRole('button', { name: 'Cancel request' }).click()
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 3,
+    version: 4,
     type: 'elicitation.respond',
     role: 'writer',
     requestId: 'elicitation-url',
