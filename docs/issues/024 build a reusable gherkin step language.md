@@ -277,7 +277,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 17 | Host ownership and project isolation [done] | Migrate `HostOwnership.feature` and `HostCoexistence.feature`; share the same `squad-hq` command language for default, equivalent-path, linked-worktree, and named-project contexts. | One project has one host, readiness and shutdown discover the right host, stale ownership recovers, and stopping one project never affects another. |
 | 18 | Startup interruption and external termination [done] | Migrate `HeadquartersEarlyShutdown.feature` and `HeadquartersTermination.feature`; express readiness watches, independently initiated shutdown, input closure, and platform cancellation as separate operations. | Headquarters terminates cleanly before or during startup and after readiness, never admits late work, disposes started sessions, preserves durable files, and permits replacement launch. |
 | 19 | Provider failure and cleanup [done] | Migrate `HeadquartersPartialStartupFailure.feature`, `HeadquartersTerminalProviderFailure.feature`, and `HeadquartersCleanupDiagnostics.feature`. | Startup, per-session, backend-wide, and cleanup failures preserve their distinct outcomes and diagnostics, dispose only the appropriate sessions, retain durable files, release ownership, and permit replacement launch. |
-| 20 | Provider loading and packaging | Migrate `AgentProviderSelection.feature` and `ProviderPackaging.feature` to operator-facing `squad-hq` and public provider-adapter terms. | Explicit provider selection fails clearly for every invalid descriptor, the executable has no compile-time Copilot dependency, and publish variants contain exactly their documented provider assets. |
+| 20 | Provider loading and packaging [done] | Migrate `AgentProviderSelection.feature` and `ProviderPackaging.feature` to operator-facing `squad-hq` and public provider-adapter terms. | Explicit provider selection fails clearly for every invalid descriptor, the executable has no compile-time Copilot dependency, and publish variants contain exactly their documented provider assets. |
 | 21 | Role context | Migrate `Context.feature` with canonical project configuration and explicit `squad context` actions. | A role agent resolves its role from each worktree and JSON context identifies the project, role worktree, and shared source without a legacy environment variable. |
 | 22 | Handoff authoring | Migrate `Handoffs.feature`; represent recipient collections structurally rather than as comma-separated values. | `squad handoff` creates valid Git and note handoffs, reports all repairable draft errors, preserves invalid drafts, and exposes durable queue results in handoff vocabulary. |
 | 23 | Task and batch receive modes | Migrate `TaskQueue.feature`, `BatchQueue.feature`, and the role-command scenarios from `Recovery.feature`. Reuse command/result steps while retaining the distinct task and batch state machines. | `ready-for-next` and `done-with-current` select, resume, complete, and reject task or batch state exactly according to the configured receive mode, priority, and worktree identity. |
@@ -292,6 +292,10 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Run the focused scenarios for the slice and then the complete `squad.Specs` suite.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
+
+## Slice 20 review (26dedd14fc) — accepted
+
+**Status: complete (26dedd14fc).** Finding on e110106d06 was addressed: invalid `--provider` selection uses `the operator launches Headquarters with ...` and keeps `the launch fails with a provider diagnostic containing`. Packaging was already in squad-hq / public provider-adapter terms.
 
 ## Slice 20 review (e110106d06) — changes requested
 
