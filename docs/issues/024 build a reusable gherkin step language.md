@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 20 review (e110106d06) — changes requested
+
+Packaging already uses squad-hq and public provider-adapter terms. Provider-selection launch still uses a `squad-hq launches` dialect beside the shared operator/Headquarters option-misuse language.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/AgentProviderSelection.feature` (`squad-hq launches with ...`); `src/squad.Specs/StepDefinitions/ProviderSelectionSteps.cs`.
+- **Violated behavior:** Slice 20 must use operator-facing `squad-hq` language and reuse shared language modules. `UiSelection.feature` already launches Headquarters for invalid `--ui` options as `the operator launches Headquarters with ...` and `the launch fails with a UI diagnostic containing`. Definition of done forbids a feature-specific dialect.
+- **Root cause:** The migration only renamed `the executable` to `squad-hq`, so provider `--provider` failures still do not share the operator/Headquarters launch-option steps used for `--ui`.
+- **Required outcome:** In `AgentProviderSelection.feature`, invalid provider selection uses the same operator/Headquarters launch-option vocabulary as `UiSelection.feature`. Keep provider vs UI diagnostic distinction. Do not keep a `squad-hq launches with` dialect beside `the operator launches Headquarters with`.
+
 ## Slice 19 review (fe9b5d153b) — accepted
 
 **Status: complete (fe9b5d153b).** The three provider-failure features use canonical configuration, Headquarters lifecycle, dashboard, and agent-session language. Startup, per-session, backend-wide, and cleanup failures stay distinct; held disposal reuses begin-shutdown/hold/release/exit; unused backend-scenario aliases are gone; slice 24 keep-list is unchanged.
