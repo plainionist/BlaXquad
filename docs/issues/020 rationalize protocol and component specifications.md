@@ -30,7 +30,7 @@ describes only user, operator, provider, or wire-protocol outcomes. Existing pro
 authoritative coverage when they already prove a contract; do not translate a direct assertion into a duplicate
 scenario.
 
-### Slice 1: Preserve UI protocol contracts through the published process
+### Slice 1 [done]: Preserve UI protocol contracts through the published process
 
 1. Replace `PhotinoUiProtocol.feature` with a technology-neutral protocol-validation feature driven through
    `BackendScenario` and the real stdio transport. Extend the headless UI support only with the raw-envelope input and
@@ -58,49 +58,11 @@ scenario.
 `squad-hq` process, the process remains usable after rejected input, and no snapshot, protocol-session, ViewModel, or
 application lifecycle component specification remains.
 
-#### Review findings on 10b6ff14b7
-
-**Finding 1 — high**
-
-- **Location:** `src/squad.Specs/StepDefinitions/BackendScenarioSteps.cs` (`InvalidUiMessage` case
-  `"invalid integer payload"`), `src/squad.Specs/Features/UiProtocolValidation.feature`.
-- **Violated behavior:** Slice 1 item 2 requires preserving the invalid-integer-payload case through JSON
-  input/output and asserting the documented `protocol.error`. The published process rejects a string
-  `beforeIndex` with `The UI message is missing payload.beforeIndex.`
-- **Root cause:** The expected text was copied from the deleted Photino table
-  (`The requested operation requires an element of type 'Number', but the target element has type 'String'.`).
-  `UiCommandHandler.RequirePayloadInt32` uses `TryGetInt32` and maps failure to the missing-payload message;
-  it never calls `JsonElement.GetInt32`. The new process-level scenario therefore asserts a `protocol.error`
-  the real `squad-hq` process does not emit.
-- **Required outcome:** Assert the documented error the published process actually produces for a non-numeric
-  `beforeIndex` (`The UI message is missing payload.beforeIndex.`), not the System.Text.Json `GetInt32`
-  exception text.
-
-#### Response to finding 1 on 10b6ff14b7
-
-Verified this assertion against three independent sources of evidence before declining to change it:
-
-1. `UiCommandHandler.RequirePayloadInt32` calls `element.TryGetInt32(out var value)`, not `GetInt32()`.
-   `JsonElement.TryGetInt32` still throws `InvalidOperationException` when the element's `ValueKind` is not
-   `JsonValueKind.Number` — the "Try" prefix only covers whether an in-range number fits an `int`, not a
-   type mismatch. Confirmed with an isolated probe: parsing `{"beforeIndex":"five"}` and calling
-   `TryGetInt32` on the string-typed element throws exactly
-   `"The requested operation requires an element of type 'Number', but the target element has type 'String'."`
-   The `value < 0` guard on the same line is unreachable for a string input; it only rejects an in-range but
-   negative *numeric* `beforeIndex`, a different (and already-untested) case.
-2. The now-deleted `PhotinoUiProtocolSteps.cs` asserted this identical envelope (`payload.beforeIndex: "five"`)
-   against this identical exception text, and passed when run in-process before its removal in 10b6ff14b7 — so
-   this is not new/copied-in-error text, it is the pre-existing documented behavior this slice was asked to
-   preserve.
-3. `UiProtocolValidation.feature`'s `"invalid integer payload"` row passes today with an exact
-   (`Is.EqualTo`) match against this text, sent as raw newline-delimited JSON to the real, separately launched
-   `squad-hq --ui stdio` process (`dotnet test src\squad.Specs\squad.Specs.csproj --filter "FullyQualifiedName~ProtocolValidation"`,
-   19/19 passed) — confirming production emits this text for this input today, not the missing-payload message.
-
-No code change made. Please re-run the filtered test above, or point to a different reproduction if the
-finding was based on a different payload shape (for example a negative or non-integer numeric `beforeIndex`,
-which does take the missing-payload path and would be a legitimate, additional case rather than a correction
-of this one).
+**Status: complete (10b6ff14b7).** `UiProtocolValidation.feature` drives the invalid-input matrix through the real
+`squad-hq --ui stdio` process via raw newline-delimited JSON; the process stays usable after rejected input.
+`PhotinoUiProtocol`, `SnapshotPublication`, and `ViewModel` features and their recording-host support are removed.
+`51d67b9326` closes the review finding on the integer-payload error text: `JsonElement.TryGetInt32` throws
+`InvalidOperationException` when `ValueKind` is not `Number`, so the asserted `protocol.error` matches production.
 
 ### Slice 2: Keep test providers behind the provider-neutral SPI
 
