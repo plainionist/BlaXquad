@@ -159,7 +159,7 @@ in `SquadViewModel.IsImmediateUiEvent` and the duplicate `AgentEventProjector` c
 `dotnet test` filters covering provider loading/packaging, fake-provider control, active usage, overload/failure,
 session cleanup, and the provider-free `squad-hq` publication, plus a Headquarters regression pass.
 
-### Slice 5: Remove host-control test seams
+### Slice 5 [done]: Remove host-control test seams
 
 1. Replace the test-substitution-only `IHostLease` indirection with the concrete production lease in headquarters
    lifecycle composition and make lease ownership mandatory after successful acquisition.
@@ -175,7 +175,7 @@ session cleanup, and the provider-free `squad-hq` publication, plus a Headquarte
 behavior while no public lease probe, observation property, or alternate lease implementation remains solely for
 tests.
 
-**Status: complete.** `IHostLease` is removed; `squad.Host.Runtime.SquadApplication` and
+**Status: complete (b3cdce5cb9).** `IHostLease` is removed; `squad.Host.Runtime.SquadApplication` and
 `squad-hq`'s `Launch` composition now depend on the concrete `HostLease` directly, so successful acquisition always
 transfers ownership to a real lease rather than a substitutable abstraction. `HostLease.PipeName` is removed (it had
 no external reader), and `RemoveStaleMetadata`, `TryAcquireProbe`, `TryAcquireCleanupLease`, and `PipeNameFor` are
