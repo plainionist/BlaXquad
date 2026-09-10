@@ -228,7 +228,7 @@ three weaker subset features.
 `ProcessSpecificationDriver.feature`. The unreferenced echo-provider start binding is gone; `BackendScenario` and
 the fake-provider/role-controller support remain. Clean discovery is 161 expanded cases.
 
-### Slice 5 - Remove workspace-wrapper self-specification [queued]
+### Slice 5 - Remove workspace-wrapper self-specification [in progress]
 
 **Outcome:** The suite verifies the packaged provider-free artifact and launched process, not its own workspace and
 command-result wrappers.
