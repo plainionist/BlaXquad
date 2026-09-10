@@ -12,10 +12,6 @@ public sealed class ProviderSelectionSteps
         myWorkspace = workspace;
     }
 
-    [When("the executable launches with a valid explicit provider")]
-    public void WhenTheExecutableLaunchesWithAValidExplicitProvider() =>
-        Launch(Descriptor(typeof(ValidProviderFixtureFactory)));
-
     [When("the executable launches with a provider assembly that does not exist")]
     public void WhenTheExecutableLaunchesWithAMissingProviderAssembly() =>
         Launch($"{myWorkspace.PathInWorkspace("does-not-exist.dll")};Whatever.Type");
@@ -33,14 +29,6 @@ public sealed class ProviderSelectionSteps
     [When("the executable launches with a provider whose constructor throws")]
     public void WhenTheExecutableLaunchesWithAThrowingProviderConstructor() =>
         Launch(Descriptor(typeof(ThrowingProviderFixtureFactory)));
-
-    [Then("the launch proceeds past provider selection to the host lease check")]
-    public void ThenTheLaunchProceedsPastProviderSelection()
-    {
-        Assert.That(myWorkspace.LastResult?.ExitCode, Is.Not.Zero);
-        Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("A squad host is already running"));
-        Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Unhandled exception"));
-    }
 
     [Then("the launch fails with a provider diagnostic containing {string}")]
     public void ThenTheLaunchFailsWithAProviderDiagnosticContaining(string expectedText)

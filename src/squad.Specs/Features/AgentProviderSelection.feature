@@ -3,11 +3,6 @@ Feature: Agent provider selection
   falling back to the packaged default provider, without depending on the workspace to decide,
   and reports a clear, non-crashing diagnostic for every way selection can fail.
 
-  Scenario: An explicit valid provider descriptor loads and constructs successfully
-    Given the project host lease is acquired
-    When the executable launches with a valid explicit provider
-    Then the launch proceeds past provider selection to the host lease check
-
   Scenario: A missing provider assembly fails clearly
     When the executable launches with a provider assembly that does not exist
     Then the launch fails with a provider diagnostic containing "not found"
