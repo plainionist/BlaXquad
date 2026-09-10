@@ -128,9 +128,40 @@ test('missing or empty results show a disabled entry, and catalog errors are vis
   await expect(page.locator('.issue-status-error')).toHaveCount(0)
 })
 
+interface Box { x: number, y: number, width: number, height: number }
+
+function containedIn(box: Box, viewport: { width: number, height: number }) {
+  expect(box.x).toBeGreaterThanOrEqual(0)
+  expect(box.y).toBeGreaterThanOrEqual(0)
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
+}
+
+async function boxOf(page: import('@playwright/test').Page, selector: string) {
+  const box = await page.locator(selector).boundingBox()
+  expect(box).not.toBeNull()
+  return box as Box
+}
+
+async function panelBoxes(page: import('@playwright/test').Page) {
+  const panels = page.locator('.role-panel')
+  const count = await panels.count()
+  expect(count).toBeGreaterThan(0)
+  const boxes: Box[] = []
+  for (let index = 0; index < count; index++)
+    boxes.push(await boxOf(page, `.role-panel >> nth=${index}`))
+  return boxes
+}
+
 test('desktop and 390-pixel-wide viewports contain the toolbar, menu, flyout, and role panels without clipping or overlap', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await loadSnapshot(page)
+  let viewport = page.viewportSize()!
+
+  const closedPanels = await panelBoxes(page)
+  for (const panel of closedPanels)
+    containedIn(panel, viewport) // the desktop grid fits within one viewport before the toolbar is used; no outer-page scroll
+
   await issueTrigger(page).click()
   const { requestId } = await lastClientMessage(page)
   await deliverHostMessages(page, [
@@ -138,25 +169,28 @@ test('desktop and 390-pixel-wide viewports contain the toolbar, menu, flyout, an
   ])
   await page.getByRole('option', { name: issueCatalog[0].title }).hover()
 
-  let viewport = page.viewportSize()!
-  for (const selector of ['.issue-toolbar', '.issue-menu', '.issue-flyout']) {
-    const box = await page.locator(selector).boundingBox()
-    expect(box).not.toBeNull()
-    expect(box!.x).toBeGreaterThanOrEqual(0)
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width)
-  }
+  const toolbar = await boxOf(page, '.issue-toolbar')
+  const menu = await boxOf(page, '.issue-menu')
+  const flyout = await boxOf(page, '.issue-flyout')
+  for (const box of [toolbar, menu, flyout]) containedIn(box, viewport)
 
-  const panels = page.locator('.role-panel')
-  const firstPanel = await panels.nth(0).boundingBox()
-  const secondPanel = await panels.nth(1).boundingBox()
-  expect(firstPanel?.y).toBe(secondPanel?.y) // the toolbar does not push role panels out of their row
+  const openPanels = await panelBoxes(page)
+  for (const panel of openPanels)
+    containedIn(panel, viewport) // opening the menu/flyout does not push the grid past the viewport either
+  for (let index = 0; index < openPanels.length; index++) {
+    expect(openPanels[index].x).toBe(closedPanels[index].x)
+    expect(openPanels[index].width).toBe(closedPanels[index].width) // the floating menu/flyout do not widen or narrow role panels
+  }
+  expect(openPanels[0].y).toBe(openPanels[1].y) // the toolbar does not push role panels out of their row
 
   await page.setViewportSize({ width: 390, height: 844 })
   viewport = page.viewportSize()!
-  for (const selector of ['.issue-toolbar', '.issue-menu', '.issue-flyout']) {
-    const box = await page.locator(selector).boundingBox()
-    expect(box).not.toBeNull()
-    expect(box!.x).toBeGreaterThanOrEqual(0)
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width)
-  }
+  const narrowToolbar = await boxOf(page, '.issue-toolbar')
+  const narrowMenu = await boxOf(page, '.issue-menu')
+  const narrowFlyout = await boxOf(page, '.issue-flyout')
+  for (const box of [narrowToolbar, narrowMenu, narrowFlyout]) containedIn(box, viewport)
+
+  const narrowFirstPanel = await boxOf(page, '.role-panel >> nth=0')
+  expect(narrowFirstPanel.x).toBeGreaterThanOrEqual(0)
+  expect(narrowFirstPanel.x + narrowFirstPanel.width).toBeLessThanOrEqual(viewport.width)
 })
