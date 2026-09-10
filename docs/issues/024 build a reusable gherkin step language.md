@@ -266,7 +266,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 6 | Interaction cancellation and retained context [done] | Migrate the final three scenarios of `PublishedInteractionsAndResponseOwnership.feature` together with `TranscriptPendingInteractionRetention.feature`. | Abort, session failure, and shutdown cancel pending interactions, late responses are rejected, and a still-pending interaction retains visible transcript context across live-history eviction. |
 | 7 | Usage and readiness publication [done] | Migrate `ActiveUsageRefresh.feature` into the dashboard and agent-session language modules. | Usage updates are visible while an agent is working, idle preserves the newest values, and a stale checkpoint cannot overwrite newer usage. |
 | 8 | Transcript entry streams [done] | Migrate `TranscriptProtocolShape.feature` and `TranscriptStreamFinalization.feature`; introduce table-backed event emission and transcript observation only where the table has a fixed, typed schema. | All public entry sources retain their protocol fields, assistant and reasoning deltas update one entry, final messages replace drafts, and idle closes a reasoning stream. |
-| 9 | Transcript synchronization races | Migrate `TranscriptSynchronizationOrder.feature` using reusable independently-started synchronization and ordered event operations. | A synchronization racing a stream or concurrent publication reconciles every entry exactly once and in every order guaranteed by the protocol. |
+| 9 | Transcript synchronization races [done] | Migrate `TranscriptSynchronizationOrder.feature` using reusable independently-started synchronization and ordered event operations. | A synchronization racing a stream or concurrent publication reconciles every entry exactly once and in every order guaranteed by the protocol. |
 | 10 | Transcript history paging and cleanup | Migrate `TranscriptHistoryPaging.feature`. Keep request coordinates and archive paths behind bindings. | A UI-protocol client can combine bounded synchronization with previous pages without gaps or duplicates, retrieve retained archived entries, and observe temporary history disappear at shutdown. |
 | 11 | Transcript retention and truncation | Migrate `TranscriptActiveStreamRetention.feature` and `TranscriptOversizedContent.feature`. Replace repeated size-specific prose with typed counts or tables without hiding live, announcement, per-entry archive, and total-archive limits. | Active streams remain appendable across eviction, every independently bounded representation reports truncation accurately, and rotated content is reported unavailable. |
 | 12 | Tool lifecycle, output, and correlation | Migrate `TranscriptToolLifecycleState.feature`, `TranscriptToolOutputAggregation.feature`, and `TranscriptToolCallCorrelation.feature`. | Active-tool state follows lifecycle, cumulative output replaces one entry, progress stays separate, fallback output is used only when needed, and concurrent calls remain correlated by ID. |
@@ -293,9 +293,9 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
-## Slice 9 review (61ec7d61fb) — changes requested
+## Slice 9 review (1d5cf1ab21) — accepted
 
-Setup, prompt, incremental observation, and shutdown now use canonical vocabulary with no `backend scenario` actor. The concurrent-publication scenario still hard-codes the race in one step.
+**Status: complete (1d5cf1ab21).** Finding on 61ec7d61fb was addressed: the concurrent burst now begins an independently started synchronization, then emits the system messages as a table. The compound race binding was removed.
 
 ### Finding 1 — High
 
