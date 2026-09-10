@@ -264,7 +264,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 4 | Terminal session finality [done] | Migrate the terminal-failure scenario separated in slice 3 together with `TerminatedSessionEventSuppression.feature`. | A completed or failed session remains terminal, ignores late events and interactions, rejects later commands for its role, leaves sibling roles usable, and cannot obstruct shutdown. |
 | 5 | Structured interaction publication and ownership [done] | Migrate the first four scenarios of `PublishedInteractionsAndResponseOwnership.feature`. Use typed values and tables for choices, form values, URLs, optional fields, and booleans while keeping permission, input, and elicitation semantics distinct. | Every supported interaction field is published, a response reaches only its owning role and request, wrong or duplicate responses are rejected, and equal request IDs remain isolated by role. |
 | 6 | Interaction cancellation and retained context [done] | Migrate the final three scenarios of `PublishedInteractionsAndResponseOwnership.feature` together with `TranscriptPendingInteractionRetention.feature`. | Abort, session failure, and shutdown cancel pending interactions, late responses are rejected, and a still-pending interaction retains visible transcript context across live-history eviction. |
-| 7 | Usage and readiness publication | Migrate `ActiveUsageRefresh.feature` into the dashboard and agent-session language modules. | Usage updates are visible while an agent is working, idle preserves the newest values, and a stale checkpoint cannot overwrite newer usage. |
+| 7 | Usage and readiness publication [done] | Migrate `ActiveUsageRefresh.feature` into the dashboard and agent-session language modules. | Usage updates are visible while an agent is working, idle preserves the newest values, and a stale checkpoint cannot overwrite newer usage. |
 | 8 | Transcript entry streams | Migrate `TranscriptProtocolShape.feature` and `TranscriptStreamFinalization.feature`; introduce table-backed event emission and transcript observation only where the table has a fixed, typed schema. | All public entry sources retain their protocol fields, assistant and reasoning deltas update one entry, final messages replace drafts, and idle closes a reasoning stream. |
 | 9 | Transcript synchronization races | Migrate `TranscriptSynchronizationOrder.feature` using reusable independently-started synchronization and ordered event operations. | A synchronization racing a stream or concurrent publication reconciles every entry exactly once and in every order guaranteed by the protocol. |
 | 10 | Transcript history paging and cleanup | Migrate `TranscriptHistoryPaging.feature`. Keep request coordinates and archive paths behind bindings. | A UI-protocol client can combine bounded synchronization with previous pages without gaps or duplicates, retrieve retained archived entries, and observe temporary history disappear at shutdown. |
@@ -292,6 +292,10 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Run the focused scenarios for the slice and then the complete `squad.Specs` suite.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
+
+## Slice 7 review (fb71cf69f0) — accepted
+
+**Status: complete (fb71cf69f0).** `ActiveUsageDashboardRefresh.feature` covers mid-turn usage, idle preserving the latest values, and a stale AIC checkpoint not overwriting newer usage, using dashboard and agent-session language. The feature-specific `ActiveUsageRefreshSteps` owner was removed.
 
 ## Slice 6 review (60f5a594a2) — accepted
 
