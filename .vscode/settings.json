@@ -1,4 +1,7 @@
 {
+    "files.associations": {
+        "*.prompt": "markdown"
+    },
     "cSpell.words": [
         "blaxquad",
         "journaling",
