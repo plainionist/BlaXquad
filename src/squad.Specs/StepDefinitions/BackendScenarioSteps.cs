@@ -11,8 +11,6 @@ namespace squad.Specs.StepDefinitions;
 public sealed class BackendScenarioSteps
 {
     private readonly BackendScenario myScenario;
-    private BackendScenario? myReplacementScenario;
-    private int myExitCode;
     private string? myObservedHarnessMessage;
     private int myProtocolErrorsObserved;
     private readonly Dictionary<string, int> myTranscriptPageFrontier = new(StringComparer.Ordinal);
@@ -38,19 +36,7 @@ public sealed class BackendScenarioSteps
     /// instance a second time as its resolved owner; that second call is a safe no-op.
     /// </summary>
     [AfterScenario]
-    public void CleanUp()
-    {
-        myScenario.Dispose();
-        myReplacementScenario?.Dispose();
-    }
-
-    [Given("a backend scenario configured with roles {string}")]
-    public void GivenABackendScenarioConfiguredWithRoles(string commaSeparatedRoles) =>
-        myScenario.ConfigureRoles(commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-
-    [Given("the backend scenario has enabled the fake-provider control transport")]
-    public void GivenTheBackendScenarioHasEnabledTheFakeProviderControlTransport() =>
-        myScenario.EnableFakeProviderControl();
+    public void CleanUp() => myScenario.Dispose();
 
     [Given("Headquarters' temporary transcript directory is isolated")]
     public void GivenHeadquartersTemporaryTranscriptDirectoryIsIsolated() =>
@@ -63,22 +49,6 @@ public sealed class BackendScenarioSteps
     [Then("Headquarters' temporary transcript history no longer exists")]
     public void ThenHeadquartersTemporaryTranscriptHistoryNoLongerExists() =>
         Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.False);
-
-    [When("the backend scenario starts squad-hq with the fake provider fixture")]
-    public void WhenTheBackendScenarioStartsSquadHqWithTheFakeProviderFixture() =>
-        Await(myScenario.StartAsync<FakeAgentProviderFactory>());
-
-    [Then("the backend scenario reports the process as ready")]
-    public void ThenTheBackendScenarioReportsTheProcessAsReady() =>
-        Assert.That(myScenario.IsReady, Is.True);
-
-    [Then("the backend scenario observes a session started for role {string} across the control pipe")]
-    public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
-        Await(myScenario.WaitForRoleSessionStartedAsync(role));
-
-    [Then("the backend scenario observes a session disposed for role {string} across the control pipe")]
-    public void ThenTheBackendScenarioObservesASessionDisposedForRoleAcrossTheControlPipe(string role) =>
-        Await(myScenario.WaitForRoleSessionDisposedAsync(role));
 
     [Then("the {string} agent observes the prompt {string}")]
     public void ThenTheAgentObservesThePrompt(string role, string expectedPrompt) =>
@@ -159,10 +129,6 @@ public sealed class BackendScenarioSteps
         var probeResult = Await(probe.WaitForCompletionAsync(TimeSpan.FromSeconds(5)));
         Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);
     }
-
-    [Then("the backend scenario observes no pending permission {string} for role {string}")]
-    public void ThenTheBackendScenarioObservesNoPendingPermissionForRole(string requestId, string role) =>
-        Await(myScenario.WaitForNoPendingPermissionAsync(role, requestId));
 
     [Then("the {string} agent observes its pending interactions were cancelled")]
     public void ThenTheAgentObservesItsPendingInteractionsWereCancelled(string role) =>
@@ -774,69 +740,6 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent fails its session with message {string}")]
     public void WhenTheAgentFailsItsSessionWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailSessionAsync(message));
-
-    [When("the backend scenario waits for the process to exit on its own")]
-    public void WhenTheBackendScenarioWaitsForTheProcessToExitOnItsOwn() =>
-        myExitCode = Await(myScenario.WaitForProcessExitAsync());
-
-    [Then("the backend scenario observes a non-zero exit code")]
-    public void ThenTheBackendScenarioObservesANonZeroExitCode() =>
-        Assert.That(myExitCode, Is.Not.Zero);
-
-    [Then("the backend scenario observes standard error containing {string}")]
-    public void ThenTheBackendScenarioObservesStandardErrorContaining(string text) =>
-        Await(myScenario.WaitForStandardErrorContainingAsync(text));
-
-    [Then("the backend scenario observes standard error does not contain {string}")]
-    public void ThenTheBackendScenarioObservesStandardErrorDoesNotContain(string text) =>
-        Assert.That(myScenario.CapturedStandardError(), Does.Not.Contain(text));
-
-    [Given("the backend scenario seeds {string} into role {string}'s worktree with content {string}")]
-    [Then("the backend scenario seeds {string} into role {string}'s worktree with content {string}")]
-    public void GivenTheBackendScenarioSeedsIntoRoleSWorktreeWithContent(string relativePath, string role, string content) =>
-        myScenario.SeedDurableRoleFile(role, relativePath, content);
-
-    [Then("the backend scenario observes role {string}'s seeded {string} still contains {string}")]
-    public void ThenTheBackendScenarioObservesRoleSSeededStillContains(string role, string relativePath, string content) =>
-        Assert.That(myScenario.DurableRoleFileIsPreserved(role, relativePath, content), Is.True);
-
-    [When("the backend scenario poisons role {string}'s handoff outbox directory")]
-    public void WhenTheBackendScenarioPoisonsRoleSHandoffOutboxDirectory(string role) =>
-        myScenario.PoisonHandoffOutbox(role);
-
-    [When("the backend scenario repairs role {string}'s handoff outbox directory")]
-    public void WhenTheBackendScenarioRepairsRoleSHandoffOutboxDirectory(string role) =>
-        myScenario.RepairHandoffOutbox(role);
-
-    [Then("the backend scenario confirms role {string} is ready through squad-hq wait-for-agent")]
-    public void ThenTheBackendScenarioConfirmsRoleIsReadyThroughSquadHqWaitForAgent(string role)
-    {
-        var result = Await(myScenario.WaitForAgentReadyThroughCliAsync(role));
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
-            Assert.That(result.StdOut, Does.Contain("is ready"));
-        });
-    }
-
-    [Then("the backend scenario confirms host control is unavailable for role {string}")]
-    public void ThenTheBackendScenarioConfirmsHostControlIsUnavailableForRole(string role)
-    {
-        var result = myScenario.ConfirmHostControlUnavailable(role);
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.ExitCode, Is.Not.Zero);
-            Assert.That(result.StdErr, Does.Contain("squad host unavailable"));
-        });
-    }
-
-    [When("a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture")]
-    public void WhenAFreshBackendScenarioStartsSquadHqAgainstTheSameWorkspaceWithTheEchoProviderFixture() =>
-        myReplacementScenario = Await(myScenario.StartReplacementAsync<EchoAgentProviderFactory>());
-
-    [Then("the fresh backend scenario reports the process as ready")]
-    public void ThenTheFreshBackendScenarioReportsTheProcessAsReady() =>
-        Assert.That(myReplacementScenario!.IsReady, Is.True);
 
     private static void Await(Task task) => task.GetAwaiter().GetResult();
 

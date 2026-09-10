@@ -29,8 +29,17 @@ public sealed class HeadquartersLifecycleSteps
     public void CleanUp() => myReplacementHeadquarters?.Dispose();
 
     [Given("role {string} has a durable file {string} containing {string}")]
+    [When("role {string} has a durable file {string} containing {string}")]
     public void GivenRoleHasADurableFileContaining(string role, string relativePath, string content) =>
         myScenario.SeedDurableRoleFile(role, relativePath, content);
+
+    [When("role {string}'s handoff outbox directory is poisoned")]
+    public void WhenRoleSHandoffOutboxDirectoryIsPoisoned(string role) =>
+        myScenario.PoisonHandoffOutbox(role);
+
+    [When("role {string}'s handoff outbox directory is repaired")]
+    public void WhenRoleSHandoffOutboxDirectoryIsRepaired(string role) =>
+        myScenario.RepairHandoffOutbox(role);
 
     [When("the operator launches Headquarters")]
     public void WhenTheOperatorLaunchesHeadquarters()

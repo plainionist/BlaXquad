@@ -40,6 +40,7 @@ public sealed class HandoffSteps
     }
 
     [Given("{string} prepares a note to {string} with priority {string} and message {string}")]
+    [When("{string} prepares a note to {string} with priority {string} and message {string}")]
     public void GivenRolePreparesANote(string role, string recipients, string priority, string message)
     {
         myWorkspace.Set(SenderRoleKey, role);
@@ -59,10 +60,6 @@ public sealed class HandoffSteps
         myWorkspace.Set(SenderRoleKey, role);
         myWorkspace.Set(DraftPathKey, myDrafts.WriteRawDraft(role, draft));
     }
-
-    [When("{string} queues the handoff")]
-    public void WhenRoleQueuesTheHandoff(string role) =>
-        myWorkspace.RunRoleTool(role, "squad", ["handoff", myWorkspace.Get<string>(DraftPathKey)]);
 
     [When("the {string} role agent runs `squad handoff` from its worktree")]
     public void WhenTheRoleAgentRunsSquadHandoffFromItsWorktree(string role) =>

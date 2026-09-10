@@ -5,9 +5,11 @@ namespace squad.Specs.StepDefinitions;
 /// <summary>
 /// Drives handoff delivery scenarios exclusively across the real process/protocol boundary: a real "squad handoff"
 /// (or, for an otherwise-uncreatable invalid prerequisite, a seeded durable artifact) queued into a role's own
-/// worktree, a real squad-hq host polling and delivering it, and the recipient's own fake session reporting the
-/// resulting wake-up harness message across the fake-provider control pipe. Never constructs
-/// <c>InProcessHandoffPoller</c>, <c>HandoffDeliveryService</c>, <c>IRoleNotifier</c>, or a role-row product type.
+/// worktree, a real, already-launched Headquarters (see <see cref="HeadquartersLifecycleSteps"/>) polling and
+/// delivering it through the scenario's own shared <see cref="BackendScenario"/>, and the recipient's own fake
+/// session reporting the resulting wake-up harness message across the fake-provider control pipe. Never
+/// constructs <c>InProcessHandoffPoller</c>, <c>HandoffDeliveryService</c>, <c>IRoleNotifier</c>, or a role-row
+/// product type.
 /// </summary>
 [Binding]
 public sealed class DeliverySteps
@@ -21,27 +23,11 @@ public sealed class DeliverySteps
     private readonly BackendScenario myScenario;
     private readonly HandoffMailboxObserver myMailbox;
 
-    public DeliverySteps(ScenarioWorkspace workspace)
+    public DeliverySteps(ScenarioWorkspace workspace, BackendScenario scenario)
     {
         myWorkspace = workspace;
-        myScenario = new BackendScenario(workspace);
+        myScenario = scenario;
         myMailbox = new HandoffMailboxObserver(workspace);
-    }
-
-    [AfterScenario]
-    public void CleanUp() => myScenario.Dispose();
-
-    [Given("a running squad host for roles {string}")]
-    public async Task GivenARunningSquadHostForRoles(string commaSeparatedRoles)
-    {
-        var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        myScenario.ConfigureRoles(roles);
-        myScenario.EnableFakeProviderControl();
-        await myScenario.StartAsync<FakeAgentProviderFactory>();
-        foreach (var role in roles)
-        {
-            await myScenario.WaitForRoleSessionStartedAsync(role);
-        }
     }
 
     [When("{string} durably queues an invalid note to {string}")]
@@ -118,7 +104,7 @@ public sealed class DeliverySteps
         Assert.That(myScenario.Agent(role).LatestHarnessMessage(), Is.Not.EqualTo(WakeUpMessage));
     }
 
-    [Then("the squad host remains available")]
-    public void ThenTheSquadHostRemainsAvailable() =>
+    [Then("Headquarters remains available")]
+    public void ThenHeadquartersRemainsAvailable() =>
         Assert.That(myScenario.IsRunning, Is.True);
 }
