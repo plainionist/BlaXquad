@@ -3,11 +3,13 @@ using squad.Specs.Support;
 namespace squad.Specs.StepDefinitions;
 
 /// <summary>
-/// Operator-facing language for launching, observing readiness of, and shutting down a real squad-hq process.
-/// Requests the scenario's single <see cref="BackendScenario"/> instance rather than constructing its own, so
-/// agent-session steps bound elsewhere observe the same running process. Owns only the replacement Headquarters
-/// launch it creates itself; the shared scenario's own process remains <see cref="BackendScenarioSteps"/>'s
-/// teardown responsibility.
+/// Operator-facing language for launching, observing readiness of, and shutting down a real squad-hq process,
+/// including the asynchronous "begins waiting" / "remains pending" / "succeeds" form of
+/// `squad-hq wait-for-agent` used to prove readiness follows a role's own idle and busy transitions rather than
+/// merely a synchronous confirmation. Requests the scenario's single <see cref="BackendScenario"/> instance rather
+/// than constructing its own, so agent-session steps bound elsewhere observe the same running process. Owns only
+/// the replacement Headquarters launch it creates itself; the shared scenario's own process remains
+/// <see cref="BackendScenarioSteps"/>'s teardown responsibility.
 /// </summary>
 [Binding]
 public sealed class HeadquartersLifecycleSteps
@@ -15,6 +17,7 @@ public sealed class HeadquartersLifecycleSteps
     private readonly BackendScenario myScenario;
     private BackendScenario? myReplacementHeadquarters;
     private int myExitCode;
+    private readonly Dictionary<string, BackendScenarioCommand> myReadinessWaits = new(StringComparer.Ordinal);
 
     public HeadquartersLifecycleSteps(BackendScenario scenario)
     {
@@ -50,6 +53,34 @@ public sealed class HeadquartersLifecycleSteps
     public void ThenTheOperatorConfirmsRoleIsReadyWithSquadHqWaitForAgent(string role)
     {
         var result = Await(myScenario.WaitForAgentReadyThroughCliAsync(role));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
+            Assert.That(result.StdOut, Does.Contain("is ready"));
+        });
+    }
+
+    [When("the operator begins waiting for role {string} to become ready with `squad-hq wait-for-agent`")]
+    public void WhenTheOperatorBeginsWaitingForRoleToBecomeReadyWithSquadHqWaitForAgent(string role) =>
+        myReadinessWaits[role] = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(10));
+
+    [Then("role {string}'s readiness wait remains pending")]
+    public async Task ThenRoleSReadinessWaitRemainsPending(string role)
+    {
+        // A short, independently bounded probe against the same live host proves the role is genuinely not ready
+        // yet: it polls the host for its own full timeout before concluding "not ready", so its completion is
+        // evidence of a live, contacted host currently reporting this role as not ready - not a guess about how
+        // long a fixed sleep should be. This mirrors the equivalent proof in HostOwnershipSteps.
+        var probe = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(1));
+        var probeResult = await probe.WaitForCompletionAsync(TimeSpan.FromSeconds(5));
+        Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);
+        Assert.That(myReadinessWaits[role].IsRunning, Is.True);
+    }
+
+    [Then("role {string}'s readiness wait succeeds")]
+    public async Task ThenRoleSReadinessWaitSucceeds(string role)
+    {
+        var result = await myReadinessWaits[role].WaitForCompletionAsync(TimeSpan.FromSeconds(10));
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
