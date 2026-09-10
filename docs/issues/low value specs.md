@@ -249,7 +249,7 @@ command-result wrappers.
 The still-referenced `a configured project with roles` step moved to `CommonSteps`. Workspace and command-result
 support used by process-facing scenarios remains. Clean discovery is 159 expanded cases.
 
-### Slice 6 - Consolidate control-transport lifecycle coverage [queued]
+### Slice 6 - Consolidate control-transport lifecycle coverage [in progress]
 
 **Outcome:** Product lifecycle scenarios retain start and disposal coverage across the fake-provider pipe without a
 separate transport smoke feature.
