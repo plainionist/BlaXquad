@@ -263,7 +263,7 @@ by the named scenarios so that each handoff still has one acceptance claim.
 | 3 | Abort ordering [done] | Migrate the six abort scenarios in `AbortSequencingAndTerminalRoleFailure.feature` and separate them from its terminal-failure scenario. Replace compound race phrases with reusable start, pending, release, receive, and non-receive operations. | An abort is role-scoped, cancels the active turn, cannot be overtaken by a following prompt, suppresses canceled-turn output, and remains retryable. |
 | 4 | Terminal session finality [done] | Migrate the terminal-failure scenario separated in slice 3 together with `TerminatedSessionEventSuppression.feature`. | A completed or failed session remains terminal, ignores late events and interactions, rejects later commands for its role, leaves sibling roles usable, and cannot obstruct shutdown. |
 | 5 | Structured interaction publication and ownership [done] | Migrate the first four scenarios of `PublishedInteractionsAndResponseOwnership.feature`. Use typed values and tables for choices, form values, URLs, optional fields, and booleans while keeping permission, input, and elicitation semantics distinct. | Every supported interaction field is published, a response reaches only its owning role and request, wrong or duplicate responses are rejected, and equal request IDs remain isolated by role. |
-| 6 | Interaction cancellation and retained context | Migrate the final three scenarios of `PublishedInteractionsAndResponseOwnership.feature` together with `TranscriptPendingInteractionRetention.feature`. | Abort, session failure, and shutdown cancel pending interactions, late responses are rejected, and a still-pending interaction retains visible transcript context across live-history eviction. |
+| 6 | Interaction cancellation and retained context [done] | Migrate the final three scenarios of `PublishedInteractionsAndResponseOwnership.feature` together with `TranscriptPendingInteractionRetention.feature`. | Abort, session failure, and shutdown cancel pending interactions, late responses are rejected, and a still-pending interaction retains visible transcript context across live-history eviction. |
 | 7 | Usage and readiness publication | Migrate `ActiveUsageRefresh.feature` into the dashboard and agent-session language modules. | Usage updates are visible while an agent is working, idle preserves the newest values, and a stale checkpoint cannot overwrite newer usage. |
 | 8 | Transcript entry streams | Migrate `TranscriptProtocolShape.feature` and `TranscriptStreamFinalization.feature`; introduce table-backed event emission and transcript observation only where the table has a fixed, typed schema. | All public entry sources retain their protocol fields, assistant and reasoning deltas update one entry, final messages replace drafts, and idle closes a reasoning stream. |
 | 9 | Transcript synchronization races | Migrate `TranscriptSynchronizationOrder.feature` using reusable independently-started synchronization and ordered event operations. | A synchronization racing a stream or concurrent publication reconciles every entry exactly once and in every order guaranteed by the protocol. |
@@ -292,6 +292,10 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Run the focused scenarios for the slice and then the complete `squad.Specs` suite.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
+
+## Slice 6 review (60f5a594a2) — accepted
+
+**Status: complete (60f5a594a2).** `InteractionCancellationAndTranscriptRetention.feature` covers abort, session-failure, shutdown cancellation, and live-retention of pending-permission transcript context in dashboard, agent, and Headquarters-lifecycle language. Unused abort/permission/input aliases and `ParseChoices` were removed; aliases still required by later slices remain.
 
 ## Slice 5 review (0fe774f64c) — accepted
 
