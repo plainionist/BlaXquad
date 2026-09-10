@@ -293,6 +293,17 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 22 review (e2dfc8b692) — changes requested
+
+Canonical `blaxquad/squad.json` configuration and structural recipient tables are in place. Queueing still hides `squad handoff` behind `"coder" queues the handoff`.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/Handoffs.feature` (`When "coder" queues the handoff`); `src/squad.Specs/StepDefinitions/HandoffSteps.cs`.
+- **Violated behavior:** Slice 22 acceptance is that `squad handoff` creates valid Git and note handoffs. The role-commands module is a role agent running documented `squad handoff` from its worktree. Slice 21 already made role-command queries explicit `squad context` actions by the role agent. Definition of done requires reusing that module rather than a feature-specific paraphrase.
+- **Root cause:** Recipients moved into tables, but the When still names the role as a bare string and paraphrases the command as "queues the handoff".
+- **Required outcome:** In `Handoffs.feature`, queueing is an explicit `squad handoff` action by the role agent from its worktree. Keep the current `"coder" queues the handoff` binding until `Delivery.feature` migrates. Keep structural recipient tables, the raw invalid-draft wire format, and durable queue observations.
+
 ## Slice 21 review (a9346a1570) — accepted
 
 **Status: complete (a9346a1570).** Finding on 08463b6d57 was addressed: role-context queries are explicit `squad context` / `squad context --json` actions by the role agent from its worktree. Canonical `blaxquad/squad.json` configuration, no-legacy-env-var, and JSON project/worktree/source identification remain.
