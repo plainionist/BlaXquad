@@ -30,13 +30,13 @@ public sealed class HandoffSteps
         myWorkspace.Set(CommitKey, result.StdOut.Trim());
     }
 
-    [Given("{string} prepares a Git handoff to {string} with priority {string} and task {string}")]
-    public void GivenRolePreparesAGitHandoff(string role, string recipients, string priority, string task)
+    [Given("{string} prepares a Git handoff with priority {string} and task {string} to:")]
+    public void GivenRolePreparesAGitHandoffToRecipients(string role, string priority, string task, Table recipients)
     {
         myWorkspace.Set(SenderRoleKey, role);
         myWorkspace.Set(
             DraftPathKey,
-            myDrafts.WriteGitHandoffDraft(role, recipients, priority, task, myWorkspace.Get<string>(CommitKey)));
+            myDrafts.WriteGitHandoffDraft(role, RecipientsFrom(recipients), priority, task, myWorkspace.Get<string>(CommitKey)));
     }
 
     [Given("{string} prepares a note to {string} with priority {string} and message {string}")]
@@ -44,6 +44,13 @@ public sealed class HandoffSteps
     {
         myWorkspace.Set(SenderRoleKey, role);
         myWorkspace.Set(DraftPathKey, myDrafts.WriteNoteDraft(role, recipients, priority, message));
+    }
+
+    [Given("{string} prepares a note with priority {string} and message {string} to:")]
+    public void GivenRolePreparesANoteToRecipients(string role, string priority, string message, Table recipients)
+    {
+        myWorkspace.Set(SenderRoleKey, role);
+        myWorkspace.Set(DraftPathKey, myDrafts.WriteNoteDraft(role, RecipientsFrom(recipients), priority, message));
     }
 
     [Given("{string} prepares this handoff draft:")]
@@ -73,14 +80,14 @@ public sealed class HandoffSteps
     public void ThenNoHandoffIsQueued() =>
         Assert.That(myMailbox.QueuedHandoffs(CurrentSender()), Is.Empty);
 
-    [Then("the queued handoff was sent by {string} to {string}")]
-    public void ThenTheQueuedHandoffWasSentByTo(string sender, string recipients)
+    [Then("the queued handoff was sent by {string} to:")]
+    public void ThenTheQueuedHandoffWasSentByToRecipients(string sender, Table recipients)
     {
         var handoff = SingleQueuedHandoff();
         Assert.Multiple(() =>
         {
             Assert.That(handoff.Sender, Is.EqualTo(sender));
-            Assert.That(string.Join(",", handoff.Recipients), Is.EqualTo(recipients));
+            Assert.That(handoff.Recipients, Is.EqualTo(RecipientArray(recipients)));
         });
     }
 
@@ -124,4 +131,8 @@ public sealed class HandoffSteps
     private QueuedHandoff SingleQueuedHandoff() => myMailbox.SingleQueuedHandoff(CurrentSender());
 
     private string CurrentSender() => myWorkspace.Get<string>(SenderRoleKey);
+
+    private static string RecipientsFrom(Table recipients) => string.Join(",", RecipientArray(recipients));
+
+    private static string[] RecipientArray(Table recipients) => recipients.Rows.Select(row => row["role"]).ToArray();
 }

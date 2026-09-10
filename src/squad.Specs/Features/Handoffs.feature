@@ -2,26 +2,40 @@ Feature: Creating outbound handoffs
   Agents create small validated drafts and the squad publishes durable handoffs.
 
   Background:
-    Given a configured project with roles "coder,reviewer,architect"
+    Given `blaxquad/squad.json` configures:
+      | role      |
+      | coder     |
+      | reviewer  |
+      | architect |
 
   Scenario: Queue a Git handoff for a committed change
     Given "coder" has a committed change
-    And "coder" prepares a Git handoff to "reviewer" with priority "20" and task "implement-search"
+    And "coder" prepares a Git handoff with priority "20" and task "implement-search" to:
+      | role     |
+      | reviewer |
     When "coder" queues the handoff
     Then the command succeeds
     And the draft is removed
     And one handoff is queued
-    And the queued handoff was sent by "coder" to "reviewer"
+    And the queued handoff was sent by "coder" to:
+      | role     |
+      | reviewer |
     And the queued handoff has priority "20"
     And the queued handoff is a Git handoff for task "implement-search"
     And the queued handoff instructs merging the committed change
 
   Scenario: Queue a note for several recipients
-    Given "coder" prepares a note to "reviewer,architect" with priority "70" and message "Please inspect the delivery result."
+    Given "coder" prepares a note with priority "70" and message "Please inspect the delivery result." to:
+      | role      |
+      | reviewer  |
+      | architect |
     When "coder" queues the handoff
     Then the command succeeds
     And one handoff is queued
-    And the queued handoff was sent by "coder" to "reviewer,architect"
+    And the queued handoff was sent by "coder" to:
+      | role      |
+      | reviewer  |
+      | architect |
     And the queued handoff is a note with message "Please inspect the delivery result."
 
   Scenario: Reject all repairable errors in an invalid draft
