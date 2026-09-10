@@ -64,7 +64,7 @@ projections, `RunAsync` readiness callback, and `RunResult` are removed. Session
 active runtime generation. `SquadStartupPlan` requires context preparation, `SquadStartupPlanFactory` is internal,
 and unused synchronous workspace-preparation helpers are gone.
 
-### Slice 2: Encapsulate authoritative application and transcript state
+### Slice 2 [done]: Encapsulate authoritative application and transcript state
 
 1. Remove `SquadViewModel.Roles`, the pending-permission/input/elicitation collections,
    `TranscriptHistoryDirectory`, `StateChanged`, and other direct mutable or observational state surfaces that have
@@ -83,7 +83,7 @@ and unused synchronous workspace-preparation helpers are gone.
 **Slice acceptance:** All role, interaction, and transcript behavior remains observable through the real UI and
 provider protocols, while application state can no longer be read, mutated, or supplied directly for tests.
 
-**Status: complete.** `SquadViewModel` no longer exposes `Roles`, the pending-permission/input/elicitation
+**Status: complete (734e65651a).** `SquadViewModel` no longer exposes `Roles`, the pending-permission/input/elicitation
 collections, `TranscriptHistoryDirectory`, or `StateChanged`; `CreateSnapshot` reads directly from the interaction
 registry. `GetRoleReadiness` and `BeginStopping` are private, the role-less permission/input/elicitation completion
 overloads and the `RequestPermissionAsync`/`RequestInputAsync`/`RequestElicitationAsync` injection methods are gone,
