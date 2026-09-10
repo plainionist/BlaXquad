@@ -291,7 +291,7 @@ explicit loading remains covered by the vertical process proof.
 `AgentProviderSelection.feature`. The four failure diagnostics remain. Unreferenced launch/host-lease steps are
 gone; `ValidProviderFixtureFactory` stays for the duplicate-option case. Clean discovery is 157 expanded cases.
 
-### Slice 8 - Remove the redundant owned-host happy path [in progress]
+### Slice 8 - Remove the redundant owned-host happy path [done]
 
 **Outcome:** Host ownership retains its edge, recovery, readiness, and stdio-shutdown contracts without a lifecycle
 happy path already contained in headquarters behavior.
@@ -306,6 +306,12 @@ happy path already contained in headquarters behavior.
 - The retained equivalent-path, duplicate-host, abrupt-termination, readiness, idempotent-empty-project, and stdio
   shutdown scenarios pass.
 - `HeadquartersLifecycle.feature` proves healthy owned-host shutdown, host release, and replacement launch.
+
+**Status: complete (a6173c661e).** `The executable shuts down an owned host` is removed from `HostOwnership.feature`.
+Retained host-ownership scenarios and `HeadquartersLifecycle.feature` still cover equivalent-path, duplicate-host,
+abrupt-termination, readiness, empty-project, and replacement launch. Stdio shutdown without closing standard input
+remains in `StdioUiProtocol.feature`. Clean discovery is 156 expanded cases from 45 features and 146 scenario
+declarations.
 
 ### Completion gate
 
