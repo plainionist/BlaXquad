@@ -271,7 +271,7 @@ separate transport smoke feature.
 covered by `HeadquartersLifecycle.feature`. Control-transport support is unchanged. Clean discovery is 158 expanded
 cases.
 
-### Slice 7 - Remove the redundant provider success case [queued]
+### Slice 7 - Remove the redundant provider success case [in progress]
 
 **Outcome:** Provider selection specifications retain every distinct operator-visible failure while successful
 explicit loading remains covered by the vertical process proof.
