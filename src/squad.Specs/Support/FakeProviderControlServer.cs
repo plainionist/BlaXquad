@@ -428,6 +428,13 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     public Task EmitIdleAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "idle", new { }, timeout, additionalDiagnostics);
 
+    /// <summary>Arms the given role's session so every future prompt it receives is answered automatically with
+    /// "echo: {prompt}" instead of waiting for an explicit <see cref="ReplyAsync"/> - the semantic operation
+    /// real-wire-framing specifications use to drive a genuine transcript update through the real protocol
+    /// pipeline without a second, narrower provider fixture.</summary>
+    public Task EnableAutoEchoAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "enable-auto-echo", new { }, timeout, additionalDiagnostics);
+
     /// <summary>Arms the given role's session to reject its very next host-authored harness send with an
     /// exception instead of publishing or reporting it - the only way a scenario can prove that a single failed
     /// notification does not lose durable delivery state or destabilize the host.</summary>

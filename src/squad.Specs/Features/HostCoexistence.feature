@@ -3,7 +3,7 @@ Feature: Independent headquarters instances coexist
   terminating one instance's process must never disturb the other's running session.
 
   Scenario: Stopping one headless instance leaves an unrelated instance running
-    Given independent squad projects "first" and "second" using the echo provider fixture
+    Given independent squad projects "first" and "second" using the fake provider fixture
     When squad-hq is launched with "--ui stdio" for project "first"
     And squad-hq is launched with "--ui stdio" for project "second"
     And the ui sends "ui.ready" to project "first"

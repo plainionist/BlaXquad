@@ -228,6 +228,11 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
     /// instead of publishing or reporting it.</summary>
     public Task RejectNextHarnessAsync(TimeSpan? timeout = null) => control.RejectNextHarnessAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Arms this role's session so every future prompt it receives is answered automatically with
+    /// "echo: {prompt}" instead of waiting for an explicit <see cref="ReplyAsync"/> - the semantic operation
+    /// real-wire-framing specifications use in place of the narrower, now-obsolete echo-only provider fixture.</summary>
+    public Task EnableAutoEchoAsync(TimeSpan? timeout = null) => control.EnableAutoEchoAsync(role, timeout, uiDiagnostics);
+
     /// <summary>Completes this role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
     public Task CompleteSessionAsync(TimeSpan? timeout = null) => control.CompleteSessionAsync(role, timeout, uiDiagnostics);

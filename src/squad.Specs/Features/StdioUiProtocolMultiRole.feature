@@ -3,7 +3,7 @@ Feature: Stdio UI protocol output under concurrent multi-role activity
   envelope must still be one complete, well-formed, flushed JSON line with no torn or interleaved framing.
 
   Background:
-    Given a git project configured with "coder" and "reviewer" roles using the echo provider fixture
+    Given a git project prepared with "coder" and "reviewer" roles using the fake provider fixture
 
   Scenario: Rapid interleaved prompts across two roles never corrupt stdout framing
     When squad-hq is launched with "--ui stdio"

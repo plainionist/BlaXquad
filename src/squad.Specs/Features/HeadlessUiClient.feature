@@ -6,7 +6,7 @@ Feature: Semantic headless UI client
   itself.
 
   Background:
-    Given a git project configured with a "coder" role using the echo provider fixture
+    Given a git project prepared with a "coder" role using the fake provider fixture for the ui client
     And the published squad-hq is launched with "--ui stdio"
 
   Scenario: The client completes the real ui.ready handshake

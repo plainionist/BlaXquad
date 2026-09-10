@@ -542,6 +542,43 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public string CapturedStandardError() => RequireUi().CapturedStandardError();
 
+    /// <summary>
+    /// A snapshot of every standard-output line captured from the launched process so far, joined with newlines -
+    /// for example proving no protocol message has reached standard output yet before "ui.ready" is sent.
+    /// </summary>
+    public string CapturedStandardOutput() => RequireUi().CapturedStandardOutput();
+
+    /// <summary>
+    /// True only if every line captured on standard output so far is one complete, well-formed protocol envelope -
+    /// proving concurrent multi-role activity never tears or interleaves a line's framing.
+    /// </summary>
+    public bool EveryCapturedStandardOutputLineIsAWellFormedEnvelope() =>
+        RequireUi().EveryCapturedStandardOutputLineIsAWellFormedEnvelope();
+
+    /// <summary>
+    /// True only if standard error carries no line that looks like a protocol envelope - proving the protocol and
+    /// process-diagnostic output streams stay genuinely separate.
+    /// </summary>
+    public bool StandardErrorContainsNoProtocolEnvelope() => RequireUi().StandardErrorContainsNoProtocolEnvelope();
+
+    /// <summary>
+    /// Sends "ui.ready" and awaits the real handshake response after a launch that deliberately deferred it
+    /// (<see cref="LaunchWithoutReadyHandshake{TProviderFactory}"/>) - proving the ready gate itself, that no
+    /// protocol message is published until this handshake completes. Also awaits the fake-provider control pipe's
+    /// connection when <see cref="EnableFakeProviderControl"/> was called, mirroring <see
+    /// cref="StartAsync{TProviderFactory}"/>'s own post-handshake connection wait, so callers can safely observe
+    /// role sessions across the control pipe immediately afterward.
+    /// </summary>
+    public async Task CompleteReadyHandshakeAsync(TimeSpan? timeout = null)
+    {
+        await RequireUi().CompleteReadyHandshakeAsync(timeout, DescribeControlDiagnostics());
+        IsReady = true;
+        if (myControl is not null)
+        {
+            await myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
+        }
+    }
+
     private HeadlessUiClient RequireUi() =>
         myUi ?? throw new InvalidOperationException("The backend process has not been started.");
 

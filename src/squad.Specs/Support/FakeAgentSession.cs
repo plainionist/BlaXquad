@@ -31,6 +31,7 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     private TaskCompletionSource? myPendingAbort;
     private string? myNextAbortFailureMessage;
     private TaskCompletionSource? myPendingDisposal;
+    private bool myAutoEcho;
 
     public FakeAgentSession(string role, FakeProviderControlClient? control = null)
     {
@@ -54,6 +55,14 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
 
         if (myControl is null)
         {
+            myEvents.Publish(new AgentIdleEvent(DateTimeOffset.UtcNow));
+            return;
+        }
+
+        if (myAutoEcho)
+        {
+            await myControl.NotifyPromptAsync(Role, SessionId, prompt, cancellationToken);
+            myEvents.Publish(new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, $"echo: {prompt}", IsDelta: false));
             myEvents.Publish(new AgentIdleEvent(DateTimeOffset.UtcNow));
             return;
         }
@@ -120,6 +129,14 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     /// reporting it - a test-only control (not a production <c>AgentEvent</c>) used to prove that a single failed
     /// notification does not lose durable delivery state or destabilize the host.</summary>
     public void RejectNextHarness() => myRejectNextHarness = true;
+
+    /// <summary>Test-only control (not a production event): arms this session so every future <see cref="SendAsync"/>
+    /// answers its prompt automatically with "echo: {prompt}" - reporting the prompt across the control pipe exactly
+    /// like an ordinary send, but completing immediately instead of waiting for an explicit <see cref="DeliverReply"/>.
+    /// This is the same automatic reply <see cref="EchoAgentProviderFactory"/> hardcodes, exposed through the shared
+    /// fake-provider control transport so real-wire-framing specifications do not need a second, narrower provider
+    /// fixture.</summary>
+    public void EnableAutoEcho() => myAutoEcho = true;
 
     /// <summary>Reports, when a control transport is configured, that the host aborted this session's current
     /// operation. By default the abort completes immediately, matching every scenario that never arms one of the
@@ -332,6 +349,9 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                 return null;
             case "reject-next-harness":
                 RejectNextHarness();
+                return null;
+            case "enable-auto-echo":
+                EnableAutoEcho();
                 return null;
             case "arm-pending-abort":
                 ArmPendingAbort();

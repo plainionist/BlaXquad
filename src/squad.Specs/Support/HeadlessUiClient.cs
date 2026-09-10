@@ -432,6 +432,44 @@ public sealed class HeadlessUiClient
     /// </summary>
     public string CapturedStandardError() => string.Join('\n', CopyLines(myStdErrLines));
 
+    /// <summary>
+    /// A snapshot of every standard-output line captured from the launched process so far, joined with newlines.
+    /// Exposed for specifications proving nothing (or something) has reached standard output yet - for example
+    /// that no protocol message is written before the "ui.ready" handshake completes.
+    /// </summary>
+    public string CapturedStandardOutput() => string.Join('\n', CopyLines(myStdOutLines));
+
+    /// <summary>
+    /// True only if every line captured on standard output so far is one complete, well-formed protocol envelope -
+    /// a JSON object carrying the protocol's "version" and "type" fields - proving concurrent multi-role activity
+    /// never tears or interleaves a line's framing, and that standard output carries nothing but the versioned
+    /// protocol. False (never an exception) if no line has been captured yet, so a caller waits for genuine
+    /// output before asserting on it instead of vacuously passing against an empty buffer.
+    /// </summary>
+    public bool EveryCapturedStandardOutputLineIsAWellFormedEnvelope() =>
+        CopyLines(myStdOutLines) is { Count: > 0 } lines && lines.All(IsWellFormedEnvelope);
+
+    /// <summary>
+    /// True only if standard error carries no line that looks like a protocol envelope - proving the protocol and
+    /// process-diagnostic output streams stay genuinely separate even while the protocol is active.
+    /// </summary>
+    public bool StandardErrorContainsNoProtocolEnvelope() => !CopyLines(myStdErrLines).Any(IsWellFormedEnvelope);
+
+    private static bool IsWellFormedEnvelope(string line)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(line);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("version", out _)
+                && document.RootElement.TryGetProperty("type", out _);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     private void SendEnvelope(string type, string? role = null, object? payload = null, string? requestId = null)
     {
         var envelope = new Dictionary<string, object?> { ["version"] = ProtocolVersion, ["type"] = type };

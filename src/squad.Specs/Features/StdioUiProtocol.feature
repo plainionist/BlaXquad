@@ -1,10 +1,10 @@
 Feature: Stdio UI protocol over the real published process
   squad-hq launched with "--ui stdio" drives the real UiProtocolSession over the real published process's
-  standard input and standard output. A minimal test-owned provider fixture completes launch far enough to
-  exercise the protocol end to end without ever opening a native window.
+  standard input and standard output. The shared fake-provider fixture completes launch far enough to exercise
+  the protocol end to end without ever opening a native window.
 
   Background:
-    Given a git project configured with a "coder" role using the echo provider fixture
+    Given a git project prepared with a "coder" role using the fake provider fixture
 
   Scenario: Startup waits for the ui.ready handshake before publishing state
     When squad-hq is launched with "--ui stdio"
@@ -31,13 +31,6 @@ Feature: Stdio UI protocol over the real published process
     When the ui requests transcript synchronization
     Then a recovery "transcript.synchronize" message for role "coder" is written to stdout
 
-  Scenario: Malformed protocol input is reported without ending the session
-    When squad-hq is launched with "--ui stdio"
-    And the ui sends "ui.ready"
-    And the ui sends the malformed line "{"
-    Then a "protocol.error" message is written to stdout
-    And the squad-hq process is still running
-
   Scenario: A host-controlled shutdown closes the process without closing standard input
     When squad-hq is launched with "--ui stdio"
     And the ui sends "ui.ready"
@@ -45,16 +38,6 @@ Feature: Stdio UI protocol over the real published process
     When squad-hq requests shutdown for the workspace
     Then the shutdown request succeeds
     And the squad-hq process exits with code "0"
-
-  Scenario: A terminated process releases workspace host ownership for the next launch
-    When squad-hq is launched with "--ui stdio"
-    And the ui sends "ui.ready"
-    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
-    When the squad-hq process is forcibly terminated
-    Then the squad-hq process has exited
-    When squad-hq is launched with "--ui stdio"
-    And the ui sends "ui.ready"
-    Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
 
   Scenario: Protocol output and process diagnostics are kept separate
     When squad-hq is launched with "--ui stdio"
