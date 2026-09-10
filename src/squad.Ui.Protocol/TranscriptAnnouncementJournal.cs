@@ -6,7 +6,7 @@ namespace squad.Ui.Protocol;
 /// Retains a bounded per-role sequence of incremental transcript announcements for reconnect recovery. Reads report
 /// when the requested interval predates retained announcement content.
 /// </summary>
-public sealed class TranscriptAnnouncementJournal
+internal sealed class TranscriptAnnouncementJournal
 {
     private readonly int myMaxEntriesPerRole;
     private readonly int myMaxCharactersPerRole;

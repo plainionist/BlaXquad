@@ -113,6 +113,20 @@ scenarios pass through `BackendScenario` (verified via targeted `dotnet test` fi
 **Slice acceptance:** Photino and stdio continue to expose the same versioned UI behavior, but only the production
 host/protocol contracts remain public and no test environment branch or callback remains.
 
+**Status: complete.** `SnapshotPublisher`, `TranscriptAnnouncementJournal`, `TranscriptProtocol`,
+`TranscriptRecoveryAnnouncement`, and `SequencedTranscriptAnnouncement` are internal to `squad.Ui.Protocol`;
+`UiProtocolSession` remains the assembly-crossing protocol component used by `PhotinoWindowHost` and
+`StdioWindowHost`. The `BLAXQUAD_PHOTINO_SMOKE` branch and its shutdown callback are removed from
+`UiCommandHandler`/`UiProtocolSession`, along with the injectable URL-opener and serialized-message-sink
+constructor parameters that existed only for direct tests; `UiCommandHandler` always opens URLs through its own
+`OpenExternalUrl` helper and both hosts communicate only through the production `sendSerializedMessage` callback.
+`PhotinoWindowHost` now has a single production constructor, with `CreateTitle` and `ReceiveMessageAsync` private
+and the unused `UiReady` property removed. `IWindowHost.HasCloseSignal` is removed (no lifecycle caller observed
+it) along with both hosts' implementations. `ISleepInhibitor.CommandPrefix` is removed from the interface and
+`SleepInhibitor` keeps command-prefix detection private. Verified via targeted `dotnet test` filters covering UI
+selection, stdio transport, protocol validation, transcript paging/recovery/ordering, and shutdown-with-open-stdin
+scenarios, plus a Headquarters regression pass.
+
 ### Slice 4: Reduce the provider implementation to the documented SPI
 
 1. Keep `IAgentProviderFactory`, `IAgentBackend`, `IAgentRuntime`, `IAgentSession`, readiness/failure capabilities,

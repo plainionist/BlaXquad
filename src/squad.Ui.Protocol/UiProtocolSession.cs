@@ -19,9 +19,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
     public UiProtocolSession(
         ISquadUi ui,
         Action<string> sendSerializedMessage,
-        Action signalUiReady,
-        Action requestSmokeShutdown,
-        Action<string>? openExternalUrl = null)
+        Action signalUiReady)
     {
         myUi = ui;
         myTranscriptUi = ui as ITranscriptUi
@@ -33,9 +31,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
             myTranscriptUi,
             Send,
             myDeliveryCoordinator.RequestTranscriptSynchronization,
-            signalUiReady,
-            requestSmokeShutdown,
-            openExternalUrl);
+            signalUiReady);
     }
 
     public void AttachUiEventSources()

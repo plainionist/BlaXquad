@@ -22,7 +22,6 @@ public sealed class PhotinoWindowHost : IWindowHost
     private readonly UiProtocolSession mySession;
     private readonly string myUiDirectory;
     private readonly string myTitle;
-    private readonly Action<string>? mySerializedMessageSink;
     private readonly TaskCompletionSource myClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource myUiReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource myWindowCreated = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -32,43 +31,18 @@ public sealed class PhotinoWindowHost : IWindowHost
     private Thread? myUiThread;
     private bool myStarted;
 
-    public PhotinoWindowHost(
-        ISquadUi ui,
-        string workspaceDirectory,
-        string? uiDirectory = null,
-        Action<string>? openExternalUrl = null)
-        : this(
-            ui,
-            workspaceDirectory,
-            uiDirectory,
-            openExternalUrl,
-            serializedMessageSink: null)
+    public PhotinoWindowHost(ISquadUi ui, string workspaceDirectory)
     {
-    }
-
-    public PhotinoWindowHost(
-        ISquadUi ui,
-        string workspaceDirectory,
-        string? uiDirectory,
-        Action<string>? openExternalUrl,
-        Action<string>? serializedMessageSink)
-    {
-        myUiDirectory = uiDirectory ?? Path.Combine(AppContext.BaseDirectory, "ui");
+        myUiDirectory = Path.Combine(AppContext.BaseDirectory, "ui");
         myTitle = CreateTitle(workspaceDirectory);
-        mySerializedMessageSink = serializedMessageSink;
         mySession = new(
             ui,
             SendSerializedMessage,
-            () => myUiReady.TrySetResult(),
-            () => _ = StopAsync(),
-            openExternalUrl);
+            () => myUiReady.TrySetResult());
     }
 
-    public static string CreateTitle(string workspaceDirectory) =>
+    private static string CreateTitle(string workspaceDirectory) =>
         $"BlaXquad - {Path.GetFullPath(workspaceDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)}";
-
-    public bool HasCloseSignal => myClosed.Task.IsCompleted;
-    public Task UiReady => myUiReady.Task;
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -228,17 +202,10 @@ public sealed class PhotinoWindowHost : IWindowHost
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr windowHandle, int attribute, ref int value, int valueSize);
 
-    public Task ReceiveMessageAsync(string message) =>
+    private Task ReceiveMessageAsync(string message) =>
         mySession.ReceiveMessageAsync(message);
 
-    private void SendSerializedMessage(string message)
-    {
-        if (mySerializedMessageSink is not null)
-        {
-            mySerializedMessageSink(message);
-            return;
-        }
+    private void SendSerializedMessage(string message) =>
         myWindow?.SendWebMessage(message);
-    }
 }
 

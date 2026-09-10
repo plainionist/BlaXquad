@@ -18,8 +18,6 @@ internal sealed class UiCommandHandler
         IReadOnlyDictionary<string, TranscriptSynchronizationPosition>?>
         myRequestTranscriptSynchronization;
     private readonly Action mySignalUiReady;
-    private readonly Action myRequestSmokeShutdown;
-    private readonly Action<string> myOpenExternalUrl;
 
     internal UiCommandHandler(
         ISquadUi ui,
@@ -29,9 +27,7 @@ internal sealed class UiCommandHandler
             bool,
             IReadOnlyDictionary<string, TranscriptSynchronizationPosition>?>
             requestTranscriptSynchronization,
-        Action signalUiReady,
-        Action requestSmokeShutdown,
-        Action<string>? openExternalUrl)
+        Action signalUiReady)
     {
         myUi = ui;
         myTranscriptUi = transcriptUi;
@@ -39,8 +35,6 @@ internal sealed class UiCommandHandler
         myRequestTranscriptSynchronization =
             requestTranscriptSynchronization;
         mySignalUiReady = signalUiReady;
-        myRequestSmokeShutdown = requestSmokeShutdown;
-        myOpenExternalUrl = openExternalUrl ?? OpenExternalUrl;
     }
 
     internal async Task HandleAsync(UiMessage message)
@@ -58,11 +52,6 @@ internal sealed class UiCommandHandler
                         StringComparer.Ordinal);
                 myRequestTranscriptSynchronization(true, initialPositions);
                 mySignalUiReady();
-                if (Environment.GetEnvironmentVariable(
-                        "BLAXQUAD_PHOTINO_SMOKE") == "1")
-                {
-                    myRequestSmokeShutdown();
-                }
                 break;
             case "transcript.synchronize":
                 myRequestTranscriptSynchronization(
@@ -138,7 +127,7 @@ internal sealed class UiCommandHandler
                     GetPayloadElement(message.Payload, "content"));
                 if (action == "accept" && request.Mode == "url")
                 {
-                    myOpenExternalUrl(
+                    OpenExternalUrl(
                         Require(request.Url, "pending elicitation URL"));
                 }
                 break;

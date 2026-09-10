@@ -21,7 +21,7 @@ public sealed class SleepInhibitor : ISleepInhibitor
     private Exception? myWindowsFailure;
     private System.Diagnostics.Process? myUnixInhibitor;
 
-    public IReadOnlyList<string> CommandPrefix => myCommandPrefix.Value;
+    private IReadOnlyList<string> CommandPrefix => myCommandPrefix.Value;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {

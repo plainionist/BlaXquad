@@ -38,11 +38,8 @@ public sealed class StdioWindowHost : IWindowHost
         mySession = new(
             ui,
             SendSerializedMessage,
-            () => myUiReady.TrySetResult(),
-            () => _ = StopAsync());
+            () => myUiReady.TrySetResult());
     }
-
-    public bool HasCloseSignal => myClosed.Task.IsCompleted;
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {

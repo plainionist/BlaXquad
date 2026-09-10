@@ -8,7 +8,7 @@ namespace squad.Ui.Protocol;
 /// Coalesces concurrent state-refresh requests onto one publisher loop. Deferred requests are throttled while an
 /// immediate request upgrades and releases the pending publication.
 /// </summary>
-public sealed class SnapshotPublisher : IAsyncDisposable
+internal sealed class SnapshotPublisher : IAsyncDisposable
 {
     private const int myNoRequest = 0;
     private const int myDeferredRequest = 1;
