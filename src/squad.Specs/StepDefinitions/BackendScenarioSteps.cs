@@ -192,6 +192,9 @@ public sealed class BackendScenarioSteps
     public void ThenTheAgentObservesAHarnessMessage(string role) =>
         myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
 
+    [When("the backend scenario requests an abort for role {string}")]
+    public void WhenTheBackendScenarioRequestsAnAbortForRole(string role) => myScenario.RequestAbort(role);
+
     [Then("the {string} agent observes an abort")]
     public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());
 
