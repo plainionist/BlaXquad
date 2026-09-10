@@ -187,7 +187,7 @@ client operations, matching the `squad-hq wait-for-agent` and `shutdown` command
 plus a Headquarters regression pass (including the existing-inbox-survives-restart scenario covering healthy
 relaunch after clean shutdown). No restart-button/UI-relaunch behavior from `restart button.md` was introduced.
 
-### Slice 6: Remove handoff-delivery test seams and close the surface audit
+### Slice 6 [done]: Remove handoff-delivery test seams and close the surface audit
 
 1. Replace the test-substitution-only `IHandoffPump` abstraction with the production `InProcessHandoffPoller` where
    no second production implementation exists, while retaining `IRoleNotifier` as the real cross-module callback
@@ -209,7 +209,7 @@ relaunch after clean shutdown). No restart-button/UI-relaunch behavior from `res
 surface is justified entirely by production composition or documented provider/UI SPIs, and the complete process-
 boundary suite passes without a supported behavior change.
 
-**Status: complete.** `IHandoffPump` is removed; `SquadRuntimeController` and `SquadApplication` (including its
+**Status: complete (890f42fe66).** `IHandoffPump` is removed; `SquadRuntimeController` and `SquadApplication` (including its
 `handoffPumpFactory` composition parameter) now depend on the concrete `InProcessHandoffPoller` directly, while
 `IRoleNotifier` remains the real cross-module callback from delivery to the active role sessions (its sole
 production implementer, `SessionRoleNotifier`, is unchanged). `InProcessHandoffPoller`'s fixed-role constructor
