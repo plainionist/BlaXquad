@@ -146,7 +146,7 @@ and missing directories, ordering and field fallbacks, exclusivity of top-level 
 closed/unclosed/absent frontmatter previews, in-session refresh, and a correlated filesystem `protocol.error`.
 `docs/manual/modules.md` inventories the new module.
 
-### Slice 2 - Browse and preview issues (pending)
+### Slice 2 - Browse and preview issues (in progress)
 
 **Outcome:** An operator can open the Issues menu and inspect the current catalog with equivalent pointer and keyboard
 behavior.
@@ -220,4 +220,4 @@ Acceptance criteria:
 - The target textarea has focus and no protocol envelope is emitted by Play.
 - Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
 
-Slice 1 is complete. Later slices remain pending until the architect activates the next one.
+Slice 1 is complete. Only Slice 2 is active; later slices remain pending until its reviewer accepts it.
