@@ -293,6 +293,24 @@ by the named scenarios so that each handoff still has one acceptance claim.
 - Do not change production behavior or add production APIs for test convenience.
 - Do not edit generated `*.feature.cs` files by hand.
 
+## Slice 18 review (7b0c18e7ea) — changes requested
+
+Readiness watches, input closure, platform cancellation, launch/shutdown, and replacement reuse Headquarters lifecycle language. Two shutdown steps still hard-code a concurrent send.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/Features/HeadquartersEarlyShutdown.feature` (`the operator requests shutdown as soon as it is reachable while sending ...`, `the operator requests shutdown while sending ...`); `src/squad.Specs/StepDefinitions/HeadquartersLifecycleSteps.cs`.
+- **Violated behavior:** Slice 18 must express independently initiated shutdown and other operations as separate steps. Race language must compose start/pending/observe steps rather than one sentence that hard-codes a specific pair of concurrent actions. Exact race orchestration may stay atomic in the driver, but Gherkin must express the reusable relationship.
+- **Root cause:** Both early-shutdown scenarios still fire host-control shutdown and a late prompt in one When, the same compound pair the old backend-scenario phrases used.
+- **Required outcome:** In `HeadquartersEarlyShutdown.feature`, initiate shutdown independently of the late prompt, then send the prompt as a separate user/dashboard operation. Remove the compound bindings if nothing else uses them. Keep deterministic race orchestration (do not await shutdown completion before the send).
+
+### Finding 2 — Medium
+
+- **Location:** `src/squad.Specs/Features/HeadquartersTermination.feature` (`the operator launches a squad host without completing the ready handshake`); `src/squad.Specs/StepDefinitions/HeadquartersLifecycleSteps.cs` (that binding vs `the operator launches Headquarters without completing the ready handshake`).
+- **Violated behavior:** No two bindings may differ only by provider choice. Fixture selection stays behind bindings. Slice 17 also forbade a second "squad host" launch dialect beside Headquarters.
+- **Root cause:** The two no-handshake launch steps differ only by Echo vs fake-provider factory, and the Echo variant was named `squad host` to tell them apart.
+- **Required outcome:** Use one no-handshake Headquarters launch phrase. Keep Echo vs fake-provider selection in the binding or in test setup, not as a second Gherkin actor/noun.
+
 ## Slice 17 review (94f1f13a72) — accepted
 
 **Status: complete (94f1f13a72).** Finding on bf4e3dc2c3 was addressed: `HostOwnershipSteps` uses the scenario-scoped `BackendScenario`, and live-host shutdown/wait-for-agent reuse Headquarters lifecycle vocabulary. Equivalent-path, linked-worktree, empty-project, and named-project stay as context on those verbs.
