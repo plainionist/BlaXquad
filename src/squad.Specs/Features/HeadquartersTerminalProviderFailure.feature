@@ -10,52 +10,56 @@ Feature: Surfacing terminal provider failures after readiness
   SquadApplication directly.
 
   Scenario: A per-session failure after readiness marks only that role's terminal state and never stops the host
-    Given a backend scenario configured with roles "coder,reviewer"
-    And the backend scenario has enabled the fake-provider control transport
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario observes a session started for role "reviewer" across the control pipe
+    Given `blaxquad/squad.json` configures:
+      | role     |
+      | coder    |
+      | reviewer |
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters starts an agent session for role "reviewer"
     When the "coder" agent fails its session with message "SDK unavailable"
-    Then the backend scenario observes role "coder" at status "error"
-    When the backend scenario sends the prompt "still available" to role "reviewer"
+    Then the dashboard shows role "coder" at status "error"
+    When the user sends "still available" to role "reviewer"
     Then the "reviewer" agent observes the prompt "still available"
-    When the backend scenario requests a host-control shutdown
-    Then the backend scenario observes an exit code of zero
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario observes a session disposed for role "reviewer" across the control pipe
+    When the operator shuts down Headquarters
+    Then Headquarters exits with code 0
+    And Headquarters disposes the agent session for role "coder"
+    And Headquarters disposes the agent session for role "reviewer"
 
   Scenario: A backend-wide terminal failure after readiness stops the host with the original diagnostic
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    When the backend scenario fails the fake provider's backend with message "shared SDK force-stop failed"
-    And the backend scenario waits for the process to exit on its own
-    Then the backend scenario observes a non-zero exit code
-    And the backend scenario observes standard error containing "shared SDK force-stop failed"
-    And the backend scenario observes standard error does not contain "Unhandled exception"
-    And the backend scenario observes standard error does not contain "Provider startup failed"
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    When the agent provider fails its backend with message "shared SDK force-stop failed"
+    And Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "shared SDK force-stop failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And Headquarters' standard error does not contain "Provider startup failed"
+    And Headquarters disposes the agent session for role "coder"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
 
   Scenario: A backend-wide terminal failure remains the reported outcome even when shutdown is also requested
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    When the backend scenario fails the fake provider's backend with message "shared SDK force-stop failed"
-    And the backend scenario requests a host-control shutdown
-    Then the backend scenario observes a non-zero exit code
-    And the backend scenario observes standard error containing "shared SDK force-stop failed"
-    And the backend scenario observes standard error does not contain "Unhandled exception"
-    And the backend scenario observes standard error does not contain "Provider startup failed"
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    When the agent provider fails its backend with message "shared SDK force-stop failed"
+    And the operator shuts down Headquarters
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "shared SDK force-stop failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And Headquarters' standard error does not contain "Provider startup failed"
+    And Headquarters disposes the agent session for role "coder"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready

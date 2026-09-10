@@ -11,60 +11,63 @@ Feature: Preserving primary and cleanup diagnostics through final release
   fake-provider control pipe, never through SquadApplication directly.
 
   Scenario: A startup failure combined with an independent cleanup failure surfaces both diagnostics
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario configures the fake provider to fail after 1 session has started
-    And the backend scenario configures the fake provider to fail its cleanup with message "cleanup boundary failed"
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    When the backend scenario waits for the process to exit on its own
-    Then the backend scenario observes a non-zero exit code
-    And the backend scenario observes standard error containing "fake provider failed after starting 1 session(s)"
-    And the backend scenario observes standard error containing "cleanup boundary failed"
-    And the backend scenario observes standard error does not contain "Unhandled exception"
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And Headquarters' provider fails after 1 session has started
+    And Headquarters' provider fails its cleanup with message "cleanup boundary failed"
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters disposes the agent session for role "coder"
+    When Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "fake provider failed after starting 1 session(s)"
+    And Headquarters' standard error contains "cleanup boundary failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
 
   Scenario: A runtime failure after readiness combined with an independent cleanup failure surfaces both diagnostics
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario configures the fake provider to fail its cleanup with message "cleanup boundary failed"
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    When the backend scenario fails the fake provider's backend with message "shared SDK force-stop failed"
-    And the backend scenario waits for the process to exit on its own
-    Then the backend scenario observes a non-zero exit code
-    And the backend scenario observes standard error containing "shared SDK force-stop failed"
-    And the backend scenario observes standard error containing "cleanup boundary failed"
-    And the backend scenario observes standard error does not contain "Unhandled exception"
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And Headquarters' provider fails its cleanup with message "cleanup boundary failed"
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    When the agent provider fails its backend with message "shared SDK force-stop failed"
+    And Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "shared SDK force-stop failed"
+    And Headquarters' standard error contains "cleanup boundary failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And Headquarters disposes the agent session for role "coder"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
 
   Scenario: Provider cleanup held at its acknowledged boundary keeps the host owned until it completes
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
     When the "coder" agent emits idle
-    Then the backend scenario observes role "coder" at status "idle"
-    When the backend scenario arms role "coder" to hold its next session disposal pending
-    And the backend scenario requests a host-control shutdown without waiting for the process to exit
-    Then the backend scenario observes role "coder"'s session disposal held
-    And the backend scenario confirms host control is still available for role "coder"
-    When the backend scenario completes the pending session disposal for role "coder"
-    And the backend scenario waits for the process to exit on its own
-    Then the backend scenario observes an exit code of zero
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Then the dashboard shows role "coder" at status "idle"
+    When the "coder" agent holds its next session disposal pending
+    And the operator begins shutting down Headquarters without waiting for it to exit
+    Then the "coder" agent's session disposal is held
+    And the operator finds Headquarters still available for role "coder"
+    When the "coder" agent releases its pending session disposal
+    And Headquarters' process exits on its own
+    Then Headquarters exits with code 0
+    And Headquarters disposes the agent session for role "coder"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready

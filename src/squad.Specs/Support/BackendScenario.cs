@@ -602,17 +602,38 @@ public sealed class BackendScenario : IDisposable
     /// cref="LaunchWithoutReadyHandshake{TProviderFactory}"/> starts this immediately, in the background, rather
     /// than waiting for a later ready handshake that a specification proving early termination may never
     /// complete - otherwise the launched role's own session would still be attempting its client-side connection
-    /// when standard input closes or shutdown wins its race, and disposing that stuck session would hang. A
-    /// specification whose role session never starts before it exits (shutdown wins the race, or the ready
-    /// handshake never completes) simply lets this task keep waiting until disposal cancels it.
+    /// when standard input closes or shutdown wins its race, and disposing that stuck session would hang. Also
+    /// races the connection wait against the launched process itself exiting - a provider that fails before ever
+    /// creating a session (for example <see cref="FailProviderBeforeRuntime"/>) never has a client attempt to
+    /// connect at all, and the process's own exit is itself the awaited outcome, not a control-pipe timeout - so
+    /// this resolves the moment either happens, never waiting out the full timeout for a connection that a
+    /// process which has already retired can no longer offer.
     /// </summary>
-    private Task EnsureControlConnectedAsync(TimeSpan? timeout = null)
+    private Task EnsureControlConnectedAsync(TimeSpan? timeout = null) =>
+        myControl is null ? Task.CompletedTask : myControlConnectionTask ??= WaitForControlConnectionOrProcessExitAsync(timeout);
+
+    private async Task WaitForControlConnectionOrProcessExitAsync(TimeSpan? timeout)
     {
-        if (myControl is null)
+        var connect = myControl!.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
+        if (myProcess is null)
         {
-            return Task.CompletedTask;
+            await connect;
+            return;
         }
-        return myControlConnectionTask ??= myControl.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
+
+        var processExited = myProcess.WaitForExitAsync();
+        var completed = await Task.WhenAny(connect, processExited);
+        if (completed == processExited)
+        {
+            // The process has already retired without any client ever attempting to connect - nothing further
+            // can be observed across a control pipe with no client, and that is not itself a failure here; the
+            // caller's own exit-code and diagnostic assertions report the real, already-final outcome. The
+            // abandoned connection attempt's own eventual timeout is observed (never left unobserved) here.
+            _ = connect.ContinueWith(task => _ = task.Exception, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+            return;
+        }
+
+        await connect;
     }
 
     private HeadlessUiClient RequireUi() =>

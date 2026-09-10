@@ -46,6 +46,18 @@ public sealed class HeadquartersLifecycleSteps
     public void GivenHeadquartersStartupPausesAfterSessionHasStarted(int count) =>
         myScenario.GateProviderStartupAfterSessions(count);
 
+    [Given("Headquarters' provider fails before its runtime becomes available")]
+    public void GivenHeadquartersProviderFailsBeforeItsRuntimeBecomesAvailable() =>
+        myScenario.FailProviderBeforeRuntime();
+
+    [Given("Headquarters' provider fails after {int} session has started")]
+    public void GivenHeadquartersProviderFailsAfterSessionHasStarted(int count) =>
+        myScenario.FailProviderAfterSessions(count);
+
+    [Given("Headquarters' provider fails its cleanup with message {string}")]
+    public void GivenHeadquartersProviderFailsItsCleanupWithMessage(string message) =>
+        myScenario.FailProviderDisposal(message);
+
     [When("the operator launches Headquarters without completing the ready handshake")]
     public void WhenTheOperatorLaunchesHeadquartersWithoutCompletingTheReadyHandshake()
     {
@@ -161,9 +173,25 @@ public sealed class HeadquartersLifecycleSteps
     public void WhenHeadquartersSProcessExitsOnItsOwn() =>
         myExitCode = Await(myScenario.WaitForProcessExitAsync());
 
+    [When("the agent provider fails its backend with message {string}")]
+    public void WhenTheAgentProviderFailsItsBackendWithMessage(string message) =>
+        Await(myScenario.FailProviderBackendAsync(message));
+
     [Then("Headquarters exits with code {int}")]
     public void ThenHeadquartersExitsWithCode(int exitCode) =>
         Assert.That(myExitCode, Is.EqualTo(exitCode));
+
+    [Then("Headquarters exits with a non-zero code")]
+    public void ThenHeadquartersExitsWithANonZeroCode() =>
+        Assert.That(myExitCode, Is.Not.Zero);
+
+    [Then("Headquarters' standard error contains {string}")]
+    public void ThenHeadquartersSStandardErrorContains(string text) =>
+        Await(myScenario.WaitForStandardErrorContainingAsync(text));
+
+    [Then("Headquarters' standard error does not contain {string}")]
+    public void ThenHeadquartersSStandardErrorDoesNotContain(string text) =>
+        Assert.That(myScenario.CapturedStandardError(), Does.Not.Contain(text));
 
     [Then("the operator finds Headquarters unavailable for role {string}")]
     public void ThenTheOperatorFindsHeadquartersUnavailableForRole(string role)
@@ -174,6 +202,17 @@ public sealed class HeadquartersLifecycleSteps
             Assert.That(result.ExitCode, Is.Not.Zero);
             Assert.That(result.StdErr, Does.Contain("squad host unavailable"));
         });
+    }
+
+    // "Still available" reuses the same live probe as "unavailable": a genuinely dead host never answers at all
+    // (its own exit code and "squad host unavailable" diagnostic), whereas a host that is merely still starting
+    // its own role up (or, symmetrically, already shutting down but not yet released) answers reachably with its
+    // own "agent not ready" diagnostic - proving the host itself is still owned and listening.
+    [Then("the operator finds Headquarters still available for role {string}")]
+    public void ThenTheOperatorFindsHeadquartersStillAvailableForRole(string role)
+    {
+        var result = myScenario.ConfirmHostControlUnavailable(role);
+        Assert.That(result.StdErr, Does.Contain("agent not ready"), () => result.StdErr);
     }
 
     [Then("role {string}'s durable file {string} still contains {string}")]

@@ -52,18 +52,6 @@ public sealed class BackendScenarioSteps
     public void GivenTheBackendScenarioHasEnabledTheFakeProviderControlTransport() =>
         myScenario.EnableFakeProviderControl();
 
-    [Given("the backend scenario configures the fake provider to fail before its runtime becomes available")]
-    public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailBeforeItsRuntimeBecomesAvailable() =>
-        myScenario.FailProviderBeforeRuntime();
-
-    [Given("the backend scenario configures the fake provider to fail after {int} session has started")]
-    public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailAfterSessionHasStarted(int count) =>
-        myScenario.FailProviderAfterSessions(count);
-
-    [Given("the backend scenario configures the fake provider to fail its cleanup with message {string}")]
-    public void GivenTheBackendScenarioConfiguresTheFakeProviderToFailItsCleanupWithMessage(string message) =>
-        myScenario.FailProviderDisposal(message);
-
     [Given("Headquarters' temporary transcript directory is isolated")]
     public void GivenHeadquartersTemporaryTranscriptDirectoryIsIsolated() =>
         myScenario.IsolateTemporaryDirectory();
@@ -80,17 +68,9 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioStartsSquadHqWithTheFakeProviderFixture() =>
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
 
-    [Then("the backend scenario observes no session was ever started for role {string}")]
-    public void ThenTheBackendScenarioObservesNoSessionWasEverStartedForRole(string role) =>
-        Assert.That(myScenario.RoleSessionNeverStarted(role), Is.True);
-
     [Then("the backend scenario reports the process as ready")]
     public void ThenTheBackendScenarioReportsTheProcessAsReady() =>
         Assert.That(myScenario.IsReady, Is.True);
-
-    [Then("the backend scenario observes role {string} at status {string}")]
-    public void ThenTheBackendScenarioObservesRoleAtStatus(string role, string status) =>
-        Await(myScenario.WaitForRoleStatusAsync(role, status));
 
     [Then("the backend scenario observes a session started for role {string} across the control pipe")]
     public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
@@ -99,10 +79,6 @@ public sealed class BackendScenarioSteps
     [Then("the backend scenario observes a session disposed for role {string} across the control pipe")]
     public void ThenTheBackendScenarioObservesASessionDisposedForRoleAcrossTheControlPipe(string role) =>
         Await(myScenario.WaitForRoleSessionDisposedAsync(role));
-
-    [When("the backend scenario sends the prompt {string} to role {string}")]
-    public void WhenTheBackendScenarioSendsThePromptToRole(string prompt, string role) =>
-        myScenario.SendPrompt(role, prompt);
 
     [Then("the {string} agent observes the prompt {string}")]
     public void ThenTheAgentObservesThePrompt(string role, string expectedPrompt) =>
@@ -164,21 +140,13 @@ public sealed class BackendScenarioSteps
             $"Role '{role}''s session disposal was held, but its admitted send had not yet reached its own " +
             "canceled outcome by that moment - drain-before-dispose ordering was not observed.");
 
-    [When("the backend scenario arms role {string} to hold its next session disposal pending")]
-    public void WhenTheBackendScenarioArmsRoleToHoldItsNextSessionDisposalPending(string role) =>
-        Await(myScenario.Agent(role).ArmPendingDisposalAsync());
-
-    [When("the backend scenario completes the pending session disposal for role {string}")]
-    public void WhenTheBackendScenarioCompletesThePendingSessionDisposalForRole(string role) =>
-        Await(myScenario.Agent(role).CompletePendingDisposalAsync());
-
-    [Then("the backend scenario observes role {string}'s session disposal held")]
-    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeld(string role) =>
+    // Merely awaiting (without asserting on) the returned flag is deliberate: WaitForDisposalHeldAsync returns
+    // whether an admitted send had already reached its own canceled outcome before disposal began - a detail
+    // this simpler phrasing does not claim - not whether disposal is held; that itself is proven by this call
+    // returning at all rather than timing out.
+    [Then("the {string} agent's session disposal is held")]
+    public void ThenTheAgentSSessionDisposalIsHeld(string role) =>
         Await(myScenario.Agent(role).WaitForDisposalHeldAsync());
-
-    [When("the backend scenario requests a host-control shutdown without waiting for the process to exit")]
-    public void WhenTheBackendScenarioRequestsAHostControlShutdownWithoutWaitingForTheProcessToExit() =>
-        Await(myScenario.RequestShutdownWithoutWaitingForExit());
 
     [Then("role {string} is not ready for a prompt")]
     public void ThenRoleIsNotReadyForAPrompt(string role)
@@ -807,18 +775,6 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentFailsItsSessionWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailSessionAsync(message));
 
-    [When("the backend scenario fails the fake provider's backend with message {string}")]
-    public void WhenTheBackendScenarioFailsTheFakeProvidersBackendWithMessage(string message) =>
-        Await(myScenario.FailProviderBackendAsync(message));
-
-    [When("the backend scenario requests a host-control shutdown")]
-    public void WhenTheBackendScenarioRequestsAHostControlShutdown() =>
-        myExitCode = Await(myScenario.ShutdownAsync());
-
-    [Then("the backend scenario observes an exit code of zero")]
-    public void ThenTheBackendScenarioObservesAnExitCodeOfZero() =>
-        Assert.That(myExitCode, Is.Zero);
-
     [When("the backend scenario waits for the process to exit on its own")]
     public void WhenTheBackendScenarioWaitsForTheProcessToExitOnItsOwn() =>
         myExitCode = Await(myScenario.WaitForProcessExitAsync());
@@ -861,20 +817,6 @@ public sealed class BackendScenarioSteps
             Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
             Assert.That(result.StdOut, Does.Contain("is ready"));
         });
-    }
-
-    // While cleanup is genuinely held, admission is already closed (a role never reports ready during it - the
-    // same closed-admission outcome ShutdownCommandAdmission.feature proves for an ordinary protocol command), so
-    // "squad-hq wait-for-agent" cannot itself report success here. Proving the host is still owned and genuinely
-    // reachable - not merely that the released-host diagnostic is absent - requires observing the same live-host
-    // diagnostic "Then role {string} is not ready for a prompt" already uses as proof of contact: "agent not
-    // ready" only appears once the command has actually reached the live host and polled it for its own full
-    // timeout, whereas an unreachable endpoint (host.json gone, or present but not answering) never produces it.
-    [Then("the backend scenario confirms host control is still available for role {string}")]
-    public void ThenTheBackendScenarioConfirmsHostControlIsStillAvailableForRole(string role)
-    {
-        var result = myScenario.ConfirmHostControlUnavailable(role);
-        Assert.That(result.StdErr, Does.Contain("agent not ready"), () => result.StdErr);
     }
 
     [Then("the backend scenario confirms host control is unavailable for role {string}")]
