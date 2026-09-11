@@ -1,4 +1,5 @@
 using squad.Specs.Support;
+using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -10,11 +11,11 @@ public sealed class QueueSteps
     private readonly TaskMailboxFixture myTaskMailbox;
     private readonly TaskMailboxObserver myTaskObserver;
 
-    public QueueSteps(ScenarioWorkspace workspace)
+    public QueueSteps(ScenarioWorkspace workspace, TaskMailboxFixture taskMailbox, TaskMailboxObserver taskObserver)
     {
         myWorkspace = workspace;
-        myTaskMailbox = new TaskMailboxFixture(workspace);
-        myTaskObserver = new TaskMailboxObserver(workspace);
+        myTaskMailbox = taskMailbox;
+        myTaskObserver = taskObserver;
     }
 
     [Given("{string} has these queued tasks:")]

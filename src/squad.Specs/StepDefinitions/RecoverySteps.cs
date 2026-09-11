@@ -1,4 +1,5 @@
 using squad.Specs.Support;
+using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -32,12 +33,12 @@ public sealed class RecoverySteps
     private BackendScenario? myReplacementScenario;
     private BackendScenario? myCurrentScenario;
 
-    public RecoverySteps(ScenarioWorkspace workspace, BackendScenario scenario)
+    public RecoverySteps(ScenarioWorkspace workspace, BackendScenario scenario, HandoffMailboxObserver mailbox, TaskMailboxFixture taskMailbox)
     {
         myWorkspace = workspace;
         myScenario = scenario;
-        myMailbox = new HandoffMailboxObserver(workspace);
-        myTaskMailbox = new TaskMailboxFixture(workspace);
+        myMailbox = mailbox;
+        myTaskMailbox = taskMailbox;
     }
 
     [AfterScenario]

@@ -1,4 +1,6 @@
-namespace squad.Specs.Support;
+using squad.Specs.Support;
+
+namespace squad.Specs.Support.Mailboxes;
 
 /// <summary>
 /// Builds and writes the current on-disk handoff draft representation into a role's worktree. Isolating the
@@ -15,13 +17,13 @@ public sealed class HandoffDraftWriter
         myWorkspace = workspace;
     }
 
-    public string WriteGitHandoffDraft(string role, string recipients, string priority, string task, string commit) =>
+    internal string WriteGitHandoffDraft(string role, string recipients, string priority, string task, string commit) =>
         Write(role, $"type: git_handoff\nto: {recipients}\npriority: {priority}\ntask: {task}\ncommit: {commit}\n");
 
-    public string WriteNoteDraft(string role, string recipients, string priority, string message) =>
+    internal string WriteNoteDraft(string role, string recipients, string priority, string message) =>
         Write(role, $"type: note\nto: {recipients}\npriority: {priority}\nmessage: {message}\n");
 
-    public string WriteRawDraft(string role, string content) => Write(role, content + "\n");
+    internal string WriteRawDraft(string role, string content) => Write(role, content + "\n");
 
     private string Write(string role, string content)
     {

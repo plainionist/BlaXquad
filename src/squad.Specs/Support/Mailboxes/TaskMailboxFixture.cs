@@ -1,4 +1,6 @@
-namespace squad.Specs.Support;
+using squad.Specs.Support;
+
+namespace squad.Specs.Support.Mailboxes;
 
 /// <summary>
 /// Arranges durable inbound task and batch state directly on disk for a role's worktree, for prerequisite queue
@@ -17,18 +19,18 @@ public sealed class TaskMailboxFixture
     }
 
     /// <summary>Seeds a task waiting in the role's new-work queue.</summary>
-    public void QueueTask(string role, string sender, string priority, string task) =>
+    internal void QueueTask(string role, string sender, string priority, string task) =>
         Write(role, "new", sender, priority, task);
 
     /// <summary>Seeds a task already accepted as the role's current in-process work.</summary>
-    public void PutTaskInProcess(string role, string sender, string priority, string task) =>
+    internal void PutTaskInProcess(string role, string sender, string priority, string task) =>
         Write(role, "in_process", sender, priority, task);
 
     /// <summary>
     /// Seeds a batch of tasks already accepted as the role's current in-process work, sharing one batch folder so a
     /// batch role's "done-with-current" completes and inspects them together.
     /// </summary>
-    public void PutBatchInProcess(string role, IEnumerable<(string Sender, string Priority, string Task)> items)
+    internal void PutBatchInProcess(string role, IEnumerable<(string Sender, string Priority, string Task)> items)
     {
         mySequence++;
         var batchName = $"batch_20260822T120000Z_{mySequence:D6}";
@@ -42,7 +44,7 @@ public sealed class TaskMailboxFixture
     /// Copies the role's sole in-process task file into its completion archive, simulating a pre-existing archive
     /// collision without disturbing the current in-process task itself.
     /// </summary>
-    public void DuplicateCurrentTaskIntoCompletedArchive(string role)
+    internal void DuplicateCurrentTaskIntoCompletedArchive(string role)
     {
         var inProcess = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", "in_process");
         var source = Directory.GetFiles(inProcess, "*.handoff").Single();

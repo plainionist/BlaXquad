@@ -1,4 +1,6 @@
-namespace squad.Specs.Support;
+using squad.Specs.Support;
+
+namespace squad.Specs.Support.Mailboxes;
 
 /// <summary>
 /// A test-owned semantic view over a role worktree's durable inbound task mailbox. Directory enumeration and
@@ -14,11 +16,11 @@ public sealed class TaskMailboxObserver
         myWorkspace = workspace;
     }
 
-    public bool IsTaskQueued(string role, string task) => Find(role, "new", task) is not null;
+    internal bool IsTaskQueued(string role, string task) => Find(role, "new", task) is not null;
 
-    public bool IsTaskInProcess(string role, string task) => Find(role, "in_process", task) is not null;
+    internal bool IsTaskInProcess(string role, string task) => Find(role, "in_process", task) is not null;
 
-    public bool IsTaskCompleted(string role, string task) => Find(role, "completed", task) is not null;
+    internal bool IsTaskCompleted(string role, string task) => Find(role, "completed", task) is not null;
 
     private string? Find(string role, string state, string task)
     {

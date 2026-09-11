@@ -1,4 +1,5 @@
 using squad.Specs.Support;
+using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -12,11 +13,11 @@ public sealed class HandoffSteps
     private readonly HandoffDraftWriter myDrafts;
     private readonly HandoffMailboxObserver myMailbox;
 
-    public HandoffSteps(ScenarioWorkspace workspace)
+    public HandoffSteps(ScenarioWorkspace workspace, HandoffDraftWriter drafts, HandoffMailboxObserver mailbox)
     {
         myWorkspace = workspace;
-        myDrafts = new HandoffDraftWriter(workspace);
-        myMailbox = new HandoffMailboxObserver(workspace);
+        myDrafts = drafts;
+        myMailbox = mailbox;
     }
 
     [Given("{string} has a committed change")]

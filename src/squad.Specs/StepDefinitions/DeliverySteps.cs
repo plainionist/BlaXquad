@@ -1,4 +1,5 @@
 using squad.Specs.Support;
+using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -23,11 +24,11 @@ public sealed class DeliverySteps
     private readonly BackendScenario myScenario;
     private readonly HandoffMailboxObserver myMailbox;
 
-    public DeliverySteps(ScenarioWorkspace workspace, BackendScenario scenario)
+    public DeliverySteps(ScenarioWorkspace workspace, BackendScenario scenario, HandoffMailboxObserver mailbox)
     {
         myWorkspace = workspace;
         myScenario = scenario;
-        myMailbox = new HandoffMailboxObserver(workspace);
+        myMailbox = mailbox;
     }
 
     [When("{string} durably queues an invalid note to:")]

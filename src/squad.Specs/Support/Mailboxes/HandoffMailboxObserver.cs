@@ -1,4 +1,6 @@
-namespace squad.Specs.Support;
+using squad.Specs.Support;
+
+namespace squad.Specs.Support.Mailboxes;
 
 /// <summary>
 /// A test-owned semantic view over a role worktree's durable outbound handoff mailbox. Directory enumeration and
@@ -15,20 +17,20 @@ public sealed class HandoffMailboxObserver
     }
 
     /// <summary>Every handoff currently queued in a role's outbox, in stable file order.</summary>
-    public IReadOnlyList<QueuedHandoff> QueuedHandoffs(string senderRole) =>
+    internal IReadOnlyList<QueuedHandoff> QueuedHandoffs(string senderRole) =>
         ListHandoffs(senderRole, "outbox");
 
     /// <summary>The one handoff expected to be queued in a role's outbox.</summary>
-    public QueuedHandoff SingleQueuedHandoff(string senderRole) => QueuedHandoffs(senderRole).Single();
+    internal QueuedHandoff SingleQueuedHandoff(string senderRole) => QueuedHandoffs(senderRole).Single();
 
     /// <summary>Every handoff a role's outbox has archived as durably sent, in stable file order.</summary>
-    public IReadOnlyList<QueuedHandoff> SentHandoffs(string senderRole) => ListHandoffs(senderRole, "sent");
+    internal IReadOnlyList<QueuedHandoff> SentHandoffs(string senderRole) => ListHandoffs(senderRole, "sent");
 
     /// <summary>Every handoff a role's outbox has archived as failed, in stable file order.</summary>
-    public IReadOnlyList<QueuedHandoff> FailedHandoffs(string senderRole) => ListHandoffs(senderRole, "failed");
+    internal IReadOnlyList<QueuedHandoff> FailedHandoffs(string senderRole) => ListHandoffs(senderRole, "failed");
 
     /// <summary>Every handoff durably delivered into a role's new-inbox bucket, in stable file order.</summary>
-    public IReadOnlyList<QueuedHandoff> NewInboxHandoffs(string recipientRole) =>
+    internal IReadOnlyList<QueuedHandoff> NewInboxHandoffs(string recipientRole) =>
         ListHandoffs(recipientRole, Path.Combine("inbox", "new"));
 
     /// <summary>
@@ -36,7 +38,7 @@ public sealed class HandoffMailboxObserver
     /// own recipient and field validation - the only way a scenario can arrange an otherwise-uncreatable durable
     /// prerequisite, such as fan-out naming an unconfigured recipient.
     /// </summary>
-    public void SeedInvalidOutboundNote(string senderRole, string recipients, string message)
+    internal void SeedInvalidOutboundNote(string senderRole, string recipients, string message)
     {
         var outbox = Path.Combine(myWorkspace.RoleWorktreePath(senderRole), ".blaxquad", "handoffs", "outbox");
         Directory.CreateDirectory(outbox);
@@ -53,7 +55,7 @@ public sealed class HandoffMailboxObserver
     /// content that a fresh delivery would never render. Lets a scenario prove a retried delivery preserves this
     /// pre-existing "already persisted" copy byte-for-byte instead of overwriting it.
     /// </summary>
-    public void SeedExistingRecipientCopy(string senderRole, string recipientRole, string markerContent)
+    internal void SeedExistingRecipientCopy(string senderRole, string recipientRole, string markerContent)
     {
         var fileName = SingleQueuedHandoffFileName(senderRole);
         var target = Path.Combine(myWorkspace.RoleWorktreePath(recipientRole), ".blaxquad", "handoffs", "inbox", "new", fileName);
@@ -63,7 +65,7 @@ public sealed class HandoffMailboxObserver
 
     /// <summary>The raw content of the sole handoff durably delivered into a role's new-inbox bucket, unparsed -
     /// so a scenario can assert it remains byte-for-byte identical to a previously seeded marker.</summary>
-    public string SingleNewInboxRawContent(string recipientRole)
+    internal string SingleNewInboxRawContent(string recipientRole)
     {
         var newDir = Path.Combine(myWorkspace.RoleWorktreePath(recipientRole), ".blaxquad", "handoffs", "inbox", "new");
         return File.ReadAllText(Directory.GetFiles(newDir, "*.handoff", SearchOption.TopDirectoryOnly).Single());
@@ -74,7 +76,7 @@ public sealed class HandoffMailboxObserver
     /// by file name, so a scenario can assert recovery preserves entries exactly rather than merely checking
     /// counts.
     /// </summary>
-    public IReadOnlyDictionary<string, string> InboxContentSnapshot(string role)
+    internal IReadOnlyDictionary<string, string> InboxContentSnapshot(string role)
     {
         var handoffs = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox");
         return new[] { "new", "in_process" }
@@ -129,22 +131,4 @@ public sealed class HandoffMailboxObserver
             Payload: payload,
             Recipient: headers.GetValueOrDefault("recipient"));
     }
-}
-
-/// <summary>A queued handoff described in user terms: who sent it, who receives it, and its delivery instruction.
-/// <paramref name="Recipient"/> is the single recipient header a durably delivered inbox copy carries - null for an
-/// outbox, sent, or failed artifact, which still names every fan-out recipient only through <paramref name="Recipients"/>.</summary>
-public sealed record QueuedHandoff(
-    string Sender,
-    IReadOnlyList<string> Recipients,
-    string Priority,
-    string Type,
-    string? Task,
-    string? Message,
-    string Payload,
-    string? Recipient = null)
-{
-    /// <summary>Whether the payload instructs merging and processing the given committed change from the sender.</summary>
-    public bool InstructsMergingCommit(string sender, string commit) =>
-        Payload == $"merge_and_process {sender} {commit}";
 }
