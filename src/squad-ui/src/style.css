@@ -18,6 +18,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .dismiss { min-width: 30px; min-height: 30px; border: 0; background: transparent; color: inherit; font-family: 'Courier New', monospace; }
 .issue-toolbar { position: relative; z-index: 30; display: flex; align-items: center; flex: 0 0 auto; }
 .issue-trigger { height: 30px; padding: 0 14px; border: 1px solid #3c3c3c; border-radius: 3px; background: #2d2d2d; color: #cccccc; }
+.issue-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+.toolbar-row { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .issue-panel { position: absolute; top: calc(100% + 4px); left: 0; display: flex; gap: 8px; max-width: calc(100vw - 20px); }
 .issue-menu-column { display: flex; flex-direction: column; gap: 6px; min-width: 330px; max-width: 480px; }
 .issue-menu { max-height: 480px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid #3c3c3c; border-radius: 3px; background: #252526; box-shadow: 0 2px 8px rgb(0 0 0 / 28%); }

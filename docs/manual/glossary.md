@@ -255,9 +255,11 @@ carries this protocol over the OS window; it has no envelope, delivery, or
 recovery logic of its own. Headquarters never references it at compile time - it
 is the packaged default hosting plug-in, runtime-loaded through the same
 `--hosting` mechanism as any other adapter when the option is omitted. Headquarters publishes snapshots, transcript
-synchronization, updates, pages, archived entries, and protocol errors. The
-dashboard sends readiness, prompt, abort, interaction response, and
-transcript retrieval commands.
+synchronization, updates, pages, archived entries, protocol errors, and - once, during the `ui.ready` handshake - a
+`workspace-tools.snapshot` reporting each configured workspace tool's availability (for example
+`gitHistoryAvailable`). The
+dashboard sends readiness, prompt, abort, interaction response, transcript retrieval, and workspace-tool
+commands (for example `git-history.open`).
 
 ## Snapshot
 

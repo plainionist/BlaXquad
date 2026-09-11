@@ -9,7 +9,7 @@ namespace squad.Ui.Protocol;
 /// </summary>
 public sealed class UiProtocolSession : IAsyncDisposable
 {
-    private const int myProtocolVersion = 5;
+    private const int myProtocolVersion = 6;
     private readonly ISquadUi myUi;
     private readonly ITranscriptUi myTranscriptUi;
     private readonly Action<string> mySendSerializedMessage;
@@ -19,6 +19,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
     public UiProtocolSession(
         ISquadUi ui,
         IIssueCatalog issueCatalog,
+        IWorkspaceTools workspaceTools,
         Action<string> sendSerializedMessage,
         Action signalUiReady)
     {
@@ -31,6 +32,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
             myUi,
             myTranscriptUi,
             issueCatalog,
+            workspaceTools,
             Send,
             myDeliveryCoordinator.RequestTranscriptSynchronization,
             signalUiReady);

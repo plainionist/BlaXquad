@@ -20,6 +20,9 @@ internal sealed class SquadConfigurationDocument
 
     [JsonPropertyName("sharedWorktreePaths")]
     public List<string>? SharedWorktreePaths { get; init; }
+
+    [JsonPropertyName("gitHistoryCommand")]
+    public List<string>? GitHistoryCommand { get; init; }
 }
 
 

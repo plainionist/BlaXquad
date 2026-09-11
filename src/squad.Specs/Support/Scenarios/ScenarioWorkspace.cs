@@ -63,6 +63,22 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
+    /// Rewrites `blaxquad/squad.json` for every role already configured by <see cref="ConfigureRoles(string[])"/>,
+    /// adding the given raw JSON value under the given top-level field name (an array literal, or a malformed one
+    /// such as "[]"), preserving each role's worktree mapping - generic to any current or future per-tool launch
+    /// command field, so a specification can arrange one as a single semantic workspace operation without a
+    /// bespoke method per tool.
+    /// </summary>
+    public void ConfigureToolCommand(string fieldName, string commandJson)
+    {
+        var members = myRoleWorktrees.Keys
+            .Select(role => (Name: role, Role: role, Worktree: role, ReceiveMode: (string?)null))
+            .ToList();
+        var leader = myRoleWorktrees.Keys.First();
+        WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(leader, members, extraFieldJson: (fieldName, commandJson)));
+    }
+
+    /// <summary>
     /// Creates a non-empty directory at <paramref name="relativePath"/> inside the given role's own worktree
     /// (recorded by <see cref="ConfigureProject"/>), so a real launch attempting to replace it with a shared
     /// worktree path link genuinely finds pre-existing content it must not silently discard.
@@ -316,7 +332,8 @@ public sealed class ScenarioWorkspace : IDisposable
     private static string BuildSquadConfigurationJson(
         string? leader,
         IReadOnlyList<(string Name, string Role, string Worktree, string? ReceiveMode)> members,
-        IReadOnlyList<string>? sharedWorktreePaths = null)
+        IReadOnlyList<string>? sharedWorktreePaths = null,
+        (string FieldName, string Json)? extraFieldJson = null)
     {
         var rolesJson = string.Join(", ", members
             .Select(member => member.Role)
@@ -328,10 +345,13 @@ public sealed class ScenarioWorkspace : IDisposable
         var sharedWorktreePathsLine = sharedWorktreePaths is null || sharedWorktreePaths.Count == 0
             ? ""
             : $$"""  "sharedWorktreePaths": [{{string.Join(", ", sharedWorktreePaths.Select(path => $"\"{path}\""))}}],{{"\n"}}""";
+        var extraFieldLine = extraFieldJson is null
+            ? ""
+            : $$"""  "{{extraFieldJson.Value.FieldName}}": {{extraFieldJson.Value.Json}},{{"\n"}}""";
         return $$"""
             {
               "schemaVersion": 2,
-            {{leaderLine}}{{sharedWorktreePathsLine}}  "roles": [{{rolesJson}}],
+            {{leaderLine}}{{sharedWorktreePathsLine}}{{extraFieldLine}}  "roles": [{{rolesJson}}],
               "members": [
             {{membersJson}}
               ]
