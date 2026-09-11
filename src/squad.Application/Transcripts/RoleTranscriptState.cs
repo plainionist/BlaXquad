@@ -1,13 +1,13 @@
 using squad.Ui.Abstractions;
 
-namespace squad.Transcripts;
+namespace squad.Application.Transcripts;
 
 /// <summary>
 /// Owns the retained transcript, streaming buffers, tool-call correlation, archive access, and retention policy for
 /// one role. Reads acquire the shared role lock; mutations require the caller to hold it so role and transcript
 /// changes commit atomically.
 /// </summary>
-public sealed class RoleTranscriptState
+internal sealed class RoleTranscriptState
 {
     private const string myArchivedContentAvailableMarker =
         "[Earlier content is available in transcript history.]\n";

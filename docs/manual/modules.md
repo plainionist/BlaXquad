@@ -44,8 +44,11 @@ through `InternalsVisibleTo`.
 
 Owns authoritative live role state and user operations, including the active
 role-session catalog and command admission. It projects agent events,
-coordinates prompts, aborts, and pending interactions, integrates transcript
-state, and supplies UI snapshots.
+coordinates prompts, aborts, and pending interactions, and supplies UI
+snapshots. Its `Transcripts` component owns per-role transcript state,
+including ordered entries, streaming buffers, tool-call correlation, live
+retention limits, durable archives, paging, and archived-entry
+reconstruction.
 
 ## `squad.Configuration`
 
@@ -120,12 +123,6 @@ one headquarters process per project and provides local process control: it
 owns the Headquarters lock and metadata, named-pipe shutdown and readiness requests,
 client access, and stale-state cleanup. Control code remains structurally
 separate from lifecycle coordination within the same assembly.
-
-## `squad.Transcripts`
-
-Owns per-role transcript state, including ordered entries, streaming buffers,
-tool-call correlation, live retention limits, durable archives, paging, and
-archived-entry reconstruction.
 
 ## `squad.Ui.Abstractions`
 

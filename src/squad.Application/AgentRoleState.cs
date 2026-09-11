@@ -1,4 +1,4 @@
-using squad.Transcripts;
+using squad.Application.Transcripts;
 
 namespace squad.Application;
 
