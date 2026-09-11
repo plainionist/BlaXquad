@@ -68,12 +68,6 @@ Runs host-side handoff delivery. It polls role outboxes, durably writes
 recipient inbox copies, archives sent or failed items, recovers pending
 notifications, and wakes recipient sessions.
 
-## `squad.Host.Control`
-
-Enforces one headquarters process per project and provides local process
-control. It owns the host lock and metadata, named-pipe shutdown and readiness
-requests, client access, and stale-state cleanup.
-
 ## `squad.Hosting.Abstractions`
 
 Defines the narrow platform-hosting contracts for the desktop window lifecycle
@@ -124,8 +118,11 @@ cancellation, result values, and exit-code exceptions.
 Coordinates the headquarters lifecycle after composition. It sequences startup
 and cleanup, owns the provider-runtime generation, registers started sessions
 into the application model, observes session events and failures, and starts
-and stops handoff, window, and sleep resources. It depends on the separate
-`squad.Host.Control` module for project ownership and local process control.
+and stops handoff, window, and sleep resources. Its `Control` component enforces
+one headquarters process per project and provides local process control: it
+owns the host lock and metadata, named-pipe shutdown and readiness requests,
+client access, and stale-state cleanup. Control code remains structurally
+separate from lifecycle coordination within the same assembly.
 
 ## `squad.Transcripts`
 

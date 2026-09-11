@@ -2,7 +2,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squad.Host.Control;
+namespace squad.Runtime.Control;
 
 /// <summary>
 /// Holds the cross-process project lock, publishes host metadata, and serves the local control pipe until disposal.
@@ -31,10 +31,10 @@ public sealed class HostLease : IAsyncDisposable
         ServerFailure = myServerFailure.Task;
     }
 
-    public Task ShutdownRequested { get; }
-    public Task ServerFailure { get; }
+    internal Task ShutdownRequested { get; }
+    internal Task ServerFailure { get; }
 
-    public void SetAgentReadinessProvider(Func<string, CancellationToken, Task<bool?>> provider)
+    internal void SetAgentReadinessProvider(Func<string, CancellationToken, Task<bool?>> provider)
     {
         ArgumentNullException.ThrowIfNull(provider);
         Volatile.Write(ref myAgentReadinessProvider, provider);

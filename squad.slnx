@@ -15,7 +15,6 @@
   <Project Path="src/squad.Ui.Protocol/squad.Ui.Protocol.csproj" />
   <Project Path="src/squad.Issues/squad.Issues.csproj" />
   <Project Path="src/squad.Workspaces/squad.Workspaces.csproj" />
-  <Project Path="src/squad.Host.Control/squad.Host.Control.csproj" />
   <Project Path="src/squad.Runtime/squad.Runtime.csproj" />
   <Folder Name="/src/">
     <Project Path="src/squad.AgentProvider.CopilotSdk/squad.AgentProvider.CopilotSdk.csproj" />

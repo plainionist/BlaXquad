@@ -1,4 +1,4 @@
-namespace squad.Host.Control;
+namespace squad.Runtime.Control;
 
 /// <summary>Holds exclusive cleanup access to host metadata after proving that no live host owns the project.</summary>
 internal sealed class CleanupLease : IDisposable

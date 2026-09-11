@@ -1,4 +1,4 @@
-namespace squad.Host.Control;
+namespace squad.Runtime.Control;
 
 internal sealed record HostControlRequest(string Command, string? Role);
 

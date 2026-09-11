@@ -1,4 +1,4 @@
-using squad.Host.Control;
+using squad.Runtime.Control;
 
 namespace squadHQ.Commands;
 

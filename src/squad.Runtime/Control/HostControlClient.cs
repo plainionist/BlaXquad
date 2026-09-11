@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squad.Host.Control;
+namespace squad.Runtime.Control;
 
 /// <summary>Communicates with the live host identified by a project root and cleans up stale host metadata.</summary>
 public static class HostControlClient

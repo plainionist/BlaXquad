@@ -4,8 +4,8 @@ using squad.Application;
 using squad.Hosting.Abstractions;
 using squad.Issues;
 using squad.Workspaces;
-using squad.Host.Control;
 using squad.Runtime;
+using squad.Runtime.Control;
 
 namespace squadHQ.Commands;
 
