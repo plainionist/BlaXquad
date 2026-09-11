@@ -244,7 +244,7 @@ envelope until Enter, and Play disabled / Copy enabled with no roles.
 **Transition:** Slice 4 is accepted. Slice 5 replaces its positional target; the overwrite, focus, draft-isolation,
 disabled-state, and no-auto-send behavior remain.
 
-### Slice 5 - Target the configured leader (pending)
+### Slice 5 - Target the configured leader (in progress)
 
 **Outcome:** Play targets the explicitly configured squad leader regardless of role ordering.
 
@@ -290,4 +290,4 @@ Acceptance criteria:
 - All shipped, documented, and test-generated configurations declare an explicit valid leader, and every protocol
   surface consistently uses version 5.
 
-Slices 1–4 are complete. Slice 5 remains pending until the architect activates it.
+Slices 1–4 are complete. Only Slice 5 is active.
