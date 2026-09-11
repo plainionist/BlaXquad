@@ -51,9 +51,7 @@ branching/history.
 
 ## Implementation slices
 
-### Slice 1 - Launch configured Git history
-
-**Status:** changes requested (1e019ca477)
+### Slice 1 - Launch configured Git history [done]
 
 Deliver the complete functional path with the existing text-based Issues control and a text-based Git history
 button beside it. Visual toolbar framing and icon conversion belong only to Slice 2.
@@ -91,8 +89,6 @@ button beside it. Visual toolbar framing and icon conversion belong only to Slic
   supported.
 - The relevant Gherkin acceptance scenarios and focused Playwright specifications pass.
 
-**Status: changes requested (1e019ca477)**
-
 #### Review findings on 1e019ca477
 
 **Finding 1 — high**
@@ -129,6 +125,10 @@ button beside it. Visual toolbar framing and icon conversion belong only to Slic
   dashboard tests never publish that snapshot, so the new command path is unproven on the client.
 - **Required outcome:** Add focused Playwright coverage for those four observations. Keep Issues catalog loading,
   selection, copy, and play behavior intact.
+
+**Status: complete (e689d0dc2b).** Git history is launched from the validated prepared-launch command using the
+resolved executable path. The dashboard button starts disabled, follows `workspace-tools.snapshot`, and emits
+`git-history.open` only when enabled. Slice 2 remains pending until the architect activates it.
 
 ### Slice 2 - Present the workspace icon toolbar
 
