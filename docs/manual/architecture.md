@@ -151,6 +151,7 @@ flowchart LR
     lifecycle --> application
     lifecycle --> delivery
     lifecycle --> providerAdapter
+    lifecycle --> workspaceManager
     workspaceManager -->|"prepares"| workspace
     delivery <-->|"handoffs"| workspace
     delivery -->|"wakes role"| application

@@ -15,9 +15,9 @@ sealed class HandoffDeliveryService
     ];
 
     private readonly IRoleNotifier myNotifier;
-    private readonly Action<string[]> myLog;
+    private readonly HandoffDeliveryLog myLog;
 
-    public HandoffDeliveryService(IRoleNotifier notifier, Action<string[]> log)
+    public HandoffDeliveryService(IRoleNotifier notifier, HandoffDeliveryLog log)
     {
         myNotifier = notifier;
         myLog = log;
@@ -42,14 +42,14 @@ sealed class HandoffDeliveryService
                 }
                 catch (Exception exception)
                 {
-                    myLog(["error", path, exception.Message]);
+                    myLog.Append(["error", path, exception.Message]);
                     try
                     {
                         Fail(path, exception.Message);
                     }
                     catch (Exception nested)
                     {
-                        myLog(["failed-to-archive", path, nested.Message]);
+                        myLog.Append(["failed-to-archive", path, nested.Message]);
                     }
                 }
             }
@@ -75,7 +75,7 @@ sealed class HandoffDeliveryService
             }
             catch (Exception exception)
             {
-                myLog(["notify-failed", role.Role, exception.Message]);
+                myLog.Append(["notify-failed", role.Role, exception.Message]);
             }
         }
     }
@@ -121,7 +121,7 @@ sealed class HandoffDeliveryService
 
         var sentDir = Path.Combine(roles[senderRole].WorktreePath, ".blaxquad", "handoffs", "sent");
         MoveWithCollision(path, sentDir);
-        myLog(["delivered", path]);
+        myLog.Append(["delivered", path]);
 
         foreach (var (_, roleInfo) in deliveries)
         {
@@ -131,7 +131,7 @@ sealed class HandoffDeliveryService
             }
             catch (Exception exception)
             {
-                myLog(["notify-failed", roleInfo.Role, exception.Message]);
+                myLog.Append(["notify-failed", roleInfo.Role, exception.Message]);
             }
         }
     }
@@ -219,7 +219,7 @@ sealed class HandoffDeliveryService
     {
         var handoffsDir = Path.GetDirectoryName(Path.GetDirectoryName(path))!;
         var failedDir = Path.Combine(handoffsDir, "failed");
-        myLog(["failed", path, reason]);
+        myLog.Append(["failed", path, reason]);
         File.WriteAllText(path + ".error", reason + "\n");
         MoveWithCollision(path, failedDir);
     }

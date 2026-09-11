@@ -8,7 +8,7 @@ namespace squad.Handoffs.Delivery;
 public sealed class InProcessHandoffPoller : IAsyncDisposable
 {
     private static readonly TimeSpan myPollInterval = TimeSpan.FromSeconds(1);
-    private readonly Func<IReadOnlyList<RoleRow>> myRolesProvider;
+    private readonly IReadOnlyList<RoleRow> myRoles;
     private readonly HandoffDeliveryService myDelivery;
     private readonly object mySyncRoot = new();
     private readonly TaskCompletionSource myFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -16,9 +16,9 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
     private Task? myPolling;
     private bool myDisposed;
 
-    public InProcessHandoffPoller(Func<IReadOnlyList<RoleRow>> rolesProvider, IRoleNotifier notifier, Action<string[]> log)
+    public InProcessHandoffPoller(IReadOnlyList<RoleRow> roles, IRoleNotifier notifier, HandoffDeliveryLog log)
     {
-        myRolesProvider = rolesProvider;
+        myRoles = roles;
         myDelivery = new HandoffDeliveryService(notifier, log);
     }
 
@@ -40,7 +40,7 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
     }
 
     public Task RecoverAsync(CancellationToken cancellationToken = default) =>
-        myDelivery.RecoverAsync(myRolesProvider(), cancellationToken);
+        myDelivery.RecoverAsync(myRoles, cancellationToken);
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
@@ -94,7 +94,7 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await myDelivery.ProcessOnceAsync(myRolesProvider(), cancellationToken: cancellationToken);
+                await myDelivery.ProcessOnceAsync(myRoles, cancellationToken: cancellationToken);
                 await Task.Delay(myPollInterval, cancellationToken);
             }
         }
