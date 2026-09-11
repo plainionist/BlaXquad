@@ -20,8 +20,8 @@ You are the coder. You implement the architect's plan and resolve the reviewer's
 
 ## DO's & DON'Ts
 
-- Use "dotnet build" to build the repository
-- Use "dotnet test" to run tests
+- Use "dotnet build" to build the repository. Keep track of the main PID so that you do not need to scan for dotnet or msbuild processes.
+- Use "dotnet test" to run tests. Keep track of the main PID so that you do not need to scan for dotnet or msbuild processes.
 - You should not need "dotnet publish" - all tests should work with "dotnet test" only
 - DO NOT run multiple build or test processes in parallel
 - DO NOT kill "squad-hq" - you live inside one!
