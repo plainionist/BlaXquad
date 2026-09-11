@@ -250,7 +250,7 @@ and keeps other failures off the workspace path. `HeadquartersWorkspaceFailures.
 configuration, missing constitution, missing helper, and non-empty shared-path collision through the published
 process.
 
-### Slice 2 - One immutable preparation result composes the runtime and delivery [in progress]
+### Slice 2 - One immutable preparation result composes the runtime and delivery [done]
 
 **Outcome:** Headquarters performs one cancellable concrete preparation pipeline and constructs every
 post-preparation collaborator from the immutable values it produces.
@@ -281,6 +281,12 @@ notification failure, recovery, and duplicate prevention remain durable. The foc
 `HeadquartersLifecycle`, `HeadquartersEarlyShutdown`, `HeadquartersPartialStartupFailure`,
 `HeadquartersCleanupDiagnostics`, `HeadquartersTerminalProviderFailure`, `HeadquartersHandoffPumpFailure`,
 `Delivery`, and `Recovery`.
+
+**Status: complete (3eb8a1752e).** `LaunchPreparer` owns mutable `Ctx` and returns a materialized `PreparedLaunch`.
+`SquadApplication` awaits that pipeline before backend or poller construction, observes late pump failure like the
+backend, and disposes the poller only when it was created. Delivery logs to `HandoffDeliveryLog`. `RuntimeMode`,
+`Launch.Create`, `SquadStartupPlanFactory`, and `SquadStartupPlan` are gone. Architecture records the lifecycle to
+workspace-manager dependency.
 
 ### Slice 3 - Production lifecycle events are the only readiness source
 
