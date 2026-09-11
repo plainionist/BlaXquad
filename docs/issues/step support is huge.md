@@ -200,7 +200,7 @@ bounded diagnostics while low-level process mechanics live under `Support/Proces
 Focused acceptance: `Context.feature`, `AgentProviderSelection.feature`, `UiSelection.feature`,
 `HeadquartersTermination.feature`, and `HeadquartersCleanupDiagnostics.feature`.
 
-### Slice 3 - Headless UI transport and protocol observations are separate
+### Slice 3 - Headless UI transport and protocol observations are separate [done]
 
 **Outcome:** The real stdio UI protocol retains framing, ordering, transcript reconciliation, and timeout diagnostics
 while stream I/O and transcript interpretation have explicit owners under `Support/Ui`.
@@ -318,3 +318,7 @@ followed by the complete `squad.Specs` suite.
 ## Slice 2 review (9620f59c05) — accepted
 
 **Status: complete (9620f59c05).** Process types live under `Support/Processes`. Internal `ScenarioProcessRunner` owns start/run, stream capture, environment construction, normalization, tracking, and bounded termination. `ScenarioWorkspace` still chooses tools and working directories, applies Git identity, records `LastResult`, and disposes the runner before deleting the temp tree. Unused `StartHeadlessUiClient`, `StartTool`, and the params `ConfigureProject` overload are gone. Platform process-group code stays private in `CancellableChildProcess`; no process interface or fake process was added.
+
+## Slice 3 review (2103045d27) — accepted
+
+**Status: complete (2103045d27).** Headless UI client and observation records live under `Support/Ui`. Internal `HeadlessUiTransport` owns stdin writes, concurrent stdout/stderr drain, snapshots, input closure, and process/output diagnostics. Internal `TranscriptProtocol` owns transcript envelope matching, decoding, paging, and reconciliation. Role/usage/tool/pending-interaction predicates stay on `HeadlessUiClient`. `HeadlessUiWaitTimeoutException` is gone; waits throw `TimeoutException` with the same description and combined diagnostics. Protocol version, commands, wait ordering, skip semantics, and observation records are unchanged.
