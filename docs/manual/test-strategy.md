@@ -170,7 +170,8 @@ domain rules owned by C# or frontend behavior owned by Vue.
 
 - Wait for a role session to start.
 - Observe prompts, harness messages, aborts, and interaction responses.
-- Emit provider-neutral assistant, reasoning, tool, readiness, usage, interaction, and failure events.
+- Emit provider-neutral assistant, reasoning, tool, usage, interaction, and failure events; express busy and ready
+  through an outstanding prompt and `AgentIdleEvent`, the same signals a real provider publishes.
 - Delay or fail supported provider operations when a meaningful use case requires it.
 - Complete or fail a session.
 
@@ -333,7 +334,7 @@ language merely because it is technically precise or names a C# type.
 | Project configuration | A configuration author configures roles, worktrees, models, permissions, and receive modes in `blaxquad/squad.json`. Role collections and records use tables. |
 | Headquarters lifecycle | An operator launches, waits for, shuts down, or otherwise terminates Headquarters through `squad-hq`; process results and diagnostics remain explicit. |
 | Dashboard operations | A user sends prompts, aborts work, and answers interactions for a role; the dashboard shows role state, usage, interactions, and transcript content. |
-| Agent sessions | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, readiness, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
+| Agent sessions | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, idle, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
 | Transcript protocol | A UI-protocol client receives typed updates, synchronization, pages, archived entries, sequence positions, and truncation state. Ordered collections use tables. |
 | Role commands | A role agent runs the documented `squad` context, handoff, `ready-for-next`, and `done-with-current` commands from its worktree. |
 | Handoff delivery | An operator or role agent observes durable handoff fan-out, notification, retry, recovery, and queue state using glossary terms. |

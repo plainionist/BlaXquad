@@ -171,51 +171,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     }
 
     /// <summary>
-    /// Refreshes provider-side readiness when supported, commits the resulting observation through the event
-    /// queue, and then returns the tri-state local readiness result.
+    /// Returns the tri-state local readiness result derived purely from already-projected session, prompt, idle,
+    /// stopped, and failed events - the only readiness source `wait-for-agent` observes.
     /// </summary>
-    public async Task<bool?> GetRoleReadinessAsync(
+    public Task<bool?> GetRoleReadinessAsync(
         string role,
-        CancellationToken cancellationToken = default)
-    {
-        if (!myRoles.TryGetValue(role, out var state))
-        {
-            return null;
-        }
-        if (!myAdmission.IsAccepting)
-        {
-            return false;
-        }
-        if (myRoleOperations.IsInvalidated(role))
-        {
-            return false;
-        }
-        lock (state.SyncRoot)
-        {
-            if (state.Status is "error" or "stopped")
-            {
-                return false;
-            }
-        }
-        if (mySessions.TryGetValue(role, out var session)
-            && session is IAgentReadinessProbe readinessProbe)
-        {
-            var observation = await readinessProbe.ObserveReadinessAsync(cancellationToken);
-            if (observation is not null)
-            {
-                try
-                {
-                    await EnqueueEventAsync(role, observation, cancellationToken);
-                }
-                catch (InvalidOperationException exception)
-                    when (exception.Message == "Squad is shutting down")
-                {
-                    return false;
-                }
-            }
-        }
-        return GetRoleReadiness(role);
-    }
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(GetRoleReadiness(role));
 
     public void RegisterSession(IAgentSession session) => mySessions[session.Role] = session;
 
@@ -404,13 +366,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         {
             return Task.CompletedTask;
         }
-        if (agentEvent is AgentReadinessEvent readinessObservation
-            && (!mySessions.TryGetValue(role, out var readinessSession)
-                || readinessSession is not IAgentReadinessProbe readinessProbe
-                || !readinessProbe.IsReadinessGenerationCurrent(readinessObservation.Generation)))
-        {
-            return Task.CompletedTask;
-        }
         if (ShouldIgnoreEvent(role, agentEvent))
         {
             return Task.CompletedTask;
@@ -435,11 +390,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         EnsureRoleAvailable(role);
         await myRoleOperations.WaitForAbortAsync(role, lifetimeCancellation.Token);
         myRoleOperations.ResumeEvents(role);
-        if (mySessions.TryGetValue(role, out var session)
-            && session is IAgentReadinessProbe readinessProbe)
-        {
-            readinessProbe.InvalidateReadiness();
-        }
         await EnqueueCoreAsync(() => MarkWaitingForResponseAsync(role), lifetimeCancellation.Token);
         await RunForRoleAsync(role, operation, lifetimeCancellation.Token);
     }
@@ -662,7 +612,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     }
 
     private static bool IsImmediateUiEvent(AgentEvent agentEvent) =>
-        agentEvent is AgentErrorEvent or AgentReadinessEvent or AgentIdleEvent or AgentStoppedEvent
+        agentEvent is AgentErrorEvent or AgentIdleEvent or AgentStoppedEvent
             or AgentPermissionRequest or AgentInputRequest or AgentElicitationRequest;
 
     /// <summary>

@@ -179,10 +179,6 @@ public sealed class BackendScenarioAgent(FakeProviderControlServer control, stri
         string? contentFallback = null, TimeSpan? timeout = null) =>
         control.EmitToolCompletedAsync(role, toolCallId, toolName, succeeded, displayOutputFallback, contentFallback, timeout, uiDiagnostics);
 
-    /// <summary>Emits a readiness update for this role's session.</summary>
-    public Task EmitReadinessAsync(string state, string? error = null, TimeSpan? timeout = null) =>
-        control.EmitReadinessAsync(role, state, error, timeout, uiDiagnostics);
-
     /// <summary>Emits an AI-credit usage update for this role's session.</summary>
     public Task EmitUsageAsync(decimal aicUsed, TimeSpan? timeout = null) =>
         control.EmitUsageAsync(role, aicUsed, timeout, uiDiagnostics);

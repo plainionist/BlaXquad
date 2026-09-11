@@ -76,7 +76,7 @@ durable handoff state remains in the worktrees.
 ## Agent event
 
 A typed observation emitted by an agent session, such as a user or assistant
-message, reasoning, tool activity, readiness change, usage update, interaction
+message, reasoning, tool activity, idle transition, usage update, interaction
 request, or failure. Headquarters folds these events into role state and the
 role transcript.
 

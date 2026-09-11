@@ -260,11 +260,6 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             new { toolCallId, toolName, succeeded, displayOutputFallback, contentFallback },
             timeout, additionalDiagnostics);
 
-    /// <summary>Emits a readiness update for the given role's session.</summary>
-    public Task EmitReadinessAsync(
-        string role, string state, string? error = null, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
-        EmitAsync(role, "readiness", new { state, error }, timeout, additionalDiagnostics);
-
     /// <summary>Emits an AI-credit usage update for the given role's session.</summary>
     public Task EmitUsageAsync(
         string role, decimal aicUsed, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>

@@ -824,9 +824,6 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentGoesIdleWithContextUsageAndAicUsage(string role, int contextUsed, int contextLimit, decimal aicUsed) =>
         Await(myScenario.Agent(role).CompleteWithIdleUsageAsync(contextUsed, contextLimit, aicUsed));
 
-    [When("the {string} agent emits readiness {string}")]
-    public void WhenTheAgentEmitsReadiness(string role, string state) => Await(myScenario.Agent(role).EmitReadinessAsync(state));
-
     [When("the {string} agent completes its session")]
     public void WhenTheAgentCompletesItsSession(string role) => Await(myScenario.Agent(role).CompleteSessionAsync());
 

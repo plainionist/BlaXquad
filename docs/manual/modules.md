@@ -23,7 +23,7 @@ state through `ready-for-next` and `done-with-current`.
 
 Defines the provider-neutral agent boundary: backend, runtime, and session
 lifecycle contracts; role context; typed agent events; interaction responses;
-readiness; and session admission.
+and session admission.
 
 ## `squad.Application`
 

@@ -20,14 +20,13 @@ namespace squad.Specs.Support.Agents;
 /// fail on its very next call, giving a scenario deterministic, acknowledged control over an abort's outcome
 /// without any arbitrary sleep.
 /// </summary>
-internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
+internal sealed class FakeAgentSession : IAgentSession
 {
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TestAgentEventStream myEvents = new();
     private readonly FakeProviderControlClient? myControl;
     private TaskCompletionSource<string>? myPendingReply;
     private bool mySendCanceledBeforeDisposal;
-    private long myGeneration;
     private bool myRejectNextHarness;
     private TaskCompletionSource? myPendingAbort;
     private string? myNextAbortFailureMessage;
@@ -301,10 +300,6 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
                     GetNullableString(data, "displayOutputFallback"),
                     GetNullableString(data, "contentFallback")));
                 return null;
-            case "readiness":
-                myEvents.Publish(new AgentReadinessEvent(
-                    now, NextGeneration(), data.GetProperty("state").GetString()!, GetNullableString(data, "error")));
-                return null;
             case "usage":
                 myEvents.Publish(new AgentSessionUsageEvent(now, data.GetProperty("aicUsed").GetDecimal()));
                 return null;
@@ -397,23 +392,6 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
         }
         return element.EnumerateArray().Select(item => item.GetString()!).ToList();
     }
-
-    private long NextGeneration() => Interlocked.Increment(ref myGeneration);
-
-    /// <summary>Reports whether the given generation is still this session's latest minted readiness generation -
-    /// the same admission check production headquarters uses to discard a stale readiness observation instead of
-    /// letting it overwrite newer operation state.</summary>
-    public bool IsReadinessGenerationCurrent(long generation) => Interlocked.Read(ref myGeneration) == generation;
-
-    /// <summary>Advances this session's readiness generation so any readiness observation already computed under
-    /// an earlier generation can no longer be mistaken for current - mirroring production's own invalidation
-    /// before dispatching a new prompt.</summary>
-    public void InvalidateReadiness() => Interlocked.Increment(ref myGeneration);
-
-    /// <summary>This fake session has no independent readiness probe of its own to consult - every readiness
-    /// observation it reports arrives explicitly through <see cref="Emit"/>.</summary>
-    public Task<AgentReadinessEvent?> ObserveReadinessAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<AgentReadinessEvent?>(null);
 
     public async ValueTask DisposeAsync()
     {

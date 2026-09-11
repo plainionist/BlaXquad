@@ -48,14 +48,6 @@ internal sealed class AgentEventProjector
                 state.Transcript.FinalizeAssistantEntry();
                 state.Transcript.FinalizeReasoningEntry();
                 break;
-            case AgentReadinessEvent readiness:
-                state.Status = readiness.State;
-                state.IsWorking = readiness.State == "busy";
-                if (readiness.State == "error")
-                {
-                    state.Error = readiness.Error;
-                }
-                break;
             case AgentUserMessageEvent message:
                 state.IsWorking = true;
                 state.Transcript.FinalizeAssistantEntry();
