@@ -1,8 +1,6 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
-using squad.Application.Events;
-using squad.Application.Interactions;
-using squad.Application.RoleOperations;
+using squad.Application.Members;
 using squad.Transcripts;
 using squad.Ui.Abstractions;
 using System.Text.Json;
@@ -11,22 +9,19 @@ using System.Threading.Channels;
 namespace squad.Application;
 
 /// <summary>
-/// Serializes provider events and user commands into authoritative per-role state, transcript history, and pending
-/// interactions while publishing UI refresh signals.
+/// Serializes provider events and user commands into authoritative per-member state, transcript history, and
+/// pending interactions while publishing UI refresh signals.
 /// </summary>
 public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 {
     private readonly Channel<Func<Task>> myCommands = Channel.CreateUnbounded<Func<Task>>();
     private readonly CancellationTokenSource myShutdown = new();
     private readonly Dictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AgentRoleState> myRoles = new(StringComparer.Ordinal);
-    private readonly List<string> myRoleOrder = [];
+    private readonly Dictionary<string, MemberAggregate> myMembers = new(StringComparer.Ordinal);
+    private readonly List<string> myMemberOrder = [];
     private string myLeader = "";
     private readonly TranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myTranscriptRetentionOptions;
-    private readonly RoleOperationCoordinator myRoleOperations = new();
-    private readonly PendingInteractionRegistry myInteractions = new();
-    private readonly AgentEventProjector myEventProjector;
     private readonly Task myEventLoop;
     // The one synchronization boundary for command admission and active-session selection: myAccepting and
     // mySessions are read and written only while holding this lock, so a stopping transition and a session
@@ -39,7 +34,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         myTranscriptRetentionOptions = new TranscriptRetentionOptions();
         myTranscriptArchive = new TranscriptArchive(myTranscriptRetentionOptions);
-        myEventProjector = new AgentEventProjector(myInteractions);
         myEventLoop = RunEventLoopAsync();
     }
 
@@ -50,9 +44,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         foreach (var role in roleNames)
         {
-            if (myRoles.TryAdd(role, new AgentRoleState(role, myTranscriptArchive, myTranscriptRetentionOptions)))
+            if (myMembers.TryAdd(role, new MemberAggregate(role, myTranscriptArchive, myTranscriptRetentionOptions)))
             {
-                myRoleOrder.Add(role);
+                myMemberOrder.Add(role);
             }
         }
         NotifyStateChanged();
@@ -67,34 +61,34 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     public JsonElement CreateSnapshot()
     {
-        // Enumerate in configured role order (myRoleOrder), not myRoles.Values, so state.snapshot.roles matches
-        // blaxquad/squad.json regardless of Dictionary enumeration behavior.
-        var roles = myRoleOrder.Select(role => myRoles[role].CreateSnapshot()).ToArray();
+        // Enumerate in configured member order (myMemberOrder), not myMembers.Values, so state.snapshot.roles
+        // matches blaxquad/squad.json regardless of Dictionary enumeration behavior.
+        var members = myMemberOrder.Select(id => myMembers[id].CreateSnapshot()).ToArray();
         return JsonSerializer.SerializeToElement(new
         {
             leader = myLeader,
-            roles = roles.Select(role => new
+            roles = members.Select(member => new
             {
-                role = role.Role,
-                status = role.Status,
-                lastEventAt = role.LastEventAt,
-                error = role.Error,
-                activeTool = role.ActiveTool,
-                isWorking = role.IsWorking,
-                model = role.Model,
-                effort = role.Effort,
-                aicUsed = role.AicUsed,
-                contextUsedTokens = role.ContextUsedTokens,
-                contextLimitTokens = role.ContextLimitTokens,
-                eventCount = role.EventCount,
+                role = member.Id,
+                status = member.Status,
+                lastEventAt = member.LastEventAt,
+                error = member.Error,
+                activeTool = member.ActiveTool,
+                isWorking = member.IsWorking,
+                model = member.Model,
+                effort = member.Effort,
+                aicUsed = member.AicUsed,
+                contextUsedTokens = member.ContextUsedTokens,
+                contextLimitTokens = member.ContextLimitTokens,
+                eventCount = member.EventCount,
             }),
-            permissions = myInteractions.Permissions.Select(permission => new
+            permissions = myMemberOrder.SelectMany(id => myMembers[id].Permissions).Select(permission => new
             {
                 requestId = permission.RequestId,
                 role = permission.Role,
                 description = permission.Description,
             }),
-            inputs = myInteractions.Inputs.Select(input => new
+            inputs = myMemberOrder.SelectMany(id => myMembers[id].Inputs).Select(input => new
             {
                 requestId = input.RequestId,
                 role = input.Role,
@@ -102,7 +96,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 choices = input.Choices,
                 allowFreeform = input.AllowFreeform,
             }),
-            elicitations = myInteractions.Elicitations.Select(elicitation => new
+            elicitations = myMemberOrder.SelectMany(id => myMembers[id].Elicitations).Select(elicitation => new
             {
                 requestId = elicitation.RequestId,
                 role = elicitation.Role,
@@ -117,9 +111,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntriesPerRole);
-        return myRoleOrder
-            .Select(role => myRoles[role])
-            .Select(role => role.Transcript.CreateTranscriptSnapshot(maxEntriesPerRole))
+        return myMemberOrder
+            .Select(id => myMembers[id])
+            .Select(member => member.Transcript.CreateTranscriptSnapshot(maxEntriesPerRole))
             .ToArray();
     }
 
@@ -127,25 +121,25 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         ArgumentOutOfRangeException.ThrowIfNegative(beforeIndex);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
-        if (!myRoles.TryGetValue(role, out var state))
+        if (!myMembers.TryGetValue(role, out var member))
         {
             throw new InvalidOperationException($"Unknown role: {role}");
         }
-        return state.Transcript.CreateTranscriptPage(beforeIndex, maxEntries);
+        return member.Transcript.CreateTranscriptPage(beforeIndex, maxEntries);
     }
 
     public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(entryIndex);
-        if (!myRoles.TryGetValue(role, out var state))
+        if (!myMembers.TryGetValue(role, out var member))
         {
             throw new InvalidOperationException($"Unknown role: {role}");
         }
-        return state.Transcript.CreateArchivedTranscriptEntry(entryIndex);
+        return member.Transcript.CreateArchivedTranscriptEntry(entryIndex);
     }
 
     public AgentElicitationRequest GetPendingElicitation(string role, string requestId) =>
-        myInteractions.GetElicitation(role, requestId);
+        GetMember(role).GetElicitation(requestId);
 
     /// <summary>
     /// Returns <see langword="null"/> for an unknown role, <see langword="false"/> when work is inadmissible, and
@@ -153,7 +147,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     /// </summary>
     private bool? GetRoleReadiness(string role)
     {
-        if (!myRoles.TryGetValue(role, out var state))
+        if (!myMembers.TryGetValue(role, out var member))
         {
             return null;
         }
@@ -161,12 +155,12 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         {
             return false;
         }
-        if (myRoleOperations.IsInvalidated(role))
+        if (member.IsInvalidated)
         {
             return false;
         }
-        lock (state.SyncRoot)
-            return state.Status == "idle" && !state.IsWorking;
+        lock (member.SyncRoot)
+            return member.Status == "idle" && !member.IsWorking;
     }
 
     /// <summary>
@@ -190,18 +184,18 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(exception);
         return EnqueueCoreAsync(() =>
         {
-            if (!myRoles.TryGetValue(role, out var state))
+            if (!myMembers.TryGetValue(role, out var member))
             {
                 return Task.CompletedTask;
             }
-            myRoleOperations.MarkRoleFailed(role);
-            RemovePendingInteractionsForRole(role);
-            lock (state.SyncRoot)
+            member.MarkFailed();
+            RemovePendingInteractionsForMember(member);
+            lock (member.SyncRoot)
             {
-                state.Status = "error";
-                state.Error = exception.Message;
-                state.IsWorking = false;
-                state.ActiveTool = null;
+                member.Status = "error";
+                member.Error = exception.Message;
+                member.IsWorking = false;
+                member.ActiveTool = null;
             }
             NotifyStateChanged();
             return Task.CompletedTask;
@@ -279,7 +273,10 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             finally
             {
                 myShutdown.Dispose();
-                myRoleOperations.Dispose();
+                foreach (var member in myMembers.Values)
+                {
+                    member.Dispose();
+                }
                 myTranscriptArchive.Dispose();
             }
         }
@@ -353,22 +350,22 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private Task ApplyEventAsync(string role, AgentEvent agentEvent)
     {
-        if (!myRoles.TryGetValue(role, out var state))
+        if (!myMembers.TryGetValue(role, out var member))
         {
             return Task.CompletedTask;
         }
-        if (myRoleOperations.IsRoleFailed(role))
+        if (member.IsFailed)
         {
             return Task.CompletedTask;
         }
-        if (ShouldIgnoreEvent(role, agentEvent))
+        if (ShouldIgnoreEvent(member, agentEvent))
         {
             return Task.CompletedTask;
         }
         TranscriptUpdate? transcriptUpdate;
-        lock (state.SyncRoot)
+        lock (member.SyncRoot)
         {
-            transcriptUpdate = myEventProjector.Project(state, agentEvent);
+            transcriptUpdate = MemberEventProjector.Project(member, agentEvent);
             if (transcriptUpdate is not null)
             {
                 TranscriptChanged?.Invoke(transcriptUpdate);
@@ -380,23 +377,24 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private async Task DispatchPromptAsync(string role, Func<IAgentSession, CancellationToken, Task> operation, CancellationToken cancellationToken)
     {
+        var member = GetMember(role);
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdown.Token);
-        using var promptLease = await myRoleOperations.AcquirePromptLeaseAsync(role, lifetimeCancellation.Token);
+        using var promptLease = await member.AcquirePromptLeaseAsync(lifetimeCancellation.Token);
         EnsureRoleAvailable(role);
-        await myRoleOperations.WaitForAbortAsync(role, lifetimeCancellation.Token);
-        myRoleOperations.ResumeEvents(role);
+        await member.WaitForAbortAsync(lifetimeCancellation.Token);
+        member.ResumeEvents();
         await EnqueueCoreAsync(() => MarkWaitingForResponseAsync(role), lifetimeCancellation.Token);
         await RunForRoleAsync(role, operation, lifetimeCancellation.Token);
     }
 
     private Task MarkWaitingForResponseAsync(string role)
     {
-        if (myRoles.TryGetValue(role, out var state))
+        if (myMembers.TryGetValue(role, out var member))
         {
-            lock (state.SyncRoot)
+            lock (member.SyncRoot)
             {
-                state.IsWorking = true;
-                state.ActiveTool = null;
+                member.IsWorking = true;
+                member.ActiveTool = null;
             }
             NotifyStateChanged();
         }
@@ -409,12 +407,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         CancellationToken cancellationToken)
     {
         EnsureAccepting();
+        var member = GetMember(role);
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdown.Token);
         if (!TryCaptureSession(role, out var session))
         {
             throw new InvalidOperationException($"Unknown role: {role}");
         }
-        using var operationLease = await myRoleOperations.AcquireOperationLeaseAsync(role, lifetimeCancellation.Token);
+        using var operationLease = await member.AcquireOperationLeaseAsync(lifetimeCancellation.Token);
         EnsureAccepting();
         EnsureRoleAvailable(role);
         operationLease.Register(lifetimeCancellation);
@@ -444,21 +443,19 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private void EnsureRoleAvailable(string role)
     {
-        if (!myRoleOperations.IsRoleFailed(role))
+        var member = GetMember(role);
+        if (!member.IsFailed)
         {
             return;
         }
-        if (myRoles.TryGetValue(role, out var state))
-        {
-            lock (state.SyncRoot)
-                throw new InvalidOperationException($"Role '{role}' is unavailable: {state.Error}");
-        }
-        throw new InvalidOperationException($"Role '{role}' is unavailable.");
+        lock (member.SyncRoot)
+            throw new InvalidOperationException($"Role '{role}' is unavailable: {member.Error}");
     }
 
     private async Task AbortRoleAndWaitAsync(string role, CancellationToken cancellationToken)
     {
-        var lease = myRoleOperations.TryBeginAbort(role, out var existingAbort);
+        var member = GetMember(role);
+        var lease = member.TryBeginAbort(out var existingAbort);
         if (lease is null)
         {
             await existingAbort!.WaitAsync(cancellationToken);
@@ -492,77 +489,84 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
         finally
         {
-            RemovePendingInteractionsForRole(role);
+            RemovePendingInteractionsForMember(GetMember(role));
             MarkRoleIdle(role);
             NotifyStateChanged();
         }
     }
 
-    private bool ShouldIgnoreEvent(string role, AgentEvent agentEvent)
+    private bool ShouldIgnoreEvent(MemberAggregate member, AgentEvent agentEvent)
     {
         if (agentEvent is AgentStartedEvent or AgentStoppedEvent or AgentSessionConfigurationEvent or AgentSessionModelChangedEvent or AgentContextUsageEvent or AgentSessionUsageEvent)
         {
             return false;
         }
-        return myRoleOperations.IsInvalidated(role);
+        return member.IsInvalidated;
     }
 
     private void MarkRoleIdle(string role)
     {
-        if (!myRoles.TryGetValue(role, out var state))
+        if (!myMembers.TryGetValue(role, out var member))
         {
             return;
         }
-        lock (state.SyncRoot)
+        lock (member.SyncRoot)
         {
-            state.IsWorking = false;
-            state.ActiveTool = null;
+            member.IsWorking = false;
+            member.ActiveTool = null;
         }
     }
 
     private Task CompletePermissionCoreAsync(string expectedRole, string requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
-            myInteractions.RemovePermission, myInteractions.RegisterPermission, expectedRole, requestId,
+            expectedRole, requestId,
+            member => member.RemovePermission(requestId),
+            (member, request) => member.RegisterPermission(request),
             (session, token) => session.RespondToPermissionAsync(requestId, response, token), onCompleted: null, cancellationToken), cancellationToken);
 
     private Task CompleteInputCoreAsync(string expectedRole, string requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
-            myInteractions.RemoveInput, myInteractions.RegisterInput, expectedRole, requestId,
+            expectedRole, requestId,
+            member => member.RemoveInput(requestId),
+            (member, request) => member.RegisterInput(request),
             (session, token) => session.RespondToInputAsync(requestId, response, token),
             role => PublishInputAnswerTranscriptEntry(role, response),
             cancellationToken), cancellationToken);
 
     private Task CompleteElicitationCoreAsync(string expectedRole, string requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
-            myInteractions.RemoveElicitation, myInteractions.RegisterElicitation, expectedRole, requestId,
+            expectedRole, requestId,
+            member => member.RemoveElicitation(requestId),
+            (member, request) => member.RegisterElicitation(request),
             (session, token) => session.RespondToElicitationAsync(requestId, response, token), onCompleted: null, cancellationToken), cancellationToken);
 
     private async Task CompleteInteractionCoreAsync<TRequest>(
-        Func<string, string, (string Role, TRequest Request)> remove,
-        Action<TRequest> restore,
         string expectedRole,
         string requestId,
+        Func<MemberAggregate, TRequest> remove,
+        Action<MemberAggregate, TRequest> restore,
         Func<IAgentSession, CancellationToken, Task> respond,
         Action<string>? onCompleted,
         CancellationToken cancellationToken)
     {
-        var (role, request) = remove(expectedRole, requestId);
+        var member = GetMember(expectedRole);
+        var request = remove(member);
         try
         {
-            await RunForRoleAsync(role, respond, cancellationToken);
-            onCompleted?.Invoke(role);
-            UnprotectPendingTranscriptEntry(role, requestId);
+            await RunForRoleAsync(expectedRole, respond, cancellationToken);
+            onCompleted?.Invoke(expectedRole);
+            UnprotectPendingTranscriptEntry(member, requestId);
             NotifyStateChanged();
         }
         catch
         {
-            if (!myRoleOperations.IsRoleFailed(role))
+            if (!member.IsFailed)
             {
-                restore(request);
+                restore(member, request);
             }
             else
             {
-                UnprotectPendingTranscriptEntry(role, requestId);
+                UnprotectPendingTranscriptEntry(member, requestId);
             }
             NotifyStateChanged();
             throw;
@@ -577,13 +581,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     /// </summary>
     private void PublishInputAnswerTranscriptEntry(string role, AgentInputResponse response)
     {
-        if (response.Answer is null || !myRoles.TryGetValue(role, out var state))
+        if (response.Answer is null || !myMembers.TryGetValue(role, out var member))
         {
             return;
         }
-        lock (state.SyncRoot)
+        lock (member.SyncRoot)
         {
-            var transcriptUpdate = state.Transcript.AddTranscriptEntry(new TranscriptEntry(DateTimeOffset.UtcNow, "user", response.Answer));
+            var transcriptUpdate = member.Transcript.AddTranscriptEntry(new TranscriptEntry(DateTimeOffset.UtcNow, "user", response.Answer));
             TranscriptChanged?.Invoke(transcriptUpdate);
         }
     }
@@ -600,34 +604,40 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 await session.CancelPendingInteractionsAsync();
             }
         }
-        myInteractions.Clear();
+        foreach (var member in myMembers.Values)
+        {
+            member.ClearInteractions();
+        }
         NotifyStateChanged();
     }
 
-    private void RemovePendingInteractionsForRole(string role)
+    private void RemovePendingInteractionsForMember(MemberAggregate member)
     {
-        foreach (var protectedEntry in myInteractions.RemoveForRole(role))
+        foreach (var entryIndex in member.RemoveAllInteractions())
         {
-            if (myRoles.TryGetValue(protectedEntry.Role, out var state))
-            {
-                lock (state.SyncRoot)
-                    state.Transcript.UnprotectTranscriptEntry(protectedEntry.EntryIndex);
-            }
+            lock (member.SyncRoot)
+                member.Transcript.UnprotectTranscriptEntry(entryIndex);
         }
     }
 
-    private void UnprotectPendingTranscriptEntry(string role, string requestId)
+    private void UnprotectPendingTranscriptEntry(MemberAggregate member, string requestId)
     {
-        var protectedEntry = myInteractions.TryRemoveProtectedTranscriptEntry(role, requestId);
-        if (protectedEntry is null)
+        var entryIndex = member.TryRemoveProtectedTranscriptEntry(requestId);
+        if (entryIndex is null)
         {
             return;
         }
-        if (myRoles.TryGetValue(protectedEntry.Value.Role, out var state))
+        lock (member.SyncRoot)
+            member.Transcript.UnprotectTranscriptEntry(entryIndex.Value);
+    }
+
+    private MemberAggregate GetMember(string role)
+    {
+        if (myMembers.TryGetValue(role, out var member))
         {
-            lock (state.SyncRoot)
-                state.Transcript.UnprotectTranscriptEntry(protectedEntry.Value.EntryIndex);
+            return member;
         }
+        throw new InvalidOperationException($"Unknown role: {role}");
     }
 
     private bool IsAccepting

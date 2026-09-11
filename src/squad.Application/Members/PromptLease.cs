@@ -1,15 +1,15 @@
-namespace squad.Application.RoleOperations;
+namespace squad.Application.Members;
 
 /// <summary>
-/// Holds a role's prompt serialization slot until disposed. Prompts for the same role wait for one another in
+/// Holds a member's prompt serialization slot until disposed. Prompts for the same member wait for one another in
 /// acquisition order.
 /// </summary>
-internal sealed class RolePromptLease : IDisposable
+internal sealed class PromptLease : IDisposable
 {
     private readonly SemaphoreSlim myPromptLock;
     private bool myDisposed;
 
-    internal RolePromptLease(SemaphoreSlim promptLock)
+    internal PromptLease(SemaphoreSlim promptLock)
     {
         myPromptLock = promptLock;
     }

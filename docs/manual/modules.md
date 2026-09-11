@@ -42,10 +42,12 @@ through `InternalsVisibleTo`.
 
 ## `squad.Application`
 
-Owns authoritative live role state and user operations, including the active
-role-session catalog and command admission. It projects agent events,
-coordinates prompts, aborts, and pending interactions, integrates transcript
-state, and supplies UI snapshots.
+Owns authoritative live per-member state and user operations, including the active session catalog and command
+admission. Each configured squad member has one member aggregate that is the sole mutable owner of that member's
+projected agent status, transcript, pending interactions, and operation/abort coordination - keyed only by request
+or operation identity, never by another member. It projects agent events onto the addressed member's aggregate,
+coordinates prompts and aborts, integrates transcript state, and supplies UI snapshots composed from immutable
+member snapshots.
 
 ## `squad.Configuration`
 
@@ -128,7 +130,7 @@ separate from lifecycle coordination within the same assembly.
 
 ## `squad.Transcripts`
 
-Owns per-role transcript state, including ordered entries, streaming buffers,
+Owns per-member transcript state, including ordered entries, streaming buffers,
 tool-call correlation, live retention limits, durable archives, paging, and
 archived-entry reconstruction.
 

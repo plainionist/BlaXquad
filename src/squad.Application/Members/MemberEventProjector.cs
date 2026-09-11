@@ -1,88 +1,80 @@
 using squad.AgentProvider.Abstractions.Agents;
-using squad.Application.Interactions;
 using squad.Ui.Abstractions;
 using System.Text.Json;
 
-namespace squad.Application.Events;
+namespace squad.Application.Members;
 
 /// <summary>
-/// Projects a provider <see cref="AgentEvent"/> onto an <see cref="AgentRoleState"/> and its transcript.
-/// Synchronous and deterministic: it mutates only the supplied state, its transcript, and the injected
-/// interaction registry. Callers are responsible for admission checks and for holding the role's lock.
+/// Projects a provider <see cref="AgentEvent"/> onto a <see cref="MemberAggregate"/> and its transcript.
+/// Stateless, synchronous, and deterministic: it mutates only the supplied member aggregate. Callers are
+/// responsible for admission checks and for holding the member's lock.
 /// </summary>
-internal sealed class AgentEventProjector
+internal static class MemberEventProjector
 {
-    private readonly PendingInteractionRegistry myInteractions;
-
-    public AgentEventProjector(PendingInteractionRegistry interactions)
+    public static TranscriptUpdate? Project(MemberAggregate member, AgentEvent agentEvent)
     {
-        myInteractions = interactions;
-    }
-
-    public TranscriptUpdate? Project(AgentRoleState state, AgentEvent agentEvent)
-    {
-        state.EventCount++;
-        state.LastEventAt = agentEvent.OccurredAt;
+        member.EventCount++;
+        member.LastEventAt = agentEvent.OccurredAt;
         TranscriptUpdate? transcriptUpdate = null;
         switch (agentEvent)
         {
             case AgentStartedEvent:
-                state.Status = "running";
-                state.IsWorking = false;
-                transcriptUpdate = AddTranscriptEntry(state, agentEvent.OccurredAt, "harness", "Session started.");
+                member.Status = "running";
+                member.IsWorking = false;
+                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "harness", "Session started.");
                 break;
             case AgentStoppedEvent:
-                state.Status = "stopped";
-                state.IsWorking = false;
-                transcriptUpdate = AddTranscriptEntry(state, agentEvent.OccurredAt, "harness", "Session stopped.");
+                member.Status = "stopped";
+                member.IsWorking = false;
+                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "harness", "Session stopped.");
                 break;
             case AgentErrorEvent error:
-                state.Status = "error";
-                state.IsWorking = false;
-                state.Error = error.Message;
-                transcriptUpdate = AddTranscriptEntry(state, agentEvent.OccurredAt, "error", error.Message);
+                member.Status = "error";
+                member.IsWorking = false;
+                member.Error = error.Message;
+                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "error", error.Message);
                 break;
             case AgentIdleEvent:
-                state.Status = "idle";
-                state.IsWorking = false;
-                state.Transcript.FinalizeAssistantEntry();
-                state.Transcript.FinalizeReasoningEntry();
+                member.Status = "idle";
+                member.IsWorking = false;
+                member.Transcript.FinalizeAssistantEntry();
+                member.Transcript.FinalizeReasoningEntry();
                 break;
             case AgentUserMessageEvent message:
-                state.IsWorking = true;
-                state.Transcript.FinalizeAssistantEntry();
-                state.Transcript.FinalizeReasoningEntry();
-                transcriptUpdate = AddTranscriptEntry(state, message.OccurredAt, "user", message.Content);
+                member.IsWorking = true;
+                member.Transcript.FinalizeAssistantEntry();
+                member.Transcript.FinalizeReasoningEntry();
+                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, "user", message.Content);
                 break;
             case AgentHarnessMessageEvent message:
-                transcriptUpdate = AddTranscriptEntry(state, message.OccurredAt, "harness", message.Content);
+                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, "harness", message.Content);
                 break;
             case AgentReasoningEvent reasoning:
-                state.IsWorking = true;
-                transcriptUpdate = ApplyReasoning(state, reasoning);
+                member.IsWorking = true;
+                transcriptUpdate = ApplyReasoning(member, reasoning);
                 break;
             case AgentAssistantMessageEvent message:
-                state.IsWorking = true;
-                transcriptUpdate = ApplyAssistantMessage(state, message);
+                member.IsWorking = true;
+                transcriptUpdate = ApplyAssistantMessage(member, message);
                 break;
             case AgentSubagentStartedEvent subagent:
-                state.IsWorking = true;
+                member.IsWorking = true;
                 transcriptUpdate = AddTranscriptEntry(
-                    state,
+                    member,
                     subagent.OccurredAt,
                     "subagent",
                     DescribeSubagent(subagent));
                 break;
             case AgentSkillInvokedEvent skill:
-                state.IsWorking = true;
+                member.IsWorking = true;
                 transcriptUpdate = AddTranscriptEntry(
-                    state,
+                    member,
                     skill.OccurredAt,
                     "tool",
                     $"using skill({skill.Name})");
                 break;
             case AgentToolStartedEvent tool:
-                state.IsWorking = true;
+                member.IsWorking = true;
                 if (IsSubagentPlumbingTool(tool.ToolName) ||
                     tool.ToolName.Equals("skill", StringComparison.OrdinalIgnoreCase))
                 {
@@ -93,7 +85,7 @@ internal sealed class AgentEventProjector
                 var toolDescription = isRead ? DescribeRead(tool) : DescribeToolStart(tool);
                 if (!string.IsNullOrWhiteSpace(toolDescription))
                 {
-                    transcriptUpdate = state.Transcript.StartTool(
+                    transcriptUpdate = member.Transcript.StartTool(
                         tool.ToolCallId,
                         tool.ToolName,
                         suppressOutput,
@@ -102,90 +94,90 @@ internal sealed class AgentEventProjector
                             tool.OccurredAt,
                             isRead ? "read" : "tool",
                             toolDescription));
-                    state.ActiveTool = tool.ToolName;
+                    member.ActiveTool = tool.ToolName;
                 }
                 break;
             case AgentToolCompletedEvent tool:
-                var completion = state.Transcript.CompleteTool(
+                var completion = member.Transcript.CompleteTool(
                     tool.ToolCallId,
                     tool.DisplayOutputFallback,
                     tool.ContentFallback);
                 if (completion is not null)
                 {
                     transcriptUpdate = completion.Update;
-                    state.ActiveTool = completion.ActiveTool;
+                    member.ActiveTool = completion.ActiveTool;
                 }
                 break;
             case AgentToolOutputChangedEvent output:
-                state.IsWorking = true;
-                transcriptUpdate = state.Transcript.ChangeToolOutput(
+                member.IsWorking = true;
+                transcriptUpdate = member.Transcript.ChangeToolOutput(
                     output.ToolCallId,
                     output.Output);
                 break;
             case AgentToolProgressEvent progress:
-                state.IsWorking = true;
-                transcriptUpdate = state.Transcript.ChangeToolProgress(
+                member.IsWorking = true;
+                transcriptUpdate = member.Transcript.ChangeToolProgress(
                     progress.ToolCallId,
                     progress.Progress);
                 break;
             case AgentSessionConfigurationEvent configuration:
-                state.Model = configuration.Model;
-                state.Effort = configuration.Effort;
-                if (state.ContextLimitTokens is null or <= 0)
+                member.Model = configuration.Model;
+                member.Effort = configuration.Effort;
+                if (member.ContextLimitTokens is null or <= 0)
                 {
-                    state.ContextLimitTokens = GetModelContextWindowLimit(state.Model, 0);
+                    member.ContextLimitTokens = GetModelContextWindowLimit(member.Model, 0);
                 }
                 break;
             case AgentSessionModelChangedEvent model:
-                state.Model = model.Model;
-                state.Effort = model.Effort;
-                state.ContextLimitTokens = GetModelContextWindowLimit(state.Model, state.ContextLimitTokens ?? 0);
+                member.Model = model.Model;
+                member.Effort = model.Effort;
+                member.ContextLimitTokens = GetModelContextWindowLimit(member.Model, member.ContextLimitTokens ?? 0);
                 break;
             case AgentSessionUsageEvent usage:
-                state.AicUsed = Math.Max(state.AicUsed ?? 0, usage.AicUsed);
+                member.AicUsed = Math.Max(member.AicUsed ?? 0, usage.AicUsed);
                 break;
             case AgentContextUsageEvent usage:
-                state.ContextUsedTokens = usage.UsedTokens;
-                state.ContextLimitTokens = GetModelContextWindowLimit(state.Model, usage.LimitTokens);
+                member.ContextUsedTokens = usage.UsedTokens;
+                member.ContextLimitTokens = GetModelContextWindowLimit(member.Model, usage.LimitTokens);
                 break;
             case AgentSystemMessageEvent message:
-                transcriptUpdate = AddTranscriptEntry(state, message.OccurredAt, "system", message.Content);
+                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, "system", message.Content);
                 break;
             case AgentPermissionRequest permission:
-                myInteractions.RegisterPermission(permission);
-                transcriptUpdate = AddTranscriptEntry(state, permission.OccurredAt, "harness", $"Permission required: {permission.Description}.", protect: true);
-                myInteractions.ProtectTranscriptEntry(permission.Role, permission.RequestId, transcriptUpdate.EntryIndex);
+                member.RegisterPermission(permission);
+                transcriptUpdate = AddTranscriptEntry(member, permission.OccurredAt, "harness", $"Permission required: {permission.Description}.", protect: true);
+                member.ProtectTranscriptEntry(permission.RequestId, transcriptUpdate.EntryIndex);
                 break;
             case AgentInputRequest input:
-                myInteractions.RegisterInput(input);
-                transcriptUpdate = AddTranscriptEntry(state, input.OccurredAt, "harness", input.Prompt, protect: true);
-                myInteractions.ProtectTranscriptEntry(input.Role, input.RequestId, transcriptUpdate.EntryIndex);
+                member.RegisterInput(input);
+                transcriptUpdate = AddTranscriptEntry(member, input.OccurredAt, "harness", input.Prompt, protect: true);
+                member.ProtectTranscriptEntry(input.RequestId, transcriptUpdate.EntryIndex);
                 break;
             case AgentElicitationRequest elicitation:
-                myInteractions.RegisterElicitation(elicitation);
-                transcriptUpdate = AddTranscriptEntry(state, elicitation.OccurredAt, "harness", elicitation.Prompt, protect: true);
-                myInteractions.ProtectTranscriptEntry(elicitation.Role, elicitation.RequestId, transcriptUpdate.EntryIndex);
+                member.RegisterElicitation(elicitation);
+                transcriptUpdate = AddTranscriptEntry(member, elicitation.OccurredAt, "harness", elicitation.Prompt, protect: true);
+                member.ProtectTranscriptEntry(elicitation.RequestId, transcriptUpdate.EntryIndex);
                 break;
         }
         return transcriptUpdate;
     }
 
-    private static TranscriptUpdate ApplyAssistantMessage(AgentRoleState state, AgentAssistantMessageEvent message)
+    private static TranscriptUpdate ApplyAssistantMessage(MemberAggregate member, AgentAssistantMessageEvent message)
     {
         if (message.IsDelta)
         {
-            return state.Transcript.AppendAssistantEntry(message.OccurredAt, message.Content);
+            return member.Transcript.AppendAssistantEntry(message.OccurredAt, message.Content);
         }
-        return state.Transcript.CompleteAssistantEntry(message.OccurredAt, message.Content);
+        return member.Transcript.CompleteAssistantEntry(message.OccurredAt, message.Content);
     }
 
-    private static TranscriptUpdate ApplyReasoning(AgentRoleState state, AgentReasoningEvent reasoning)
+    private static TranscriptUpdate ApplyReasoning(MemberAggregate member, AgentReasoningEvent reasoning)
     {
         if (reasoning.IsDelta)
         {
-            return state.Transcript.AppendReasoningEntry(reasoning.OccurredAt, reasoning.Content);
+            return member.Transcript.AppendReasoningEntry(reasoning.OccurredAt, reasoning.Content);
         }
-        return state.Transcript.CompleteReasoningEntry(reasoning.OccurredAt, reasoning.Content);
+        return member.Transcript.CompleteReasoningEntry(reasoning.OccurredAt, reasoning.Content);
     }
 
     private static readonly HashSet<string> KnownShellRunners = new(StringComparer.OrdinalIgnoreCase)
@@ -385,12 +377,12 @@ internal sealed class AgentEventProjector
     }
 
     private static TranscriptUpdate AddTranscriptEntry(
-        AgentRoleState state,
+        MemberAggregate member,
         DateTimeOffset occurredAt,
         string source,
         string content,
         bool protect = false) =>
-        state.Transcript.AddTranscriptEntry(new TranscriptEntry(occurredAt, source, content), protect);
+        member.Transcript.AddTranscriptEntry(new TranscriptEntry(occurredAt, source, content), protect);
 
     private static long GetModelContextWindowLimit(string? model, long reportedLimit)
     {

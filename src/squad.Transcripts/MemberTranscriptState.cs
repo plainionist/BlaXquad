@@ -4,16 +4,16 @@ namespace squad.Transcripts;
 
 /// <summary>
 /// Owns the retained transcript, streaming buffers, tool-call correlation, archive access, and retention policy for
-/// one role. Reads acquire the shared role lock; mutations require the caller to hold it so role and transcript
-/// changes commit atomically.
+/// one squad member. Reads acquire the shared member lock; mutations require the caller to hold it so member and
+/// transcript changes commit atomically.
 /// </summary>
-public sealed class RoleTranscriptState
+public sealed class MemberTranscriptState
 {
     private const string myArchivedContentAvailableMarker =
         "[Earlier content is available in transcript history.]\n";
     private const string myArchivedContentUnavailableMarker =
         "[Earlier content is no longer available.]\n";
-    private readonly string myRole;
+    private readonly string myMemberId;
     private readonly object mySyncRoot;
     private readonly List<IndexedTranscriptEntry> myTranscriptEntries = [];
     private readonly HashSet<int> myProtectedTranscriptEntries = [];
@@ -28,13 +28,13 @@ public sealed class RoleTranscriptState
     private int myNextTranscriptEntryIndex;
     private int myRetainedContentCharacters;
 
-    public RoleTranscriptState(
-        string role,
+    public MemberTranscriptState(
+        string memberId,
         TranscriptArchive transcriptArchive,
         TranscriptRetentionOptions retentionOptions,
         object syncRoot)
     {
-        myRole = role;
+        myMemberId = memberId;
         myTranscriptArchive = transcriptArchive;
         myRetentionOptions = retentionOptions;
         mySyncRoot = syncRoot;
@@ -54,13 +54,13 @@ public sealed class RoleTranscriptState
                 .Skip(startIndex)
                 .ToArray();
             return new RoleTranscriptSnapshot(
-                myRole,
+                myMemberId,
                 myTranscriptSequence,
                 entries,
                 myTranscriptArchive.HasEntriesOutside(
-                    myRole,
+                    myMemberId,
                     entries.Select(entry => entry.EntryIndex).ToArray()),
-                myTranscriptArchive.WasTruncated(myRole));
+                myTranscriptArchive.WasTruncated(myMemberId));
         }
     }
 
@@ -68,20 +68,20 @@ public sealed class RoleTranscriptState
     {
         lock (mySyncRoot)
         {
-            var entries = myTranscriptArchive.ReadPage(myRole, beforeIndex, maxEntries);
+            var entries = myTranscriptArchive.ReadPage(myMemberId, beforeIndex, maxEntries);
             var firstIndex = entries.FirstOrDefault()?.EntryIndex ?? beforeIndex;
             return new RoleTranscriptPage(
-                myRole,
+                myMemberId,
                 entries,
-                myTranscriptArchive.HasEntriesBefore(myRole, firstIndex),
-                myTranscriptArchive.WasTruncated(myRole));
+                myTranscriptArchive.HasEntriesBefore(myMemberId, firstIndex),
+                myTranscriptArchive.WasTruncated(myMemberId));
         }
     }
 
     public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(int entryIndex)
     {
         lock (mySyncRoot)
-            return myTranscriptArchive.ReadEntry(myRole, entryIndex, myTranscriptSequence);
+            return myTranscriptArchive.ReadEntry(myMemberId, entryIndex, myTranscriptSequence);
     }
 
     /// <summary>Adds an entry to both archive and live retention; protected entries are not evicted until unprotected.</summary>
@@ -114,7 +114,7 @@ public sealed class RoleTranscriptState
         {
             Entry = retainedEntry,
             HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myRole,
+                myMemberId,
                 entryIndex,
                 contentStart),
             ContentStart = contentStart,
@@ -296,7 +296,7 @@ public sealed class RoleTranscriptState
             {
                 Entry = retainedEntry,
                 HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                    myRole,
+                    myMemberId,
                     entryIndex.Value,
                     buffer.ContentStart),
                 ContentStart = buffer.ContentStart,
@@ -304,7 +304,7 @@ public sealed class RoleTranscriptState
         }
         buffer.Append(content);
         myTranscriptArchive.Apply(new TranscriptUpdate(
-            myRole,
+            myMemberId,
             0,
             TranscriptUpdateKind.AppendContent,
             entryIndex!.Value,
@@ -335,7 +335,7 @@ public sealed class RoleTranscriptState
                 content)) with
         {
             HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myRole,
+                myMemberId,
                 entryIndex.Value,
                 buffer.ContentStart),
             ContentStart = buffer.ContentStart,
@@ -381,7 +381,7 @@ public sealed class RoleTranscriptState
             {
                 Entry = retainedEntry,
                 HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                    myRole,
+                    myMemberId,
                     index,
                     contentStart),
                 ContentStart = contentStart,
@@ -423,7 +423,7 @@ public sealed class RoleTranscriptState
         {
             Entry = retainedEntry,
             HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myRole,
+                myMemberId,
                 entryIndex,
                 contentStart),
             ContentStart = contentStart,
@@ -469,7 +469,7 @@ public sealed class RoleTranscriptState
         {
             var entry = entries[index];
             var hasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myRole,
+                myMemberId,
                 entry.EntryIndex,
                 entry.ContentStart);
             entries[index] = entry with
@@ -493,7 +493,7 @@ public sealed class RoleTranscriptState
         string? content,
         TranscriptAnnouncement? announcement) =>
         new(
-            myRole,
+            myMemberId,
             ++myTranscriptSequence,
             kind,
             entryIndex,
