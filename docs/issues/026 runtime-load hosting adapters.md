@@ -182,50 +182,105 @@ Update the architecture, module inventory, test strategy, CLI help/comments, and
 - The UI protocol remains transport-neutral and exercised over the real process boundary.
 - `HeadlessUiClient` remains test-owned and the Vue client remains the production presentation client.
 
-Update issue 025 while implementing this change: remove its instruction to inline and retain the static `UiMode`
-branch, and retain `IWindowHost`/`ISleepInhibitor` because the runtime-loaded hosting SPI gives those contracts real
-process-time variation.
+Issue 025 has already been completed and removed from the active issue catalog. Do not restore it. This issue
+supersedes its historical instruction to inline and retain the static `UiMode` branch:
+`IWindowHost`/`ISleepInhibitor` remain because the runtime-loaded hosting SPI gives those contracts real process-time
+variation.
 
 ## Implementation plan
 
-### Slice 1: Establish and characterize hosting selection
+The current manual conflict is intentional scope, not an alternative design:
+`docs/Manual/test-strategy.md` still calls `--ui stdio` a supported product transport. Slice 1 corrects that statement
+when the backend harness moves to explicit hosting selection. The slices below are ordered dependencies; hand off
+and accept exactly one before starting the next.
 
-1. Recast the current UI-selection scenarios around an explicitly selected hosting factory and characterize all
-   loader diagnostics through the real `squad-hq` process.
-2. Add `IHostingFactory`, its context/result values, and a hosting descriptor without changing the default runtime
-   behavior yet.
-3. Extract the genuinely shared provider/hosting assembly-loading mechanics while retaining typed provider errors
-   and all existing provider-selection behavior.
-4. Add valid, incompatible, and throwing hosting fixtures through the public SPI rather than exposing loader
-   internals to tests.
+### Slice 1: Runtime-load the test-owned stdio host
 
-### Slice 2: Load and package Photino by default
+**Outcome:** Every backend acceptance launch selects the stdio hosting bundle with an explicit `--hosting`
+descriptor, while `squad-hq` no longer references stdio or exposes the built-in `--ui` mode.
 
-1. Rename the Photino module and add `PhotinoHostingFactory`.
-2. Move concrete Photino and sleep-inhibitor construction out of `Launch`.
-3. Remove the concrete Photino project reference from `squad-hq` and package the plug-in, dependencies, native
-   assets, and Vue distribution through build targets.
-4. Prove that omitting `--hosting` resolves and constructs the packaged default without adding source-level type
-   references back to headquarters.
+1. Add `IHostingFactory`, `HostingContext`, and `HostingRuntime` to `squad.Hosting.Abstractions`, including the
+   required `squad.Ui.Abstractions` dependency. Keep `SquadApplication` as the owner of the returned
+   `IWindowHost` and `ISleepInhibitor`, preserving startup order and failure-safe cleanup.
+2. Add hosting descriptor parsing and loading for `--hosting <assemblyPath>;<factoryType>`. Resolve relative paths
+   against the launcher's current directory and report controlled, hosting-specific diagnostics for duplicate
+   options, missing values, malformed descriptors, missing or unloadable assemblies, non-public or incompatible
+   types, missing public parameterless constructors, and constructor failures.
+3. Extract only the assembly-loading mechanics genuinely shared with provider loading. Keep provider and hosting
+   entry points, messages, and non-collectible load contexts separate. The hosting context must unify
+   `squad.Hosting.Abstractions`, `squad.Ui.Abstractions`, and every contract assembly exposed through those APIs,
+   while resolving private managed and native dependencies beside the plug-in.
+4. Rename `squad.Stdio` to `squad.Hosting.Stdio`; add the sole public `StdioHostingFactory`, make the window host
+   internal, and return it with an internal no-op sleep inhibitor. Keep the headless client, wire decoding, waits,
+   reconciliation, and diagnostics in `squad.Specs`.
+5. Route an explicit hosting descriptor through `Launch`, but preserve the current directly composed Photino
+   default only until Slice 2. Remove `UiOption`, `UiMode`, the `--ui` branch, and the `squad.Hosting.Stdio`
+   project reference from `squad-hq`.
+6. Centralize construction of the provider and hosting descriptors in `BackendScenario` and use both on every
+   launch path, including continue, caller cancellation, pre-readiness, missing-helper, and replacement launches.
+7. Replace `UiSelection.feature` with black-box hosting-selection scenarios using public plug-in fixtures. Include
+   a valid load and every diagnostic above, plus a fixture deployed with duplicate contract assemblies so the test
+   fails if contract types are loaded into the plug-in context instead of unified with headquarters.
+8. Update stdio feature text, test-support comments, module documentation, and the backend test strategy to call
+   stdio a test-distributed hosting adapter selected by the harness, never a supported product presentation mode.
 
-### Slice 3: Load stdio only for backend specifications
+**Acceptance:** The focused hosting-selection and provider-selection scenarios pass through the published process;
+the stdio protocol, readiness, concurrent command admission, EOF, cancellation, shutdown, startup-failure, and
+cleanup scenarios run through the explicit stdio factory; provider diagnostics are unchanged; and source/dependency
+searches show no `--ui`, `UiMode`, `UiOption`, or `squad.Hosting.Stdio` reference in `squad-hq`.
 
-1. Rename the stdio module, add its factory and no-op sleep inhibitor, and remove its project reference from
-   `squad-hq`.
-2. Change `BackendScenario` to pass explicit provider and hosting descriptors on every launch path.
-3. Remove `UiMode`, `UiOption`, and all built-in `photino|stdio` branching.
-4. Disable default Photino packaging for the backend-spec executable and add an observable packaging scenario that
-   proves no Photino assembly, native binary, or UI asset remains.
-5. Run the existing readiness, command-concurrency, EOF, cancellation, protocol-validation, transcript recovery,
-   shutdown, and cleanup scenarios against the dynamically loaded stdio host.
+### Slice 2: Runtime-load and package Photino as the default
 
-### Slice 4: Align documentation and public surface
+**Outcome:** Omitting `--hosting` loads a complete Photino hosting bundle from the packaged sibling plug-in, with no
+concrete hosting reference or construction in `squad-hq`.
 
-1. Update the architecture, modules, test strategy, and command documentation to distinguish default product
-   hosting from test-distributed stdio hosting.
-2. Make concrete hosting types internal wherever only their public factory crosses the assembly boundary.
-3. Remove stale names, publish properties, output files, and issue-025 assumptions after searching all source,
-   generated-spec inputs, scripts, and documentation.
+1. Rename `squad.Photino` to `squad.Hosting.Photino`, align namespaces and solution entries, add the sole public
+   `PhotinoHostingFactory`, and make `PhotinoWindowHost`, `SleepInhibitor`, and other implementation details
+   internal.
+2. Replace the temporary direct default in `Launch` with a descriptor containing only the default sibling assembly
+   and factory type names. Create both lifecycle resources from one `HostingContext`; do not change
+   `SquadApplication` startup, cancellation, or aggregate-disposal behavior.
+3. Replace the asset-only target with build and publish packaging for the standalone Photino component. Copy its
+   assembly, component dependency metadata, private managed dependencies, runtime-native assets, Vue distribution,
+   and window assets, while excluding every contract assembly already supplied by headquarters.
+4. Add `IncludePhotinoHosting`, defaulting to `true`, and make ordinary build/run plus normal publish resolve the
+   sibling plug-in. Move the executable icon to executable-owned assets so packaging does not recreate a project
+   dependency.
+5. Add black-box packaging/selection scenarios proving that `squad-hq` has no compile-time dependency on either
+   concrete hosting assembly, the normal output includes Photino and excludes stdio, omitted selection resolves the
+   default factory, and an explicit Photino descriptor selects the same plug-in without changing the executable.
+6. Update architecture, module inventory, glossary, UI documentation, and CLI help/comments with the process-time
+   hosting boundary and Photino's status as the packaged default.
+
+**Acceptance:** Both normal build output and publish output can launch through the default factory; the publish
+contains the Photino component metadata, managed/native dependencies, and UI assets but no stdio plug-in;
+`squad-hq.csproj`, its dependency manifest, and `Launch` contain no concrete hosting dependency; and existing
+provider packaging and lifecycle scenarios remain unchanged.
+
+### Slice 3: Publish a genuinely headless backend test package
+
+**Outcome:** The backend suite runs the same provider-neutral and hosting-neutral `squad-hq` executable from a
+publication containing neither default product plug-in nor visual UI payload.
+
+1. Publish the backend-spec tools with both `IncludeCopilotSdkProvider=false` and
+   `IncludePhotinoHosting=false`. Build `squad.Hosting.Stdio` as a test fixture dependency of `squad.Specs` and load
+   it by the absolute descriptor supplied from the runner's own output, never by copying it into the
+   `squad-hq` publication.
+2. Extend the packaging feature to assert that the backend-spec directory contains the executable and shared
+   contracts but no Copilot provider, Photino hosting assembly, `Photino.NET`, `Photino.Native`, Photino runtime
+   directory, Vue distribution, or Photino window assets. Check the executable dependency manifest as well as
+   physical files.
+3. Prove the independently distributed stdio plug-in still loads private dependencies and unifies the host's
+   contracts, then run the complete backend Gherkin suite against that headless publication. Keep the normal
+   product publication assertions in the same feature so the opt-out cannot weaken default packaging.
+4. Finish the test-strategy documentation for the two-package arrangement and remove stale assembly names,
+   publish properties, generated-spec inputs, scripts, and comments as part of this packaging outcome. Do not
+   restore completed issue 025.
+
+**Acceptance:** The packaging scenarios prove physical and manifest-level absence of both default plug-ins and all
+Photino/UI payload from the backend-spec publication; the full backend suite drives the real process through the
+separately built stdio plug-in; the frontend Playwright suite and product build still pass; and repository-wide
+searches find only the documented new hosting names and supported `--hosting` option.
 
 ## Acceptance criteria
 
