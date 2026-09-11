@@ -31,7 +31,7 @@ This issue replaces that contract:
 
 ## Implementation plan
 
-### Slice 1: Make handoff state launch-scoped
+### Slice 1: Make handoff state launch-scoped [done]
 
 1. Change workspace launch preparation so both normal and `--continue` launches delete each distinct configured
    worktree's complete handoff-state directory, then recreate the canonical queue directories. Keep normal launch's
@@ -58,6 +58,10 @@ Acceptance criteria:
   and failed handoffs.
 - No stale handoff is delivered and no recovery wake-up is emitted after process launch.
 - Handoffs created after startup still deliver, notify, claim, batch, and complete as before.
+
+**Status: complete (0faf02b).** Every launch, including `--continue`, discards each configured worktree's complete
+handoff-state directory before sessions or delivery start. Startup recovery and the Headquarters legacy-queue
+preflight are gone. Slice 2 remains pending until the architect activates it.
 
 ### Slice 2: Remove handoff document versioning
 
