@@ -322,3 +322,14 @@ followed by the complete `squad.Specs` suite.
 ## Slice 3 review (2103045d27) — accepted
 
 **Status: complete (2103045d27).** Headless UI client and observation records live under `Support/Ui`. Internal `HeadlessUiTransport` owns stdin writes, concurrent stdout/stderr drain, snapshots, input closure, and process/output diagnostics. Internal `TranscriptProtocol` owns transcript envelope matching, decoding, paging, and reconciliation. Role/usage/tool/pending-interaction predicates stay on `HeadlessUiClient`. `HeadlessUiWaitTimeoutException` is gone; waits throw `TimeoutException` with the same description and combined diagnostics. Protocol version, commands, wait ordering, skip semantics, and observation records are unchanged.
+
+## Slice 4 review (24d04f6b59) — changes requested
+
+Provider fixtures live under `Support/Agents`, echo types are gone, and the Headquarters replacement launch stays readiness-only. The shared host-ownership Given now enables a control pipe for every consumer.
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Specs/StepDefinitions/HostOwnershipSteps.cs` (`GivenASquadHostIsRunning`); `src/squad.Specs/Features/HostOwnership.feature` (scenarios that share `Given a squad host is running`).
+- **Violated behavior:** Slice 4 must replace both `EchoAgentProviderFactory` sites with `FakeAgentProviderFactory` and must not enable a control pipe where those readiness-only scenarios do not need one. Controlled auto-echo already exists for scenarios that actually need a reply.
+- **Root cause:** `Given a squad host is running` is shared. Only `A duplicate launch fails clearly` sends a prompt and asserts `echo: still there?`, so the Given now always calls `EnableFakeProviderControl`, waits for session start, and arms auto-echo.
+- **Required outcome:** The shared Given launches `FakeAgentProviderFactory` without a control pipe. Enable the control pipe and auto-echo only for the duplicate-launch scenario that asserts the echoed transcript. Keep the HeadquartersLifecycle replacement launch readiness-only. Do not add a second provider fixture.
