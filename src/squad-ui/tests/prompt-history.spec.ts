@@ -181,16 +181,35 @@ test('editing a recalled prompt leaves history navigation and treats the edit as
   await expect(prompt).toHaveValue('second prompt!')
 })
 
-test('does not start navigation when the selection is not collapsed at the absolute start', async ({ page }) => {
+test('starts history navigation when the caret is collapsed at the absolute start of a multiline prompt', async ({ page }) => {
   await loadSnapshot(page)
   const prompt = page.getByRole('textbox', { name: 'Message coder' })
   await sendPrompt(page, 'Message coder', 'stored prompt')
 
-  await prompt.fill('draft text')
+  const draft = 'line one\nline two'
+  await prompt.fill(draft)
   await prompt.evaluate((element) => {
     if (!(element instanceof HTMLTextAreaElement))
       throw new Error('Expected a textarea.')
-    element.setSelectionRange(0, 3)
+    element.setSelectionRange(0, 0)
+  })
+  await prompt.press('ArrowUp')
+  await expect(prompt).toHaveValue('stored prompt')
+  await prompt.press('ArrowDown')
+  await expect(prompt).toHaveValue(draft)
+})
+
+test('does not start navigation when the selection is not collapsed at the absolute start of a multiline prompt', async ({ page }) => {
+  await loadSnapshot(page)
+  const prompt = page.getByRole('textbox', { name: 'Message coder' })
+  await sendPrompt(page, 'Message coder', 'stored prompt')
+
+  const draft = 'line one\nline two'
+  await prompt.fill(draft)
+  await prompt.evaluate((element) => {
+    if (!(element instanceof HTMLTextAreaElement))
+      throw new Error('Expected a textarea.')
+    element.setSelectionRange(0, 4)
   })
   const prevented = await prompt.evaluate((element) => {
     const event = new KeyboardEvent('keydown', {
@@ -202,7 +221,7 @@ test('does not start navigation when the selection is not collapsed at the absol
     return event.defaultPrevented
   })
   expect(prevented).toBe(false)
-  await expect(prompt).toHaveValue('draft text')
+  await expect(prompt).toHaveValue(draft)
 })
 
 test('retains normal caret behavior for ArrowUp away from the absolute start in a multiline prompt', async ({ page }) => {
