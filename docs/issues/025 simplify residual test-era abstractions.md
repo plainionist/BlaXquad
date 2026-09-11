@@ -315,7 +315,7 @@ command are gone. `GetRoleReadinessAsync` is local tri-state from projected sess
 state. `HostLease.SetAgentReadinessProvider` is unchanged. Busy fakes use an outstanding prompt; ready/stale
 paths use `AgentIdleEvent`. Manual wording matches that vocabulary.
 
-### Slice 4 - Application commands use one active-session and admission authority [in progress]
+### Slice 4 - Application commands use one active-session and admission authority [done]
 
 **Outcome:** The application command boundary makes one atomic decision to admit work and select its active session,
 and runtime teardown waits for all work admitted by that decision before provider-session disposal.
@@ -345,6 +345,15 @@ a failed or stopped role stays unavailable without affecting siblings, and clean
 unchanged. The focused gates are `ShutdownCommandAdmission`, `Delivery`, `Recovery`, `TerminalSessionFinality`,
 `HeadquartersEarlyShutdown`, `HeadquartersPartialStartupFailure`, `HeadquartersCleanupDiagnostics`, and
 `HeadquartersLifecycle`.
+
+**Status: complete (760a99445a).** `SquadViewModel` is the sole active-session catalog and command-admission
+authority: `mySessions` and `myAccepting` share one lock, `TryCaptureSession` selects a non-terminal session
+without a lease or generation, and construction has no standalone or replaceable admission. Admission closes
+before pending-interaction cancellation and drain; handoff wake-ups use `SendHarnessAsync`. Deleted
+`StandaloneSessionAdmission`, `UseAdmission`, `ISessionAdmission`, `SessionLease`, `SessionRegistry`,
+`SessionCatalog`, and unused lifecycle phase/transition types. `SessionGeneration` registers sessions directly;
+`SquadRuntimeController` notifies `IWindowHost` directly. Provider `StartAsync` session callback and
+`IRoleNotifier` remain. Architecture, modules, and session-generation glossary record the ownership split.
 
 After every slice, search all production and specification call sites and remove obsolete overloads, callbacks,
 interfaces, records, generated bindings, and public members in that slice. Use the existing black-box Gherkin suite
