@@ -210,7 +210,7 @@ Acceptance criteria:
 announces success on an `aria-live` status, shows a recoverable error without a success claim when the write is
 rejected, and keeps Copy enabled with an empty roles snapshot without emitting a UI protocol command.
 
-### Slice 4 - Prepare the first role's prompt (in progress)
+### Slice 4 - Prepare the first role's prompt [done]
 
 **Outcome:** Play replaces and focuses the first configured role's draft without submitting it or changing any other
 role's draft.
@@ -235,8 +235,14 @@ Acceptance criteria:
 - The target textarea has focus and no protocol envelope is emitted by Play.
 - Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
 
-**Transition:** Slice 4 remains unchanged because it is already in progress. Slice 5 replaces its positional target
-after Slice 4 is accepted; the overwrite, focus, draft-isolation, disabled-state, and no-auto-send behavior remain.
+**Status: complete (476254f8ab).** Play stages `process this issue: '<path>'` on the first snapshot role, focuses that
+composer, and does not emit `prompt.send`. `SquadViewModel` enumerates `myRoleOrder` for snapshots and transcript
+projections; `RoleOrder.feature` proves configured order through the real UI protocol. Playwright covers exact
+replacement and focus with other drafts preserved, first-configured targeting despite later reviewer activity, no
+envelope until Enter, and Play disabled / Copy enabled with no roles.
+
+**Transition:** Slice 4 is accepted. Slice 5 replaces its positional target; the overwrite, focus, draft-isolation,
+disabled-state, and no-auto-send behavior remain.
 
 ### Slice 5 - Target the configured leader (pending)
 
@@ -284,4 +290,4 @@ Acceptance criteria:
 - All shipped, documented, and test-generated configurations declare an explicit valid leader, and every protocol
   surface consistently uses version 5.
 
-Slices 1–3 are complete. Only Slice 4 is active.
+Slices 1–4 are complete. Slice 5 remains pending until the architect activates it.
