@@ -31,7 +31,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
         var gateAfterSessions = ReadStartupGateAfterSessions();
         var failAfterSessions = ReadFailAfterSessions();
         var sessionIndex = 0;
-        foreach (var role in context.Roles)
+        foreach (var member in context.Members)
         {
             if (gateAfterSessions == sessionIndex)
             {
@@ -43,14 +43,14 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             }
 
-            var session = new FakeAgentSession(role.Role, myControl);
+            var session = new FakeAgentSession(member.Member, myControl);
             mySessions.Add(session);
             await sessionStarted(session);
             if (myControl is not null)
             {
-                await myControl.NotifySessionStartedAsync(session.Role, session.SessionId, cancellationToken);
+                await myControl.NotifySessionStartedAsync(session.Member, session.SessionId, cancellationToken);
             }
-            await session.SendHarnessAsync(role.InitialInstruction, cancellationToken);
+            await session.SendHarnessAsync(member.InitialInstruction, cancellationToken);
             sessionIndex++;
             if (failAfterSessions == sessionIndex)
             {
@@ -105,7 +105,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
 
     private FakeAgentSession? FindSession(string role, string sessionId, out string? error)
     {
-        var session = mySessions.FirstOrDefault(candidate => candidate.Role == role && candidate.SessionId == sessionId);
+        var session = mySessions.FirstOrDefault(candidate => candidate.Member == role && candidate.SessionId == sessionId);
         if (session is null)
         {
             error = $"No session '{sessionId}' for role '{role}' exists.";
@@ -127,7 +127,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
             await session.DisposeAsync();
             if (myControl is not null)
             {
-                await myControl.NotifySessionDisposedAsync(session.Role, session.SessionId, CancellationToken.None);
+                await myControl.NotifySessionDisposedAsync(session.Member, session.SessionId, CancellationToken.None);
             }
         }
         if (myControl is not null)

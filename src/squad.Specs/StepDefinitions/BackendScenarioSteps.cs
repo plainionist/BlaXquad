@@ -14,6 +14,7 @@ public sealed class BackendScenarioSteps
 {
     private readonly BackendScenario myScenario;
     private string? myObservedHarnessMessage;
+    private int? myObservedExitCode;
     private int myProtocolErrorsObserved;
     private readonly Dictionary<string, int> myTranscriptPageFrontier = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> myTranscriptPagesObserved = new(StringComparer.Ordinal);
@@ -46,6 +47,22 @@ public sealed class BackendScenarioSteps
     [Given("a backend scenario configured with roles {string}")]
     public void GivenABackendScenarioConfiguredWithRoles(string commaSeparatedRoles) =>
         myScenario.ConfigureRoles(commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+    [Given("a backend scenario configured with role {string} shared by members {string}")]
+    public void GivenABackendScenarioConfiguredWithRoleSharedByMembers(string role, string commaSeparatedMembers) =>
+        myScenario.ConfigureRoleSharedByMembers(
+            role,
+            commaSeparatedMembers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+    [Given("a backend scenario configured with roles {string} and the raw configuration:")]
+    public void GivenABackendScenarioConfiguredWithRolesAndTheRawConfiguration(string commaSeparatedRoles, string rawConfiguration) =>
+        myScenario.ConfigureProjectWithRawConfiguration(
+            rawConfiguration,
+            commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+    [Given("a backend scenario configured with the raw configuration:")]
+    public void GivenABackendScenarioConfiguredWithTheRawConfiguration(string rawConfiguration) =>
+        myScenario.ConfigureProjectWithRawConfiguration(rawConfiguration);
 
     [Given("a backend scenario configured with roles {string} and no leader")]
     public void GivenABackendScenarioConfiguredWithRolesAndNoLeader(string commaSeparatedRoles)
@@ -103,9 +120,35 @@ public sealed class BackendScenarioSteps
     public void WhenTheBackendScenarioStartsSquadHqWithTheFakeProviderFixture() =>
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
 
+    // Deliberately used for a configuration invalid enough that the process exits before ever completing the
+    // "ui.ready" handshake: StartAsync's own explicit "--hosting" descriptor keeps this reliable, unlike
+    // LaunchWithoutReadyHandshake's "--ui stdio" launch (which never selects a hosting plug-in and is unrelated to
+    // this specification). Catches the resulting handshake timeout here - not with the scenario's own generic
+    // failure handling - so a later step can still inspect the process's own exit code and captured standard
+    // error precisely, matching the diagnostic the configuration loader actually reported.
+    [When("the backend scenario attempts to start squad-hq with the fake provider fixture")]
+    public void WhenTheBackendScenarioAttemptsToStartSquadHqWithTheFakeProviderFixture() =>
+        Assert.CatchAsync(() => myScenario.StartAsync<FakeAgentProviderFactory>(TimeSpan.FromSeconds(5)));
+
     [When("the backend scenario launches squad-hq with the fake provider fixture without completing the ready handshake")]
     public void WhenTheBackendScenarioLaunchesSquadHqWithTheFakeProviderFixtureWithoutCompletingTheReadyHandshake() =>
         myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
+
+    [When("the backend scenario waits for its rejected startup process to exit")]
+    public void WhenTheBackendScenarioWaitsForItsRejectedStartupProcessToExit() =>
+        myObservedExitCode = Await(myScenario.WaitForProcessExitAsync());
+
+    [Then("the backend scenario observes its rejected startup exited with a non-zero code")]
+    public void ThenTheBackendScenarioObservesItsRejectedStartupExitedWithANonZeroCode() =>
+        Assert.That(myObservedExitCode, Is.Not.EqualTo(0));
+
+    [Then("the backend scenario observes its rejected startup's standard error containing {string}")]
+    public void ThenTheBackendScenarioObservesItsRejectedStartupsStandardErrorContaining(string text) =>
+        Await(myScenario.WaitForStandardErrorContainingAsync(text));
+
+    [Then("the backend scenario observes its rejected startup's standard error does not contain {string}")]
+    public void ThenTheBackendScenarioObservesItsRejectedStartupsStandardErrorDoesNotContain(string text) =>
+        Assert.That(myScenario.CapturedStandardError(), Does.Not.Contain(text));
 
     [Then("the backend scenario observes no session was ever started for role {string}")]
     public void ThenTheBackendScenarioObservesNoSessionWasEverStartedForRole(string role) =>
@@ -156,6 +199,11 @@ public sealed class BackendScenarioSteps
     [Then("the {string} agent observes a harness message")]
     public void ThenTheAgentObservesAHarnessMessage(string role) =>
         myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
+
+    [Then("the {string} agent observes a harness message containing {string}")]
+    public void ThenTheAgentObservesAHarnessMessageContaining(string role, string expectedSubstring) =>
+        myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync(
+            message => message.Contains(expectedSubstring, StringComparison.Ordinal)));
 
     [Then("the {string} agent observes an abort")]
     public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());

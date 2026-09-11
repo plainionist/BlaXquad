@@ -5,27 +5,29 @@ namespace squad.Application.Interactions;
 /// <summary>
 /// Owns pending permission, input, and elicitation requests plus the protected transcript entry each one holds
 /// open. Requests are keyed by role and request ID, so the same request ID can be pending independently for
-/// multiple roles at once. Callers never hold its internal lock while awaiting provider or role operations.
+/// multiple roles at once. Provider request records carry no role of their own, so this registry pairs each one
+/// with the role it was registered for. Callers never hold its internal lock while awaiting provider or role
+/// operations.
 /// </summary>
 internal sealed class PendingInteractionRegistry
 {
     private readonly object myLock = new();
-    private readonly Dictionary<string, AgentPermissionRequest> myPermissions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AgentInputRequest> myInputs = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AgentElicitationRequest> myElicitations = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Role, AgentPermissionRequest Request)> myPermissions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Role, AgentInputRequest Request)> myInputs = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Role, AgentElicitationRequest Request)> myElicitations = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ProtectedTranscriptEntry> myProtectedTranscriptEntries = new(StringComparer.Ordinal);
 
-    public IReadOnlyCollection<AgentPermissionRequest> Permissions
+    public IReadOnlyCollection<(string Role, AgentPermissionRequest Request)> Permissions
     {
         get { lock (myLock) return myPermissions.Values.ToArray(); }
     }
 
-    public IReadOnlyCollection<AgentInputRequest> Inputs
+    public IReadOnlyCollection<(string Role, AgentInputRequest Request)> Inputs
     {
         get { lock (myLock) return myInputs.Values.ToArray(); }
     }
 
-    public IReadOnlyCollection<AgentElicitationRequest> Elicitations
+    public IReadOnlyCollection<(string Role, AgentElicitationRequest Request)> Elicitations
     {
         get { lock (myLock) return myElicitations.Values.ToArray(); }
     }
@@ -34,22 +36,22 @@ internal sealed class PendingInteractionRegistry
     {
         lock (myLock)
         {
-            if (myElicitations.TryGetValue(Key(role, requestId), out var request))
+            if (myElicitations.TryGetValue(Key(role, requestId), out var entry))
             {
-                return request;
+                return entry.Request;
             }
             throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{role}'.");
         }
     }
 
-    public void RegisterPermission(AgentPermissionRequest request) =>
-        Register(myPermissions, request.Role, request.RequestId, request);
+    public void RegisterPermission(string role, AgentPermissionRequest request) =>
+        Register(myPermissions, role, request.RequestId, request);
 
-    public void RegisterInput(AgentInputRequest request) =>
-        Register(myInputs, request.Role, request.RequestId, request);
+    public void RegisterInput(string role, AgentInputRequest request) =>
+        Register(myInputs, role, request.RequestId, request);
 
-    public void RegisterElicitation(AgentElicitationRequest request) =>
-        Register(myElicitations, request.Role, request.RequestId, request);
+    public void RegisterElicitation(string role, AgentElicitationRequest request) =>
+        Register(myElicitations, role, request.RequestId, request);
 
     public void ProtectTranscriptEntry(string role, string requestId, int entryIndex)
     {
@@ -76,9 +78,10 @@ internal sealed class PendingInteractionRegistry
     {
         lock (myLock)
         {
-            RemoveForRole(myPermissions, role, request => request.Role);
-            RemoveForRole(myInputs, role, request => request.Role);
-            RemoveForRole(myElicitations, role, request => request.Role);
+            var keyPrefix = role + "\u001f";
+            RemoveForRole(myPermissions, keyPrefix);
+            RemoveForRole(myInputs, keyPrefix);
+            RemoveForRole(myElicitations, keyPrefix);
             var keys = myProtectedTranscriptEntries
                 .Where(pair => pair.Value.Role == role)
                 .Select(pair => pair.Key)
@@ -102,12 +105,12 @@ internal sealed class PendingInteractionRegistry
         }
     }
 
-    private void Register<TRequest>(Dictionary<string, TRequest> requests, string role, string requestId, TRequest request)
+    private void Register<TRequest>(Dictionary<string, (string Role, TRequest Request)> requests, string role, string requestId, TRequest request)
     {
         var key = Key(role, requestId);
         lock (myLock)
         {
-            if (!requests.TryAdd(key, request))
+            if (!requests.TryAdd(key, (role, request)))
             {
                 throw new InvalidOperationException($"Interaction '{requestId}' is already pending for role '{role}'.");
             }
@@ -115,23 +118,23 @@ internal sealed class PendingInteractionRegistry
     }
 
     private (string Role, TRequest Request) Remove<TRequest>(
-        Dictionary<string, TRequest> requests,
+        Dictionary<string, (string Role, TRequest Request)> requests,
         string expectedRole,
         string requestId)
     {
         lock (myLock)
         {
-            if (requests.Remove(Key(expectedRole, requestId), out var request))
+            if (requests.Remove(Key(expectedRole, requestId), out var entry))
             {
-                return (expectedRole, request);
+                return entry;
             }
             throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{expectedRole}'.");
         }
     }
 
-    private static void RemoveForRole<TRequest>(Dictionary<string, TRequest> requests, string role, Func<TRequest, string> roleSelector)
+    private static void RemoveForRole<TRequest>(Dictionary<string, (string Role, TRequest Request)> requests, string keyPrefix)
     {
-        foreach (var key in requests.Where(pair => roleSelector(pair.Value) == role).Select(pair => pair.Key).ToArray())
+        foreach (var key in requests.Keys.Where(key => key.StartsWith(keyPrefix, StringComparison.Ordinal)).ToArray())
         {
             requests.Remove(key);
         }

@@ -33,31 +33,31 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
         ArgumentNullException.ThrowIfNull(sessionStarted);
         try
         {
-            var createTasks = myContext.Roles.Select(async role =>
+            var createTasks = myContext.Members.Select(async member =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var session = new CopilotSdkAgentSession(
-                    role.Role,
+                    member.Member,
                     escalateTeardownFailure: RequestForceStop);
-                var runtimeSession = await myClient.CreateSessionAsync(role.WorktreePath, session, role.Permissions, role.Model, role.Effort, cancellationToken);
+                var runtimeSession = await myClient.CreateSessionAsync(member.WorktreePath, session, member.Permissions, member.Model, member.Effort, cancellationToken);
                 session.Attach(runtimeSession);
-                session.Publish(new AgentSessionConfigurationEvent(DateTimeOffset.UtcNow, role.Model, role.Effort));
+                session.Publish(new AgentSessionConfigurationEvent(DateTimeOffset.UtcNow, member.Model, member.Effort));
                 lock (mySessions)
                 {
                     mySessions.Add(session);
                 }
-                return (role, session);
+                return (member, session);
             }).ToArray();
 
             var sessions = await Task.WhenAll(createTasks);
 
-            foreach (var (role, session) in sessions)
+            foreach (var (member, session) in sessions)
             {
                 await sessionStarted(session);
             }
 
             var harnessTasks = sessions.Select(pair =>
-                pair.session.SendHarnessAsync(pair.role.InitialInstruction, cancellationToken)
+                pair.session.SendHarnessAsync(pair.member.InitialInstruction, cancellationToken)
             ).ToArray();
 
             await Task.WhenAll(harnessTasks);

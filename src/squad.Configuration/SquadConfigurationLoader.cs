@@ -1,11 +1,17 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace squad.Configuration;
 
-/// <summary>Loads and validates the complete launch configuration, including role prompts and safe worktree paths.</summary>
+/// <summary>Loads and validates the complete launch configuration, including role prompts and safe worktree paths.
+/// Only schema version 2 (a reusable "roles" name catalog plus a "members" array) is accepted; a missing version
+/// or a legacy object-valued "roles" array is rejected with an explicit, identity-preserving migration diagnostic
+/// rather than silently reinterpreted.</summary>
 public static class SquadConfigurationLoader
 {
+    private const int SupportedSchemaVersion = 2;
+
     private static readonly JsonSerializerOptions myJsonOptions = new()
     {
         PropertyNameCaseInsensitive = false,
@@ -14,69 +20,177 @@ public static class SquadConfigurationLoader
 
     public static SquadConfiguration Load(string configFile, string rolesDirectory)
     {
+        string text;
         try
         {
-            var document = JsonSerializer.Deserialize<SquadConfigurationDocument>(File.ReadAllText(configFile), myJsonOptions)
-                ?? throw Error("configuration must be a JSON object");
-            return Validate(document, configFile, rolesDirectory);
-        }
-        catch (SquadConfigurationException)
-        {
-            throw;
-        }
-        catch (JsonException exception)
-        {
-            throw Error($"invalid JSON in {configFile}: {exception.Message}");
+            text = File.ReadAllText(configFile);
         }
         catch (IOException exception)
         {
             throw Error($"could not read {configFile}: {exception.Message}");
         }
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(text);
+        }
+        catch (JsonException exception)
+        {
+            throw Error($"invalid JSON in {configFile}: {exception.Message}");
+        }
+
+        using (document)
+        {
+            RejectLegacySchema(document.RootElement, configFile);
+
+            SquadConfigurationDocument typed;
+            try
+            {
+                typed = JsonSerializer.Deserialize<SquadConfigurationDocument>(text, myJsonOptions)
+                    ?? throw Error("configuration must be a JSON object");
+            }
+            catch (JsonException exception)
+            {
+                throw Error($"invalid JSON in {configFile}: {exception.Message}");
+            }
+
+            return Validate(typed, configFile, rolesDirectory);
+        }
+    }
+
+    /// <summary>Rejects a document that omits the required "schemaVersion": 2 marker or still carries the legacy
+    /// (version-1) object-valued "roles" array, with a message that documents the identity-preserving migration
+    /// instead of silently dual-reading the old shape: preserve each old entry's "name" as the member's name, add
+    /// that name to a new "roles" catalog, set the member's "role" to the same name, and leave "leader"
+    /// unchanged.</summary>
+    private static void RejectLegacySchema(JsonElement root, string configFile)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw Error("configuration must be a JSON object");
+        }
+
+        var hasCurrentSchemaVersion = root.TryGetProperty("schemaVersion", out var schemaVersionElement)
+            && schemaVersionElement.ValueKind == JsonValueKind.Number
+            && schemaVersionElement.TryGetInt32(out var schemaVersion)
+            && schemaVersion == SupportedSchemaVersion;
+        var legacyRolesShape = root.TryGetProperty("roles", out var rolesElement)
+            && rolesElement.ValueKind == JsonValueKind.Array
+            && rolesElement.EnumerateArray().Any(entry => entry.ValueKind == JsonValueKind.Object);
+
+        if (hasCurrentSchemaVersion && !legacyRolesShape)
+        {
+            return;
+        }
+
+        throw Error(
+            $"configuration {configFile} must declare \"schemaVersion\": {SupportedSchemaVersion} with a \"roles\" " +
+            "array of role names and a \"members\" array of configured participants; it is not dual-read as the " +
+            "legacy shape. Migrate a version-1 configuration by keeping each old entry's \"name\" as its member " +
+            "name, adding that name to \"roles\", setting the member's \"role\" to the same name, moving the " +
+            "entry's \"worktree\", \"receiveMode\", and \"agent\" onto that member, and leaving \"leader\" unchanged.");
     }
 
     private static SquadConfiguration Validate(SquadConfigurationDocument document, string configFile, string rolesDirectory)
     {
-        if (document.Roles is null || document.Roles.Count == 0)
+        var rootDirectory = Path.GetFullPath(Path.Combine(rolesDirectory, "..", ".."));
+        var roles = ValidateRoles(document.Roles, configFile, rolesDirectory);
+        var sharedWorktreePaths = ValidateSharedWorktreePaths(document.SharedWorktreePaths, rootDirectory, configFile);
+        var members = ValidateMembers(document.Members, roles, configFile, rolesDirectory);
+
+        // "leader" is optional: an omitted or blank value defaults to the first configured member, so there is
+        // always an authoritative leader. An explicitly configured value that does not match any member is still a
+        // configuration error - a plausible typo, not "no leader configured".
+        var leader = string.IsNullOrWhiteSpace(document.Leader) ? members[0].Name : document.Leader;
+        if (!members.Any(member => member.Name == leader))
+        {
+            throw Error($"leader '{leader}' in {configFile} must match a configured member name");
+        }
+
+        return new SquadConfiguration(roles, members, leader, sharedWorktreePaths);
+    }
+
+    private static IReadOnlyList<string> ValidateRoles(List<string>? documentRoles, string configFile, string rolesDirectory)
+    {
+        if (documentRoles is null || documentRoles.Count == 0)
         {
             throw Error($"configuration {configFile} requires a non-empty roles array");
         }
 
-        var rootDirectory = Path.GetFullPath(Path.Combine(rolesDirectory, "..", ".."));
-        var sharedWorktreePaths = ValidateSharedWorktreePaths(document.SharedWorktreePaths, rootDirectory, configFile);
-        var roles = new List<SquadRoleConfiguration>(document.Roles.Count);
+        var roles = new List<string>(documentRoles.Count);
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var role in documentRoles)
+        {
+            var name = Required(role, "role name");
+            if (!names.Add(name))
+            {
+                throw Error($"Duplicate role '{name}' in {configFile}");
+            }
+
+            var promptFile = Path.Combine(rolesDirectory, name + ".prompt");
+            if (!File.Exists(promptFile))
+            {
+                throw Error($"Missing role prompt {promptFile}");
+            }
+
+            roles.Add(name);
+        }
+
+        return roles;
+    }
+
+    private static IReadOnlyList<SquadMemberConfiguration> ValidateMembers(
+        List<SquadConfigurationMemberDocument>? documentMembers,
+        IReadOnlyList<string> roles,
+        string configFile,
+        string rolesDirectory)
+    {
+        if (documentMembers is null || documentMembers.Count == 0)
+        {
+            throw Error($"configuration {configFile} requires a non-empty members array");
+        }
+
+        var roleNames = new HashSet<string>(roles, StringComparer.Ordinal);
+        var members = new List<SquadMemberConfiguration>(documentMembers.Count);
         var names = new HashSet<string>(StringComparer.Ordinal);
         var worktrees = new HashSet<string>(StringComparer.Ordinal);
         var paths = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         var masterCount = 0;
 
-        foreach (var role in document.Roles)
+        foreach (var member in documentMembers)
         {
-            var name = Required(role.Name, "role name");
-            var worktree = Required(role.Worktree, $"worktree for role '{name}'");
-            var receiveMode = role.ReceiveMode ?? "task";
-            var agent = role.Agent ?? throw Error($"role '{name}' requires agent");
+            var name = Required(member.Name, "member name");
+            var role = Required(member.Role, $"role for member '{name}'");
+            var worktree = Required(member.Worktree, $"worktree for member '{name}'");
+            var receiveMode = member.ReceiveMode ?? "task";
+            var agent = member.Agent ?? throw Error($"member '{name}' requires agent");
             var permissions = agent.Permissions ?? "prompt";
 
             if (agent.Model is not null && string.IsNullOrWhiteSpace(agent.Model))
             {
-                throw Error($"agent.model for role '{name}' cannot be empty");
+                throw Error($"agent.model for member '{name}' cannot be empty");
             }
             if (agent.Effort is not null && string.IsNullOrWhiteSpace(agent.Effort))
             {
-                throw Error($"agent.effort for role '{name}' cannot be empty");
+                throw Error($"agent.effort for member '{name}' cannot be empty");
             }
 
             if (name.Contains('_'))
             {
-                throw Error($"Invalid role '{name}': role names may not contain underscores");
+                throw Error($"Invalid member '{name}': member names may not contain underscores");
             }
             if (!names.Add(name))
             {
-                throw Error($"Duplicate role '{name}' in {configFile}");
+                throw Error($"Duplicate member '{name}' in {configFile}");
+            }
+            if (!roleNames.Contains(role))
+            {
+                throw Error($"member '{name}' references unknown role '{role}' in {configFile}");
             }
             if (worktree.Contains('/') || worktree.Contains('\\') || worktree is "." or "..")
             {
-                throw Error($"Invalid worktree '{worktree}' for role '{name}'");
+                throw Error($"Invalid worktree '{worktree}' for member '{name}'");
             }
             if (worktree != "master" && !worktrees.Add(worktree))
             {
@@ -88,17 +202,11 @@ public static class SquadConfigurationLoader
             }
             if (receiveMode is not ("task" or "batch"))
             {
-                throw Error($"Invalid receive mode '{receiveMode}' for role '{name}': expected task or batch");
+                throw Error($"Invalid receive mode '{receiveMode}' for member '{name}': expected task or batch");
             }
             if (permissions is not ("prompt" or "approveAll"))
             {
-                throw Error($"Invalid permissions '{permissions}' for role '{name}': expected prompt or approveAll");
-            }
-
-            var promptFile = Path.Combine(rolesDirectory, name + ".prompt");
-            if (!File.Exists(promptFile))
-            {
-                throw Error($"Missing role prompt {promptFile}");
+                throw Error($"Invalid permissions '{permissions}' for member '{name}': expected prompt or approveAll");
             }
 
             var worktreePath = worktree == "master"
@@ -109,20 +217,12 @@ public static class SquadConfigurationLoader
                 throw Error($"Duplicate normalized worktree path '{worktreePath}' in {configFile}");
             }
 
-            roles.Add(new SquadRoleConfiguration(name, worktree, receiveMode,
+            var displayName = string.IsNullOrWhiteSpace(member.DisplayName) ? DisplayNameFor(name) : member.DisplayName;
+            members.Add(new SquadMemberConfiguration(name, displayName, role, worktree, receiveMode,
                 new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
         }
 
-        // "leader" is optional: an omitted or blank value defaults to the first configured role, so there is
-        // always an authoritative leader. An explicitly configured value that does not match any role is still a
-        // configuration error - a plausible typo, not "no leader configured".
-        var leader = string.IsNullOrWhiteSpace(document.Leader) ? roles[0].Name : document.Leader;
-        if (!names.Contains(leader))
-        {
-            throw Error($"leader '{leader}' in {configFile} must match a configured role name");
-        }
-
-        return new SquadConfiguration(roles, leader, sharedWorktreePaths);
+        return members;
     }
 
     private static IReadOnlyList<string> ValidateSharedWorktreePaths(
@@ -179,8 +279,10 @@ public static class SquadConfigurationLoader
         ? throw Error($"{field} is required and cannot be empty")
         : value;
 
+    private static string DisplayNameFor(string name) =>
+        string.Join(" ", Regex.Split(Regex.Replace(name, "[-_]", " "), @"\s+")
+            .Where(part => part.Length > 0)
+            .Select(part => part.Length == 1 ? part.ToUpperInvariant() : char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
+
     private static SquadConfigurationException Error(string message) => new(message);
-
 }
-
-

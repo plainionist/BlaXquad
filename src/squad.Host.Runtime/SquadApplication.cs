@@ -175,13 +175,13 @@ public sealed class SquadApplication : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
         myAgentBackend = await myAgentProviderFactory.CreateAsync(prepared.BackendContext, cancellationToken);
         myHandoffPump = new InProcessHandoffPoller(
-            prepared.HandoffRoles, myHandoffNotifier, new HandoffDeliveryLog(prepared.HandoffLogPath));
+            prepared.HandoffMembers, myHandoffNotifier, new HandoffDeliveryLog(prepared.HandoffLogPath));
         myRuntimeController = new SquadRuntimeController(
             myWindowHost, myAgentBackend, myViewModel, myHandoffPump, myStopping.Token);
         cancellationToken.ThrowIfCancellationRequested();
         await mySleepInhibitor.StartAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        myViewModel.InitializeRoles(prepared.RoleNames);
+        myViewModel.InitializeRoles(prepared.MemberNames);
         myViewModel.SetLeader(prepared.Leader);
         myHostLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
         cancellationToken.ThrowIfCancellationRequested();

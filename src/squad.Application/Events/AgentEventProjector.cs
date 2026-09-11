@@ -19,7 +19,7 @@ internal sealed class AgentEventProjector
         myInteractions = interactions;
     }
 
-    public TranscriptUpdate? Project(AgentRoleState state, AgentEvent agentEvent)
+    public TranscriptUpdate? Project(string role, AgentRoleState state, AgentEvent agentEvent)
     {
         state.EventCount++;
         state.LastEventAt = agentEvent.OccurredAt;
@@ -152,19 +152,19 @@ internal sealed class AgentEventProjector
                 transcriptUpdate = AddTranscriptEntry(state, message.OccurredAt, "system", message.Content);
                 break;
             case AgentPermissionRequest permission:
-                myInteractions.RegisterPermission(permission);
+                myInteractions.RegisterPermission(role, permission);
                 transcriptUpdate = AddTranscriptEntry(state, permission.OccurredAt, "harness", $"Permission required: {permission.Description}.", protect: true);
-                myInteractions.ProtectTranscriptEntry(permission.Role, permission.RequestId, transcriptUpdate.EntryIndex);
+                myInteractions.ProtectTranscriptEntry(role, permission.RequestId, transcriptUpdate.EntryIndex);
                 break;
             case AgentInputRequest input:
-                myInteractions.RegisterInput(input);
+                myInteractions.RegisterInput(role, input);
                 transcriptUpdate = AddTranscriptEntry(state, input.OccurredAt, "harness", input.Prompt, protect: true);
-                myInteractions.ProtectTranscriptEntry(input.Role, input.RequestId, transcriptUpdate.EntryIndex);
+                myInteractions.ProtectTranscriptEntry(role, input.RequestId, transcriptUpdate.EntryIndex);
                 break;
             case AgentElicitationRequest elicitation:
-                myInteractions.RegisterElicitation(elicitation);
+                myInteractions.RegisterElicitation(role, elicitation);
                 transcriptUpdate = AddTranscriptEntry(state, elicitation.OccurredAt, "harness", elicitation.Prompt, protect: true);
-                myInteractions.ProtectTranscriptEntry(elicitation.Role, elicitation.RequestId, transcriptUpdate.EntryIndex);
+                myInteractions.ProtectTranscriptEntry(role, elicitation.RequestId, transcriptUpdate.EntryIndex);
                 break;
         }
         return transcriptUpdate;

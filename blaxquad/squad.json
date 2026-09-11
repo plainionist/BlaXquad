@@ -1,8 +1,11 @@
 {
+  "schemaVersion": 2,
   "leader": "architect",
-  "roles": [
+  "roles": ["architect", "coder", "reviewer"],
+  "members": [
     {
       "name": "architect",
+      "role": "architect",
       "worktree": "master",
       "agent": {
         "model": "gpt-5.6-sol",
@@ -12,6 +15,7 @@
     },
     {
       "name": "coder",
+      "role": "coder",
       "worktree": "coder",
       "agent": {
         "model": "claude-sonnet-5",
@@ -21,6 +25,7 @@
     },
     {
       "name": "reviewer",
+      "role": "reviewer",
       "worktree": "reviewer",
       "agent": {
         "model": "grok-4.6",

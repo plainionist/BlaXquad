@@ -13,7 +13,7 @@ namespace squad.AgentProvider.Fake;
 /// and awaits a semantic reply delivered through <see cref="DeliverReply"/>, publishing it as the real production
 /// <see cref="AgentAssistantMessageEvent"/> before going idle - this is what lets a black-box scenario drive an
 /// assistant reply through the real transcript without any product test hook. Every other host-driven session
-/// member (harness messages, aborts, and interaction responses) reports its own generic observation across the
+/// action (harness messages, aborts, and interaction responses) reports its own generic observation across the
 /// same control transport when one is configured, and <see cref="Emit"/> publishes whichever real production
 /// <c>AgentEvent</c> (or session completion/failure) a "emit" command pushed across the pipe names.
 /// <see cref="AbortAsync"/> defaults to immediate success, but "emit" commands can arm it to remain pending or to
@@ -33,14 +33,14 @@ internal sealed class FakeAgentSession : IAgentSession
     private TaskCompletionSource? myPendingDisposal;
     private bool myAutoEcho;
 
-    public FakeAgentSession(string role, FakeProviderControlClient? control = null)
+    public FakeAgentSession(string member, FakeProviderControlClient? control = null)
     {
-        Role = role;
+        Member = member;
         myControl = control;
         myEvents.Publish(new AgentStartedEvent(DateTimeOffset.UtcNow));
     }
 
-    public string Role { get; }
+    public string Member { get; }
     public string SessionId { get; } = Guid.NewGuid().ToString("n");
     public bool IsDisposed { get; private set; }
     public Task Completion => myCompletion.Task;
@@ -61,7 +61,7 @@ internal sealed class FakeAgentSession : IAgentSession
 
         if (myAutoEcho)
         {
-            await myControl.NotifyPromptAsync(Role, SessionId, prompt, cancellationToken);
+            await myControl.NotifyPromptAsync(Member, SessionId, prompt, cancellationToken);
             myEvents.Publish(new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, $"echo: {prompt}", IsDelta: false));
             myEvents.Publish(new AgentIdleEvent(DateTimeOffset.UtcNow));
             return;
@@ -69,7 +69,7 @@ internal sealed class FakeAgentSession : IAgentSession
 
         var pendingReply = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         myPendingReply = pendingReply;
-        await myControl.NotifyPromptAsync(Role, SessionId, prompt, cancellationToken);
+        await myControl.NotifyPromptAsync(Member, SessionId, prompt, cancellationToken);
         // A real provider's send observes its cancellation token instead of blocking forever once the host
         // decides to give up on this round trip (for example during shutdown); mirror that here so a scenario
         // can prove the host itself remains well-behaved under a still-outstanding prompt, without this fixture
@@ -113,7 +113,7 @@ internal sealed class FakeAgentSession : IAgentSession
             myRejectNextHarness = false;
             if (myControl is not null)
             {
-                await myControl.NotifyObservationAsync(Role, SessionId, "harness-rejected", new { content = prompt }, cancellationToken);
+                await myControl.NotifyObservationAsync(Member, SessionId, "harness-rejected", new { content = prompt }, cancellationToken);
             }
             throw new InvalidOperationException("The fake provider rejected this harness send.");
         }
@@ -121,7 +121,7 @@ internal sealed class FakeAgentSession : IAgentSession
         myEvents.Publish(new AgentHarnessMessageEvent(DateTimeOffset.UtcNow, prompt));
         if (myControl is not null)
         {
-            await myControl.NotifyObservationAsync(Role, SessionId, "harness-message", new { content = prompt }, cancellationToken);
+            await myControl.NotifyObservationAsync(Member, SessionId, "harness-message", new { content = prompt }, cancellationToken);
         }
     }
 
@@ -149,7 +149,7 @@ internal sealed class FakeAgentSession : IAgentSession
     {
         if (myControl is not null)
         {
-            await myControl.NotifyObservationAsync(Role, SessionId, "abort", new { }, cancellationToken);
+            await myControl.NotifyObservationAsync(Member, SessionId, "abort", new { }, cancellationToken);
         }
 
         var failureMessage = Interlocked.Exchange(ref myNextAbortFailureMessage, null);
@@ -214,7 +214,7 @@ internal sealed class FakeAgentSession : IAgentSession
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
-                Role, SessionId, "permission-response", new { requestId, approved = response.Approved }, cancellationToken);
+                Member, SessionId, "permission-response", new { requestId, approved = response.Approved }, cancellationToken);
         }
     }
 
@@ -226,7 +226,7 @@ internal sealed class FakeAgentSession : IAgentSession
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
-                Role, SessionId, "input-response",
+                Member, SessionId, "input-response",
                 new { requestId, answer = response.Answer, wasFreeform = response.WasFreeform }, cancellationToken);
         }
     }
@@ -239,7 +239,7 @@ internal sealed class FakeAgentSession : IAgentSession
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
-                Role, SessionId, "elicitation-response",
+                Member, SessionId, "elicitation-response",
                 new { requestId, action = response.Action, content = response.Content }, cancellationToken);
         }
     }
@@ -250,7 +250,7 @@ internal sealed class FakeAgentSession : IAgentSession
     {
         if (myControl is not null)
         {
-            await myControl.NotifyObservationAsync(Role, SessionId, "pending-interactions-cancelled", new { }, cancellationToken);
+            await myControl.NotifyObservationAsync(Member, SessionId, "pending-interactions-cancelled", new { }, cancellationToken);
         }
     }
 
@@ -309,13 +309,12 @@ internal sealed class FakeAgentSession : IAgentSession
                 return null;
             case "permission-request":
                 myEvents.Publish(new AgentPermissionRequest(
-                    now, data.GetProperty("requestId").GetString()!, Role, data.GetProperty("description").GetString()!));
+                    now, data.GetProperty("requestId").GetString()!, data.GetProperty("description").GetString()!));
                 return null;
             case "input-request":
                 myEvents.Publish(new AgentInputRequest(
                     now,
                     data.GetProperty("requestId").GetString()!,
-                    Role,
                     data.GetProperty("prompt").GetString()!,
                     GetNullableStringArray(data, "choices"),
                     !data.TryGetProperty("allowFreeform", out var allowFreeform) || allowFreeform.ValueKind != JsonValueKind.False));
@@ -324,7 +323,6 @@ internal sealed class FakeAgentSession : IAgentSession
                 myEvents.Publish(new AgentElicitationRequest(
                     now,
                     data.GetProperty("requestId").GetString()!,
-                    Role,
                     data.GetProperty("prompt").GetString()!,
                     data.GetProperty("mode").GetString()!,
                     null,
@@ -407,7 +405,7 @@ internal sealed class FakeAgentSession : IAgentSession
             if (myControl is not null)
             {
                 await myControl.NotifyObservationAsync(
-                    Role, SessionId, "disposal-held", new { sendCanceledBeforeDisposal = mySendCanceledBeforeDisposal }, CancellationToken.None);
+                    Member, SessionId, "disposal-held", new { sendCanceledBeforeDisposal = mySendCanceledBeforeDisposal }, CancellationToken.None);
             }
             await pendingDisposal.Task;
         }

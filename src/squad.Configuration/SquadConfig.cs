@@ -3,8 +3,10 @@ using System.Text.Json;
 namespace squad.Configuration;
 
 /// <summary>
-/// Provides lenient command-side role lookup from <c>blaxquad/squad.json</c>. Missing or malformed configuration is
-/// represented as an empty role list so individual commands can report context-specific errors.
+/// Provides lenient command-side role lookup from <c>blaxquad/squad.json</c>'s schema-version-2 "members" array.
+/// Missing or malformed configuration is represented as an empty role list so individual commands can report
+/// context-specific errors. Each row still addresses one configured member by the identity CLI and handoff
+/// commands have always used; a genuine role-vs-member distinction is exposed by issue 024 slice 2.
 /// </summary>
 public static class SquadConfig
 {
@@ -21,18 +23,18 @@ public static class SquadConfig
         {
             using var stream = File.OpenRead(configFile);
             using var doc = JsonDocument.Parse(stream);
-            if (!doc.RootElement.TryGetProperty("roles", out var rolesElement) || rolesElement.ValueKind != JsonValueKind.Array)
+            if (!doc.RootElement.TryGetProperty("members", out var membersElement) || membersElement.ValueKind != JsonValueKind.Array)
             {
                 return [];
             }
 
             var list = new List<RoleRow>();
-            foreach (var roleElem in rolesElement.EnumerateArray())
+            foreach (var memberElem in membersElement.EnumerateArray())
             {
-                var name = roleElem.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                var worktree = roleElem.TryGetProperty("worktree", out var w) ? w.GetString() ?? "" : "";
-                var receiveMode = roleElem.TryGetProperty("receiveMode", out var r) ? r.GetString() ?? "task" : "task";
-                var displayName = roleElem.TryGetProperty("displayName", out var d) ? d.GetString() ?? name : name;
+                var name = memberElem.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var worktree = memberElem.TryGetProperty("worktree", out var w) ? w.GetString() ?? "" : "";
+                var receiveMode = memberElem.TryGetProperty("receiveMode", out var r) ? r.GetString() ?? "task" : "task";
+                var displayName = memberElem.TryGetProperty("displayName", out var d) ? d.GetString() ?? name : name;
 
                 var worktreePath = worktree == "master"
                     ? projectRoot

@@ -56,17 +56,11 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void ConfigureSharedWorktreePath(string sharedRelativePath)
     {
-        var rolesJson = string.Join(",\n", myRoleWorktrees.Keys.Select(role => RoleJson(role, null)));
         var leader = myRoleWorktrees.Keys.First();
-        WriteFile("blaxquad/squad.json", $$"""
-            {
-              "leader": "{{leader}}",
-              "sharedWorktreePaths": ["{{sharedRelativePath}}"],
-              "roles": [
-            {{rolesJson}}
-              ]
-            }
-            """ + "\n");
+        var members = myRoleWorktrees.Keys
+            .Select(role => (Name: role, Role: role, Worktree: role, ReceiveMode: (string?)null))
+            .ToList();
+        WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(leader, members, [sharedRelativePath]));
     }
 
     /// <summary>
@@ -289,15 +283,10 @@ public sealed class ScenarioWorkspace : IDisposable
 
     private void WriteSquadConfiguration(string? leader, IReadOnlyList<(string Role, string? ReceiveMode)> roles)
     {
-        var rolesJson = string.Join(",\n", roles.Select(entry => RoleJson(entry.Role, entry.ReceiveMode)));
-        var leaderLine = leader is null ? "" : $$"""  "leader": "{{leader}}",{{"\n"}}""";
-        WriteFile("blaxquad/squad.json", $$"""
-            {
-            {{leaderLine}}  "roles": [
-            {{rolesJson}}
-              ]
-            }
-            """ + "\n");
+        var members = roles
+            .Select(entry => (Name: entry.Role, Role: entry.Role, Worktree: entry.Role, ReceiveMode: entry.ReceiveMode))
+            .ToList();
+        WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(leader, members));
     }
 
     /// <summary>
@@ -307,24 +296,53 @@ public sealed class ScenarioWorkspace : IDisposable
     /// unsupported or missing receive mode after Background configuration as one semantic workspace operation,
     /// without repeating Git project bootstrap.
     /// </summary>
-    /// </summary>
     public void ConfigureReceiveMode(string role, string receiveMode)
     {
-        var rolesJson = string.Join(",\n", myRoleWorktrees.Keys.Select(configuredRole =>
-            RoleJson(configuredRole, configuredRole == role ? receiveMode : null)));
-        WriteFile("blaxquad/squad.json", $$"""
-            {
-              "leader": "{{role}}",
-              "roles": [
-            {{rolesJson}}
-              ]
-            }
-            """ + "\n");
+        var members = myRoleWorktrees.Keys
+            .Select(configuredRole => (
+                Name: configuredRole,
+                Role: configuredRole,
+                Worktree: configuredRole,
+                ReceiveMode: configuredRole == role ? receiveMode : (string?)null))
+            .ToList();
+        WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(role, members));
     }
 
-    private static string RoleJson(string role, string? receiveMode) => receiveMode is null
-        ? $$"""    { "name": "{{role}}", "worktree": "{{role}}", "agent": {} }"""
-        : $$"""    { "name": "{{role}}", "worktree": "{{role}}", "receiveMode": "{{receiveMode}}", "agent": {} }""";
+    /// <summary>
+    /// Builds the complete schema-version-2 `blaxquad/squad.json` document for the given members, deriving the
+    /// "roles" name catalog from each distinct <c>Role</c> referenced by a member so a shared-role scenario (see
+    /// <see cref="ConfigureProjectWithSharedRole"/>) still emits one role catalog entry even though several members
+    /// reference it.
+    /// </summary>
+    private static string BuildSquadConfigurationJson(
+        string? leader,
+        IReadOnlyList<(string Name, string Role, string Worktree, string? ReceiveMode)> members,
+        IReadOnlyList<string>? sharedWorktreePaths = null)
+    {
+        var rolesJson = string.Join(", ", members
+            .Select(member => member.Role)
+            .Distinct(StringComparer.Ordinal)
+            .Select(role => $"\"{role}\""));
+        var membersJson = string.Join(",\n", members.Select(member =>
+            MemberJson(member.Name, member.Role, member.Worktree, member.ReceiveMode)));
+        var leaderLine = leader is null ? "" : $$"""  "leader": "{{leader}}",{{"\n"}}""";
+        var sharedWorktreePathsLine = sharedWorktreePaths is null || sharedWorktreePaths.Count == 0
+            ? ""
+            : $$"""  "sharedWorktreePaths": [{{string.Join(", ", sharedWorktreePaths.Select(path => $"\"{path}\""))}}],{{"\n"}}""";
+        return $$"""
+            {
+              "schemaVersion": 2,
+            {{leaderLine}}{{sharedWorktreePathsLine}}  "roles": [{{rolesJson}}],
+              "members": [
+            {{membersJson}}
+              ]
+            }
+            """ + "\n";
+    }
+
+    private static string MemberJson(string name, string role, string worktree, string? receiveMode) => receiveMode is null
+        ? $$"""    { "name": "{{name}}", "role": "{{role}}", "worktree": "{{worktree}}", "agent": {} }"""
+        : $$"""    { "name": "{{name}}", "role": "{{role}}", "worktree": "{{worktree}}", "receiveMode": "{{receiveMode}}", "agent": {} }""";
 
     /// <summary>
     /// Creates a Git project where every named role maps onto the same repository root (a "master" worktree)
@@ -334,16 +352,43 @@ public sealed class ScenarioWorkspace : IDisposable
     public void ConfigureProjectWithRolesSharingWorktree(params string[] roles)
     {
         InitializeGitRepository();
-        var rolesJson = string.Join(",\n", roles.Select(role =>
-            $$"""    { "name": "{{role}}", "worktree": "master", "agent": {} }"""));
-        WriteFile("blaxquad/squad.json", $$"""
-            {
-              "leader": "{{roles[0]}}",
-              "roles": [
-            {{rolesJson}}
-              ]
-            }
-            """ + "\n");
+        var members = roles
+            .Select(role => (Name: role, Role: role, Worktree: "master", ReceiveMode: (string?)null))
+            .ToList();
+        WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(roles[0], members));
+    }
+
+    /// <summary>
+    /// Creates a uniquely rooted, configured Git project with a single reusable role - shared by every named
+    /// member, each of which gets its own linked worktree - so a specification can prove two members referencing
+    /// the same role get independent sessions and worktrees while both reading the same role prompt. Records each
+    /// member's worktree path behind this workspace exactly like <see cref="ConfigureProject(string[])"/>, keyed by
+    /// member name (not role name), so <see cref="RunRoleTool"/> and friends address members precisely.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureProjectWithSharedRole(string role, params string[] memberNames)
+    {
+        if (memberNames.Length == 0)
+        {
+            throw new ArgumentException("At least one member is required.", nameof(memberNames));
+        }
+
+        InitializeGitRepository();
+        WriteFile("blaxquad/constitution.prompt", "Follow the project constitution.\n");
+        WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
+
+        foreach (var memberName in memberNames)
+        {
+            var worktreePath = PathInWorkspace(".worktrees", memberName);
+            AssertSuccessful(RunGit("worktree", "add", "--quiet", "-b", $"squad-{memberName}", worktreePath));
+            myRoleWorktrees[memberName] = worktreePath;
+        }
+
+        var members = memberNames
+            .Select(memberName => (Name: memberName, Role: role, Worktree: memberName, ReceiveMode: (string?)null))
+            .ToList();
+        WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(memberNames[0], members));
+
+        return myRoleWorktrees;
     }
 
     /// <summary>

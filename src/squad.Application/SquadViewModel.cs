@@ -90,26 +90,26 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             }),
             permissions = myInteractions.Permissions.Select(permission => new
             {
-                requestId = permission.RequestId,
+                requestId = permission.Request.RequestId,
                 role = permission.Role,
-                description = permission.Description,
+                description = permission.Request.Description,
             }),
             inputs = myInteractions.Inputs.Select(input => new
             {
-                requestId = input.RequestId,
+                requestId = input.Request.RequestId,
                 role = input.Role,
-                prompt = input.Prompt,
-                choices = input.Choices,
-                allowFreeform = input.AllowFreeform,
+                prompt = input.Request.Prompt,
+                choices = input.Request.Choices,
+                allowFreeform = input.Request.AllowFreeform,
             }),
             elicitations = myInteractions.Elicitations.Select(elicitation => new
             {
-                requestId = elicitation.RequestId,
+                requestId = elicitation.Request.RequestId,
                 role = elicitation.Role,
-                prompt = elicitation.Prompt,
-                mode = elicitation.Mode,
-                requestedSchema = elicitation.RequestedSchema,
-                url = elicitation.Url,
+                prompt = elicitation.Request.Prompt,
+                mode = elicitation.Request.Mode,
+                requestedSchema = elicitation.Request.RequestedSchema,
+                url = elicitation.Request.Url,
             }),
         });
     }
@@ -182,7 +182,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public void RegisterSession(IAgentSession session)
     {
         lock (myAdmissionLock)
-            mySessions[session.Role] = session;
+            mySessions[session.Member] = session;
     }
 
     public Task MarkRoleFailedAsync(string role, Exception exception)
@@ -368,7 +368,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         TranscriptUpdate? transcriptUpdate;
         lock (state.SyncRoot)
         {
-            transcriptUpdate = myEventProjector.Project(state, agentEvent);
+            transcriptUpdate = myEventProjector.Project(role, state, agentEvent);
             if (transcriptUpdate is not null)
             {
                 TranscriptChanged?.Invoke(transcriptUpdate);
@@ -539,7 +539,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private async Task CompleteInteractionCoreAsync<TRequest>(
         Func<string, string, (string Role, TRequest Request)> remove,
-        Action<TRequest> restore,
+        Action<string, TRequest> restore,
         string expectedRole,
         string requestId,
         Func<IAgentSession, CancellationToken, Task> respond,
@@ -558,7 +558,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         {
             if (!myRoleOperations.IsRoleFailed(role))
             {
-                restore(request);
+                restore(role, request);
             }
             else
             {

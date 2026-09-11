@@ -30,14 +30,14 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     private Exception? myFailure;
     private bool myDisposed;
 
-    public CopilotSdkAgentSession(string role, Action<Exception>? escalateTeardownFailure = null)
+    public CopilotSdkAgentSession(string member, Action<Exception>? escalateTeardownFailure = null)
     {
-        Role = role;
+        Member = member;
         myEscalateTeardownFailure = escalateTeardownFailure;
         myEvents = new AgentEventChannel(FailSession);
     }
 
-    public string Role { get; }
+    public string Member { get; }
     public string SessionId => myRuntimeSession?.SessionId ?? throw new InvalidOperationException("Copilot session has not been created");
     public Task Completion => myCompletion.Task;
 
@@ -144,13 +144,13 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     }
 
     internal Task<AgentPermissionResponse> RequestPermissionAsync(string description, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentPermissionRequest(DateTimeOffset.UtcNow, CreateInteractionId(), Role, description), myPendingPermissions, cancellationToken);
+        RequestInteractionAsync(new AgentPermissionRequest(DateTimeOffset.UtcNow, CreateInteractionId(), description), myPendingPermissions, cancellationToken);
 
     internal Task<AgentInputResponse> RequestInputAsync(string prompt, IReadOnlyList<string>? choices, bool allowFreeform, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentInputRequest(DateTimeOffset.UtcNow, CreateInteractionId(), Role, prompt, choices, allowFreeform), myPendingInputs, cancellationToken);
+        RequestInteractionAsync(new AgentInputRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, choices, allowFreeform), myPendingInputs, cancellationToken);
 
     internal Task<AgentElicitationResponse> RequestElicitationAsync(string prompt, string mode, JsonElement? requestedSchema, string? url, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, CreateInteractionId(), Role, prompt, mode, requestedSchema, url), myPendingElicitations, cancellationToken);
+        RequestInteractionAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, mode, requestedSchema, url), myPendingElicitations, cancellationToken);
 
     public async IAsyncEnumerable<AgentEvent> Events([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -350,7 +350,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         catch (Exception disposeFailure)
         {
             var teardownFailure = new AggregateException(
-                $"Failed to stop overloaded Copilot SDK role '{Role}' within the teardown grace period.",
+                $"Failed to stop overloaded Copilot SDK session for member '{Member}' within the teardown grace period.",
                 abortFailure,
                 disposeFailure);
             myEscalateTeardownFailure?.Invoke(teardownFailure);
@@ -413,7 +413,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
             }
             if (!pendingInteractions.Remove(requestId, out completion!))
             {
-                throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{Role}'.");
+                throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for member '{Member}'.");
             }
         }
         completion.TrySetResult(response);

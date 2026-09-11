@@ -30,7 +30,7 @@ public sealed class LaunchPreparer
             StateDir = layout.StateDir,
             HandoffLog = layout.HandoffLog,
             ContinueLaunch = continueLaunch,
-            Roles = [],
+            Members = [],
         };
     }
 
@@ -59,9 +59,9 @@ public sealed class LaunchPreparer
 
         return new PreparedLaunch(
             BuildBackendContext(myContext),
-            myContext.Roles.Select(role => role.Role).ToArray(),
+            myContext.Members.Select(member => member.Member).ToArray(),
             myContext.Leader,
-            myContext.Roles.Select(role => new RoleRow(role.Role, role.WorktreeName, role.WorktreePath, role.DisplayName, role.ReceiveMode)).ToArray(),
+            myContext.Members.Select(member => new RoleRow(member.Member, member.WorktreeName, member.WorktreePath, member.DisplayName, member.ReceiveMode)).ToArray(),
             myContext.HandoffLog);
     }
 
@@ -94,14 +94,15 @@ public sealed class LaunchPreparer
         return new AgentBackendContext(
             context.WorkingDir,
             context.ScriptDir,
-            context.Roles.Select(role => new AgentRoleContext(
-                role.Role,
-                role.DisplayName,
-                role.WorktreePath,
-                InitialInstruction(role.Role),
-                role.Permissions,
-                role.Model,
-                role.Effort)).ToArray(),
+            context.Members.Select(member => new AgentMemberContext(
+                member.Member,
+                member.Role,
+                member.DisplayName,
+                member.WorktreePath,
+                InitialInstruction(member.Role),
+                member.Permissions,
+                member.Model,
+                member.Effort)).ToArray(),
             environment);
     }
 

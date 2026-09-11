@@ -70,9 +70,11 @@ public sealed class BackendScenario : IDisposable
             "blaxquad/squad.json",
             $$"""
             {
+              "schemaVersion": 2,
               "leader": "{{role}}",
-              "roles": [
-                { "name": "{{role}}", "worktree": "master", "agent": {} }
+              "roles": ["{{role}}"],
+              "members": [
+                { "name": "{{role}}", "role": "{{role}}", "worktree": "master", "agent": {} }
               ]
             }
             """ + "\n");
@@ -107,6 +109,37 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public IReadOnlyDictionary<string, string> ConfigureRolesWithLeader(string leader, params string[] roles) =>
         myWorkspace.ConfigureProjectWithLeader(leader, roles);
+
+    /// <summary>
+    /// Creates one Git project configured with a single reusable role shared by every named member (delegating to
+    /// <see cref="ScenarioWorkspace.ConfigureProjectWithSharedRole"/>), for a specification proving two members
+    /// referencing the same role get independent sessions and worktrees while both reading the same role prompt.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureRoleSharedByMembers(string role, params string[] memberNames)
+    {
+        var worktrees = myWorkspace.ConfigureProjectWithSharedRole(role, memberNames);
+        myConfiguredRoles.AddRange(memberNames);
+        return worktrees;
+    }
+
+    /// <summary>
+    /// Initializes a Git project with a constitution prompt and one role prompt file per given role name (exactly
+    /// like <see cref="ConfigureRole"/>'s own setup), then writes the given raw content as `blaxquad/squad.json`
+    /// instead of a generated document - for a specification proving a specific invalid version-2 configuration
+    /// shape (a duplicate member name, a member referencing an undeclared role, or a legacy schema) is rejected
+    /// with its diagnostic before any member session starts, without dragging the whole document through this
+    /// harness's own generated-JSON helpers.
+    /// </summary>
+    public void ConfigureProjectWithRawConfiguration(string squadJson, params string[] rolesWithPrompts)
+    {
+        myWorkspace.InitializeGitRepository();
+        myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow the project constitution.\n");
+        foreach (var role in rolesWithPrompts)
+        {
+            myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
+        }
+        myWorkspace.WriteFile("blaxquad/squad.json", squadJson);
+    }
 
     /// <summary>
     /// Rewrites the "leader" field of a project already configured by <see cref="ConfigureRoles(string[])"/>,

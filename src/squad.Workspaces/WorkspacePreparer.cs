@@ -1,5 +1,4 @@
 using squad.Process;
-using System.Text.RegularExpressions;
 using squad.Configuration;
 using squad.Handoffs;
 
@@ -65,18 +64,19 @@ public sealed class WorkspacePreparer
             throw new WorkspacePreparationException(exception.Message, exception);
         }
 
-        ctx.Roles = configuration.Roles.Select(role =>
+        ctx.Members = configuration.Members.Select(member =>
         {
-            var worktreePath = role.Worktree == "master" ? ctx.WorkingDir : Path.Combine(ctx.WorktreesDir, role.Worktree);
-            return new RoleConfigRow(
-                role.Name,
-                DisplayNameForRole(role.Name),
-                role.Worktree,
+            var worktreePath = member.Worktree == "master" ? ctx.WorkingDir : Path.Combine(ctx.WorktreesDir, member.Worktree);
+            return new MemberConfigRow(
+                member.Name,
+                member.DisplayName,
+                member.Role,
+                member.Worktree,
                 worktreePath,
-                role.ReceiveMode,
-                role.Agent.Permissions,
-                role.Agent.Model,
-                role.Agent.Effort);
+                member.ReceiveMode,
+                member.Agent.Permissions,
+                member.Agent.Model,
+                member.Agent.Effort);
         }).ToList();
         ctx.Leader = configuration.Leader;
         ctx.SharedWorktreePaths = configuration.SharedWorktreePaths;
@@ -93,7 +93,7 @@ public sealed class WorkspacePreparer
 
     public async Task PrepareWorktreesAsync(Ctx ctx, CancellationToken cancellationToken)
     {
-        foreach (var row in ctx.Roles)
+        foreach (var row in ctx.Members)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (row.WorktreeName is "none" or "master")
@@ -119,7 +119,7 @@ public sealed class WorkspacePreparer
         if (!continueLaunch)
         {
             var head = (await ProcessRunner.RunCheckedAsync("git", ["-C", ctx.WorkingDir, "rev-parse", "HEAD"], cancellationToken: cancellationToken)).StdOut.Trim();
-            foreach (var row in ctx.Roles)
+            foreach (var row in ctx.Members)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (row.WorktreeName is "none" or "master")
@@ -147,7 +147,7 @@ public sealed class WorkspacePreparer
             cancellationToken.ThrowIfCancellationRequested();
             var source = Path.Combine(ctx.WorkingDir, sharedPath);
             Directory.CreateDirectory(source);
-            foreach (var row in ctx.Roles)
+            foreach (var row in ctx.Members)
             {
                 if (row.WorktreeName is "none" or "master")
                 {
@@ -196,7 +196,7 @@ public sealed class WorkspacePreparer
     public void PrepareHandoffDirs(Ctx ctx)
     {
         string[] subdirs = ["outbox", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed"];
-        foreach (var row in ctx.Roles)
+        foreach (var row in ctx.Members)
         {
             foreach (var dir in subdirs)
             {
@@ -210,7 +210,7 @@ public sealed class WorkspacePreparer
     private static void EnsureNoLegacyHandoffQueues(Ctx ctx, CancellationToken cancellationToken)
     {
         var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        foreach (var worktreePath in ctx.Roles.Select(row => row.WorktreePath).Distinct(pathComparer))
+        foreach (var worktreePath in ctx.Members.Select(row => row.WorktreePath).Distinct(pathComparer))
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -227,7 +227,7 @@ public sealed class WorkspacePreparer
     private static void ClearConfiguredHandoffs(Ctx ctx, CancellationToken cancellationToken)
     {
         var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        foreach (var worktreePath in ctx.Roles.Select(row => row.WorktreePath).Distinct(pathComparer))
+        foreach (var worktreePath in ctx.Members.Select(row => row.WorktreePath).Distinct(pathComparer))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handoffDirectory = Path.Combine(worktreePath, ".blaxquad", "handoffs");
@@ -339,10 +339,5 @@ public sealed class WorkspacePreparer
         }
         return (File.GetUnixFileMode(path) & UnixFileMode.UserExecute) != 0;
     }
-
-    private static string DisplayNameForRole(string role) =>
-        string.Join(" ", Regex.Split(Regex.Replace(role, "[-_]", " "), @"\s+")
-            .Where(s => s.Length > 0)
-            .Select(value => value.Length == 1 ? value.ToUpperInvariant() : char.ToUpperInvariant(value[0]) + value[1..].ToLowerInvariant()));
 }
 
