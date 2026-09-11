@@ -2,7 +2,7 @@ using System.IO.Pipes;
 using System.Text.Json;
 using squad.Specs.Support.Agents;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents.Control;
 
 /// <summary>
 /// Provider-process end of <see cref="FakeProviderControlServer"/>, loaded into the real squad-hq process by

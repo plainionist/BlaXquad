@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents.Control;
 
 /// <summary>
 /// Shared newline-delimited, versioned JSON duplex for one end of the fake-provider control pipe. Owns exactly
@@ -85,7 +85,7 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
         }
     }
 
-    /// <summary>Throws <see cref="FakeProviderControlProtocolException"/> if the given reply to a
+    /// <summary>Throws <see cref="InvalidOperationException"/> if the given reply to a
     /// <paramref name="requestType"/> request is an explicit protocol-error envelope, for either endpoint to
     /// interpret its own <see cref="SendAndAwaitAsync"/> replies consistently.</summary>
     public static void EnsureNotProtocolError(JsonElement response, string requestType)
@@ -98,7 +98,7 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
             && payload.TryGetProperty("message", out var messageElement)
             ? messageElement.GetString()
             : "(no message)";
-        throw new FakeProviderControlProtocolException($"The fake-provider control pipe rejected '{requestType}': {message}");
+        throw new InvalidOperationException($"The fake-provider control pipe rejected '{requestType}': {message}");
     }
 
     private async Task RunDispatchLoopAsync()

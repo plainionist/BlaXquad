@@ -1,3 +1,4 @@
+using squad.Specs.Support.Agents.Control;
 using squad.Specs.Support.Processes;
 using squad.Specs.Support.Ui;
 

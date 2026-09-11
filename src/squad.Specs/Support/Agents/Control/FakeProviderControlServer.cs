@@ -2,7 +2,7 @@ using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text.Json;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents.Control;
 
 /// <summary>
 /// Test-runner end of the private fake-provider control transport: a uniquely named local named pipe whose name
@@ -53,18 +53,11 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// </summary>
     public const string FailDisposalMessageEnvironmentVariable = "BLAXQUAD_FAKE_FAIL_DISPOSAL_MESSAGE";
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
     private readonly NamedPipeServerStream myPipe;
-    private readonly object myStateLock = new();
-    private readonly List<(string Role, string Type, string SessionId)> myObservations = [];
-    private readonly List<string> myProtocolErrors = [];
-    private readonly Dictionary<string, string> myActiveSessionByRole = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> myLatestPromptByRole = new(StringComparer.Ordinal);
-    private readonly Dictionary<(string Role, string Kind), JsonElement> myLatestObservationByRoleAndKind = new();
-    private readonly Dictionary<(string Role, string Kind), int> myObservationCountsByRoleAndKind = new();
+    private readonly ObservationJournal myJournal = new();
     private ControlPipeDuplex? myDuplex;
-    private bool myAuthenticated;
+    private volatile bool myAuthenticated;
 
     private FakeProviderControlServer(string pipeName, string token)
     {
@@ -96,8 +89,8 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         }
         catch (OperationCanceledException) when (timeoutCancellation.IsCancellationRequested)
         {
-            throw new FakeProviderControlTimeoutException(
-                "a client to connect to the fake-provider control pipe", DescribeDiagnostics(additionalDiagnostics));
+            throw new TimeoutException(
+                $"Timed out waiting for a client to connect to the fake-provider control pipe.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
         myDuplex = new ControlPipeDuplex(myPipe, HandleUnsolicitedAsync);
         myDuplex.StartDispatching();
@@ -106,145 +99,66 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// <summary>Waits until the connected client has reported (and this server has acknowledged) that the given
     /// role's session started.</summary>
     public Task WaitForSessionStartedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
-        WaitForObservationAsync(role, "session-started", timeout, additionalDiagnostics);
+        myJournal.WaitForLifecycleAsync(role, "session-started", timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported (and this server has acknowledged) that the given
     /// role's session was disposed.</summary>
     public Task WaitForSessionDisposedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
-        WaitForObservationAsync(role, "session-disposed", timeout, additionalDiagnostics);
+        myJournal.WaitForLifecycleAsync(role, "session-disposed", timeout, additionalDiagnostics);
 
     /// <summary>Whether this server has ever observed a "session-started" notification for the given role - a
     /// snapshot read (no waiting) so a specification can prove a session was never created, not merely that it
     /// has not yet been observed.</summary>
-    public bool HasSessionStarted(string role)
-    {
-        lock (myStateLock)
-        {
-            return myObservations.Any(observation => observation.Role == role && observation.Type == "session-started");
-        }
-    }
+    public bool HasSessionStarted(string role) => myJournal.HasSessionStarted(role);
 
     /// <summary>Waits until the connected client has reported a prompt sent to the given role, and returns its
     /// content.</summary>
-    public async Task<string> WaitForPromptAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
-        while (true)
-        {
-            lock (myStateLock)
-            {
-                if (myLatestPromptByRole.TryGetValue(role, out var prompt))
-                {
-                    return prompt;
-                }
-            }
-            if (DateTime.UtcNow >= deadline)
-            {
-                throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report a prompt across the fake-provider control pipe",
-                    DescribeDiagnostics(additionalDiagnostics));
-            }
-            await Task.Delay(PollInterval);
-        }
-    }
+    public Task<string> WaitForPromptAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForPromptAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported a prompt sent to the given role whose content
     /// satisfies the given predicate, and returns it. Unlike <see cref="WaitForPromptAsync(string,TimeSpan?,Func{string}?)"/>,
     /// this keeps polling past an already-observed prompt that does not satisfy the predicate (such as an earlier
     /// prompt for the same role, sent before this one was serialized behind it), so a caller can distinguish a
     /// later, distinct prompt from that earlier one.</summary>
-    public async Task<string> WaitForPromptAsync(
-        string role, Func<string, bool> matches, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
-        while (true)
-        {
-            var prompt = LatestPrompt(role);
-            if (prompt is not null && matches(prompt))
-            {
-                return prompt;
-            }
-            if (DateTime.UtcNow >= deadline)
-            {
-                throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report a matching prompt across the fake-provider control pipe",
-                    DescribeDiagnostics(additionalDiagnostics));
-            }
-            await Task.Delay(PollInterval);
-        }
-    }
+    public Task<string> WaitForPromptAsync(
+        string role, Func<string, bool> matches, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForPromptAsync(role, matches, timeout, additionalDiagnostics);
 
     /// <summary>Returns the content of the most recent prompt this role's session has reported across the control
     /// pipe, or null if none has been reported yet - a snapshot read (no waiting) used to prove the absence of a
     /// prompt, or that a role's latest observed prompt has not yet advanced past an earlier one, rather than the
     /// presence of a later one.</summary>
-    public string? LatestPrompt(string role)
-    {
-        lock (myStateLock)
-        {
-            return myLatestPromptByRole.TryGetValue(role, out var prompt) ? prompt : null;
-        }
-    }
+    public string? LatestPrompt(string role) => myJournal.LatestPrompt(role);
 
     /// <summary>Waits until the connected client has reported the host sending this role's session its initial
     /// harness instruction, and returns its content.</summary>
-    public async Task<string> WaitForHarnessMessageAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var data = await WaitForObservationDataAsync(role, "harness-message", timeout, additionalDiagnostics);
-        return data.GetProperty("content").GetString()!;
-    }
+    public Task<string> WaitForHarnessMessageAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForHarnessMessageAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported this role's session receiving a harness message
     /// whose content satisfies the given predicate. Unlike <see cref="WaitForHarnessMessageAsync(string,TimeSpan?,Func{string}?)"/>,
     /// this keeps polling past an already-observed harness message that does not satisfy the predicate (such as
     /// the role's own initial instruction, sent once at session start), so a caller can distinguish a later,
     /// distinct harness message - for example a delivery wake-up - from that earlier one.</summary>
-    public async Task<string> WaitForHarnessMessageAsync(
-        string role, Func<string, bool> matches, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
-        while (true)
-        {
-            var content = LatestHarnessMessage(role);
-            if (content is not null && matches(content))
-            {
-                return content;
-            }
-            if (DateTime.UtcNow >= deadline)
-            {
-                throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report a matching harness message across the fake-provider control pipe",
-                    DescribeDiagnostics(additionalDiagnostics));
-            }
-            await Task.Delay(PollInterval);
-        }
-    }
+    public Task<string> WaitForHarnessMessageAsync(
+        string role, Func<string, bool> matches, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForHarnessMessageAsync(role, matches, timeout, additionalDiagnostics);
 
     /// <summary>Returns the content of the most recent harness message this role's session has reported across
     /// the control pipe, or null if none has been reported yet - a snapshot read (no waiting) used to prove the
     /// absence of a later harness message rather than the presence of one.</summary>
-    public string? LatestHarnessMessage(string role)
-    {
-        lock (myStateLock)
-        {
-            return myLatestObservationByRoleAndKind.TryGetValue((role, "harness-message"), out var data)
-                ? data.GetProperty("content").GetString()
-                : null;
-        }
-    }
+    public string? LatestHarnessMessage(string role) => myJournal.LatestHarnessMessage(role);
 
     /// <summary>Waits until the connected client has reported this role's session rejecting a harness send (armed
     /// by a prior test-only "reject next harness" control), and returns its content - proving the host has
     /// observably attempted and failed that send, rather than only that a successful one was never observed.</summary>
-    public async Task<string> WaitForHarnessRejectedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var data = await WaitForObservationDataAsync(role, "harness-rejected", timeout, additionalDiagnostics);
-        return data.GetProperty("content").GetString()!;
-    }
+    public Task<string> WaitForHarnessRejectedAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForHarnessRejectedAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported the host aborting this role's current operation.</summary>
-    public async Task WaitForAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
-        await WaitForObservationDataAsync(role, "abort", timeout, additionalDiagnostics);
+    public Task WaitForAbortAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForAbortAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported at least the given number of distinct aborts for
     /// the given role - proving a repeated abort produced a genuinely new observation rather than re-matching an
@@ -252,83 +166,37 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// latest).</summary>
     public Task WaitForAbortCountAsync(
         string role, int minimumCount, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
-        WaitForObservationCountAsync(role, "abort", minimumCount, timeout, additionalDiagnostics);
-
-    /// <summary>Waits until the connected client has reported at least the given number of observations of the
-    /// given kind for the given role.</summary>
-    private async Task WaitForObservationCountAsync(
-        string role, string kind, int minimumCount, TimeSpan? timeout, Func<string>? additionalDiagnostics)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
-        while (true)
-        {
-            lock (myStateLock)
-            {
-                if (myObservationCountsByRoleAndKind.GetValueOrDefault((role, kind)) >= minimumCount)
-                {
-                    return;
-                }
-            }
-            if (DateTime.UtcNow >= deadline)
-            {
-                throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report at least {minimumCount} '{kind}' observations across the fake-provider control pipe",
-                    DescribeDiagnostics(additionalDiagnostics));
-            }
-            await Task.Delay(PollInterval);
-        }
-    }
+        myJournal.WaitForAbortCountAsync(role, minimumCount, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported the host cancelling this role's pending
     /// interactions (for example while stopping with a request still outstanding).</summary>
-    public async Task WaitForPendingInteractionsCancelledAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
-        await WaitForObservationDataAsync(role, "pending-interactions-cancelled", timeout, additionalDiagnostics);
+    public Task WaitForPendingInteractionsCancelledAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForPendingInteractionsCancelledAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported a response to a permission request this role's
     /// session emitted, and returns the request id and whether it was approved.</summary>
-    public async Task<(string RequestId, bool Approved)> WaitForPermissionResponseAsync(
-        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var data = await WaitForObservationDataAsync(role, "permission-response", timeout, additionalDiagnostics);
-        return (data.GetProperty("requestId").GetString()!, data.GetProperty("approved").GetBoolean());
-    }
+    public Task<(string RequestId, bool Approved)> WaitForPermissionResponseAsync(
+        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForPermissionResponseAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported a response to an input request this role's session
     /// emitted, and returns the request id, the answer (or null if none was given), and whether it was
     /// freeform.</summary>
-    public async Task<(string RequestId, string? Answer, bool WasFreeform)> WaitForInputResponseAsync(
-        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var data = await WaitForObservationDataAsync(role, "input-response", timeout, additionalDiagnostics);
-        return (
-            data.GetProperty("requestId").GetString()!,
-            data.TryGetProperty("answer", out var answer) && answer.ValueKind != JsonValueKind.Null ? answer.GetString() : null,
-            data.GetProperty("wasFreeform").GetBoolean());
-    }
+    public Task<(string RequestId, string? Answer, bool WasFreeform)> WaitForInputResponseAsync(
+        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForInputResponseAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Waits until the connected client has reported a response to an elicitation request this role's
     /// session emitted, and returns the request id, the chosen action, and the accepted content (or null if none
     /// was given).</summary>
-    public async Task<(string RequestId, string Action, JsonElement? Content)> WaitForElicitationResponseAsync(
-        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var data = await WaitForObservationDataAsync(role, "elicitation-response", timeout, additionalDiagnostics);
-        return (
-            data.GetProperty("requestId").GetString()!,
-            data.GetProperty("action").GetString()!,
-            data.TryGetProperty("content", out var content) && content.ValueKind != JsonValueKind.Null ? content : null);
-    }
+    public Task<(string RequestId, string Action, JsonElement? Content)> WaitForElicitationResponseAsync(
+        string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForElicitationResponseAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Returns whether the connected client has reported a response to a permission, input, or
     /// elicitation request this role's session emitted, without waiting - a snapshot read used to prove another
     /// role's owning session never observed a response addressed to a different role.</summary>
-    public bool HasObservation(string role, string kind)
-    {
-        lock (myStateLock)
-        {
-            return myLatestObservationByRoleAndKind.ContainsKey((role, kind));
-        }
-    }
+    public bool HasObservation(string role, string kind) => myJournal.HasObservation(role, kind);
 
     /// <summary>Emits a reasoning update for the given role's session, awaiting the client's acknowledgement that
     /// it published the real production <c>AgentReasoningEvent</c>.</summary>
@@ -484,12 +352,8 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// own in-process record (not an inference from production's own call sequence, and not reliant on any
     /// control-pipe message arrival order) that an admitted prompt's cancellation strictly precedes this same
     /// session's later disposal.</summary>
-    public async Task<bool> WaitForDisposalHeldAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
-    {
-        var data = await WaitForObservationDataAsync(role, "disposal-held", timeout, additionalDiagnostics);
-        return data.TryGetProperty("sendCanceledBeforeDisposal", out var flag) && flag.GetBoolean();
-    }
-
+    public Task<bool> WaitForDisposalHeldAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        myJournal.WaitForDisposalHeldAsync(role, timeout, additionalDiagnostics);
 
     /// <summary>Completes the given role's session gracefully, as production
     /// <see cref="squad.AgentProvider.Abstractions.IAgentSession.Completion"/> resolving successfully.</summary>
@@ -520,30 +384,25 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         }
         catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
         {
-            throw new FakeProviderControlTimeoutException(
-                "the client to acknowledge 'fail-backend'", DescribeDiagnostics(additionalDiagnostics));
+            throw new TimeoutException(
+                $"Timed out waiting for the client to acknowledge 'fail-backend'.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
         ControlPipeDuplex.EnsureNotProtocolError(response, "fail-backend");
     }
 
     /// <summary>
     /// Sends a semantic assistant reply for the given role's session across the pipe and awaits the client's
-    /// acknowledgement - or throws a <see cref="FakeProviderControlProtocolException"/> immediately if no session
+    /// acknowledgement - or throws an <see cref="InvalidOperationException"/> immediately if no session
     /// has ever been observed for that role, or with the client's own explicit diagnostic if the client rejects
     /// the reply (for example because the session has since been disposed), or a
-    /// <see cref="FakeProviderControlTimeoutException"/> carrying this server's combined diagnostics if the client
+    /// <see cref="TimeoutException"/> carrying this server's combined diagnostics if the client
     /// never acknowledges within the given timeout.
     /// </summary>
     public async Task ReplyAsync(string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
-        string sessionId;
-        lock (myStateLock)
+        if (!myJournal.TryGetActiveSession(role, out var sessionId))
         {
-            if (!myActiveSessionByRole.TryGetValue(role, out sessionId!))
-            {
-                throw new FakeProviderControlProtocolException(
-                    $"No fake-provider session has been observed for role '{role}'.");
-            }
+            throw new InvalidOperationException($"No fake-provider session has been observed for role '{role}'.");
         }
 
         JsonElement response;
@@ -554,8 +413,8 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         }
         catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
         {
-            throw new FakeProviderControlTimeoutException(
-                $"the client to acknowledge a reply for role '{role}'", DescribeDiagnostics(additionalDiagnostics));
+            throw new TimeoutException(
+                $"Timed out waiting for the client to acknowledge a reply for role '{role}'.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
         ControlPipeDuplex.EnsureNotProtocolError(response, "reply");
     }
@@ -563,21 +422,16 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// <summary>
     /// Sends one "emit" command of the given kind for the given role's session across the pipe and awaits the
     /// client's acknowledgement that it published the corresponding real production <c>AgentEvent</c> (or
-    /// completed/failed the session) - or throws a <see cref="FakeProviderControlProtocolException"/> immediately
+    /// completed/failed the session) - or throws an <see cref="InvalidOperationException"/> immediately
     /// if no session has ever been observed for that role, or with the client's own explicit diagnostic if the
-    /// client rejects the command, or a <see cref="FakeProviderControlTimeoutException"/> carrying this server's
+    /// client rejects the command, or a <see cref="TimeoutException"/> carrying this server's
     /// combined diagnostics if the client never acknowledges within the given timeout.
     /// </summary>
     private async Task EmitAsync(string role, string kind, object data, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
-        string sessionId;
-        lock (myStateLock)
+        if (!myJournal.TryGetActiveSession(role, out var sessionId))
         {
-            if (!myActiveSessionByRole.TryGetValue(role, out sessionId!))
-            {
-                throw new FakeProviderControlProtocolException(
-                    $"No fake-provider session has been observed for role '{role}'.");
-            }
+            throw new InvalidOperationException($"No fake-provider session has been observed for role '{role}'.");
         }
 
         JsonElement response;
@@ -588,77 +442,16 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
         }
         catch (Exception exception) when (exception is TimeoutException or OperationCanceledException)
         {
-            throw new FakeProviderControlTimeoutException(
-                $"the client to acknowledge '{kind}' for role '{role}'", DescribeDiagnostics(additionalDiagnostics));
+            throw new TimeoutException(
+                $"Timed out waiting for the client to acknowledge '{kind}' for role '{role}'.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
         ControlPipeDuplex.EnsureNotProtocolError(response, kind);
-    }
-
-    /// <summary>Waits until the connected client has reported a generic observation of the given kind for the
-    /// given role, and returns its kind-specific data.</summary>
-    private async Task<JsonElement> WaitForObservationDataAsync(
-        string role, string kind, TimeSpan? timeout, Func<string>? additionalDiagnostics)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
-        while (true)
-        {
-            lock (myStateLock)
-            {
-                if (myLatestObservationByRoleAndKind.TryGetValue((role, kind), out var data))
-                {
-                    return data.Clone();
-                }
-            }
-            if (DateTime.UtcNow >= deadline)
-            {
-                throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report '{kind}' across the fake-provider control pipe",
-                    DescribeDiagnostics(additionalDiagnostics));
-            }
-            await Task.Delay(PollInterval);
-        }
     }
 
     /// <summary>Describes every role whose session was observed to start but never observed to be disposed, or
     /// null if none - so a scenario's emergency teardown can flag a leaked session instead of silently discarding
     /// it.</summary>
-    public string? DescribeUndisposedSessions()
-    {
-        lock (myStateLock)
-        {
-            var started = myObservations.Where(observation => observation.Type == "session-started")
-                .Select(observation => (observation.Role, observation.SessionId));
-            var disposed = myObservations.Where(observation => observation.Type == "session-disposed")
-                .Select(observation => (observation.Role, observation.SessionId))
-                .ToHashSet();
-            var leaked = started.Where(session => !disposed.Contains(session)).ToList();
-            return leaked.Count == 0
-                ? null
-                : string.Join('\n', leaked.Select(session => $"role='{session.Role}' session='{session.SessionId}'"));
-        }
-    }
-
-    private async Task WaitForObservationAsync(string role, string type, TimeSpan? timeout, Func<string>? additionalDiagnostics)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
-        while (true)
-        {
-            lock (myStateLock)
-            {
-                if (myObservations.Any(observation => observation.Role == role && observation.Type == type))
-                {
-                    return;
-                }
-            }
-            if (DateTime.UtcNow >= deadline)
-            {
-                throw new FakeProviderControlTimeoutException(
-                    $"role '{role}' to report '{type}' across the fake-provider control pipe",
-                    DescribeDiagnostics(additionalDiagnostics));
-            }
-            await Task.Delay(PollInterval);
-        }
-    }
+    public string? DescribeUndisposedSessions() => myJournal.DescribeUndisposedSessions();
 
     /// <summary>
     /// Builds a diagnostics snapshot of every session-lifecycle observation, latest prompt per role, and
@@ -666,47 +459,7 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
     /// <see cref="BackendScenario"/> combining this with process and UI protocol diagnostics) can report the
     /// same bounded-wait diagnostics without inspecting raw control-pipe traffic by hand.
     /// </summary>
-    public string DescribeDiagnostics() => DescribeDiagnostics(additionalDiagnostics: null);
-
-    private string DescribeDiagnostics(Func<string>? additionalDiagnostics)
-    {
-        lock (myStateLock)
-        {
-            var observations = myObservations.Count switch
-            {
-                0 => "(none)",
-                <= 10 => string.Join('\n', myObservations.Select(o => $"{o.Type} role='{o.Role}' session='{o.SessionId}'")),
-                _ => $"... ({myObservations.Count - 10} earlier observations omitted)\n"
-                    + string.Join('\n', myObservations.TakeLast(10).Select(o => $"{o.Type} role='{o.Role}' session='{o.SessionId}'")),
-            };
-            var prompts = myLatestPromptByRole.Count == 0
-                ? "(none)"
-                : string.Join('\n', myLatestPromptByRole.Select(entry => $"role='{entry.Key}' prompt='{entry.Value}'"));
-            var genericObservations = myLatestObservationByRoleAndKind.Count == 0
-                ? "(none)"
-                : string.Join('\n', myLatestObservationByRoleAndKind.Select(entry =>
-                    $"role='{entry.Key.Role}' kind='{entry.Key.Kind}' data={FormatObservationData(entry.Value)}"));
-            var protocolErrors = myProtocolErrors.Count == 0 ? "(none)" : string.Join('\n', myProtocolErrors);
-            var provider = $"""
-                Observations:
-                {observations}
-                Latest prompts:
-                {prompts}
-                Latest generic observations:
-                {genericObservations}
-                Protocol errors:
-                {protocolErrors}
-                """;
-            return additionalDiagnostics is null ? provider : $"{provider}\n{additionalDiagnostics()}";
-        }
-    }
-
-    private static string FormatObservationData(JsonElement data)
-    {
-        var raw = data.ToString();
-        return raw.Length <= 160 ? raw : raw[..157] + "...";
-    }
-
+    public string DescribeDiagnostics() => myJournal.DescribeDiagnostics(additionalDiagnostics: null);
     private async Task HandleUnsolicitedAsync(JsonElement envelope, CancellationToken cancellationToken)
     {
         var correlationId = envelope.TryGetProperty("correlationId", out var correlationElement)
@@ -766,21 +519,13 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             return;
         }
 
-        lock (myStateLock)
-        {
-            myAuthenticated = true;
-        }
+        myAuthenticated = true;
         await myDuplex!.SendAsync("connected", correlationId, null, cancellationToken);
     }
 
     private async Task HandleObservationAsync(string type, string correlationId, JsonElement payload, CancellationToken cancellationToken)
     {
-        bool authenticated;
-        lock (myStateLock)
-        {
-            authenticated = myAuthenticated;
-        }
-        if (!authenticated)
+        if (!myAuthenticated)
         {
             await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
             return;
@@ -798,25 +543,13 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             return;
         }
 
-        lock (myStateLock)
-        {
-            myObservations.Add((role, type, sessionId));
-            if (type == "session-started")
-            {
-                myActiveSessionByRole[role] = sessionId;
-            }
-        }
+        myJournal.RecordLifecycle(role, type, sessionId);
         await myDuplex!.SendAsync("ack", correlationId, new { type }, cancellationToken);
     }
 
     private async Task HandlePromptAsync(string correlationId, JsonElement payload, CancellationToken cancellationToken)
     {
-        bool authenticated;
-        lock (myStateLock)
-        {
-            authenticated = myAuthenticated;
-        }
-        if (!authenticated)
+        if (!myAuthenticated)
         {
             await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
             return;
@@ -837,21 +570,13 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             return;
         }
 
-        lock (myStateLock)
-        {
-            myLatestPromptByRole[role] = prompt;
-        }
+        myJournal.RecordPrompt(role, prompt);
         await myDuplex!.SendAsync("ack", correlationId, new { type = "prompt" }, cancellationToken);
     }
 
     private async Task HandleObserveAsync(string correlationId, JsonElement payload, CancellationToken cancellationToken)
     {
-        bool authenticated;
-        lock (myStateLock)
-        {
-            authenticated = myAuthenticated;
-        }
-        if (!authenticated)
+        if (!myAuthenticated)
         {
             await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
             return;
@@ -875,20 +600,13 @@ public sealed class FakeProviderControlServer : IAsyncDisposable
             return;
         }
 
-        lock (myStateLock)
-        {
-            myLatestObservationByRoleAndKind[(role, kind)] = data.Clone();
-            myObservationCountsByRoleAndKind[(role, kind)] = myObservationCountsByRoleAndKind.GetValueOrDefault((role, kind)) + 1;
-        }
+        myJournal.RecordObservation(role, kind, data);
         await myDuplex!.SendAsync("ack", correlationId, new { type = "observe", kind }, cancellationToken);
     }
 
     private async Task ReplyProtocolErrorAsync(string correlationId, string message, CancellationToken cancellationToken)
     {
-        lock (myStateLock)
-        {
-            myProtocolErrors.Add(message);
-        }
+        myJournal.RecordProtocolError(message);
         await myDuplex!.SendAsync("protocol-error", correlationId, new { message }, cancellationToken);
     }
 

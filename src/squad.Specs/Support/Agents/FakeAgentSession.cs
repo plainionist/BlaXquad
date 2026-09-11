@@ -1,7 +1,7 @@
 using System.Text.Json;
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
-using squad.Specs.Support;
+using squad.Specs.Support.Agents.Control;
 
 namespace squad.Specs.Support.Agents;
 

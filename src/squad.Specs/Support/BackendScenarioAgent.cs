@@ -1,3 +1,5 @@
+using squad.Specs.Support.Agents.Control;
+
 namespace squad.Specs.Support;
 
 /// <summary>

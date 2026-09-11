@@ -1,5 +1,5 @@
 using squad.AgentProvider.Abstractions;
-using squad.Specs.Support;
+using squad.Specs.Support.Agents.Control;
 
 namespace squad.Specs.Support.Agents;
 
