@@ -245,7 +245,7 @@ envelope until Enter, and Play disabled / Copy enabled with no roles.
 **Transition:** Slice 4 is accepted. Slice 5 replaces its positional target; the overwrite, focus, draft-isolation,
 disabled-state, and no-auto-send behavior remain.
 
-### Slice 5 - Target the configured leader (in progress)
+### Slice 5 - Target the configured leader [done]
 
 **Outcome:** Play targets the leader resolved by headquarters: the named role when configured, otherwise the first
 configured role.
@@ -298,59 +298,10 @@ Acceptance criteria:
 - Shipped configuration declares an explicit leader, documentation explains both explicit and default resolution,
   test-generated configurations cover both forms, and every protocol surface consistently uses version 5.
 
-**Status: changes requested (7be8433b3c, 6884014d76)**
+**Status: complete (7be8433b3c).** Headquarters resolves omitted or blank `leader` to the first configured role and
+rejects an explicit unknown name before sessions start. `state.snapshot` publishes that resolved name at protocol
+version 5. Play targets `snapshot.leader` by name with no Vue positional fallback. `LeaderConfiguration.feature`
+observes omitted, blank, unknown, and order-independent publication; Playwright covers a non-first leader and
+disabled Play when the leader is absent from the current roster.
 
-#### Review findings on 7be8433b3c
-
-**Finding 1 — high**
-
-- **Location:** `src/squad.Configuration/SquadConfigurationLoader.cs` (omitted/blank `leader` falls back to
-  `roles[0]`); `src/squad.Specs/Features/LeaderConfiguration.feature` (omitted and blank default-to-first scenarios);
-  `README.md` and `docs/manual/architecture.md` (optional-leader documentation).
-- **Violated behavior:** Slice 5 requires a non-empty top-level `leader` that is an exact ordinal match for one
-  configured role name. Missing, blank, and unknown leaders are configuration errors with no first-role fallback.
-  Headquarters must reject startup before creating role sessions in all three cases. Gherkin must observe rejected
-  missing, blank, and unknown leaders. Shipped and documented configuration must treat `leader` as required.
-- **Root cause:** Validation treats omitted and whitespace-only `leader` as “use the first configured role,” and the
-  new feature plus README/architecture text encode that fallback as the intended contract.
-- **Required outcome:** Reject missing and blank `leader` the same way an unknown name is already rejected: non-zero
-  exit, a specific configuration error mentioning `leader`, no role session started. Keep unknown-name rejection.
-  Replace the fallback Gherkin scenarios with black-box rejection of missing and blank leaders. Describe `leader` as
-  required in README and Manual configuration text, with no positional default.
-
-#### Coder response on 7be8433b3c
-
-The first-role fallback for an omitted/blank `leader` is an intentional design change directed outside this squad,
-overriding this slice's original "no positional fallback" decision. Requirement: there is always an authoritative
-leader; if `leader` is absent or blank in `blaxquad/squad.json`, headquarters defaults it to the first role in
-`roles` instead of rejecting startup. An explicitly configured `leader` that does not match any role remains a
-rejected configuration error, unchanged from the original decision. The implementation, Gherkin coverage
-(`LeaderConfiguration.feature`), README, and Manual text at `7be8433b3c` reflect this directive and are not being
-reverted. Please re-review against this updated intent rather than the original "no fallback" acceptance criteria.
-
-#### Review findings on 6884014d76
-
-**Finding 1 — high (unresolved)**
-
-- **Location:** Unchanged product locations from the previous finding, plus this coder-response section. Slice 5
-  resolved design decisions, implementation item 1, and acceptance criteria still require a required `leader` with
-  no positional fallback.
-- **Violated behavior:** The written slice still requires headquarters to reject missing and blank `leader` before
-  any role session starts. Review is against that slice text, not a later note.
-- **Root cause:** `6884014d76` only asks to ignore the original rule. It does not change the slice contract, and it
-  does not change the loader, Gherkin, README, or Manual fallback behavior.
-- **Required outcome:** Same as the previous finding. A coder note is not a slice amendment. If omitted/blank
-  fallback is the new contract, the architect must rewrite the resolved decisions, implementation items, and
-  acceptance criteria to one consistent rule before this implementation can be accepted.
-
-#### Escalation to architect (blocking)
-
-Reviewer is correct: a coder note cannot amend this slice's resolved design decision or acceptance criteria. The
-first-role fallback for an omitted/blank `leader` was directed outside this squad (overriding the original "no
-positional fallback" decision) and needs the architect to rewrite Slice 5's resolved design decision, implementation
-item 1, and acceptance criteria to state one consistent rule: `leader` is optional; if omitted or blank, the first
-configured role is used; an explicitly configured but unrecognized `leader` remains a rejected configuration error.
-The implementation, Gherkin (`LeaderConfiguration.feature`), README, and Manual text at `7be8433b3c` already match
-this rule and are not being reverted while awaiting the amendment.
-
-Slices 1–4 are complete. Only Slice 5 is active.
+Slices 1–5 are complete.
