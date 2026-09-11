@@ -1,3 +1,4 @@
+using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Transcripts;
 
@@ -5,9 +6,9 @@ namespace squad.Application.Members;
 
 /// <summary>
 /// Owns every transient state transition for one squad member within its squad generation: projected agent status,
-/// transcript, pending interactions, operation admission/cancellation, abort coordination, and terminal failure.
-/// It is the sole mutable owner of that state, and every local collection below is keyed only by request or
-/// operation identity - never by another member or role.
+/// its provider-session association, transcript, pending interactions, operation admission/cancellation, abort
+/// coordination, and terminal failure. It is the sole mutable owner of that state, and every local collection below
+/// is keyed only by request or operation identity - never by another member or role.
 /// </summary>
 internal sealed class MemberAggregate : IDisposable
 {
@@ -31,15 +32,23 @@ internal sealed class MemberAggregate : IDisposable
 
     internal MemberAggregate(
         string id,
+        string displayName,
+        string role,
         TranscriptArchive transcriptArchive,
         TranscriptRetentionOptions retentionOptions)
     {
         Id = id;
+        DisplayName = displayName;
+        Role = role;
         myTranscript = new MemberTranscriptState(id, transcriptArchive, retentionOptions, myStateLock);
     }
 
     /// <summary>The member's unique identity, addressed as "role" at unchanged public boundaries.</summary>
     public string Id { get; }
+    /// <summary>The member's configured presentation name.</summary>
+    public string DisplayName { get; }
+    /// <summary>The role this member references. Distinct from <see cref="Id"/>: multiple members may share one role.</summary>
+    public string Role { get; }
     public string Status { get; internal set; } = "starting";
     public DateTimeOffset? LastEventAt { get; internal set; }
     public string? Error { get; internal set; }
@@ -52,6 +61,13 @@ internal sealed class MemberAggregate : IDisposable
     public long? ContextLimitTokens { get; internal set; }
     public int EventCount { get; internal set; }
 
+    /// <summary>
+    /// This member's current provider session, reached only through this aggregate. Set once under the squad
+    /// facade's admission lock and read back under that same lock so a stopping transition and a session capture
+    /// can never interleave.
+    /// </summary>
+    internal IAgentSession? Session { get; set; }
+
     internal object SyncRoot => myStateLock;
     internal MemberTranscriptState Transcript => myTranscript;
 
@@ -61,6 +77,8 @@ internal sealed class MemberAggregate : IDisposable
         {
             return new MemberSnapshot(
                 Id,
+                DisplayName,
+                Role,
                 Status,
                 LastEventAt,
                 Error,
@@ -71,7 +89,11 @@ internal sealed class MemberAggregate : IDisposable
                 AicUsed,
                 ContextUsedTokens,
                 ContextLimitTokens,
-                EventCount);
+                EventCount,
+                myTranscript.TranscriptSequence,
+                Permissions,
+                Inputs,
+                Elicitations);
         }
     }
 

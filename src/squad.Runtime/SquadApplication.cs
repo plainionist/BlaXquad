@@ -1,6 +1,7 @@
 using squad.Hosting.Abstractions;
 using squad.AgentProvider.Abstractions;
 using squad.Application;
+using squad.Application.Members;
 using squad.Handoffs.Delivery;
 using squad.Runtime.Control;
 using squad.Workspaces;
@@ -180,7 +181,8 @@ public sealed class SquadApplication : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
         await mySleepInhibitor.StartAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        myViewModel.InitializeRoles(prepared.MemberNames);
+        myViewModel.InitializeRoles(prepared.Members.Select(member =>
+            new MemberConfiguration(member.Member, member.DisplayName, member.Role)));
         myViewModel.SetLeader(prepared.Leader);
         myHeadquartersLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
         cancellationToken.ThrowIfCancellationRequested();

@@ -59,7 +59,7 @@ public sealed class LaunchPreparer
 
         return new PreparedLaunch(
             BuildBackendContext(myContext),
-            myContext.Members.Select(member => member.Member).ToArray(),
+            myContext.Members.ToArray(),
             myContext.Leader,
             myContext.Members.Select(member => new RoleRow(member.Member, member.WorktreeName, member.WorktreePath, member.DisplayName, member.ReceiveMode)).ToArray(),
             myContext.HandoffLog);
