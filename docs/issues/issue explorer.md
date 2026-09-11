@@ -146,7 +146,7 @@ and missing directories, ordering and field fallbacks, exclusivity of top-level 
 closed/unclosed/absent frontmatter previews, in-session refresh, and a correlated filesystem `protocol.error`.
 `docs/manual/modules.md` inventories the new module.
 
-### Slice 2 - Browse and preview issues (in progress)
+### Slice 2 - Browse and preview issues [done]
 
 **Outcome:** An operator can open the Issues menu and inspect the current catalog with equivalent pointer and keyboard
 behavior.
@@ -176,30 +176,13 @@ Acceptance criteria:
 - Desktop and 390-pixel-wide Playwright viewports contain the toolbar, menu, flyout, and role panels without clipping
   or overlap.
 
-**Status: changes requested (470a51e14d)**
-
-#### Review findings on 470a51e14d
-
-**Finding 1 — medium**
-
-- **Location:** `src/squad-ui/src/style.css` (`.workspace`, `.role-grid`, `.issue-panel`),
-  `src/squad-ui/tests/issue-explorer.spec.ts`
-  (`desktop and 390-pixel-wide viewports contain the toolbar, menu, flyout, and role panels without clipping or overlap`).
-- **Violated behavior:** Slice 2 requires the toolbar, menu, and flyout to fit inside the current desktop grid and
-  390-pixel stacked layout without obscuring or horizontally expanding the role panels. The AC requires both
-  Playwright viewports to contain the toolbar, menu, flyout, and role panels without clipping or overlap.
-- **Root cause:** `.role-grid` still uses `height: calc(100vh - 20px)` after a new in-flow toolbar and 10px flex gap
-  were added, so the desktop page is taller than the viewport by design (the commit keeps the old grid height to
-  avoid shrinking transcript viewports). `.issue-panel` is `position: absolute`, so the open menu/flyout cover the
-  role grid. The named layout test only asserts each explorer box's `x`/`width` against the viewport width and that
-  the first two desktop panels share a `y`. It never observes `y`/`height` containment, overlap among toolbar, menu,
-  flyout, and role panels, or any role panel in the 390×844 viewport.
-- **Required outcome:** Take the toolbar out of the previous viewport budget so the desktop grid still fits in
-  `100vh` (no extra outer-page scroll) and the 390-pixel stacked layout does not grow each role panel by another
-  toolbar-sized strip. Keep the open menu and flyout inside both viewports without horizontal clipping or widening
-  the role panels. Prove it in Playwright with `x`/`y`/`width`/`height`: toolbar, menu, and flyout stay inside the
-  viewport; they do not expand role panels horizontally; desktop panels stay in their row; and the test actually
-  observes a role panel box in the 390×844 viewport instead of checking only explorer `x` bounds.
+**Status: complete (8501560196).** `IssueExplorer` and `useIssueCatalog` request a fresh `issues.list` on each open
+and complete the load only from the matching response or correlated error. Playwright covers hover/focus plain-text
+preview, trigger/Escape/outside-click close, empty and error retry, and desktop/390 layout: workspace is `100vh`,
+the role grid consumes the remaining desktop space, stacked panel min-heights subtract the toolbar, and the layout
+test observes full explorer containment plus a 390px role-panel box. Shrinking the transcript viewport makes
+`updates virtual row geometry when wrapped content changes width` fail deterministically; that brittleness is
+outside this slice.
 
 ### Slice 3 - Copy an issue path (pending)
 
@@ -245,4 +228,4 @@ Acceptance criteria:
 - The target textarea has focus and no protocol envelope is emitted by Play.
 - Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
 
-Slice 1 is complete. Only Slice 2 is active; later slices remain pending until its reviewer accepts it.
+Slices 1 and 2 are complete. Later slices remain pending until the architect activates the next one.
