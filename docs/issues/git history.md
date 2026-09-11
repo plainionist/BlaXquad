@@ -8,6 +8,7 @@ in the tool bar add a button "git history" next to "issues" which opens
 " TortoiseGitProc.exe /command:log"
 
 if available in the path - if not the button should be dimmed.
+well actually: the exact commadn should be in the config - and still if it cannot be found - just dim the button
 
 also make a little border/pannel around the tool bar buttons so that it appears as a toolbar
 
