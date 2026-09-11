@@ -297,11 +297,11 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
   role by default), the roles, and their execution settings and is read at startup; it is not dynamically watched.
 - **Source and commits** remain owned by Git. Roles work in the main checkout or dedicated worktrees. A normal launch
   resets dedicated worktrees to the current `HEAD`; a continued launch preserves that worktree content unchanged.
-- **Handoff queues** are file-backed state serialized as versioned, typed JSON documents (`.handoff.json`).
-  Filesystem moves are the authoritative task, batch, delivery, and completion transitions within one Headquarters
-  run. Handoffs are launch-scoped, not restart-safe: every launch, continued or not, discards each configured
-  worktree's complete handoff-state directory before any role session starts or delivery polling runs, so
-  "--continue" preserves only worktree (Git) content.
+- **Handoff queues** are file-backed state serialized as typed JSON documents (`.handoff.json`). Filesystem moves are
+  the authoritative task, batch, delivery, and completion transitions within one Headquarters run. Handoffs are
+  launch-scoped, not restart-safe: every launch, continued or not, discards each configured worktree's complete
+  handoff-state directory before any role session starts or delivery polling runs, so "--continue" preserves only
+  worktree (Git) content.
 - **Headquarters ownership** is local runtime state backed by a project lock, process metadata, and a named-pipe endpoint.
 - **Role and interaction state** is authoritative in the headquarters application model and exists only for the
   current process.

@@ -65,7 +65,6 @@ public sealed class TaskMailboxFixture
         var content =
             $$"""
             {
-              "schemaVersion": 1,
               "id": "test-{{mySequence}}",
               "from": "{{sender}}",
               "to": ["{{role}}"],

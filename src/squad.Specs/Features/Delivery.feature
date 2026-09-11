@@ -32,25 +32,7 @@ Feature: Delivering handoffs
   Scenario: Reject malformed handoff JSON before delivering any copy
     When "coder" durably queues a handoff with invalid content:
       """
-      { "schemaVersion": 1, "from": "coder",
-      """
-    Then the sender handoff is archived as failed
-    And "reviewer" has no new handoff
-    And the "reviewer" agent has not observed the handoff wake-up message
-
-  Scenario: Reject an unsupported handoff schema version before delivering any copy
-    When "coder" durably queues a handoff with invalid content:
-      """
-      {
-        "schemaVersion": 99,
-        "id": "seed-unsupported-version",
-        "from": "coder",
-        "to": ["reviewer"],
-        "priority": 50,
-        "kind": "note",
-        "note": { "message": "Ready for review." },
-        "createdAt": "2026-08-22T12:00:00Z"
-      }
+      { "from": "coder",
       """
     Then the sender handoff is archived as failed
     And "reviewer" has no new handoff
@@ -60,7 +42,6 @@ Feature: Delivering handoffs
     When "coder" durably queues a handoff with invalid content:
       """
       {
-        "schemaVersion": 1,
         "id": "seed-mismatched-variant",
         "from": "coder",
         "to": ["reviewer"],
