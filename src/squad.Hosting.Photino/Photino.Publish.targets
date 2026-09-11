@@ -1,0 +1,68 @@
+<Project>
+  <PropertyGroup>
+    <!-- Set -p:IncludePhotinoHosting=false on build/publish to omit the packaged default hosting plug-in
+         entirely (used to prove squad-hq can package and run without ever loading squad.Hosting.Photino, e.g.
+         the provider-neutral/hosting-neutral backend-spec publication). -->
+    <IncludePhotinoHosting Condition="'$(IncludePhotinoHosting)' == ''">true</IncludePhotinoHosting>
+    <_PhotinoHostingPublishOutputDirectory>$(MSBuildThisFileDirectory)bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\publish\</_PhotinoHostingPublishOutputDirectory>
+    <_PhotinoUiDirectory>$(MSBuildThisFileDirectory)..\squad-ui\dist</_PhotinoUiDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- squad.Hosting.Abstractions, squad.Ui.Abstractions, and squad.AgentProvider.Abstractions are excluded:
+         the host already supplies them, and HostingLoader relies on that single shared copy so
+         IHostingFactory/ISquadUi unify across the host and the plug-in's own assembly load context. -->
+    <_PhotinoHostingSharedAssembly Include="squad.Hosting.Abstractions.dll;squad.Ui.Abstractions.dll;squad.AgentProvider.Abstractions.dll" />
+  </ItemGroup>
+
+  <!-- Publishes the default Photino hosting plug-in as a standalone, framework-dependent artifact so its
+       assembly, dependency metadata, private managed dependencies, and native runtime assets can be copied into
+       a referencing build or publish output as packaging inputs only, without squad-hq ever compiling against
+       squad.Hosting.Photino. Hooked before ordinary Build (which "dotnet publish" also performs) so both
+       ordinary build/run and normal publish resolve the sibling plug-in. -->
+  <Target Name="PublishPhotinoHostingForPackaging"
+          BeforeTargets="Build"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(IncludePhotinoHosting)' == 'true'">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)squad.Hosting.Photino.csproj"
+             Targets="Restore;Publish"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);TargetFramework=$(TargetFramework);SelfContained=false;PublishDir=$(_PhotinoHostingPublishOutputDirectory)" />
+  </Target>
+
+  <!-- Copies the plug-in assembly, its dependency manifest, private managed dependencies, and native runtime
+       assets - the minimum HostingLoader needs to resolve the packaged default - into ordinary build output,
+       so "dotnet build" and "dotnet run" resolve it exactly like a real publish does. -->
+  <Target Name="IncludePhotinoHostingInBuildOutput"
+          AfterTargets="Build"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(IncludePhotinoHosting)' == 'true'">
+    <ItemGroup>
+      <PhotinoHostingBuildFile Include="$(_PhotinoHostingPublishOutputDirectory)*.dll;$(_PhotinoHostingPublishOutputDirectory)squad.Hosting.Photino.deps.json"
+                                Exclude="@(_PhotinoHostingSharedAssembly->'$(_PhotinoHostingPublishOutputDirectory)%(Identity)')" />
+    </ItemGroup>
+    <Error Condition="'@(PhotinoHostingBuildFile)' == ''"
+           Text="Photino hosting plug-in files were not found at $(_PhotinoHostingPublishOutputDirectory)." />
+    <Copy SourceFiles="@(PhotinoHostingBuildFile)"
+          DestinationFiles="@(PhotinoHostingBuildFile->'$(TargetDir)%(Filename)%(Extension)')" />
+  </Target>
+
+  <!-- Adds the Vue distribution and window assets on top of the same plug-in files for a real publish, so the
+       publication is a complete, launchable Photino hosting bundle. -->
+  <Target Name="IncludePhotinoHostingInPublishOutput"
+          AfterTargets="Publish"
+          Condition="'$(IncludePhotinoHosting)' == 'true'">
+    <ItemGroup>
+      <PhotinoHostingPublishFile Include="$(_PhotinoHostingPublishOutputDirectory)*.dll;$(_PhotinoHostingPublishOutputDirectory)squad.Hosting.Photino.deps.json"
+                                  Exclude="@(_PhotinoHostingSharedAssembly->'$(_PhotinoHostingPublishOutputDirectory)%(Identity)')" />
+      <PhotinoIcon Include="$(MSBuildThisFileDirectory)Assets\BlaXquad.ico" />
+      <PhotinoUiFile Include="$(_PhotinoUiDirectory)\**\*" Condition="Exists('$(_PhotinoUiDirectory)\index.html')" />
+    </ItemGroup>
+    <Error Condition="'@(PhotinoHostingPublishFile)' == ''"
+           Text="Photino hosting plug-in files were not found at $(_PhotinoHostingPublishOutputDirectory)." />
+    <Copy SourceFiles="@(PhotinoHostingPublishFile)"
+          DestinationFiles="@(PhotinoHostingPublishFile->'$(PublishDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(PhotinoIcon)"
+          DestinationFiles="@(PhotinoIcon->'$(PublishDir)Assets\%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(PhotinoUiFile)"
+          DestinationFiles="@(PhotinoUiFile->'$(PublishDir)ui\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+</Project>

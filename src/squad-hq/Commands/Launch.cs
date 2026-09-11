@@ -3,7 +3,6 @@ using squad.Handoffs.Delivery;
 using squad.Application;
 using squad.Hosting.Abstractions;
 using squad.Issues;
-using squad.Photino;
 using squad.Workspaces;
 using squad.Host.Control;
 using squad.Host.Runtime;
@@ -14,6 +13,8 @@ static class Launch
 {
     private const string DefaultProviderAssemblyName = "squad.AgentProvider.CopilotSdk.dll";
     private const string DefaultProviderTypeName = "squad.AgentProvider.CopilotSdk.CopilotSdkAgentProviderFactory";
+    private const string DefaultHostingAssemblyName = "squad.Hosting.Photino.dll";
+    private const string DefaultHostingTypeName = "squad.Hosting.Photino.PhotinoHostingFactory";
 
     public static int Run(string[] args)
     {
@@ -58,12 +59,11 @@ static class Launch
             {
                 var viewModel = new SquadViewModel();
                 var issueCatalog = new WorkspaceIssueCatalog(layout.WorkingDir);
-                // An explicit "--hosting" descriptor loads its factory at process startup, exactly like an
-                // explicit "--provider" descriptor. Omitting it still directly composes Photino - runtime-loading
-                // the packaged default hosting plug-in is Slice 2's job, not this one's.
-                var hostingRuntime = hostingDescriptor is not null
-                    ? HostingLoader.Load(hostingDescriptor).Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog))
-                    : new HostingRuntime(new PhotinoWindowHost(viewModel, issueCatalog, layout.WorkingDir), new SleepInhibitor());
+                // An explicit "--hosting" descriptor and the packaged default (Photino) both load their factory at
+                // process startup through the same HostingLoader, exactly like "--provider" and its default. squad-hq
+                // has no compile-time dependency on either concrete hosting assembly.
+                var hostingRuntime = HostingLoader.Load(hostingDescriptor ?? DefaultHostingDescriptor())
+                    .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog));
                 var launchPreparer = new LaunchPreparer(layout, continueLaunch);
 
                 application = SquadApplication.Create(
@@ -113,6 +113,11 @@ static class Launch
     // free of a compile-time dependency on the default provider while still launching with it by default.
     private static ProviderDescriptor DefaultProviderDescriptor() =>
         new(Path.Combine(AppContext.BaseDirectory, DefaultProviderAssemblyName), DefaultProviderTypeName);
+
+    // Built from data strings only (no squad.Hosting.Photino source or assembly reference) so squad-hq stays free
+    // of a compile-time dependency on the packaged default hosting plug-in while still launching with it by default.
+    private static HostingDescriptor DefaultHostingDescriptor() =>
+        new(Path.Combine(AppContext.BaseDirectory, DefaultHostingAssemblyName), DefaultHostingTypeName);
 }
 
 

@@ -231,9 +231,11 @@ application model as it starts.
 The versioned JSON message boundary between the host and Vue dashboard. Message
 envelope parsing, serialization, command routing, snapshot scheduling,
 transcript delivery, journaling, and recovery are owned by `squad.Ui.Protocol`.
-`squad.Photino` is only the native window and sleep-inhibition adapter that
+`squad.Hosting.Photino` is only the native window and sleep-inhibition adapter that
 carries this protocol over the OS window; it has no envelope, delivery, or
-recovery logic of its own. The host publishes snapshots, transcript
+recovery logic of its own. Headquarters never references it at compile time - it
+is the packaged default hosting plug-in, runtime-loaded through the same
+`--hosting` mechanism as any other adapter when the option is omitted. The host publishes snapshots, transcript
 synchronization, updates, pages, archived entries, and protocol errors. The
 dashboard sends readiness, prompt, abort, interaction response, and
 transcript retrieval commands.

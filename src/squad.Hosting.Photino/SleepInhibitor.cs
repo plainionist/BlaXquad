@@ -2,13 +2,14 @@ using squad.Process;
 using squad.Hosting.Abstractions;
 using System.Diagnostics;
 
-namespace squad.Photino;
+namespace squad.Hosting.Photino;
 
 /// <summary>
 /// Owns the platform-specific sleep-inhibition resource for the application lifetime. Starting is idempotent and
-/// can be disabled with <c>BLAXQUAD_PREVENT_SLEEP=0</c>.
+/// can be disabled with <c>BLAXQUAD_PREVENT_SLEEP=0</c>. Internal: this plug-in's only public surface is
+/// <see cref="PhotinoHostingFactory"/>.
 /// </summary>
-public sealed class SleepInhibitor : ISleepInhibitor
+sealed class SleepInhibitor : ISleepInhibitor
 {
     private const uint myEsContinuous = 0x80000000;
     private const uint myEsSystemRequired = 0x00000001;

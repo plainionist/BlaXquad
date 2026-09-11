@@ -119,6 +119,15 @@ public sealed class ScenarioWorkspace : IDisposable
     public string HostingFixtureDeploymentWithDuplicateContractsPath =>
         Path.Combine(AppContext.BaseDirectory, "hosting-fixture-duplicate-contracts", "squad.Hosting.Stdio.dll");
 
+    /// <summary>
+    /// The packaged default Photino hosting plug-in assembly as it actually ships inside the production-like
+    /// "squad-tools" publication (see the "IncludePhotinoHostingInPublishOutput" MSBuild target) - used to prove
+    /// that an explicit "--hosting" descriptor resolves the very same packaged plug-in squad-hq already resolves
+    /// by default when "--hosting" is omitted, rather than a second, separately built copy.
+    /// </summary>
+    public string SquadToolsPhotinoHostingAssemblyPath =>
+        Path.Combine(AppContext.BaseDirectory, "squad-tools", "squad.Hosting.Photino.dll");
+
     private static void CopyDirectoryRecursive(string source, string destination)
     {
         Directory.CreateDirectory(destination);

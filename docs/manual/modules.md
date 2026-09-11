@@ -100,17 +100,22 @@ modes: an incompatible-type fixture, a factory whose `Create` throws, and a
 factory with no public parameterless constructor. Loaded by backend
 acceptance specifications the same way a real hosting adapter is.
 
+## `squad.Hosting.Photino`
+
+Implements `IHostingFactory` with Photino and platform-specific sleep
+prevention, hosting the built Vue dashboard and carrying the UI protocol over
+native web messages. `squad-hq` never references it at compile time; its
+`Photino.Publish.targets` runs a nested build/publish of this project and
+copies its assembly, dependency manifest, managed and native dependencies,
+built Vue distribution, and window icon into both `squad-hq`'s ordinary build
+output and its publish output, so `--hosting` resolves it as the packaged
+default exactly like an explicit descriptor resolves any other adapter.
+
 ## `squad.Issues`
 
 Discovers and parses the fixed workspace `docs/issues` Markdown catalog. It splits and parses YAML frontmatter,
 resolves title and priority fallbacks independently, extracts a bounded body preview, normalizes workspace-relative
 paths, and orders the catalog by ascending priority and filename.
-
-## `squad.Photino`
-
-Implements the hosting contracts with Photino and platform-specific sleep
-prevention. It hosts the built Vue dashboard and carries the UI protocol over
-native web messages.
 
 ## `squad.Process`
 

@@ -5,13 +5,15 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using Photino.NET;
 
-namespace squad.Photino;
+namespace squad.Hosting.Photino;
 
 /// <summary>
 /// Owns the Photino UI thread and bridges its web messages to a <see cref="UiProtocolSession"/>. Startup waits for
-/// both native window creation and the UI-ready protocol signal.
+/// both native window creation and the UI-ready protocol signal. Internal: this plug-in's only public surface is
+/// <see cref="PhotinoHostingFactory"/>, loaded at process startup through
+/// <see cref="squad.Hosting.Abstractions.IHostingFactory"/>.
 /// </summary>
-public sealed class PhotinoWindowHost : IWindowHost
+sealed class PhotinoWindowHost : IWindowHost
 {
     private const int mySilentLogVerbosity = 0;
     private const int myUseImmersiveDarkMode = 20;

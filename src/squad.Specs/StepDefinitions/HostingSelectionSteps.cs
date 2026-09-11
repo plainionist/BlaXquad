@@ -83,6 +83,28 @@ public sealed class HostingSelectionSteps
     public void ThenHeadquartersCompletesTheReadyHandshake() =>
         Assert.That(myScenario.IsReady, Is.True);
 
+    // Every hosting factory (default or explicit) is constructed by SquadApplication before it prepares the
+    // workspace (see SquadApplication.RunAsync), so an unconfigured project - one whose "blaxquad/squad.json" was
+    // never written - reaches "Config not found" if and only if hosting selection already succeeded. Neither
+    // scenario ever starts a real window: SquadApplication never reaches IWindowHost.StartAsync when workspace
+    // preparation fails first, so this proves resolution safely without opening a real Photino window.
+    [When("the operator launches Headquarters against an unconfigured project with hosting omitted")]
+    public void WhenTheOperatorLaunchesHeadquartersAgainstAnUnconfiguredProjectWithHostingOmitted() =>
+        myWorkspace.RunTool("squad-hq", ["launch", myWorkspace.Root]);
+
+    [When("the operator launches Headquarters against an unconfigured project with an explicit Photino hosting descriptor")]
+    public void WhenTheOperatorLaunchesHeadquartersAgainstAnUnconfiguredProjectWithAnExplicitPhotinoHostingDescriptor() =>
+        Launch($"{myWorkspace.SquadToolsPhotinoHostingAssemblyPath};squad.Hosting.Photino.PhotinoHostingFactory");
+
+    [Then("the launch fails with a workspace diagnostic containing {string} and no hosting diagnostic")]
+    public void ThenTheLaunchFailsWithAWorkspaceDiagnosticContainingAndNoHostingDiagnostic(string expectedText)
+    {
+        Assert.That(myWorkspace.LastResult?.ExitCode, Is.Not.Zero);
+        Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain(expectedText));
+        Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Hosting"));
+        Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Unhandled exception"));
+    }
+
     private void Launch(string hostingDescriptor) =>
         myWorkspace.RunTool("squad-hq", ["launch", "--hosting", hostingDescriptor, myWorkspace.Root]);
 

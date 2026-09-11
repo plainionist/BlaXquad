@@ -256,8 +256,8 @@ The existing `IWindowHost` is sufficient. A headless implementation owns a `UiPr
 
 `squad-hq` never references this implementation directly and never exposes a built-in choice for it. Instead it
 loads any `IHostingFactory` at runtime from an explicit `--hosting <assemblyPath>;<typeName>` descriptor, exactly
-like it already loads its agent provider through `--provider`. Omitting `--hosting` launches the packaged, directly
-composed Photino default.
+like it already loads its agent provider through `--provider`. Omitting `--hosting` runtime-loads the packaged
+default `squad.Hosting.Photino` adapter through the very same loader - never a compile-time reference.
 
 For example:
 
@@ -267,10 +267,13 @@ squad-hq launch --hosting <stdio-hosting-assembly>;squad.Hosting.Stdio.StdioHost
 
 The stdio hosting adapter (`squad.Hosting.Stdio`) is test-distributed only - it ships beside `squad.Specs`' published
 tools and is never part of production `squad-hq` packaging. Only the backend acceptance harness selects it, and it
-always does so through this explicit descriptor. Photino remains the only default, directly composed visual adapter.
+always does so through this explicit descriptor. Photino is the only default hosting adapter production packaging
+carries, and packaging opts it in (`IncludePhotinoHosting`, defaulting to `true`) rather than the executable
+composing it directly.
 
-No additional UI SPI is required unless the Photino assembly must also be physically absent from a given
-publication. In that case, `IHostingFactory` loading already covers that case the same way it covers stdio.
+Publishing with `-p:IncludePhotinoHosting=false` omits the Photino assembly, its dependency manifest, its managed
+and native dependencies, and the built Vue distribution from the publish output entirely, the same way
+`-p:IncludeCopilotSdkProvider=false` omits the default provider.
 
 ## Fake-provider control channel
 

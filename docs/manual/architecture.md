@@ -85,9 +85,9 @@ of the running headquarters process rather than alternate host modes.
 
 ### Dashboard
 
-`squad-ui` is a static Vue application hosted by the default Photino adapter. It renders role status, transcripts,
-usage, prompts, and pending interactions. It owns presentation concerns such as drafts, focus, scrolling,
-virtualization, and client-side transcript reconciliation. It does not own agent or workflow state.
+`squad-ui` is a static Vue application hosted by Photino, the packaged default hosting adapter. It renders role
+status, transcripts, usage, prompts, and pending interactions. It owns presentation concerns such as drafts, focus,
+scrolling, virtualization, and client-side transcript reconciliation. It does not own agent or workflow state.
 
 Headquarters can instead expose the same UI protocol over standard input and output. This supports non-visual clients
 without introducing a separate server.
@@ -97,6 +97,15 @@ without introducing a separate server.
 `squad` runs within a role worktree. It resolves the current role from Git context, creates outbound handoffs, and
 claims or completes inbound tasks or batches. It does not call headquarters directly; the handoff filesystem is the
 integration boundary.
+
+### Hosting adapter
+
+The window-hosting adapter is loaded into the headquarters process through a hosting-neutral plug-in contract,
+exactly like the agent provider. Omitting `--hosting` resolves the packaged default Photino adapter; headquarters
+never references any concrete hosting assembly at compile time. Publishing packages Photino's assembly, its
+dependency manifest, private managed dependencies, native runtime assets, built Vue distribution, and window icon
+alongside the executable so the default resolves without a project reference. A stdio-framed adapter used only by the
+backend acceptance harness is loaded the same way through an explicit descriptor.
 
 ### Agent provider
 
@@ -115,6 +124,9 @@ One runtime generation owns the shared provider connection and every role sessio
 - **Provider contract.** A provider-neutral factory, backend, runtime, and session model separates headquarters from
   the Copilot implementation. Sessions accept prompts, aborts, and interaction responses and publish ordered typed
   events.
+- **Hosting contract.** A hosting-neutral factory and runtime model separates headquarters from any concrete window
+  adapter. Omitting `--hosting` runtime-loads the packaged default Photino adapter; an explicit descriptor selects
+  any other adapter, such as the stdio adapter the backend acceptance harness uses.
 - **Handoff contract.** Validated files and atomic filesystem moves define queue state. The role tool produces and
   consumes queue entries; headquarters fans them out to recipient worktrees, archives delivery outcomes, and wakes
   active recipients.

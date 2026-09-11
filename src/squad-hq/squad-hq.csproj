@@ -2,10 +2,10 @@
 
   <Import Project="..\Directory.Build.Tool.props" />
   <Import Project="..\squad.AgentProvider.CopilotSdk\CopilotSdk.Publish.targets" />
-  <Import Project="..\squad.Photino\Photino.Publish.targets" />
+  <Import Project="..\squad.Hosting.Photino\Photino.Publish.targets" />
 
   <PropertyGroup>
-    <ApplicationIcon>..\squad.Photino\Assets\BlaXquad.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\BlaXquad.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,8 +21,6 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
-    <ProjectReference Include="..\squad.Photino\squad.Photino.csproj"
-              AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Application\squad.Application.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj"
