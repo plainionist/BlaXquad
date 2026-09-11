@@ -216,25 +216,122 @@ Do not remove these merely because an implementation count is currently small:
 
 ## Implementation plan
 
-1. Inline `RuntimeMode` and remove `SquadStartupPlanFactory` without changing behavior. This establishes the actual
-   composition root before larger ownership changes.
-2. Replace `WorkspacePreparer` failure injection with typed exceptions and verify the existing CLI diagnostics for
-   missing/invalid configuration, missing helpers, and unsafe shared paths.
-3. Introduce one immutable prepared-launch value and collapse the startup callback bag. Keep preparation under the
-   lifecycle's cancellation and failure observation.
-4. Construct handoff delivery from the prepared roles and log destination. Remove the poller factory, role-provider
-   function, and logging action together so none survives only to accommodate another's ordering.
-5. Consolidate session/admission ownership, remove the standalone fallback and dead projections, and then remove the
-   host-internal session-registration and window-notification relay delegates where direct collaboration is clearer.
-6. Remove the fake-only readiness probe/event and express fake readiness through the same provider lifecycle events
-   used by production.
-7. After each slice, search production call sites again. Do not preserve an obsolete overload, callback, interface,
-   record, or public member for source compatibility; these are internal application assemblies, not a supported
-   library API.
+Exactly one slice is active at a time. Each slice includes its production changes, black-box acceptance coverage,
+obsolete test-support cleanup, and directly affected manual updates.
 
-Use the existing black-box Gherkin scenarios as the behavior gate. Add or refine a scenario only when an observable
-invariant above is not already protected; do not recreate implementation-structure specifications for the removed
-types.
+### Slice 1 - Workspace failures terminate at the command boundary (in progress)
+
+**Outcome:** Every invalid workspace or configuration stops launch with the existing operator-facing diagnostic,
+without relying on a callback whose caller must throw.
+
+- Add one `WorkspacePreparationException` in `squad.Workspaces` carrying an unformatted diagnostic. Make
+  `WorkspacePreparer` parameterless and throw that exception for missing configuration or constitution files,
+  invalid squad configuration, a missing helper, and an unsafe shared worktree path. Preserve the original
+  configuration diagnostic and inner exception where applicable.
+- Use one `WorkspacePreparer` instance for the current startup path. Remove `Launch.Fail` from workspace preparation
+  and remove the duplicate preparer used by context parsing.
+- At the `squad-hq launch` command boundary, translate only `WorkspacePreparationException` to
+  `CliExitException`, adding the ANSI `Error:` presentation exactly once. Do not let workspace failures acquire the
+  generic `Provider startup failed` label, and do not catch unrelated failures as workspace errors.
+- Protect the observable diagnostics through the published `squad-hq` process for missing and malformed
+  configuration, a missing constitution, a missing helper, and a non-empty shared-path collision. Reuse existing
+  scenario support and real filesystem/process behavior; add no failure callback, product test mode, or injectable
+  workspace collaborator.
+
+**Acceptance:** `WorkspacePreparer` has no failure callback and cannot continue with invalid state. Each covered
+launch exits non-zero with its specific diagnostic, no duplicate `Error:` prefix, no provider-startup
+misclassification, and no raw unhandled-exception output. The healthy headquarters lifecycle still reaches
+readiness.
+
+### Slice 2 - One immutable preparation result composes the runtime and delivery
+
+**Outcome:** Headquarters performs one cancellable concrete preparation pipeline and constructs every
+post-preparation collaborator from the immutable values it produces.
+
+- Put a concrete launch-preparation owner and an immutable prepared-launch value in `squad.Workspaces`. The owner
+  encapsulates the mutable `Ctx` used while discovering the repository and, under the startup cancellation token,
+  performs Git initialization/excludes, configuration parsing, workspace and worktree preparation, shared-path
+  setup, and handoff-directory creation. The result materializes the `AgentBackendContext`, ordered application role
+  names, leader, fixed handoff `RoleRow` values, and handoff log path; no result member may expose `Ctx`, a lazy
+  sequence, or a closure over it.
+- Let `SquadApplication` depend on that concrete owner and await it inside the startup task before creating the
+  backend or any collaborator that needs prepared data. A shutdown received during preparation must cancel the same
+  task, and cleanup must observe its terminal result before disposing resources.
+- After preparation, construct the one `SessionRoleNotifier` and one `InProcessHandoffPoller` directly from the
+  prepared roles and log path. Make delivery append its timestamped diagnostics to that concrete destination.
+  Remove `SquadApplication.Create`'s poller factory, the poller's role-provider function, and both arbitrary logging
+  actions. Because the poller does not exist before preparation, observe its failure after startup in the same
+  race-safe manner as the late-created backend failure and dispose it only when construction completed.
+- Compose the selected `IWindowHost` and `SleepInhibitor` directly in `Launch.RunMain`. Delete `RuntimeMode`,
+  `Launch.Create`, `SquadStartupPlanFactory`, and the behavior-carrying `SquadStartupPlan`; do not replace any of
+  them with another factory, phase interface, or delegate bag.
+- Update the workspace/runtime module descriptions if ownership or dependencies change.
+
+**Acceptance:** Healthy and continued launches retain role order, leader, initial instructions, UI-before-session
+ordering, recovery-before-polling, and cancellation. Early shutdown, partial provider startup, cleanup failure
+precedence, and terminal backend or poller failures retain their diagnostics and resource release. Handoff fan-out,
+notification failure, recovery, and duplicate prevention remain durable. The focused gates are
+`HeadquartersLifecycle`, `HeadquartersEarlyShutdown`, `HeadquartersPartialStartupFailure`,
+`HeadquartersCleanupDiagnostics`, `HeadquartersTerminalProviderFailure`, `HeadquartersHandoffPumpFailure`,
+`Delivery`, and `Recovery`.
+
+### Slice 3 - Production lifecycle events are the only readiness source
+
+**Outcome:** `wait-for-agent` derives readiness from the same session, prompt, idle, stopped, and failed events that
+real providers publish, with no fake-only product capability.
+
+- Remove `IAgentReadinessProbe`, `AgentReadinessEvent`, provider probing, generation invalidation, and readiness-event
+  projection. No replacement probe, counter, event, or fake-provider branch may be added.
+- Remove the fake provider's readiness implementation and control command. Express a busy fake role through an
+  outstanding real prompt/session operation and express readiness through `AgentIdleEvent`; recast terminal-session
+  stale-event scenarios around ordinary late provider events. Delete the obsolete step and support methods rather
+  than retaining aliases.
+- Keep `HostLease.SetAgentReadinessProvider`: the host still asks the application for the tri-state result. Unknown
+  roles return unknown; startup and active work return not ready; idle returns ready; stopped, failed, and shutdown
+  return not ready.
+- Update `modules.md`, `test-strategy.md`, and any readiness/session glossary wording so the provider SPI and fake
+  event vocabulary match production.
+
+**Acceptance:** `IAgentReadinessProbe` and `AgentReadinessEvent` have no product or test references.
+`PromptIsolationAndReadiness`, the readiness scenarios in `HostOwnership`, `TerminalSessionFinality`, healthy
+lifecycle, early shutdown, and terminal session/provider scenarios preserve their process-visible outcomes without
+new product test hooks.
+
+### Slice 4 - Application commands use one active-session and admission authority
+
+**Outcome:** The application command boundary makes one atomic decision to admit work and select its active session,
+and runtime teardown waits for all work admitted by that decision before provider-session disposal.
+
+- Make `SquadViewModel` the sole owner of the active role-session catalog and command admission it already
+  coordinates. Construction has no standalone fallback or replaceable admission mode. Under one synchronization
+  boundary, reject work after stopping begins or capture the current non-terminal session and register the accepted
+  command; a captured session is used only for that tracked command and is not represented by a nominal lease or
+  generation.
+- Close admission before canceling and draining accepted commands. Keep pending-interaction cancellation and
+  handoff wake-ups on the same command path so no UI or handoff operation can select a session after closure, while
+  accepted work reaches its defined canceled/completed outcome before runtime disposal.
+- Delete `StandaloneSessionAdmission`, `UseAdmission`, `ISessionAdmission`, `SessionLease`, `SessionRegistry`,
+  `SessionCatalog`, the unused lifecycle generation/phase/transition machinery, and `SessionGeneration`'s write-only
+  session dictionary. Do not relocate a replacement admission interface into another abstraction assembly.
+- Give `SessionGeneration` its already assembled `SquadViewModel` collaborator and register sessions directly.
+  Give `SquadRuntimeController` the concrete `IWindowHost` collaborator it coordinates and notify it directly.
+  Retain the provider-owned `IAgentRuntime.StartAsync` session-publication callback and retain `IRoleNotifier` as the
+  delivery-to-application dependency boundary.
+- Update `architecture.md`, `modules.md`, and the session-generation glossary to state that the application owns
+  active-session command admission while host runtime owns provider generation observation and ordered teardown.
+
+**Acceptance:** There is one active-session collection and one admission decision. Commands accepted before closure
+drain or cancel before session disposal; commands and handoff notifications arriving after closure do not reach a
+provider session or create transcript/durable side effects. Partial startup still retires every established session,
+a failed or stopped role stays unavailable without affecting siblings, and cleanup failure precedence remains
+unchanged. The focused gates are `ShutdownCommandAdmission`, `Delivery`, `Recovery`, `TerminalSessionFinality`,
+`HeadquartersEarlyShutdown`, `HeadquartersPartialStartupFailure`, `HeadquartersCleanupDiagnostics`, and
+`HeadquartersLifecycle`.
+
+After every slice, search all production and specification call sites and remove obsolete overloads, callbacks,
+interfaces, records, generated bindings, and public members in that slice. Use the existing black-box Gherkin suite
+as the behavior gate. Add or refine a scenario only for an observable invariant not already protected; never
+recreate implementation-structure specifications for a removed type.
 
 ## Acceptance criteria
 
