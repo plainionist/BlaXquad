@@ -738,3 +738,9 @@ CLI remain unchanged, and no test source changes in this slice.
 - **Required outcome:** Make each routed operation a typed message the processor interprets against its member.
   Distinguish prompt and harness without an opaque operation delegate. Keep public CLI/UI/control contracts and
   tests unchanged.
+
+## Slice 3 review (cf7f906994) — changes requested
+
+This commit merges `origin/main` (transcript assembly fold) into the slice 3 branch. It does not change
+`MemberProcessor`, `MemberMessage`, or the ViewModel mutation/routing design. Findings 1-3 from the cc2c93a618
+review remain unresolved and still block acceptance.
