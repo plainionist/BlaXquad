@@ -83,12 +83,12 @@ implementation details. They must not become new assemblies or reproduce the pro
 `src/squad.Specs/Support` is organized into four responsibility folders, one owner per folder, with namespaces matching
 each folder. This is an ownership map for navigating test support, not a mandate to add a layer around every file:
 
-| Folder | Namespace | Owner |
-| --- | --- | --- |
+| Folder      | Namespace                       | Owner                                                                                                                                                                                                                                                                                                 |
+| ----------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Scenarios` | `squad.Specs.Support.Scenarios` | The scenario composition root (`BackendScenario`), its role/command adapters, and the temporary Git workspace it drives. `BackendScenario` is the single scenario-scoped owner of normal shutdown, emergency teardown, and every replacement launch or explicit independent-project child it creates. |
-| `Processes` | `squad.Specs.Support.Processes` | Child-process execution, captured command results, and process diagnostics. |
-| `Ui` | `squad.Specs.Support.Ui` | The headless UI protocol client and its decoded transcript/synchronization/page observations. |
-| `Mailboxes` | `squad.Specs.Support.Mailboxes` | Durable handoff and task mailbox setup and observation fixtures. |
+| `Processes` | `squad.Specs.Support.Processes` | Child-process execution, captured command results, and process diagnostics.                                                                                                                                                                                                                           |
+| `Ui`        | `squad.Specs.Support.Ui`        | The headless UI protocol client and its decoded transcript/synchronization/page observations.                                                                                                                                                                                                         |
+| `Mailboxes` | `squad.Specs.Support.Mailboxes` | Durable handoff and task mailbox setup and observation fixtures.                                                                                                                                                                                                                                      |
 
 The fake agent-provider adapter's own folders live under `src/squad.AgentProvider.Fake` instead: its top level
 (namespace `squad.AgentProvider.Fake`) holds the fake provider fixtures and provider-selection fixtures, and
@@ -345,16 +345,16 @@ help, the public configuration shape, and documented protocols. A binding class 
 it must not invent a second dialect for a module another binding class already owns, and a term is not user
 language merely because it is technically precise or names a C# type.
 
-| Module | User perspective and vocabulary |
-| --- | --- |
-| Project configuration | A configuration author configures roles, worktrees, models, permissions, and receive modes in `blaxquad/squad.json`. Role collections and records use tables. |
-| Headquarters lifecycle | An operator launches, waits for, shuts down, or otherwise terminates Headquarters through `squad-hq`; process results and diagnostics remain explicit. |
-| Dashboard operations | A user sends prompts, aborts work, and answers interactions for a role; the dashboard shows role state, usage, interactions, and transcript content. |
-| Agent sessions | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, idle, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
-| Transcript protocol | A UI-protocol client receives typed updates, synchronization, pages, archived entries, sequence positions, and truncation state. Ordered collections use tables. |
-| Role commands | A role agent runs the documented `squad` context, handoff, `ready-for-next`, and `done-with-current` commands from its worktree. |
-| Handoff delivery | An operator or role agent observes durable handoff fan-out, notification, retry, recovery, and queue state using glossary terms. |
-| Public adapters | An operator selects the documented UI or provider adapter, while UI-protocol and provider-SPI users exercise their respective public contracts. |
+| Module                 | User perspective and vocabulary                                                                                                                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project configuration  | A configuration author configures roles, worktrees, models, permissions, and receive modes in `blaxquad/squad.json`. Role collections and records use tables.                                                                                     |
+| Headquarters lifecycle | An operator launches, waits for, shuts down, or otherwise terminates Headquarters through `squad-hq`; process results and diagnostics remain explicit.                                                                                            |
+| Dashboard operations   | A user sends prompts, aborts work, and answers interactions for a role; the dashboard shows role state, usage, interactions, and transcript content.                                                                                              |
+| Agent sessions         | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, idle, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
+| Transcript protocol    | A UI-protocol client receives typed updates, synchronization, pages, archived entries, sequence positions, and truncation state. Ordered collections use tables.                                                                                  |
+| Role commands          | A role agent runs the documented `squad` context, handoff, `ready-for-next`, and `done-with-current` commands from its worktree.                                                                                                                  |
+| Handoff delivery       | An operator or role agent observes durable handoff fan-out, notification, retry, recovery, and queue state using glossary terms.                                                                                                                  |
+| Public adapters        | An operator selects the documented UI or provider adapter, while UI-protocol and provider-SPI users exercise their respective public contracts.                                                                                                   |
 
 ### Choose the smallest form of variation
 
