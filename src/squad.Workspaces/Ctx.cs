@@ -4,7 +4,7 @@ namespace squad.Workspaces;
 /// Carries mutable launch context as repository discovery and workspace preparation resolve concrete paths and roles.
 /// It is orchestration state, not the authoritative configuration model.
 /// </summary>
-public class Ctx
+internal class Ctx
 {
     public required string WorkingDir { get; set; }
     public required string ScriptDir { get; set; }

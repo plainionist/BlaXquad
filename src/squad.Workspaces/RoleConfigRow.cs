@@ -1,7 +1,7 @@
 namespace squad.Workspaces;
 
 /// <summary>Represents validated role settings after resolution to a concrete launch worktree.</summary>
-public record RoleConfigRow(
+internal record RoleConfigRow(
     string Role,
     string DisplayName,
     string WorktreeName,

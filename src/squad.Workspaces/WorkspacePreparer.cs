@@ -9,7 +9,7 @@ namespace squad.Workspaces;
 /// Materializes and validates the repository, role worktrees, shared paths, and handoff directories required by a
 /// squad launch.
 /// </summary>
-public sealed class WorkspacePreparer
+internal sealed class WorkspacePreparer
 {
     public async Task InitializeGitRepoAsync(Ctx ctx, CancellationToken cancellationToken)
     {
