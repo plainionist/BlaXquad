@@ -289,7 +289,7 @@ diagnostics, including unloadable assemblies, and the duplicate-contract fixture
 plug-in layout with a real `.deps.json` so missing unification would fail the ready handshake.
 Slice 2 remains pending until the architect activates it.
 
-### Slice 2: Runtime-load and package Photino as the default
+### Slice 2: Runtime-load and package Photino as the default [done]
 
 **Outcome:** Omitting `--hosting` loads a complete Photino hosting bundle from the packaged sibling plug-in, with no
 concrete hosting reference or construction in `squad-hq`.
@@ -344,6 +344,11 @@ provider packaging and lifecycle scenarios remain unchanged.
 - **Required outcome:** Copy Photino native runtime assets the same way the Copilot provider does (RID-specific
   `runtimes/.../native` in addition to any flattened managed/native DLLs), and assert those natives in a
   RID-appropriate way so a linux-x64 or osx publish still contains the Photino native library.
+
+**Status: complete (4fd643d2e0).** Omitting `--hosting` runtime-loads packaged `PhotinoHostingFactory`; `squad-hq`
+has no compile-time hosting project reference. Architecture no longer advertises stdio as a product UI mode.
+Photino packaging copies RID-flattened `Photino.Native.{dll,so,dylib}` and HostingPackaging asserts the
+platform-native file. Slice 3 remains pending until the architect activates it.
 
 ### Slice 3: Publish a genuinely headless backend test package
 
