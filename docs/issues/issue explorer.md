@@ -208,7 +208,7 @@ Acceptance criteria:
 announces success on an `aria-live` status, shows a recoverable error without a success claim when the write is
 rejected, and keeps Copy enabled with an empty roles snapshot without emitting a UI protocol command.
 
-### Slice 4 - Prepare the first role's prompt (pending)
+### Slice 4 - Prepare the first role's prompt (in progress)
 
 **Outcome:** Play replaces and focuses the first configured role's draft without submitting it or changing any other
 role's draft.
@@ -233,4 +233,4 @@ Acceptance criteria:
 - The target textarea has focus and no protocol envelope is emitted by Play.
 - Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
 
-Slices 1–3 are complete. Slice 4 remains pending until the architect activates it.
+Slices 1–3 are complete. Only Slice 4 is active.
