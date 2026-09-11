@@ -238,7 +238,7 @@ all `Transcript*.feature` files, and the dashboard interaction scenarios.
 Focused acceptance: `AgentProviderSelection.feature`, `ProviderPackaging.feature`, `HeadquartersLifecycle.feature`,
 and the host-ownership replacement scenarios.
 
-### Slice 5 - Fake-provider control transport owns protocol state
+### Slice 5 - Fake-provider control transport owns protocol state [done]
 
 **Outcome:** Concurrent fake-provider commands and observations retain deterministic acknowledgements, bounded waits,
 and complete diagnostics while transport and observation state are explicit owners under `Support/Agents/Control`.
@@ -337,3 +337,7 @@ Provider fixtures live under `Support/Agents`, echo types are gone, and the Head
 ## Slice 4 review (d6d811f077) — accepted
 
 **Status: complete (d6d811f077).** Finding on 24d04f6b59 was addressed: shared `Given a squad host is running` launches `FakeAgentProviderFactory` without a control pipe. Only the duplicate-launch scenario uses a dedicated auto-echo Given. HeadquartersLifecycle replacement launch stays readiness-only. No second provider fixture.
+
+## Slice 5 review (2f71268a5e) — accepted
+
+**Status: complete (2f71268a5e).** Control types live under `Support/Agents/Control`. Internal `ObservationJournal` owns synchronized lifecycle, active session ids, prompts/observations, protocol errors, bounded waits, undisposed-session reporting, and diagnostic rendering. `ControlPipeDuplex` remains the single-reader/correlated-reply transport; the server remains the authenticated protocol/semantic command owner. No interface around either. Both custom control exceptions are gone; missing/rejected sessions throw `InvalidOperationException` and bounded waits throw `TimeoutException` with the same diagnostic text. Authentication, protocol-version validation, correlation ids, acknowledgement-before-backend-failure, cancellation, and disposal are unchanged.
