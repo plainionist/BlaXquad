@@ -2,7 +2,7 @@ using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using System.Text.Json;
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// Adapts one Copilot SDK session to the provider-neutral event and interaction contract. It owns pending

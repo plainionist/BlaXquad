@@ -7,7 +7,7 @@ using System.Text.Json;
 
 #pragma warning disable GHCP001
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>Owns the SDK client process and translates its callbacks into provider-neutral session behavior.</summary>
 internal sealed class CopilotSdkClient : IAsyncDisposable

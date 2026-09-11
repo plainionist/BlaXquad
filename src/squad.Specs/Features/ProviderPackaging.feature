@@ -4,7 +4,7 @@ Feature: Agent provider packaging
   and an opt-out publish can omit them entirely while still producing a working package.
 
   Scenario: squad-hq has no compile-time dependency on the Copilot provider
-    Then the published squad-hq assembly has no compile-time dependency on squad.CopilotSdk
+    Then the published squad-hq assembly has no compile-time dependency on squad.AgentProvider.CopilotSdk
 
   Scenario: The default publish packages the Copilot provider and its runtime assets
     Then the published squad-hq output contains the Copilot provider assembly

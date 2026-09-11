@@ -1,4 +1,4 @@
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// Normalizes SDK tool output that may arrive as cumulative snapshots or independent deltas into cumulative

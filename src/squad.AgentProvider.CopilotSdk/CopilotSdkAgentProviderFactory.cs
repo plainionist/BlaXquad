@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>Exposes the Copilot SDK implementation through the provider-neutral agent-provider contract.</summary>
 public sealed class CopilotSdkAgentProviderFactory : IAgentProviderFactory

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using GitHub.Copilot;
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>Wraps an SDK session and caches its model-derived context-window limit for usage reporting.</summary>
 internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable

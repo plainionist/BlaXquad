@@ -39,9 +39,9 @@
 
   <!-- Publishes a second, provider-free squad-hq into its own test-output directory so backend
        specifications can prove the architectural target of running headquarters without ever
-       loading squad.CopilotSdk. The production-like squad-tools publication above stays unchanged.
+       loading squad.AgentProvider.CopilotSdk. The production-like squad-tools publication above stays unchanged.
        squad-hq always requires a sibling "squad" helper executable (WorkspacePreparer.CheckHelperScripts),
-       so the CLI is published alongside it here too; squad.csproj has no squad.CopilotSdk reference, so
+       so the CLI is published alongside it here too; squad.csproj has no squad.AgentProvider.CopilotSdk reference, so
        this does not reintroduce the Copilot provider into the provider-free output. -->
   <Target Name="PublishBackendSpecTools" BeforeTargets="VSTest">
     <PropertyGroup>

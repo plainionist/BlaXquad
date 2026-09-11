@@ -25,6 +25,12 @@ Defines the provider-neutral agent boundary: backend, runtime, and session
 lifecycle contracts; role context; typed agent events; and interaction
 responses.
 
+## `squad.AgentProvider.CopilotSdk`
+
+Adapts the GitHub Copilot SDK to the provider-neutral contracts. It starts and
+stops the provider runtime, manages role sessions and interactions, reports
+usage and readiness, and normalizes provider and tool events.
+
 ## `squad.Application`
 
 Owns authoritative live role state and user operations, including the active
@@ -37,12 +43,6 @@ state, and supplies UI snapshots.
 Locates project and worktree context, loads and validates
 `blaxquad/squad.json`, models role and agent settings, and resolves the role
 associated with the current worktree.
-
-## `squad.CopilotSdk`
-
-Adapts the GitHub Copilot SDK to the provider-neutral contracts. It starts and
-stops the provider runtime, manages role sessions and interactions, reports
-usage and readiness, and normalizes provider and tool events.
 
 ## `squad.Handoffs`
 

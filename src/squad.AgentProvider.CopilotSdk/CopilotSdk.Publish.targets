@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- Set -p:IncludeCopilotSdkProvider=false on publish to omit the default provider entirely (used to
-         prove squad-hq can package and run without ever loading squad.CopilotSdk). -->
+         prove squad-hq can package and run without ever loading squad.AgentProvider.CopilotSdk). -->
     <IncludeCopilotSdkProvider Condition="'$(IncludeCopilotSdkProvider)' == ''">true</IncludeCopilotSdkProvider>
     <_CopilotSdkPublishOutputDirectory>$(MSBuildThisFileDirectory)bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\publish\</_CopilotSdkPublishOutputDirectory>
     <_CopilotSdkRuntimeDirectory>$(_CopilotSdkPublishOutputDirectory)runtimes\$(RuntimeIdentifier)\native</_CopilotSdkRuntimeDirectory>
@@ -9,11 +9,11 @@
 
   <!-- Publishes the default Copilot provider as a standalone, framework-dependent artifact so its managed
        dependencies and native runtime assets can be copied into a referencing publish output as packaging
-       inputs only, without squad-hq ever compiling against squad.CopilotSdk. -->
+       inputs only, without squad-hq ever compiling against squad.AgentProvider.CopilotSdk. -->
   <Target Name="PublishCopilotSdkProviderForPackaging"
           BeforeTargets="Publish"
           Condition="'$(RuntimeIdentifier)' != '' and '$(IncludeCopilotSdkProvider)' == 'true'">
-    <MSBuild Projects="$(MSBuildThisFileDirectory)squad.CopilotSdk.csproj"
+    <MSBuild Projects="$(MSBuildThisFileDirectory)squad.AgentProvider.CopilotSdk.csproj"
              Targets="Restore;Publish"
              BuildInParallel="false"
              Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);TargetFramework=$(TargetFramework);SelfContained=false;PublishDir=$(_CopilotSdkPublishOutputDirectory)" />
@@ -28,7 +28,7 @@
            the host and the provider's own assembly load context. -->
       <CopilotSdkProviderFile Include="$(_CopilotSdkPublishOutputDirectory)*.dll"
                               Exclude="$(_CopilotSdkPublishOutputDirectory)squad.AgentProvider.Abstractions.dll" />
-      <CopilotSdkProviderFile Include="$(_CopilotSdkPublishOutputDirectory)squad.CopilotSdk.deps.json" />
+      <CopilotSdkProviderFile Include="$(_CopilotSdkPublishOutputDirectory)squad.AgentProvider.CopilotSdk.deps.json" />
       <CopilotSdkRuntimeFile Include="$(_CopilotSdkRuntimeDirectory)\*" />
     </ItemGroup>
     <Error Condition="'@(CopilotSdkProviderFile)' == ''"

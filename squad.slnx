@@ -16,7 +16,7 @@
   <Project Path="src/squad.Host.Control/squad.Host.Control.csproj" />
   <Project Path="src/squad.Host.Runtime/squad.Host.Runtime.csproj" />
   <Folder Name="/src/">
-    <Project Path="src/squad.CopilotSdk/squad.CopilotSdk.csproj" />
+    <Project Path="src/squad.AgentProvider.CopilotSdk/squad.AgentProvider.CopilotSdk.csproj" />
   </Folder>
   <Project Path="src/squad-hq/squad-hq.csproj" />
   <Project Path="src/squad.Specs/squad.Specs.csproj" />

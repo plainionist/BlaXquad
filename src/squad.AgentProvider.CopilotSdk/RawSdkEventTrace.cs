@@ -3,7 +3,7 @@ using System.Text.Json;
 
 #pragma warning disable GHCP001
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// Optionally records normalized diagnostics for raw tool events when <c>BLAXQUAD_SDK_EVENT_TRACE</c> names an

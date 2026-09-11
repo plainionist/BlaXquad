@@ -1,7 +1,7 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// The sole owner of one generation's Copilot SDK client connection and every session it creates. Nothing outside

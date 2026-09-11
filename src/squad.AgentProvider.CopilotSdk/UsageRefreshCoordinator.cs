@@ -1,4 +1,4 @@
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// Owns the fixed five-second, event-aware AIC usage refresh policy for one Copilot SDK session. SDK activity marks

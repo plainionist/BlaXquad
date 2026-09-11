@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using squad.AgentProvider.Abstractions.Agents;
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// Preserves provider-event ordering through a bounded, single-reader channel. Sustained backpressure faults the

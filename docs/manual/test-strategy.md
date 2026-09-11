@@ -18,7 +18,7 @@ The target test system runs:
 - a fake provider implementing the provider-neutral agent SPI; and
 - real Git, filesystem, workspace, host-control, and handoff behavior.
 
-The main backend suite must not reference or load `squad.CopilotSdk`.
+The main backend suite must not reference or load `squad.AgentProvider.CopilotSdk`.
 
 ## Test boundary
 
@@ -221,7 +221,7 @@ The exact name is not important. The contract is:
 ### Explicit provider loading
 
 `squad-hq` currently references and constructs `CopilotSdkRuntimeModeFactory` directly. To run the actual executable
-without `squad.CopilotSdk`, provider selection must happen at process composition.
+without `squad.AgentProvider.CopilotSdk`, provider selection must happen at process composition.
 
 Headquarters loads a provider factory selected explicitly by a trusted command-line option or installation manifest:
 
@@ -232,7 +232,7 @@ Headquarters loads a provider factory selected explicitly by a trusted command-l
 Loading arbitrary code from a repository configuration is prohibited. An alternate provider path must be an explicit
 choice by the process launcher.
 
-The provider-neutral headquarters executable must not have a compile-time dependency on `squad.CopilotSdk`. Production
+The provider-neutral headquarters executable must not have a compile-time dependency on `squad.AgentProvider.CopilotSdk`. Production
 packaging may include the Copilot provider as the default plug-in, while backend-spec publication may omit it.
 
 ### Headless UI host
@@ -418,7 +418,7 @@ assemblies.
 
 Before migrating the full suite, prove one complete vertical path:
 
-1. Publish `squad-hq` without `squad.CopilotSdk`.
+1. Publish `squad-hq` without `squad.AgentProvider.CopilotSdk`.
 2. Start the actual executable with the stdio UI and the fake provider from `squad.Specs.dll`.
 3. Complete the real UI-ready handshake.
 4. Let headquarters create a fake session for a configured role.

@@ -4,7 +4,7 @@ using System.Text.Json;
 
 #pragma warning disable GHCP001
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// Correlates SDK tool lifecycle events and emits provider-neutral tool events with normalized output semantics.

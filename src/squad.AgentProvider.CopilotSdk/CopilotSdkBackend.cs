@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 
-namespace squad.CopilotSdk;
+namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
 /// Creates independent Copilot SDK runtime generations and surfaces failures that require the shared provider

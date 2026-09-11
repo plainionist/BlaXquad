@@ -14,7 +14,7 @@ namespace squad.Specs.Support.Agents;
 /// <paramref name="failBackend"/> handler, letting a specification fault
 /// <see cref="squad.AgentProvider.Abstractions.IAgentBackendFailureSource.Failure"/> on the owning
 /// <see cref="FakeAgentBackend"/> at any point after this runtime connects - independent of any individual role's
-/// session. Mirrors the real <c>squad.CopilotSdk</c> runtime by sending each role's configured
+/// session. Mirrors the real <c>squad.AgentProvider.CopilotSdk</c> runtime by sending each role's configured
 /// initial instruction as a harness message once its session starts, so the "harness messages" event family is
 /// observable through the same real session lifecycle a production provider uses - never a product test hook.
 /// </summary>

@@ -13,8 +13,8 @@ namespace squadHQ.Commands;
 
 static class Launch
 {
-    private const string DefaultProviderAssemblyName = "squad.CopilotSdk.dll";
-    private const string DefaultProviderTypeName = "squad.CopilotSdk.CopilotSdkAgentProviderFactory";
+    private const string DefaultProviderAssemblyName = "squad.AgentProvider.CopilotSdk.dll";
+    private const string DefaultProviderTypeName = "squad.AgentProvider.CopilotSdk.CopilotSdkAgentProviderFactory";
 
     public static int Run(string[] args)
     {
@@ -108,7 +108,7 @@ static class Launch
         }
     }
 
-    // Built from data strings only (no squad.CopilotSdk source or assembly reference) so squad-hq stays
+    // Built from data strings only (no squad.AgentProvider.CopilotSdk source or assembly reference) so squad-hq stays
     // free of a compile-time dependency on the default provider while still launching with it by default.
     private static ProviderDescriptor DefaultProviderDescriptor() =>
         new(Path.Combine(AppContext.BaseDirectory, DefaultProviderAssemblyName), DefaultProviderTypeName);

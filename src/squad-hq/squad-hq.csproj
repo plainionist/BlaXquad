@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="..\Directory.Build.Tool.props" />
-  <Import Project="..\squad.CopilotSdk\CopilotSdk.Publish.targets" />
+  <Import Project="..\squad.AgentProvider.CopilotSdk\CopilotSdk.Publish.targets" />
   <Import Project="..\squad.Photino\Photino.Publish.targets" />
 
   <PropertyGroup>
