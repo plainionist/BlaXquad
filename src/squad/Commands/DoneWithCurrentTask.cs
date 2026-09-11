@@ -8,7 +8,8 @@ static class DoneWithCurrentTask
 {
     public static int Run(string[] args)
     {
-        var inbox = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs", "inbox");
+        var handoffsDir = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs");
+        var inbox = Path.Combine(handoffsDir, "inbox");
         var inProcessDir = Path.Combine(inbox, "in_process");
         var completedDir = Path.Combine(inbox, "completed");
 
@@ -17,6 +18,8 @@ static class DoneWithCurrentTask
 
         try
         {
+            LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(handoffsDir);
+
             var inProcessBatches = HandoffQueue.BatchDirs(inProcessDir);
             var inProcessFiles = HandoffQueue.HandoffFiles(inProcessDir);
 
@@ -38,7 +41,7 @@ static class DoneWithCurrentTask
             var sourceFile = inProcessFiles[0];
             var targetFile = Path.Combine(completedDir, Path.GetFileName(sourceFile));
 
-            HandoffHeaders.SetHeader(sourceFile, "completed_at", Timestamps.Now());
+            HandoffJson.Update(sourceFile, document => document with { CompletedAt = Timestamps.Now() });
             if (Path.Exists(targetFile))
             {
                 Fail(2, $"AMBIGUOUS_TASK_STATE: completed file already exists: {targetFile}");
@@ -55,6 +58,11 @@ static class DoneWithCurrentTask
                 Console.Error.WriteLine(ex.Message);
             }
             return ex.ExitCode;
+        }
+        catch (LegacyHandoffQueueException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
         }
     }
 

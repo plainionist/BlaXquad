@@ -307,9 +307,9 @@ These observations describe current consequences of the design; they are not red
 2. **Central application model.** All role commands, provider events, interactions, and transcript changes converge
   on one authoritative model and one state-serialization point. This gives clear ordering but couples those flows
   operationally.
-3. **Filesystem collaboration contract.** The two executables depend on shared naming, header, ordering, and atomic
-  move conventions. This makes handoffs durable and restart-safe while coupling independently running processes to
-  the same filesystem schema.
+3. **Filesystem collaboration contract.** The two executables depend on shared naming, JSON schema, ordering, and
+  atomic move conventions. This makes handoffs durable and restart-safe while coupling independently running
+  processes to the same filesystem schema.
 4. **Cross-language UI contract.** C# and TypeScript maintain the same versioned message shapes independently. The
   protocol is explicit, but there is no generated shared schema.
 5. **In-process provider plug-ins.** Provider neutrality is enforced by contracts, but plug-ins execute inside

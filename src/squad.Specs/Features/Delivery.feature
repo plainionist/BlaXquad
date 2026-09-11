@@ -29,6 +29,51 @@ Feature: Delivering handoffs
     And "reviewer" has no new handoff
     And the "reviewer" agent has not observed the handoff wake-up message
 
+  Scenario: Reject malformed handoff JSON before delivering any copy
+    When "coder" durably queues a handoff with invalid content:
+      """
+      { "schemaVersion": 1, "from": "coder",
+      """
+    Then the sender handoff is archived as failed
+    And "reviewer" has no new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
+
+  Scenario: Reject an unsupported handoff schema version before delivering any copy
+    When "coder" durably queues a handoff with invalid content:
+      """
+      {
+        "schemaVersion": 99,
+        "id": "seed-unsupported-version",
+        "from": "coder",
+        "to": ["reviewer"],
+        "priority": 50,
+        "kind": "note",
+        "note": { "message": "Ready for review." },
+        "createdAt": "2026-08-22T12:00:00Z"
+      }
+      """
+    Then the sender handoff is archived as failed
+    And "reviewer" has no new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
+
+  Scenario: Reject a handoff whose kind and variant data disagree before delivering any copy
+    When "coder" durably queues a handoff with invalid content:
+      """
+      {
+        "schemaVersion": 1,
+        "id": "seed-mismatched-variant",
+        "from": "coder",
+        "to": ["reviewer"],
+        "priority": 50,
+        "kind": "note",
+        "gitHandoff": { "task": "implement-search", "commit": "0123456789" },
+        "createdAt": "2026-08-22T12:00:00Z"
+      }
+      """
+    Then the sender handoff is archived as failed
+    And "reviewer" has no new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
+
   Scenario: Notification failure does not lose a delivered handoff
     Given the "reviewer" agent will reject its next harness send
     And "coder" prepares a note with priority "50" and message "Ready for review." to:

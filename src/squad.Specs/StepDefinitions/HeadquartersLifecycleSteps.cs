@@ -73,6 +73,13 @@ public sealed class HeadquartersLifecycleSteps
         myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
     }
 
+    [When("the operator launches Headquarters, continuing from durable state, without completing the ready handshake")]
+    public void WhenTheOperatorLaunchesHeadquartersContinuingFromDurableStateWithoutCompletingTheReadyHandshake()
+    {
+        myScenario.EnableFakeProviderControl();
+        myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>(continueLaunch: true);
+    }
+
     [When("the operator launches a cancellable Headquarters")]
     public void WhenTheOperatorLaunchesACancellableHeadquarters()
     {

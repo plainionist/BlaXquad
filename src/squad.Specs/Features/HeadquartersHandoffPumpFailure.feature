@@ -15,7 +15,7 @@ Feature: Surfacing a real handoff-pump failure after readiness
       | coder |
     When the operator launches Headquarters
     Then Headquarters starts an agent session for role "coder"
-    When role "coder" has a durable file ".blaxquad/handoffs/inbox/new/queued.handoff" containing "Do not lose this queued handoff."
+    When role "coder" has a durable file ".blaxquad/handoffs/inbox/new/queued.handoff.json" containing "Do not lose this queued handoff."
     And role "coder"'s handoff outbox directory is poisoned
     And Headquarters' process exits on its own
     Then Headquarters exits with a non-zero code
@@ -24,7 +24,7 @@ Feature: Surfacing a real handoff-pump failure after readiness
     And Headquarters' standard error does not contain "Provider startup failed"
     And Headquarters disposes the agent session for role "coder"
     And the operator finds Headquarters unavailable for role "coder"
-    And role "coder"'s durable file ".blaxquad/handoffs/inbox/new/queued.handoff" still contains "Do not lose this queued handoff."
+    And role "coder"'s durable file ".blaxquad/handoffs/inbox/new/queued.handoff.json" still contains "Do not lose this queued handoff."
     When role "coder"'s handoff outbox directory is repaired
     And the operator launches a new Headquarters against the same project
     Then the new Headquarters process reports ready

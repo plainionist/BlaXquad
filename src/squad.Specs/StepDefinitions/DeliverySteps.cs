@@ -35,6 +35,10 @@ public sealed class DeliverySteps
     public void WhenRoleDurablyQueuesAnInvalidNoteTo(string role, Table recipients) =>
         myMailbox.SeedInvalidOutboundNote(role, string.Join(",", recipients.Rows.Select(row => row["role"])), "Ready for review.");
 
+    [When("{string} durably queues a handoff with invalid content:")]
+    public void WhenRoleDurablyQueuesAHandoffWithInvalidContent(string role, string content) =>
+        myMailbox.SeedInvalidOutboundContent(role, content);
+
     [Given("{string} is busy with a prompt")]
     public async Task GivenRoleIsBusyWithAPrompt(string role)
     {
@@ -71,9 +75,9 @@ public sealed class DeliverySteps
     public void ThenTheSenderHandoffIsArchivedAsFailed()
     {
         myWorkspace.WaitUntil(
-            () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffs(SenderRole).Count == 1,
+            () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffCount(SenderRole) == 1,
             "the host to archive the outbound handoff");
-        Assert.That(myMailbox.FailedHandoffs(SenderRole), Has.Exactly(1).Items);
+        Assert.That(myMailbox.FailedHandoffCount(SenderRole), Is.EqualTo(1));
     }
 
     [Then("{string} has one new handoff")]

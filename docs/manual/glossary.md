@@ -136,7 +136,8 @@ Managed approval requests still require an explicit response.
 A validated, durable message from one role to one or more other roles. A sender
 creates one directly with `squad handoff commit` or `squad handoff note` - there
 is no intermediate draft file. On success, the command places the generated
-`.handoff` file in the sender's outbox.
+`.handoff.json` file - a versioned, typed JSON document - in the sender's
+outbox.
 
 The supported handoff types are **Git handoff** and **note handoff**.
 

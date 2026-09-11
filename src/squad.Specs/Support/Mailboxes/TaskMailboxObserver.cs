@@ -1,14 +1,17 @@
+using System.Text.Json;
 using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.Support.Mailboxes;
 
 /// <summary>
-/// A test-owned semantic view over a role worktree's durable inbound task mailbox. Directory enumeration and
-/// header inspection are confined here so step definitions only ask whether a named task is queued, in process, or
+/// A test-owned semantic view over a role worktree's durable inbound task mailbox. Directory enumeration and JSON
+/// inspection are confined here so step definitions only ask whether a named task is queued, in process, or
 /// completed.
 /// </summary>
 public sealed class TaskMailboxObserver
 {
+    private const string FileSuffix = ".handoff.json";
+
     private readonly ScenarioWorkspace myWorkspace;
 
     public TaskMailboxObserver(ScenarioWorkspace workspace)
@@ -30,7 +33,17 @@ public sealed class TaskMailboxObserver
             return null;
         }
 
-        return Directory.EnumerateFiles(directory, "*.handoff", SearchOption.AllDirectories)
-            .SingleOrDefault(path => File.ReadLines(path).Contains($"task: {task}"));
+        return Directory.EnumerateFiles(directory, "*" + FileSuffix, SearchOption.AllDirectories)
+            .SingleOrDefault(path => HasTask(path, task));
+    }
+
+    private static bool HasTask(string path, string task)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.TryGetProperty("gitHandoff", out var gitHandoff)
+            && gitHandoff.ValueKind == JsonValueKind.Object
+            && gitHandoff.TryGetProperty("task", out var taskValue)
+            && taskValue.ValueKind == JsonValueKind.String
+            && taskValue.GetString() == task;
     }
 }
