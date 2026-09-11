@@ -14,3 +14,8 @@ src\squad.Specs\Support\Agents move to separate assembly called "squad.AgentProv
 adapt namespaces accordingly
 make internal what be could be made internal
 
+## 3
+
+squad.Photino effectively is implementation of "hosting abstractions"
+so rename to "squad.Hosting.Photino"
+adapt namespaces accordingly
