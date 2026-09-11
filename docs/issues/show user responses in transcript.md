@@ -42,3 +42,25 @@ owning role's transcript shows the exact answer as a normal user entry with the 
   synchronization, and render with the same green `>` prefix as a regular user prompt.
 - Rejected or failed input-response commands do not add transcript entries and retain their existing protocol and
   pending-interaction behavior.
+
+**Status: changes requested (e9a627ccc6)**
+
+#### Review findings on e9a627ccc6
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/InteractionPublicationAndOwnership.feature`
+  (`An accepted input response is published as a user transcript entry`).
+- **Violated behavior:** Slice 1 requires that an accepted choice or free-form answer is recorded once as source
+  `user`, appears before subsequent agent output, survives transcript synchronization, and that rejected or failed
+  `input.respond` commands add no user entry while keeping existing protocol and pending-interaction behavior.
+- **Root cause:** The new scenario waits for some `transcript.update` with source `user` and the answer text.
+  `WaitForTranscriptUpdateAsync` matches the first such update, does not prove exactly one, emits no later agent
+  output, never requests `transcript.synchronize`, and never observes a rejected or failed input response. It also
+  answers immediately after `RequestInputAsync`, which only acknowledges channel publish, without waiting for the
+  pending input to appear as sibling scenarios in this feature already do.
+- **Required outcome:** Through the real UI protocol, for both `wasFreeform: false` and `wasFreeform: true`: wait
+  until the dashboard shows the pending input; accept the answer; then prove the requesting role's transcript
+  contains that exact answer exactly once as source `user`, before a subsequent agent message, and still present
+  after `transcript.synchronize`. Prove a wrong-role, duplicate, or provider-failed `input.respond` adds no user
+  entry and keeps existing protocol/pending behavior. Keep the Playwright `>` / green user-styling coverage.
