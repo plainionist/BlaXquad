@@ -194,7 +194,7 @@ Every slice below is an independently buildable and integratable commit. Its doc
 coverage must describe the repository state produced by that slice; no slice may depend on a later cleanup to restore
 correctness.
 
-### Slice 1: Rename the lifecycle assembly to `squad.Runtime` [in progress]
+### Slice 1: Rename the lifecycle assembly to `squad.Runtime` [done]
 
 **Outcome:** Headquarters lifecycle code is built and published as `squad.Runtime`, while the unchanged
 `squad.Host.Control` assembly continues to provide process control.
@@ -208,6 +208,9 @@ correctness.
    graph: `squad.Runtime` owns lifecycle coordination and still depends on the separate `squad.Host.Control` module.
 4. Build and publish from clean outputs. Confirm `squad.Runtime.dll` replaces `squad.Host.Runtime.dll`, while
    `squad.Host.Control.dll` remains present, and run the focused healthy lifecycle and termination scenarios.
+
+**Status: complete (15cebf1edb).** Lifecycle ships as `squad.Runtime`; `squad.Host.Control` remains a separate
+assembly and dependency. Slice 2 remains pending until the architect activates it.
 
 ### Slice 2: Remove CLI presentation from `squad.Host.Control` [pending]
 
