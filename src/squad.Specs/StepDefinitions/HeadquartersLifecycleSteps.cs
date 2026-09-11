@@ -32,6 +32,11 @@ public sealed class HeadquartersLifecycleSteps
     public void GivenRoleHasADurableFileContaining(string role, string relativePath, string content) =>
         myScenario.SeedDurableRoleFile(role, relativePath, content);
 
+    [Given("role {string} has a durable file {string} containing:")]
+    [When("role {string} has a durable file {string} containing:")]
+    public void GivenRoleHasADurableFileContainingDocString(string role, string relativePath, string content) =>
+        myScenario.SeedDurableRoleFile(role, relativePath, content);
+
     [When("role {string}'s handoff outbox directory is poisoned")]
     public void WhenRoleSHandoffOutboxDirectoryIsPoisoned(string role) =>
         myScenario.PoisonHandoffOutbox(role);
@@ -232,6 +237,10 @@ public sealed class HeadquartersLifecycleSteps
 
     [Then("role {string}'s durable file {string} still contains {string}")]
     public void ThenRoleSDurableFileStillContains(string role, string relativePath, string content) =>
+        Assert.That(myScenario.DurableRoleFileIsPreserved(role, relativePath, content), Is.True);
+
+    [Then("role {string}'s durable file {string} still contains:")]
+    public void ThenRoleSDurableFileStillContainsDocString(string role, string relativePath, string content) =>
         Assert.That(myScenario.DurableRoleFileIsPreserved(role, relativePath, content), Is.True);
 
     [When("the operator launches a new Headquarters against the same project")]

@@ -74,6 +74,19 @@ Feature: Delivering handoffs
     And "reviewer" has no new handoff
     And the "reviewer" agent has not observed the handoff wake-up message
 
+  Scenario: Lifecycle timestamps survive delivery, claim, and completion
+    Given "coder" prepares a note with priority "50" and message "Ready for review." to:
+      | role     |
+      | reviewer |
+    When the "coder" role agent runs `squad handoff` from its worktree
+    Then the sender handoff is archived as sent
+    And "reviewer" has one new handoff
+    And the new handoff for "reviewer" carries createdAt and enqueuedAt timestamps but no dequeuedAt or completedAt timestamp
+    When the "reviewer" role agent claims the handoff via `squad ready-for-next`
+    Then the in-process handoff for "reviewer" preserves its createdAt and enqueuedAt timestamps and now also carries a dequeuedAt timestamp
+    When the "reviewer" role agent completes the handoff via `squad done-with-current`
+    Then the completed handoff for "reviewer" preserves its createdAt, enqueuedAt, and dequeuedAt timestamps and now also carries a completedAt timestamp
+
   Scenario: Notification failure does not lose a delivered handoff
     Given the "reviewer" agent will reject its next harness send
     And "coder" prepares a note with priority "50" and message "Ready for review." to:

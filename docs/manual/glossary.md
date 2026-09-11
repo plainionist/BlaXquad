@@ -136,8 +136,12 @@ Managed approval requests still require an explicit response.
 A validated, durable message from one role to one or more other roles. A sender
 creates one directly with `squad handoff commit` or `squad handoff note` - there
 is no intermediate draft file. On success, the command places the generated
-`.handoff.json` file - a versioned, typed JSON document - in the sender's
-outbox.
+`.handoff.json` file - a versioned, typed JSON document (schema version `1`) -
+in the sender's outbox. The document records identity, sender, recipients as a
+JSON array, priority as a number, its kind and kind-specific data, and
+lifecycle timestamps; it does not persist the recipient-facing payload text,
+which is derived from the typed kind-specific data whenever a handoff is
+displayed or delivered.
 
 The supported handoff types are **Git handoff** and **note handoff**.
 
@@ -173,6 +177,14 @@ The durable state machine under each role worktree's `.blaxquad/handoffs/` direc
 | `inbox/completed/`  | Work explicitly completed by the recipient           |
 
 Moving files between these locations is the authoritative queue transition.
+
+A handoff queue holding any legacy, pre-JSON `.handoff` artifact in any of these
+locations cannot be processed: the role CLI and a continued Headquarters launch
+(`--continue`) both refuse to touch the queue rather than mix formats. An
+operator must drain such a queue with the previous BlaXquad release, or discard
+it entirely with a normal (non-continued) launch, before using a release that
+only understands `.handoff.json`. A continued launch never migrates a legacy
+queue in place; it only ever preserves an already-JSON queue.
 
 ## Handoff delivery
 

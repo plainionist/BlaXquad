@@ -42,6 +42,14 @@ public sealed class HandoffMailboxObserver
     internal IReadOnlyList<QueuedHandoff> NewInboxHandoffs(string recipientRole) =>
         ListHandoffs(recipientRole, Path.Combine("inbox", "new"));
 
+    /// <summary>Every handoff currently claimed into a role's in-process inbox bucket, in stable file order.</summary>
+    internal IReadOnlyList<QueuedHandoff> InProcessInboxHandoffs(string recipientRole) =>
+        ListHandoffs(recipientRole, Path.Combine("inbox", "in_process"));
+
+    /// <summary>Every handoff archived into a role's completed-inbox bucket, in stable file order.</summary>
+    internal IReadOnlyList<QueuedHandoff> CompletedInboxHandoffs(string recipientRole) =>
+        ListHandoffs(recipientRole, Path.Combine("inbox", "completed"));
+
     /// <summary>
     /// Seeds a raw outbound handoff artifact directly into a role's outbox, bypassing the "squad handoff" CLI's
     /// own recipient and field validation - the only way a scenario can arrange an otherwise-uncreatable durable
@@ -175,14 +183,21 @@ public sealed class HandoffMailboxObserver
             Task: task,
             Message: message,
             Payload: payload,
-            Recipient: root.TryGetProperty("recipient", out var recipient) && recipient.ValueKind == JsonValueKind.String
-                ? recipient.GetString()
-                : null);
+            Recipient: GetOptionalString(root, "recipient"),
+            CreatedAt: root.GetProperty("createdAt").GetString()!,
+            EnqueuedAt: GetOptionalString(root, "enqueuedAt"),
+            DequeuedAt: GetOptionalString(root, "dequeuedAt"),
+            CompletedAt: GetOptionalString(root, "completedAt"));
     }
 
     private static string? GetOptionalString(JsonElement root, string objectProperty, string stringProperty) =>
         root.TryGetProperty(objectProperty, out var obj) && obj.ValueKind == JsonValueKind.Object
         && obj.TryGetProperty(stringProperty, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static string? GetOptionalString(JsonElement root, string property) =>
+        root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
 }
