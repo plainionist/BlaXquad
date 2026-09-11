@@ -317,6 +317,34 @@ contains the Photino component metadata, managed/native dependencies, and UI ass
 `squad-hq.csproj`, its dependency manifest, and `Launch` contain no concrete hosting dependency; and existing
 provider packaging and lifecycle scenarios remain unchanged.
 
+**Status: changes requested (e6c83929f0)**
+
+#### Review findings on e6c83929f0
+
+**Finding 1 — medium**
+
+- **Location:** `docs/manual/architecture.md` (Dashboard section and UI-contract bullet).
+- **Violated behavior:** Slice 2 requires architecture to describe the process-time hosting boundary and Photino as
+  the packaged default. The issue requires manuals no longer advertise stdio as a built-in product UI mode.
+- **Root cause:** This commit added a correct Hosting adapter section but left "Headquarters can instead expose the
+  same UI protocol over standard input and output. This supports non-visual clients without introducing a separate
+  server." and the UI-contract pairing of Photino web messages with line-delimited stdio as peer product transports.
+- **Required outcome:** Architecture must present Photino as the packaged default adapter and stdio only as the
+  test-distributed harness adapter selected by explicit `--hosting`, not as a supported product presentation mode.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Hosting.Photino/Photino.Publish.targets` and
+  `src/squad.Specs/StepDefinitions/HostingPackagingSteps.cs`.
+- **Violated behavior:** Slice 2 requires packaging analogous to the default provider, including runtime-native
+  assets, for the RIDs headquarters already validates (`win-x64`, `linux-x64`, `osx-x64`, `osx-arm64`).
+- **Root cause:** `CopilotSdk.Publish.targets` copies `runtimes/$(RuntimeIdentifier)/native/*`. Photino packaging
+  copies only top-level `*.dll` plus `squad.Hosting.Photino.deps.json`. HostingPackaging asserts `Photino.Native.dll`
+  at the publish root, which does not describe Linux/macOS native assets (not DLLs, typically under `runtimes/`).
+- **Required outcome:** Copy Photino native runtime assets the same way the Copilot provider does (RID-specific
+  `runtimes/.../native` in addition to any flattened managed/native DLLs), and assert those natives in a
+  RID-appropriate way so a linux-x64 or osx publish still contains the Photino native library.
+
 ### Slice 3: Publish a genuinely headless backend test package
 
 **Outcome:** The backend suite runs the same provider-neutral and hosting-neutral `squad-hq` executable from a
