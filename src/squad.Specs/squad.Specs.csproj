@@ -10,6 +10,7 @@
     <ReqnrollUseIntermediateOutputPathForCodeBehind>true</ReqnrollUseIntermediateOutputPathForCodeBehind>
     <SquadProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad\squad.csproj'))</SquadProject>
     <squadHQProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad-hq\squad-hq.csproj'))</squadHQProject>
+    <CopilotProviderProjectDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad.AgentProvider.CopilotSdk'))</CopilotProviderProjectDirectory>
     <HostingStdioProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad.Hosting.Stdio\squad.Hosting.Stdio.csproj'))</HostingStdioProject>
   </PropertyGroup>
 
@@ -39,6 +40,7 @@
     </PropertyGroup>
     <RemoveDir Directories="$(SquadToolsDir)" />
     <Exec Command="dotnet publish &quot;$(SquadProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
+    <Delete Files="$(CopilotProviderProjectDirectory)\obj\project.assets.json;$(CopilotProviderProjectDirectory)\obj\project.nuget.cache;$(CopilotProviderProjectDirectory)\obj\squad.AgentProvider.CopilotSdk.csproj.nuget.dgspec.json;$(CopilotProviderProjectDirectory)\obj\squad.AgentProvider.CopilotSdk.csproj.nuget.g.props;$(CopilotProviderProjectDirectory)\obj\squad.AgentProvider.CopilotSdk.csproj.nuget.g.targets" />
     <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
   </Target>
 
