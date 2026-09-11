@@ -19,6 +19,9 @@ const props = defineProps<{
   inputs: readonly InputRequest[]
   elicitations: readonly Elicitation[]
   prompt: string
+  historyNavigating: boolean
+  recallOlderPrompt: (role: string) => boolean
+  recallNewerPrompt: (role: string) => boolean
   inputDraftFor: (requestId: string) => string
   elicitationValuesFor: (
     requestId: string,
@@ -118,6 +121,9 @@ defineExpose({ focusPrompt })
       :role="role.role"
       :status="role.status"
       :prompt="prompt"
+      :history-navigating="historyNavigating"
+      :recall-older-prompt="recallOlderPrompt"
+      :recall-newer-prompt="recallNewerPrompt"
       @update:prompt="emit('update-prompt', $event)"
       @send="emit('send-prompt')"
       @cancel="emit('cancel')"
