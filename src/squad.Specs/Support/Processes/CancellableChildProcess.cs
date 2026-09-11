@@ -2,14 +2,14 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Processes;
 
 /// <summary>
 /// The one narrow support type that hides every native handle, process-group, and signal-delivery detail behind
 /// two plain operations: launching a child process that owns its own process group, and delivering the
 /// platform's own normal cancellation signal (the same one a real terminal's Ctrl+C/Ctrl+Break produces) to that
 /// exact child - never the test runner process, and never any other concurrently running scenario's own child.
-/// Ordinary launches keep using <see cref="ScenarioWorkspace.StartProcess"/> and plain <see cref="System.Diagnostics.Process.Start()"/>;
+/// Ordinary launches keep using <see cref="Support.ScenarioWorkspace.StartProcess"/> and plain <see cref="System.Diagnostics.Process.Start()"/>;
 /// this type exists solely so the caller-cancellation specification scenario can prove real signal delivery
 /// without ever risking the shared test-runner process group. No product command, environment variable, or
 /// in-process shortcut depends on this type.

@@ -1,4 +1,4 @@
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Processes;
 
 /// <summary>
 /// The exact command line, working directory, and captured output of one scenario-owned child

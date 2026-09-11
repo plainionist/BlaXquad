@@ -1,4 +1,4 @@
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Processes;
 
 /// <summary>
 /// Formats a one-line snapshot of a child process's command and its current lifecycle state (running with its

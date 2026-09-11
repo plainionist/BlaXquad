@@ -1,16 +1,14 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
+using squad.Specs.Support.Processes;
 
 namespace squad.Specs.Support;
 
 public sealed class ScenarioWorkspace : IDisposable
 {
-    private static readonly Regex AnsiEscape = new(@"\x1B\[[0-?]*[ -/]*[@-~]", RegexOptions.Compiled);
-    private static readonly TimeSpan ProcessExitTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WorkspaceCleanupTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WorkspaceCleanupPollInterval = TimeSpan.FromMilliseconds(100);
     private readonly Dictionary<string, object> myValues = new(StringComparer.Ordinal);
-    private readonly List<System.Diagnostics.Process> myRunningProcesses = [];
+    private readonly ScenarioProcessRunner myProcessRunner = new();
     private readonly Dictionary<string, string> myRoleWorktrees = new(StringComparer.Ordinal);
 
     public ScenarioWorkspace()
@@ -136,14 +134,6 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
-    /// Creates a uniquely rooted, configured Git project with one linked worktree per role,
-    /// records each role's worktree path behind this workspace (see <see cref="RunRoleTool"/>),
-    /// and also returns those paths so specifications do not duplicate project bootstrap.
-    /// </summary>
-    public IReadOnlyDictionary<string, string> ConfigureProject(params string[] roles) =>
-        ConfigureProject(roles.Select(role => (Role: role, ReceiveMode: (string?)null)).ToArray());
-
-    /// <summary>
     /// Creates a uniquely rooted, configured Git project with one linked worktree per role, optionally declaring
     /// each role's `receiveMode` (a null entry omits the field so the tool applies its own default), and records
     /// each role's worktree path behind this workspace (see <see cref="RunRoleTool"/>). Lets scenarios that arrange
@@ -234,62 +224,20 @@ public sealed class ScenarioWorkspace : IDisposable
         IReadOnlyDictionary<string, string?>? environment = null) =>
         RunTool(toolName, arguments, environment, myRoleWorktrees[role]);
 
-    public System.Diagnostics.Process StartTool(
-        string toolName,
-        IReadOnlyList<string>? arguments = null,
-        IReadOnlyDictionary<string, string?>? environment = null,
-        string? workingDirectory = null,
-        bool redirectStandardInput = false)
-    {
-        return StartProcess(ResolveTool(toolName, "squad-tools"), arguments, environment, workingDirectory, redirectStandardInput);
-    }
-
-    /// <summary>
-    /// Launches the published squad-hq with "--ui stdio" and the given test-owned provider fixture, and returns a
-    /// <see cref="HeadlessUiClient"/> already attached to it. Test support - never step definitions - selects the
-    /// published tool, builds the provider descriptor, starts and owns the child process, and constructs the
-    /// client, matching the architectural split between workspace/CLI support and the semantic UI client.
-    /// </summary>
-    public HeadlessUiClient StartHeadlessUiClient<TProviderFactory>()
-        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
-    {
-        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
-        var process = StartTool(
-            "squad-hq",
-            ["launch", "--provider", descriptor, "--ui", "stdio", Root],
-            redirectStandardInput: true);
-        return new HeadlessUiClient(process);
-    }
-
     public System.Diagnostics.Process StartProcess(
         string executable,
         IReadOnlyList<string>? arguments = null,
         IReadOnlyDictionary<string, string?>? environment = null,
         string? workingDirectory = null,
-        bool redirectStandardInput = false)
-    {
-        var startInfo = CreateStartInfo(executable, environment, workingDirectory);
-        startInfo.RedirectStandardInput = redirectStandardInput;
-        if (arguments is not null)
-        {
-            foreach (var argument in arguments)
-            {
-                startInfo.ArgumentList.Add(argument);
-            }
-        }
-
-        var process = System.Diagnostics.Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"Could not start '{executable}'.");
-        myRunningProcesses.Add(process);
-        return process;
-    }
+        bool redirectStandardInput = false) =>
+        myProcessRunner.Start(executable, arguments, MergeGitIdentity(executable, environment), workingDirectory ?? Root, redirectStandardInput);
 
     /// <summary>
     /// Registers a process launched outside <see cref="StartProcess"/> (for example, through
     /// <see cref="CancellableChildProcess"/>) so this workspace's own emergency cleanup on <see cref="Dispose"/>
     /// still terminates it if a specification never reaches its own normal shutdown.
     /// </summary>
-    public void TrackProcess(System.Diagnostics.Process process) => myRunningProcesses.Add(process);
+    public void TrackProcess(System.Diagnostics.Process process) => myProcessRunner.TrackProcess(process);
 
     public void WaitUntil(Func<bool> condition, string description, TimeSpan? timeout = null)
     {
@@ -330,26 +278,39 @@ public sealed class ScenarioWorkspace : IDisposable
         IReadOnlyDictionary<string, string?>? environment = null,
         string? workingDirectory = null)
     {
-        var startInfo = CreateStartInfo(executable, environment, workingDirectory);
-        foreach (var argument in arguments)
+        LastResult = myProcessRunner.Run(executable, arguments, MergeGitIdentity(executable, environment), workingDirectory ?? Root);
+        return LastResult;
+    }
+
+    /// <summary>
+    /// Merges the fixture's fixed Git author/committer identity ahead of any explicit environment for a "git"
+    /// invocation, so every commit this workspace or a role's worktree makes carries a stable, real identity
+    /// instead of depending on the ambient environment. Any other executable's environment passes through
+    /// unchanged.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string?>? MergeGitIdentity(
+        string executable, IReadOnlyDictionary<string, string?>? environment)
+    {
+        if (executable != "git")
         {
-            startInfo.ArgumentList.Add(argument);
+            return environment;
         }
 
-        using var process = System.Diagnostics.Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"Could not start '{executable}'.");
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        process.WaitForExit();
-
-        LastResult = new CommandResult(
-            executable,
-            arguments,
-            startInfo.WorkingDirectory,
-            process.ExitCode,
-            Normalize(stdout.GetAwaiter().GetResult()),
-            Normalize(stderr.GetAwaiter().GetResult()));
-        return LastResult;
+        var merged = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["GIT_AUTHOR_NAME"] = "BlaXquad Acceptance",
+            ["GIT_AUTHOR_EMAIL"] = "acceptance@example.invalid",
+            ["GIT_COMMITTER_NAME"] = "BlaXquad Acceptance",
+            ["GIT_COMMITTER_EMAIL"] = "acceptance@example.invalid",
+        };
+        if (environment is not null)
+        {
+            foreach (var (name, value) in environment)
+            {
+                merged[name] = value;
+            }
+        }
+        return merged;
     }
 
     /// <summary>
@@ -360,25 +321,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void Dispose()
     {
-        foreach (var process in myRunningProcesses)
-        {
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: true);
-                }
-                process.WaitForExit((int)ProcessExitTimeout.TotalMilliseconds);
-            }
-            catch (Exception exception)
-            {
-                Console.Error.WriteLine($"ScenarioWorkspace cleanup: failed to stop a child process: {exception.Message}");
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
+        myProcessRunner.Dispose();
 
         if (!Directory.Exists(Root))
         {
@@ -442,38 +385,6 @@ public sealed class ScenarioWorkspace : IDisposable
                 Thread.Sleep(WorkspaceCleanupPollInterval);
             }
         }
-    }
-
-    private static string Normalize(string value) =>
-        AnsiEscape.Replace(value.Replace("\r\n", "\n"), "");
-
-    private ProcessStartInfo CreateStartInfo(
-        string executable,
-        IReadOnlyDictionary<string, string?>? environment,
-        string? workingDirectory)
-    {
-        var startInfo = new ProcessStartInfo(executable)
-        {
-            WorkingDirectory = workingDirectory ?? Root,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-        };
-        if (executable == "git")
-        {
-            startInfo.Environment["GIT_AUTHOR_NAME"] = "BlaXquad Acceptance";
-            startInfo.Environment["GIT_AUTHOR_EMAIL"] = "acceptance@example.invalid";
-            startInfo.Environment["GIT_COMMITTER_NAME"] = "BlaXquad Acceptance";
-            startInfo.Environment["GIT_COMMITTER_EMAIL"] = "acceptance@example.invalid";
-        }
-        if (environment is not null)
-        {
-            foreach (var (name, value) in environment)
-            {
-                startInfo.Environment[name] = value;
-            }
-        }
-        return startInfo;
     }
 
     private static string RepositoryRoot()

@@ -1,3 +1,5 @@
+using squad.Specs.Support.Processes;
+
 namespace squad.Specs.Support;
 
 /// <summary>
