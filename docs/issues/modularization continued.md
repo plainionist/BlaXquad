@@ -25,3 +25,8 @@ adapt namespaces accordingly
 squad.Stdio effectively is implementation of "hosting abstractions"
 so rename to "squad.Hosting.Stdio"
 adapt namespaces accordingly
+
+## 5
+
+update docs/manual
+esp docs\manual\modules.md
