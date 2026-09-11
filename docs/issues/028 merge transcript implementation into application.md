@@ -116,8 +116,8 @@ application model.
 
 ## Relationship to other issues
 
-Issue 027 consolidates the Headquarters runtime and has the preceding priority. Complete that structural change
-before this one so project, solution, packaging, and module-documentation edits do not overlap unnecessarily.
+Issue 027 completed the preceding Headquarters runtime consolidation, so this issue can now change project, solution,
+packaging, and module documentation without overlapping that work.
 
 Issue 024 will establish squad-member identity, member-local state ownership, and replaceable squad generations.
 This issue is a smaller assembly-boundary correction and must not preempt that domain redesign. It may rename only
@@ -126,18 +126,40 @@ the transcript namespace required by the folder move; role-to-member naming and 
 
 ## Implementation plan
 
-This change is small enough for one buildable commit:
+Exactly one slice is required. The source move, namespace and visibility changes, project removal, documentation,
+and behavior verification establish one assembly-boundary claim. Splitting them would leave either a duplicate
+implementation, a broken project graph, or documentation that describes an intermediate structure.
 
-1. Move the five transcript source files under `squad.Application/Transcripts`, update their namespaces and imports,
-   and internalize implementation-only types.
-2. Remove the transcript project reference, project file, directory, and solution entry.
-3. Update `docs/Manual/modules.md` so `squad.Application` explicitly owns transcript projection, retention, and
-   archive access, and remove the standalone `squad.Transcripts` module entry. Update other stable manual text only
-   where it names the removed assembly.
-4. Build and publish from clean outputs. Confirm the published Headquarters contains `squad.Application.dll` and no
-   `squad.Transcripts.dll`.
-5. Run the existing black-box Gherkin coverage for transcript projection, streaming finalization, tool activity,
-   retention, paging, synchronization ordering, interaction protection, and Headquarters cleanup.
+### Slice 1: Fold transcript implementation into `squad.Application` [in progress]
+
+**Outcome:** `squad.Application` contains a cohesive internal `Transcripts` component, and a clean Headquarters
+publication no longer contains `squad.Transcripts.dll`, while transcript protocol behavior, retention, archive
+lifetime, and synchronization remain unchanged.
+
+1. Move `RoleTranscriptState.cs`, `ToolCompletionResult.cs`, `TranscriptArchive.cs`,
+   `TranscriptEntryBuffer.cs`, and `TranscriptRetentionOptions.cs` to
+   `src/squad.Application/Transcripts`. Change their namespace to `squad.Application.Transcripts`, update the two
+   application imports, and make the four currently public implementation types internal. Keep the UI-facing
+   transcript DTOs in `squad.Ui.Abstractions`.
+2. Preserve the component boundary during the move: keep retention, stream assembly, tool correlation, and archive
+   I/O in the moved transcript classes; keep provider-event translation in `AgentEventProjector`; and do not add
+   provider or session dependencies to the `Transcripts` folder.
+3. Remove the `squad.Application` project reference to `squad.Transcripts`, delete
+   `src/squad.Transcripts/squad.Transcripts.csproj`, remove its `squad.slnx` entry, and remove the obsolete source
+   directory. Do not add a compatibility assembly, forwarded types, duplicate linked sources, wrappers, or aliases.
+4. Update `docs/Manual/modules.md` so the `squad.Application` entry explicitly owns transcript projection, bounded
+   live state, temporary archive storage, paging, and reconstruction, then remove the standalone
+   `squad.Transcripts` entry. Change other stable manual text only if it names the removed assembly.
+5. Preserve the existing single-archive `SquadViewModel` lifetime, per-role shared synchronization object, atomic
+   role/transcript observation, protected-entry completion paths, sequence behavior, retention and truncation
+   limits, private temporary storage, paging, and disposal cleanup.
+6. Run the existing black-box Gherkin coverage in the `Transcript*.feature` files together with interaction
+   protection and clean-shutdown archive removal. Add or change a scenario only if implementation exposes an
+   unsupported observable gap; do not test namespaces, visibility, project references, or the absence of an API.
+7. From cleaned outputs, build the solution and publish `squad-hq`. Confirm the publish directory and dependency
+   manifest contain `squad.Application.dll` and no `squad.Transcripts.dll`, search tracked source, project,
+   solution, and stable documentation files for obsolete `squad.Transcripts` references, then run the full backend
+   Gherkin suite and product build.
 
 No new scenario should be added merely to prove that the removed assembly is unavailable. Add or change a Gherkin
 scenario only if implementation reveals an observable behavior not already protected by the existing suite.
