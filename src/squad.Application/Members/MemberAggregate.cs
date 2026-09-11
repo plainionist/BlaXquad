@@ -31,18 +31,21 @@ internal sealed class MemberAggregate : IDisposable
     private bool myFailed;
 
     internal MemberAggregate(
+        SquadGenerationId generation,
         string id,
         string displayName,
         string role,
-        TranscriptArchive transcriptArchive,
-        TranscriptRetentionOptions retentionOptions)
+        MemberTranscriptArchive transcriptArchive)
     {
+        Generation = generation;
         Id = id;
         DisplayName = displayName;
         Role = role;
-        myTranscript = new MemberTranscriptState(id, transcriptArchive, retentionOptions, myStateLock);
+        myTranscript = new MemberTranscriptState(id, transcriptArchive, myStateLock);
     }
 
+    /// <summary>The identity of the squad generation this member belongs to. It never outlives that generation.</summary>
+    public SquadGenerationId Generation { get; }
     /// <summary>The member's unique identity, addressed as "role" at unchanged public boundaries.</summary>
     public string Id { get; }
     /// <summary>The member's configured presentation name.</summary>

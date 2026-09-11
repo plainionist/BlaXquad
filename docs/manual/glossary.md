@@ -238,12 +238,14 @@ The complete set of role sessions created by one headquarters startup. A
 generation becomes active only after all of its sessions are registered, the UI
 has been notified, and the handoff poller has started.
 
-`SquadViewModel` is the application's command-admission authority and the sole
+`SquadMembers` is one generation's command-admission authority and the sole
 owner of the active-session catalog: one synchronization boundary admits a
 command and captures its role's current session together. `SessionGeneration`
 separately owns the provider runtime handle and the event/completion observers
-for one generation, registering each started session directly into the
-application model as it starts.
+for one generation, registering each started session directly into that
+generation's member directory as it starts. Both belong to the `Squad` that
+owns the generation, and the process-lifetime `SquadViewModel` facade forwards
+commands to whichever `Squad` is currently installed.
 
 ## UI protocol
 

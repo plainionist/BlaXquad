@@ -144,7 +144,7 @@ flowchart LR
 
     subgraph headquarters["Headquarters container"]
     composition["Composition<br/>[Component]"]
-    lifecycle["Lifecycle<br/>[Component]"]
+    lifecycle["Lifecycle<br/>[Component]<br/>Process shell and squad generation"]
     workspaceManager["Workspace<br/>[Component]"]
     control["Headquarters control<br/>[Component]"]
     application["Application state<br/>[Component]"]
@@ -180,19 +180,33 @@ flowchart LR
 
 ### Responsibility boundaries
 
-- **Lifecycle coordination** owns the process phase, the current provider-runtime generation, session-started
-  registration into the application model, event observation, startup completion, and ordered teardown. Command
-  admission and active-session selection belong to the application model.
+- **Lifecycle coordination** is split by lifetime. The process shell owns the project lease and control endpoint,
+  the window and UI transport, sleep inhibition, the durable workspace services, the transcript archive, and one
+  serialized active-squad slot. One squad generation owns everything whose lifetime follows it: its configuration
+  snapshot and generation identity, the member directory and processors, command admission, the provider backend,
+  its sessions and session observers, and handoff-pump participation. The shell never dismantles those resources
+  in individual steps; it starts a generation through one start operation and releases it through one idempotent,
+  failure-collecting retirement that closes admission, stops handoff participation, drains processors and
+  observers, and then retires the provider runtime. A retirement that cannot conclude keeps its generation owned,
+  so a replacement can never overlap it. Today exactly one generation is installed, at startup, and retired once,
+  at shutdown.
 - **Application model** owns an ordered directory of configured members, keyed only by member identity - the only
   application-domain collection keyed that way. After routing selects a member, one per-member aggregate is the
   sole mutable owner of that member's projected status, provider-session association, transcript, pending
   interactions, and operation/abort/failure state; its local collections are keyed only by request or operation
   identity, never by another member or role. Each member also owns an independent processor: a bounded, single-
   reader mailbox that is the sole path through which that member's commands and provider events reach its
-  aggregate, so one member's slow or blocked provider call can never delay another member's mailbox. The facade
-  itself holds no mutable member state: it admits or rejects commands, routes each command to the addressed
-  member's processor, and composes the immutable per-member snapshots those aggregates produce into the
-  squad-wide read model published at the unchanged version-5 UI boundary.
+  aggregate, so one member's slow or blocked provider call can never delay another member's mailbox. That
+  directory belongs to the squad generation that created it and carries its generation identity, so every command,
+  provider event, readiness observation, transcript mutation, and handoff wake-up is bound to one generation and
+  rejected once it is retired. The process-lifetime facade above it holds no member state: it admits or rejects
+  commands, forwards each one to the currently installed generation, and composes the immutable per-member
+  snapshots those aggregates produce into the squad-wide read model published at the unchanged version-5 UI
+  boundary - answering as an empty squad while no generation is installed.
+- **Transcript history** is owned by the process shell, not by a generation. Each generation and member reaches it
+  only through a bounded handle that carries the generation identity and is revoked at retirement, so a retired
+  member cannot publish while everything it already published stays readable and per-member publication identity
+  stays monotonic.
 - **Provider adapter** translates the provider-neutral session model into the selected provider. Provider-specific
   event types and callbacks do not cross into the application model.
 - **UI protocol** translates between JSON messages and application operations. It controls snapshot publication,
@@ -211,21 +225,22 @@ sequenceDiagram
   participant Control as Headquarters control
   participant Workspace
   participant UI as UI host
-  participant Lifecycle
+  participant Squad
   participant Provider
   participant Delivery as Handoff delivery
 
   Operator->>HQ: Launch
   HQ->>Control: Acquire ownership
-  HQ->>Workspace: Prepare
+  HQ->>Workspace: Prepare process
+  HQ->>Squad: Prepare generation
   HQ->>UI: Start
   UI-->>HQ: Ready
-  HQ->>Lifecycle: Begin generation
-  Lifecycle->>Provider: Start sessions
-  Provider-->>Lifecycle: Sessions ready
-  Lifecycle->>UI: Publish state
-  Lifecycle->>Delivery: Recover and start
-  Lifecycle-->>HQ: Running
+  HQ->>Squad: Start
+  Squad->>Provider: Start sessions
+  Provider-->>Squad: Sessions ready
+  Squad->>UI: Publish state
+  Squad->>Delivery: Recover and start
+  Squad-->>HQ: Running
 
   alt Shutdown requested
     Operator->>Control: Shutdown
@@ -234,15 +249,17 @@ sequenceDiagram
     Operator->>UI: Close
     UI-->>HQ: Terminate
   end
-  HQ->>Lifecycle: Stop runtime
-  Lifecycle->>Delivery: Stop
+  HQ->>Squad: Retire
+  Squad->>Delivery: Stop
   HQ->>UI: Stop
   HQ->>Control: Release ownership
 ```
 
 The UI-ready handshake precedes provider-session startup. The system does not enter its running phase until all
 sessions are registered, initial UI publication has been requested, pending handoff notifications have been
-recovered, and delivery is active.
+recovered, and delivery is active. Process preparation - repository checks, workspace and worktree preparation,
+and durable handoff directories - runs once per process, while generation preparation reloads the current
+configuration and role prompts and builds the backend and member context a squad is created from.
 
 ## Runtime: interaction and handoff
 

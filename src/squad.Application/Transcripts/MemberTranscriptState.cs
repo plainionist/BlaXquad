@@ -18,32 +18,29 @@ internal sealed class MemberTranscriptState
     private readonly List<IndexedTranscriptEntry> myTranscriptEntries = [];
     private readonly HashSet<int> myProtectedTranscriptEntries = [];
     private readonly Dictionary<string, ToolTranscriptState> myToolTranscriptEntries = new(StringComparer.Ordinal);
-    private readonly TranscriptArchive myTranscriptArchive;
+    private readonly MemberTranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myRetentionOptions;
     private TranscriptEntryBuffer? myAssistantEntryBuffer;
     private TranscriptEntryBuffer? myReasoningEntryBuffer;
     private int? myAssistantTranscriptEntryIndex;
     private int? myReasoningTranscriptEntryIndex;
-    private long myTranscriptSequence;
-    private int myNextTranscriptEntryIndex;
     private int myRetainedContentCharacters;
 
     public MemberTranscriptState(
         string memberId,
-        TranscriptArchive transcriptArchive,
-        TranscriptRetentionOptions retentionOptions,
+        MemberTranscriptArchive transcriptArchive,
         object syncRoot)
     {
         myMemberId = memberId;
         myTranscriptArchive = transcriptArchive;
-        myRetentionOptions = retentionOptions;
+        myRetentionOptions = transcriptArchive.RetentionOptions;
         mySyncRoot = syncRoot;
     }
 
     /// <summary>The sequence number through which this member's retained transcript entries are current.</summary>
     public long TranscriptSequence
     {
-        get { lock (mySyncRoot) return myTranscriptSequence; }
+        get { lock (mySyncRoot) return myTranscriptArchive.CurrentSequence(); }
     }
 
     /// <summary>
@@ -61,12 +58,11 @@ internal sealed class MemberTranscriptState
                 .ToArray();
             return new RoleTranscriptSnapshot(
                 myMemberId,
-                myTranscriptSequence,
+                myTranscriptArchive.CurrentSequence(),
                 entries,
                 myTranscriptArchive.HasEntriesOutside(
-                    myMemberId,
                     entries.Select(entry => entry.EntryIndex).ToArray()),
-                myTranscriptArchive.WasTruncated(myMemberId));
+                myTranscriptArchive.WasTruncated());
         }
     }
 
@@ -74,26 +70,26 @@ internal sealed class MemberTranscriptState
     {
         lock (mySyncRoot)
         {
-            var entries = myTranscriptArchive.ReadPage(myMemberId, beforeIndex, maxEntries);
+            var entries = myTranscriptArchive.ReadPage(beforeIndex, maxEntries);
             var firstIndex = entries.FirstOrDefault()?.EntryIndex ?? beforeIndex;
             return new RoleTranscriptPage(
                 myMemberId,
                 entries,
-                myTranscriptArchive.HasEntriesBefore(myMemberId, firstIndex),
-                myTranscriptArchive.WasTruncated(myMemberId));
+                myTranscriptArchive.HasEntriesBefore(firstIndex),
+                myTranscriptArchive.WasTruncated());
         }
     }
 
     public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(int entryIndex)
     {
         lock (mySyncRoot)
-            return myTranscriptArchive.ReadEntry(myMemberId, entryIndex, myTranscriptSequence);
+            return myTranscriptArchive.ReadEntry(entryIndex, myTranscriptArchive.CurrentSequence());
     }
 
     /// <summary>Adds an entry to both archive and live retention; protected entries are not evicted until unprotected.</summary>
     public TranscriptUpdate AddTranscriptEntry(TranscriptEntry entry, bool protect = false)
     {
-        var entryIndex = myNextTranscriptEntryIndex++;
+        var entryIndex = myTranscriptArchive.ReserveEntryIndex();
         var update = CreateUpdate(
             TranscriptUpdateKind.AppendEntry,
             entryIndex,
@@ -120,7 +116,6 @@ internal sealed class MemberTranscriptState
         {
             Entry = retainedEntry,
             HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myMemberId,
                 entryIndex,
                 contentStart),
             ContentStart = contentStart,
@@ -281,7 +276,7 @@ internal sealed class MemberTranscriptState
                 Math.Min(
                     myRetentionOptions.MaxRetainedEntryCharacters,
                     myRetentionOptions.MaxRetainedContentCharacters / 2));
-            entryIndex = myNextTranscriptEntryIndex++;
+            entryIndex = myTranscriptArchive.ReserveEntryIndex();
             myTranscriptEntries.Add(new IndexedTranscriptEntry(
                 entryIndex.Value,
                 new TranscriptEntry(occurredAt, source, "")));
@@ -302,7 +297,6 @@ internal sealed class MemberTranscriptState
             {
                 Entry = retainedEntry,
                 HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                    myMemberId,
                     entryIndex.Value,
                     buffer.ContentStart),
                 ContentStart = buffer.ContentStart,
@@ -341,7 +335,6 @@ internal sealed class MemberTranscriptState
                 content)) with
         {
             HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myMemberId,
                 entryIndex.Value,
                 buffer.ContentStart),
             ContentStart = buffer.ContentStart,
@@ -387,7 +380,6 @@ internal sealed class MemberTranscriptState
             {
                 Entry = retainedEntry,
                 HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                    myMemberId,
                     index,
                     contentStart),
                 ContentStart = contentStart,
@@ -429,7 +421,6 @@ internal sealed class MemberTranscriptState
         {
             Entry = retainedEntry,
             HasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myMemberId,
                 entryIndex,
                 contentStart),
             ContentStart = contentStart,
@@ -475,7 +466,6 @@ internal sealed class MemberTranscriptState
         {
             var entry = entries[index];
             var hasArchivedContent = myTranscriptArchive.HasMoreContent(
-                myMemberId,
                 entry.EntryIndex,
                 entry.ContentStart);
             entries[index] = entry with
@@ -500,7 +490,7 @@ internal sealed class MemberTranscriptState
         TranscriptAnnouncement? announcement) =>
         new(
             myMemberId,
-            ++myTranscriptSequence,
+            myTranscriptArchive.AdvanceSequence(),
             kind,
             entryIndex,
             entry,

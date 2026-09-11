@@ -4,20 +4,20 @@ using squad.Handoffs.Delivery;
 namespace squad.Runtime;
 
 /// <summary>
-/// Routes handoff wake-ups through the application's active-session admission, the same authority interactive
-/// commands use, so a role with no admissible session simply fails the same way an interactive command would.
+/// Routes handoff wake-ups through one squad generation''s active-session admission, the same authority interactive
+/// commands use, so a role with no admissible session simply fails the same way an interactive command would. It is
+/// created by and bound to that generation, so a wake-up can never reach a replacement squad.
 /// </summary>
 internal sealed class SessionRoleNotifier : IRoleNotifier
 {
     private const string myWakeMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
-    private readonly SquadViewModel myViewModel;
+    private readonly SquadMembers myMembers;
 
-    internal SessionRoleNotifier(SquadViewModel viewModel)
+    internal SessionRoleNotifier(SquadMembers members)
     {
-        myViewModel = viewModel;
+        myMembers = members;
     }
 
     public Task NotifyAsync(string role, CancellationToken cancellationToken = default) =>
-        myViewModel.SendHarnessAsync(role, myWakeMessage, cancellationToken);
+        myMembers.SendHarnessAsync(role, myWakeMessage, cancellationToken);
 }
-

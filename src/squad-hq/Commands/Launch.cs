@@ -50,7 +50,7 @@ static class Launch
                 Fail($"A Headquarters instance is already running for {layout.WorkingDir}.");
                 return;
             }
-            SquadApplication? application = null;
+            Headquarters? headquarters = null;
             using var consoleCancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler? cancelHandler = (_, eventArgs) =>
             {
@@ -71,7 +71,7 @@ static class Launch
                     .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog, gitHistoryTool));
                 var launchPreparer = new LaunchPreparer(layout, continueLaunch);
 
-                application = SquadApplication.Create(
+                headquarters = Headquarters.Create(
                     launchPreparer,
                     agentProviderFactory,
                     hostingRuntime.WindowHost,
@@ -82,7 +82,7 @@ static class Launch
                 headquartersLease = null;
                 try
                 {
-                    application.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
+                    headquarters.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
                 }
                 catch (OperationCanceledException) when (consoleCancellation.IsCancellationRequested)
                 {
@@ -107,7 +107,7 @@ static class Launch
             finally
             {
                 Console.CancelKeyPress -= cancelHandler;
-                if (application is null && headquartersLease is not null)
+                if (headquarters is null && headquartersLease is not null)
                 {
                     headquartersLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 }
