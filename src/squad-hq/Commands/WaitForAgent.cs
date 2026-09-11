@@ -97,7 +97,7 @@ internal static class WaitForAgent
         }
         projectRoot = projectRootSpecified
             ? Path.GetFullPath(projectRoot)
-            : HostProjectRoot.ResolveViaGit();
+            : ProjectRootResolver.ResolveViaGit();
         return true;
     }
 

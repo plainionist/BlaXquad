@@ -1,4 +1,3 @@
-using squad.Process;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
@@ -41,8 +40,10 @@ public sealed class HostLease : IAsyncDisposable
         Volatile.Write(ref myAgentReadinessProvider, provider);
     }
 
-    /// <summary>Acquires exclusive host ownership and starts the control endpoint before returning.</summary>
-    public static HostLease Acquire(string projectRoot)
+    /// <summary>Attempts to acquire exclusive host ownership and start the control endpoint before returning.
+    /// Returns <see langword="false"/> for expected lock contention (another live host owns the project); other
+    /// acquisition failures propagate as exceptions.</summary>
+    public static bool TryAcquire(string projectRoot, out HostLease? lease)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
@@ -57,18 +58,20 @@ public sealed class HostLease : IAsyncDisposable
         catch (IOException)
         {
             lockFile?.Dispose();
-            throw new CliExitException(1, $"A squad host is already running for {projectRoot}.");
+            lease = null;
+            return false;
         }
 
         try
         {
             var pipeName = PipeNameFor(projectRoot);
-            var lease = new HostLease(projectRoot, lockFile!, pipeName);
-            lease.WriteMetadata();
+            var candidate = new HostLease(projectRoot, lockFile!, pipeName);
+            candidate.WriteMetadata();
             var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            lease.myServer = lease.RunServerAsync(ready);
+            candidate.myServer = candidate.RunServerAsync(ready);
             ready.Task.GetAwaiter().GetResult();
-            return lease;
+            lease = candidate;
+            return true;
         }
         catch
         {

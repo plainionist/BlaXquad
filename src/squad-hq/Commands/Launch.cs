@@ -45,7 +45,11 @@ static class Launch
         {
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var layout = ProjectLayout.Create(root);
-            HostLease? hostLease = HostLease.Acquire(layout.WorkingDir);
+            if (!HostLease.TryAcquire(layout.WorkingDir, out var hostLease))
+            {
+                Fail($"A squad host is already running for {layout.WorkingDir}.");
+                return;
+            }
             SquadApplication? application = null;
             using var consoleCancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler? cancelHandler = (_, eventArgs) =>
