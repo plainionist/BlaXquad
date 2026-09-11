@@ -19,3 +19,9 @@ make internal what be could be made internal
 squad.Photino effectively is implementation of "hosting abstractions"
 so rename to "squad.Hosting.Photino"
 adapt namespaces accordingly
+
+## 4
+
+squad.Stdio effectively is implementation of "hosting abstractions"
+so rename to "squad.Hosting.Stdio"
+adapt namespaces accordingly
