@@ -212,7 +212,7 @@ correctness.
 **Status: complete (15cebf1edb).** Lifecycle ships as `squad.Runtime`; `squad.Host.Control` remains a separate
 assembly and dependency. Slice 2 remains pending until the architect activates it.
 
-### Slice 2: Remove CLI presentation from `squad.Host.Control` [in progress]
+### Slice 2: Remove CLI presentation from `squad.Host.Control` [done]
 
 **Outcome:** The still-separate control module owns only process-control mechanics and no longer depends on
 `squad.Process` for command presentation or Git-based CLI project discovery.
@@ -227,6 +227,10 @@ assembly and dependency. Slice 2 remains pending until the architect activates i
    Host terminology unchanged so this slice contains only the dependency and presentation-boundary correction.
 4. Run the focused duplicate-launch, main-checkout discovery, linked-worktree discovery, missing-project, equivalent
    path, stale-state recovery, and shutdown scenarios, then build the solution.
+
+**Status: complete (dc7038e886).** `HostProjectRoot` is gone; wait-for-agent composes `ProjectRoot`; expected lock
+contention is `TryAcquire` translated at `Launch`; `squad.Host.Control` no longer references `squad.Process`. Slice 3
+remains pending until the architect activates it.
 
 ### Slice 3: Merge process control into `squad.Runtime` [pending]
 
