@@ -255,7 +255,7 @@ control component remaining structurally separate.
 `RuntimePackaging` proves the published `squad-hq` carries `squad.Runtime.dll` only. Slice 4 remains pending until
 the architect activates it.
 
-### Slice 4: Adopt Headquarters process-control terminology [pending]
+### Slice 4: Adopt Headquarters process-control terminology [in progress]
 
 **Outcome:** Source, diagnostics, specifications, and manuals consistently call the running process
 Headquarters while persisted and wire compatibility remains unchanged.
