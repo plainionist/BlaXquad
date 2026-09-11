@@ -315,7 +315,7 @@ command are gone. `GetRoleReadinessAsync` is local tri-state from projected sess
 state. `HostLease.SetAgentReadinessProvider` is unchanged. Busy fakes use an outstanding prompt; ready/stale
 paths use `AgentIdleEvent`. Manual wording matches that vocabulary.
 
-### Slice 4 - Application commands use one active-session and admission authority
+### Slice 4 - Application commands use one active-session and admission authority [in progress]
 
 **Outcome:** The application command boundary makes one atomic decision to admit work and select its active session,
 and runtime teardown waits for all work admitted by that decision before provider-session disposal.
