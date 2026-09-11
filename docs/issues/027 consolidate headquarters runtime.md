@@ -125,8 +125,8 @@ The control folder continues to own:
 - the short-lived client used by Headquarters management commands.
 
 `SquadApplication` continues to coordinate the lease as an owned runtime resource and observe its shutdown and
-server-failure signals. Preserve the narrow readiness-provider bridge until issue 025 decides the final session and
-admission ownership; do not use this merge to reach directly into application collections from the pipe server.
+server-failure signals. Preserve the narrow readiness-provider bridge established by issue 025; do not use this merge
+to reach directly into application collections from the pipe server.
 
 The C4 architecture may continue to show Headquarters control and lifecycle as separate components. A component
 boundary does not imply a one-component-per-assembly rule.
@@ -212,9 +212,9 @@ state.
    only the types needed by the separate `squad-hq` composition assembly.
 3. Replace the lease's `CliExitException` dependency with one presentation-neutral
    `HeadquartersControlException`, preserving the original cause. Translate that exception to the existing exit code
-   and duplicate-launch diagnostic in `Launch`; do not broaden the catch to unrelated runtime failures. Keep lease
-   acquisition before workspace preparation or provider startup, and preserve transfer/disposal ownership if
-   composition fails.
+   and the equivalent Headquarters-worded duplicate-launch diagnostic in `Launch`; do not broaden the catch to
+   unrelated runtime failures. Keep lease acquisition before workspace preparation or provider startup, and preserve
+   transfer/disposal ownership if composition fails.
 4. Delete `HostProjectRoot`. At the `WaitForAgent` command boundary, compose the existing
    `squad.Configuration.ProjectRoot.ResolveViaGit` and `ResolveProjectRoot` operations to retain main-checkout and
    linked-worktree discovery without duplicating Git execution in the runtime module. Preserve argument validation
@@ -249,8 +249,9 @@ state.
 - Existing `.blaxquad/host.lock`, `.blaxquad/host.json`, named-pipe identity, and version-1 control messages remain
   compatible.
 - Duplicate launch protection, stale-state recovery, equivalent-root identity, independent-project coexistence,
-  early shutdown, readiness polling, control-server failure, normal shutdown, and cleanup behavior remain covered
-  through the real `squad-hq` process.
+  early shutdown, readiness polling, normal shutdown, and cleanup behavior remain covered through the real
+  `squad-hq` process.
+- A control-server failure remains a terminal runtime signal without introducing a test-only way to trigger it.
 - The manuals describe the resulting module and types without preserving obsolete compatibility wrappers.
 - The full backend Gherkin suite and product build pass. No friend assembly, reflection access, direct product-object
   test, or test-only production branch is introduced.
@@ -260,6 +261,6 @@ state.
 - Combining named-pipe, lock, or metadata logic directly into `SquadApplication`.
 - Changing the control wire protocol or persisted host-state filenames.
 - Moving `shutdown` or `wait-for-agent` command presentation out of `squad-hq`.
-- Redesigning session admission, startup planning, or handoff construction owned by issue 025.
+- Redesigning session admission, startup planning, or handoff construction established by issue 025.
 - Renaming `squad.Hosting.Abstractions` or the runtime-loaded hosting implementations from issue 026.
 - Creating a reusable control package for hypothetical consumers that do not exist.
