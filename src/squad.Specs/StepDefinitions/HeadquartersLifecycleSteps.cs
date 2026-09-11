@@ -55,6 +55,13 @@ public sealed class HeadquartersLifecycleSteps
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
     }
 
+    [When("the operator launches Headquarters, continuing from durable state")]
+    public void WhenTheOperatorLaunchesHeadquartersContinuingFromDurableState()
+    {
+        myScenario.EnableFakeProviderControl();
+        Await(myScenario.StartAsync<FakeAgentProviderFactory>(continueLaunch: true));
+    }
+
     [Given("Headquarters' startup pauses after {int} session has started")]
     public void GivenHeadquartersStartupPausesAfterSessionHasStarted(int count) =>
         myScenario.GateProviderStartupAfterSessions(count);
@@ -76,13 +83,6 @@ public sealed class HeadquartersLifecycleSteps
     {
         myScenario.EnableFakeProviderControl();
         myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
-    }
-
-    [When("the operator launches Headquarters, continuing from durable state, without completing the ready handshake")]
-    public void WhenTheOperatorLaunchesHeadquartersContinuingFromDurableStateWithoutCompletingTheReadyHandshake()
-    {
-        myScenario.EnableFakeProviderControl();
-        myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>(continueLaunch: true);
     }
 
     [When("the operator launches a cancellable Headquarters")]
@@ -244,6 +244,10 @@ public sealed class HeadquartersLifecycleSteps
     [Then("role {string}'s durable file {string} still contains:")]
     public void ThenRoleSDurableFileStillContainsDocString(string role, string relativePath, string content) =>
         Assert.That(myScenario.DurableRoleFileIsPreserved(role, relativePath, content), Is.True);
+
+    [Then("role {string}'s durable file {string} no longer exists")]
+    public void ThenRoleSDurableFileNoLongerExists(string role, string relativePath) =>
+        Assert.That(myScenario.DurableRoleFileIsAbsent(role, relativePath), Is.True);
 
     [When("the operator launches a new Headquarters against the same project")]
     public void WhenTheOperatorLaunchesANewHeadquartersAgainstTheSameProject() =>

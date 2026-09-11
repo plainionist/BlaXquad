@@ -68,9 +68,9 @@ Address durable handoff state by role independently of its worktree path. Separa
 and retain sender ownership for outbox, sent, and failed artifacts. Delivery to two recipients that share a checkout
 must create two independently consumable recipient artifacts.
 
-`ready-for-next` and `done-with-current` must operate only on the active role's state. Startup recovery must notify
-only roles with pending state, and `--continue` must preserve that state without cross-role consumption or silent
-loss. Existing unique-worktree state must remain compatible or have one explicit migration path.
+`ready-for-next` and `done-with-current` must operate only on the active role's state. Launch-scoped handoff cleanup
+must discard only the active role's own state without cross-role consumption or silent loss of another role's queue.
+Existing unique-worktree state must remain compatible or have one explicit migration path.
 
 ### Worktree-level operation admission
 
@@ -136,9 +136,8 @@ The feature does not need to permit concurrent mutation of one checkout or bypas
   worktree path.
 - Pending, in-process, completed, sent, and failed handoffs cannot be observed or consumed as another role's state.
 - A multi-recipient handoff creates one durable recipient artifact per role even when recipients share a checkout.
-- Fresh launch clears and `--continue` preserves each role's handoff state according to the existing lifecycle
-  contract.
-- Recovery wakes only the roles that have pending handoffs.
+- Fresh and continued launch both clear each role's handoff state according to the existing launch-scoped lifecycle
+  contract; `--continue` preserves only worktree (Git) content, never queued handoffs.
 - At most one provider operation can use a normalized shared worktree path at a time, including during startup,
   wake-up, cancellation, and relaunch.
 - Provider operations using different worktree paths remain independently executable.

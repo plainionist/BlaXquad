@@ -1,5 +1,4 @@
 using squad.AgentProvider.Abstractions;
-using squad.AgentProvider.Abstractions.Agents;
 using squad.Application;
 using System.Runtime.ExceptionServices;
 

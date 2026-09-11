@@ -1,7 +1,7 @@
 namespace squad.Workspaces;
 
 /// <summary>Resolves a sibling tool binary in the published bin/ folder.</summary>
-public static class SiblingTool
+internal static class SiblingTool
 {
     public static string Resolve(string directory, string toolName)
     {

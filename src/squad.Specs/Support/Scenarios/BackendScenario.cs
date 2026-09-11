@@ -306,11 +306,9 @@ public sealed class BackendScenario : IDisposable
     /// <see cref="StartAsync{TProviderFactory}"/> when <see cref="EnableFakeProviderControl"/>,
     /// <see cref="GateProviderStartupAfterSessions"/>, <see cref="FailProviderBeforeRuntime"/>, or
     /// <see cref="FailProviderAfterSessions"/> were called, so a fake-provider launch through this seam can still
-    /// be observed across the control pipe. <paramref name="continueLaunch"/> passes the real "--continue" flag,
-    /// like <see cref="StartAsync{TProviderFactory}"/>, for a specification proving a workspace-preparation
-    /// failure that only a continued launch reaches (readiness is never a possibility either way here).
+    /// be observed across the control pipe.
     /// </summary>
-    public void LaunchWithoutReadyHandshake<TProviderFactory>(bool continueLaunch = false)
+    public void LaunchWithoutReadyHandshake<TProviderFactory>()
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
         var descriptor = DescriptorFor(typeof(TProviderFactory));
@@ -340,9 +338,7 @@ public sealed class BackendScenario : IDisposable
             environmentOverrides[FakeProviderControlServer.FailDisposalMessageEnvironmentVariable] = failDisposalMessage;
         }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
-        IReadOnlyList<string> launchArguments = continueLaunch
-            ? ["launch", "--continue", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root]
-            : ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root];
+        IReadOnlyList<string> launchArguments = ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root];
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
             launchArguments,
@@ -959,6 +955,14 @@ public sealed class BackendScenario : IDisposable
     {
         var path = Path.Combine(myWorkspace.RoleWorktreePath(role), Path.Combine(relativePath.Split('/')));
         return File.Exists(path) && File.ReadAllText(path).Contains(expectedContent, StringComparison.Ordinal);
+    }
+
+    /// <summary>Whether the given role's seeded file (see <see cref="SeedDurableRoleFile"/>) is absent from disk,
+    /// proving launch preparation discarded it rather than merely leaving it unread.</summary>
+    public bool DurableRoleFileIsAbsent(string role, string relativePath)
+    {
+        var path = Path.Combine(myWorkspace.RoleWorktreePath(role), Path.Combine(relativePath.Split('/')));
+        return !File.Exists(path);
     }
 
     /// <summary>

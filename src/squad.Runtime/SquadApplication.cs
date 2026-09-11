@@ -1,6 +1,5 @@
 using squad.Hosting.Abstractions;
 using squad.AgentProvider.Abstractions;
-using squad.AgentProvider.Abstractions.Agents;
 using squad.Application;
 using squad.Handoffs.Delivery;
 using squad.Runtime.Control;

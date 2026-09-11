@@ -176,15 +176,15 @@ The durable state machine under each role worktree's `.blaxquad/handoffs/` direc
 | `inbox/in_process/` | The recipient's current task or batch                |
 | `inbox/completed/`  | Work explicitly completed by the recipient           |
 
-Moving files between these locations is the authoritative queue transition.
+Moving files between these locations is the authoritative queue transition within one Headquarters run.
 
-A handoff queue holding any legacy, pre-JSON `.handoff` artifact in any of these
-locations cannot be processed: the role CLI and a continued Headquarters launch
-(`--continue`) both refuse to touch the queue rather than mix formats. An
-operator must drain such a queue with the previous BlaXquad release, or discard
-it entirely with a normal (non-continued) launch, before using a release that
-only understands `.handoff.json`. A continued launch never migrates a legacy
-queue in place; it only ever preserves an already-JSON queue.
+Handoff queues are launch-scoped, not restart-safe: every launch, continued or
+not, discards each configured worktree's complete handoff-state directory -
+every queued, in-process, completed, sent, and failed handoff, including
+nested batch directories - before any role session starts or delivery polling
+runs. `--continue` preserves Git worktree content only; it never preserves
+queued handoffs. A legacy, pre-JSON `.handoff` artifact left by an old release
+is discarded the same way, with no migration or guard needed.
 
 ## Handoff delivery
 
@@ -192,9 +192,10 @@ The headquarters background service that scans role outboxes. It first
 persists a recipient copy in every destination inbox, then archives the sender
 copy as sent and wakes each recipient session.
 
-Delivery is file-backed and restart-safe. A retry does not duplicate an
-already-persisted recipient copy, and a notification failure does not discard
-the delivered handoff.
+Delivery is file-backed and idempotent within one Headquarters run: a retry
+does not duplicate an already-persisted recipient copy, and a notification
+failure does not discard the delivered handoff. This durability does not
+cross a Headquarters launch: every launch discards the queue first.
 
 ## Receive mode
 
@@ -235,8 +236,7 @@ The lease prevents two Headquarters instances from managing the same project con
 
 The complete set of role sessions created by one headquarters startup. A
 generation becomes active only after all of its sessions are registered, the UI
-has been notified, pending handoff notifications have been recovered, and the
-handoff poller has started.
+has been notified, and the handoff poller has started.
 
 `SquadViewModel` is the application's command-admission authority and the sole
 owner of the active-session catalog: one synchronization boundary admits a

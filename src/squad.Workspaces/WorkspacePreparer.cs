@@ -1,6 +1,5 @@
 using squad.Process;
 using squad.Configuration;
-using squad.Handoffs;
 
 namespace squad.Workspaces;
 
@@ -8,7 +7,7 @@ namespace squad.Workspaces;
 /// Materializes and validates the repository, role worktrees, shared paths, and handoff directories required by a
 /// squad launch.
 /// </summary>
-public sealed class WorkspacePreparer
+internal sealed class WorkspacePreparer
 {
     public async Task InitializeGitRepoAsync(Ctx ctx, CancellationToken cancellationToken)
     {
@@ -111,7 +110,9 @@ public sealed class WorkspacePreparer
 
     /// <summary>
     /// Creates missing worktrees and shared links. Unless <paramref name="continueLaunch"/> is set, configured
-    /// worktrees are reset to the main checkout's HEAD and existing handoff queues are cleared.
+    /// worktrees are reset to the main checkout's HEAD. Every launch - continued or not - discards each configured
+    /// worktree's complete handoff-state directory: handoffs are file-backed state for the current Headquarters
+    /// run, not restart-safe state, so "--continue" preserves only worktree (Git) content.
     /// </summary>
     public async Task PrepareConfiguredWorktreesForLaunchAsync(Ctx ctx, bool continueLaunch, CancellationToken cancellationToken)
     {
@@ -129,13 +130,9 @@ public sealed class WorkspacePreparer
                 await RunAsync("git", ["-C", row.WorktreePath, "checkout", "-B", $"squad-{row.WorktreeName}", head, "--force"], cancellationToken);
                 await RunAsync("git", ["-C", row.WorktreePath, "reset", "--hard", head], cancellationToken);
             }
+        }
 
-            ClearConfiguredHandoffs(ctx, cancellationToken);
-        }
-        else
-        {
-            EnsureNoLegacyHandoffQueues(ctx, cancellationToken);
-        }
+        ClearConfiguredHandoffs(ctx, cancellationToken);
 
         PrepareSharedWorktreePaths(ctx, cancellationToken);
     }
@@ -205,25 +202,10 @@ public sealed class WorkspacePreparer
         }
     }
 
-    /// <summary>Rejects a continued launch whose durable queues still contain a legacy, pre-JSON ".handoff"
-    /// artifact; a fresh (non-continued) launch instead drains every queue via <see cref="ClearConfiguredHandoffs"/>.</summary>
-    private static void EnsureNoLegacyHandoffQueues(Ctx ctx, CancellationToken cancellationToken)
-    {
-        var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        foreach (var worktreePath in ctx.Members.Select(row => row.WorktreePath).Distinct(pathComparer))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            try
-            {
-                LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(Path.Combine(worktreePath, ".blaxquad", "handoffs"));
-            }
-            catch (LegacyHandoffQueueException exception)
-            {
-                throw new WorkspacePreparationException(exception.Message, exception);
-            }
-        }
-    }
-
+    /// <summary>Discards each distinct configured worktree's complete ".blaxquad/handoffs" state - every queued,
+    /// in-process, completed, sent, and failed handoff, including nested batch directories - before the canonical
+    /// queue directories are recreated by <see cref="PrepareHandoffDirs"/>. Handoffs are file-backed state for the
+    /// current Headquarters run only, so this runs unconditionally on every launch, continued or not.</summary>
     private static void ClearConfiguredHandoffs(Ctx ctx, CancellationToken cancellationToken)
     {
         var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -231,34 +213,9 @@ public sealed class WorkspacePreparer
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handoffDirectory = Path.Combine(worktreePath, ".blaxquad", "handoffs");
-            foreach (var directory in new[] { "inbox/new", "inbox/in_process", "inbox/completed", "outbox", "sent", "failed" })
+            if (Directory.Exists(handoffDirectory))
             {
-                var path = Path.Combine(handoffDirectory, directory);
-                if (!Directory.Exists(path))
-                {
-                    continue;
-                }
-                foreach (var handoff in Directory.EnumerateFiles(path, "*.handoff"))
-                {
-                    File.Delete(handoff);
-                }
-                foreach (var handoff in Directory.EnumerateFiles(path, "*" + HandoffDocument.FileSuffix))
-                {
-                    File.Delete(handoff);
-                }
-            }
-
-            var inbox = Path.Combine(handoffDirectory, "inbox");
-            if (!Directory.Exists(inbox))
-            {
-                continue;
-            }
-            foreach (var bucket in Directory.EnumerateDirectories(inbox))
-            {
-                foreach (var batch in Directory.EnumerateDirectories(bucket, "batch_*"))
-                {
-                    Directory.Delete(batch, recursive: true);
-                }
+                Directory.Delete(handoffDirectory, recursive: true);
             }
         }
     }
@@ -340,4 +297,3 @@ public sealed class WorkspacePreparer
         return (File.GetUnixFileMode(path) & UnixFileMode.UserExecute) != 0;
     }
 }
-

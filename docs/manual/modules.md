@@ -58,15 +58,17 @@ associated with the current worktree.
 Provides shared file-backed handoff primitives: the versioned typed JSON
 document model, centralized serializer options and validation, priority
 formatting, sequence and timestamp generation, queue entry listing and
-rendering, and the shared legacy-queue preflight that rejects a legacy or
-mixed `.handoff`/`.handoff.json` queue rather than reading it - a queue must
-be drained with the previous release or discarded with a normal launch.
+rendering, and the shared legacy-queue preflight the role CLI still enforces
+against a legacy or mixed `.handoff`/`.handoff.json` queue. Launch itself
+never reaches this preflight: every Headquarters launch discards each
+configured worktree's complete handoff-state directory - legacy artifacts
+included - before role commands can run against it.
 
 ## `squad.Handoffs.Delivery`
 
 Runs Headquarters-side handoff delivery. It polls role outboxes, durably writes
-recipient inbox copies, archives sent or failed items, recovers pending
-notifications, and wakes recipient sessions.
+recipient inbox copies, archives sent or failed items, and wakes recipient
+sessions.
 
 ## `squad.Hosting.Abstractions`
 
