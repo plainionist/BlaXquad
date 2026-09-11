@@ -131,7 +131,7 @@ await scenario.Agent("architect").ExpectPromptAsync("Implement X");
 await scenario.Agent("architect").ReplyAsync("Done");
 await scenario.Ui.WaitForTranscriptAsync("architect", "Done");
 
-await scenario.Cli.RunSquadAsync("architect", "handoff", draftPath);
+await scenario.Cli.RunSquadAsync("architect", "handoff", "commit", "--to", "implementer", "--task", "implement-x");
 await scenario.Ui.WaitForRoleStatusAsync("implementer", "working");
 ```
 
