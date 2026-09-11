@@ -28,7 +28,7 @@ squad.Specs
   |-- runs squad.exe
   |     `-- real Git, filesystem, worktrees, and handoff mailbox
   |
-  |-- runs squad-hq.exe --ui stdio --provider <fake-provider>
+  |-- runs squad-hq.exe --hosting <stdio-hosting-assembly>;<type> --provider <fake-provider>
   |     |-- real workspace preparation
   |     |-- real host lease and control endpoint
   |     |-- real handoff delivery
@@ -245,7 +245,7 @@ packaging may include the Copilot provider as the default plug-in, while backend
 
 ### Headless UI host
 
-The existing `IWindowHost` is sufficient. Add a headless implementation that owns a `UiProtocolSession` and:
+The existing `IWindowHost` is sufficient. A headless implementation owns a `UiProtocolSession` and:
 
 - reads newline-delimited JSON commands from standard input;
 - writes newline-delimited JSON protocol messages to standard output;
@@ -254,17 +254,23 @@ The existing `IWindowHost` is sufficient. Add a headless implementation that own
 - forwards session-start notification to the protocol session; and
 - remains open until host-control shutdown, cancellation, or input closure.
 
+`squad-hq` never references this implementation directly and never exposes a built-in choice for it. Instead it
+loads any `IHostingFactory` at runtime from an explicit `--hosting <assemblyPath>;<typeName>` descriptor, exactly
+like it already loads its agent provider through `--provider`. Omitting `--hosting` launches the packaged, directly
+composed Photino default.
+
 For example:
 
 ```text
-squad-hq launch --ui stdio --provider <fake-provider> <workspace>
+squad-hq launch --hosting <stdio-hosting-assembly>;squad.Hosting.Stdio.StdioHostingFactory --provider <fake-provider> <workspace>
 ```
 
-This is a supported headless transport, not a test callback. Photino remains the default visual adapter.
+The stdio hosting adapter (`squad.Hosting.Stdio`) is test-distributed only - it ships beside `squad.Specs`' published
+tools and is never part of production `squad-hq` packaging. Only the backend acceptance harness selects it, and it
+always does so through this explicit descriptor. Photino remains the only default, directly composed visual adapter.
 
-No additional UI SPI is required unless the Photino assembly must also be physically absent from the headless
-publication. In that case, provider-style loading may be introduced for an `IWindowHost` factory as a separate,
-cohesive decision.
+No additional UI SPI is required unless the Photino assembly must also be physically absent from a given
+publication. In that case, `IHostingFactory` loading already covers that case the same way it covers stdio.
 
 ## Fake-provider control channel
 

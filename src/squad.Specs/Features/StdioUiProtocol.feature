@@ -1,5 +1,5 @@
 Feature: Stdio UI protocol over the real published process
-  squad-hq launched with "--ui stdio" drives the real UiProtocolSession over the real published process's
+  squad-hq launched with the stdio hosting adapter drives the real UiProtocolSession over the real published process's
   standard input and standard output. The shared fake-provider fixture completes launch far enough to exercise
   the protocol end to end without ever opening a native window.
 

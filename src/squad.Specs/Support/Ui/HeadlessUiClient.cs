@@ -4,7 +4,7 @@ using System.Linq;
 namespace squad.Specs.Support.Ui;
 
 /// <summary>
-/// Semantic client for one launched "squad-hq --ui stdio" process. It privately frames the newline-delimited,
+/// Semantic client for one launched, stdio-hosted squad-hq process. It privately frames the newline-delimited,
 /// versioned UI protocol envelopes on top of a <see cref="HeadlessUiTransport"/> that owns the process's standard
 /// input/output/error, and reconciles transcript envelopes through <see cref="TranscriptProtocol"/>. Step
 /// definitions see only readiness, prompt sending, abort/interaction-response sending, role-status/usage waiting,

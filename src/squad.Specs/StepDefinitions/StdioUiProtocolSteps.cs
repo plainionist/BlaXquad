@@ -5,7 +5,7 @@ using squad.AgentProvider.Fake;
 namespace squad.Specs.StepDefinitions;
 
 /// <summary>
-/// Drives the real, separately launched "squad-hq --ui stdio" process through the shared <see cref="BackendScenario"/>
+/// Drives the real, separately launched, stdio-hosted squad-hq process through the shared <see cref="BackendScenario"/>
 /// process driver and the shared <see cref="FakeAgentProviderFactory"/> fixture - proving the real UI protocol's raw
 /// wire framing (the ready-handshake gate, transcript synchronization and paging, host-controlled shutdown, and
 /// stdout/stderr separation) that no semantic wait already covers. No step here parses protocol envelopes, touches

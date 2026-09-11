@@ -8,7 +8,8 @@
   <Project Path="src/squad.Handoffs.Delivery/squad.Handoffs.Delivery.csproj" />
   <Project Path="src/squad.Transcripts/squad.Transcripts.csproj" />
   <Project Path="src/squad.Photino/squad.Photino.csproj" />
-  <Project Path="src/squad.Stdio/squad.Stdio.csproj" />
+  <Project Path="src/squad.Hosting.Stdio/squad.Hosting.Stdio.csproj" />
+  <Project Path="src/squad.Hosting.Fake/squad.Hosting.Fake.csproj" />
   <Project Path="src/squad.Hosting.Abstractions/squad.Hosting.Abstractions.csproj" />
   <Project Path="src/squad.Ui.Abstractions/squad.Ui.Abstractions.csproj" />
   <Project Path="src/squad.Ui.Protocol/squad.Ui.Protocol.csproj" />

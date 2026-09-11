@@ -2,13 +2,15 @@ using squad.Hosting.Abstractions;
 using squad.Ui.Abstractions;
 using squad.Ui.Protocol;
 
-namespace squad.Stdio;
+namespace squad.Hosting.Stdio;
 
 /// <summary>
 /// Owns a headless <see cref="UiProtocolSession"/> transported over standard input and standard output. Every
 /// non-EOF input line is passed unchanged to the session; every outgoing protocol envelope is written as exactly
 /// one flushed stdout line. Startup does not complete until the UI sends "ui.ready", mirroring the native window
-/// host so headless and visual transports share identical protocol behavior.
+/// host so headless and visual transports share identical protocol behavior. Internal: this plug-in's only public
+/// surface is <see cref="StdioHostingFactory"/>, loaded at process startup through
+/// <see cref="squad.Hosting.Abstractions.IHostingFactory"/>.
 /// </summary>
 /// <remarks>
 /// The input pump owns line framing and admission only: it dispatches each complete line to
@@ -19,7 +21,7 @@ namespace squad.Stdio;
 /// observe any fault - before disposing the session, avoiding both unobserved-task faults and command/disposal
 /// races.
 /// </remarks>
-public sealed class StdioWindowHost : IWindowHost
+sealed class StdioWindowHost : IWindowHost
 {
     private readonly UiProtocolSession mySession;
     private readonly TaskCompletionSource myClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);

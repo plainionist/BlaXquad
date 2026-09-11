@@ -1,4 +1,5 @@
 using squad.AgentProvider.Fake.Control;
+using squad.Hosting.Stdio;
 using squad.Specs.Support.Processes;
 using squad.Specs.Support.Ui;
 
@@ -18,6 +19,10 @@ public sealed class BackendScenario : IDisposable
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan ShutdownGracePeriod = TimeSpan.FromSeconds(5);
 
+    // The stdio hosting plug-in is never a built-in squad-hq mode; every backend-spec launch selects it through
+    // this explicit "--hosting" descriptor, exactly like every launch already selects its provider explicitly.
+    private static readonly string DefaultHostingDescriptor = DescriptorFor(typeof(StdioHostingFactory));
+
     private readonly ScenarioWorkspace myWorkspace;
     private System.Diagnostics.Process? myProcess;
     private HeadlessUiClient? myUi;
@@ -28,6 +33,7 @@ public sealed class BackendScenario : IDisposable
     private bool myFailProviderBeforeRuntime;
     private int? myFailProviderAfterSessions;
     private string? myFailProviderDisposalMessage;
+    private string? myHostingDescriptorOverride;
     private bool myDisposed;
     private readonly bool myOwnsWorkspace;
     private readonly List<BackendScenario> myChildren = [];
@@ -152,8 +158,9 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Launches the published, provider-free squad-hq with "--ui stdio" and the given test-owned provider fixture,
-    /// completes the real "ui.ready" handshake, and returns only once the process has observably become ready. If
+    /// Launches the published, provider-free squad-hq with an explicit "--hosting" descriptor selecting the
+    /// test-distributed stdio hosting plug-in and the given test-owned provider fixture, completes the real
+    /// "ui.ready" handshake, and returns only once the process has observably become ready. If
     /// <see cref="EnableFakeProviderControl"/> was called first, also passes its pipe name and token through
     /// environment variables and waits for the fake provider to connect - which happens after "ui.ready", once
     /// the production runtime actually starts establishing sessions. If <see cref="IsolateTemporaryDirectory"/>
@@ -166,7 +173,8 @@ public sealed class BackendScenario : IDisposable
     public async Task StartAsync<TProviderFactory>(TimeSpan? timeout = null, bool continueLaunch = false)
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
-        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        var descriptor = DescriptorFor(typeof(TProviderFactory));
+        var hostingDescriptor = myHostingDescriptorOverride ?? DefaultHostingDescriptor;
         var environmentOverrides = new Dictionary<string, string?>();
         if (myControl is not null)
         {
@@ -199,8 +207,8 @@ public sealed class BackendScenario : IDisposable
         }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         IReadOnlyList<string> launchArguments = continueLaunch
-            ? ["launch", "--continue", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root]
-            : ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root];
+            ? ["launch", "--continue", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root]
+            : ["launch", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root];
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
             launchArguments,
@@ -230,7 +238,8 @@ public sealed class BackendScenario : IDisposable
                 "This platform cannot isolate cancellation-signal delivery to one child process; StartCancellableAsync is unsupported here.");
         }
 
-        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        var descriptor = DescriptorFor(typeof(TProviderFactory));
+        var hostingDescriptor = myHostingDescriptorOverride ?? DefaultHostingDescriptor;
         var environmentOverrides = new Dictionary<string, string?>();
         if (myControl is not null)
         {
@@ -240,7 +249,7 @@ public sealed class BackendScenario : IDisposable
 
         myProcess = CancellableChildProcess.Start(
             myWorkspace.BackendSpecSquadHqExecutablePath,
-            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            ["launch", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root],
             myWorkspace.Root,
             environmentOverrides.Count == 0 ? null : environmentOverrides,
             out var standardInput,
@@ -269,7 +278,8 @@ public sealed class BackendScenario : IDisposable
     public void LaunchWithoutReadyHandshake<TProviderFactory>()
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
-        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        var descriptor = DescriptorFor(typeof(TProviderFactory));
+        var hostingDescriptor = myHostingDescriptorOverride ?? DefaultHostingDescriptor;
         var environmentOverrides = new Dictionary<string, string?>();
         if (myControl is not null)
         {
@@ -297,7 +307,7 @@ public sealed class BackendScenario : IDisposable
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
-            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            ["launch", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root],
             environment,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);
@@ -948,10 +958,11 @@ public sealed class BackendScenario : IDisposable
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
         var executable = myWorkspace.CreateBackendSpecDeploymentMissingHelperScript();
-        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        var descriptor = DescriptorFor(typeof(TProviderFactory));
+        var hostingDescriptor = myHostingDescriptorOverride ?? DefaultHostingDescriptor;
         myProcess = myWorkspace.StartProcess(
             executable,
-            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            ["launch", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root],
             environment: null,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);
@@ -994,6 +1005,14 @@ public sealed class BackendScenario : IDisposable
     /// runtime failure without racing that failure's own timing.
     /// </summary>
     public void FailProviderDisposal(string message) => myFailProviderDisposalMessage = message;
+
+    /// <summary>
+    /// Overrides the "--hosting" descriptor used by the next launch, in place of the default stdio hosting
+    /// descriptor every other specification relies on - for the specification proving an explicit hosting plug-in
+    /// deployed alongside a duplicate copy of its own contract assemblies still unifies those assemblies with
+    /// headquarters rather than loading the local, type-incompatible copies.
+    /// </summary>
+    internal void UseHostingDescriptor(string descriptor) => myHostingDescriptorOverride = descriptor;
 
     /// <summary>
     /// Requests shutdown through the real "squad-hq shutdown" host-control command as soon as it is reachable at
@@ -1204,6 +1223,10 @@ public sealed class BackendScenario : IDisposable
             myWorkspace.Dispose();
         }
     }
+
+    /// <summary>Builds the "&lt;assemblyPath&gt;;&lt;typeName&gt;" descriptor squad-hq's "--provider" and
+    /// "--hosting" options both expect, from a public, parameterless-constructible plug-in type.</summary>
+    private static string DescriptorFor(Type type) => $"{type.Assembly.Location};{type.FullName}";
 
     private void DisposeControl()
     {

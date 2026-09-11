@@ -81,7 +81,24 @@ and stops handoff, window, and sleep resources.
 ## `squad.Hosting.Abstractions`
 
 Defines the narrow platform-hosting contracts for the desktop window lifecycle
-and system sleep inhibition.
+and system sleep inhibition, plus the `IHostingFactory` runtime-loading contract
+(`HostingContext` in, `HostingRuntime` out) that `squad-hq` uses to load a
+hosting adapter from an explicit `--hosting <assemblyPath>;<typeName>`
+descriptor, mirroring how it already loads agent providers.
+
+## `squad.Hosting.Stdio`
+
+Implements `IHostingFactory` with a headless, stdio-framed `IWindowHost` that
+drives a `UiProtocolSession` over standard input/output. It is test-distributed
+only: it ships beside `squad.Specs`' published tools and is loaded at runtime
+via `--hosting`, never referenced or built into production `squad-hq` packaging.
+
+## `squad.Hosting.Fake`
+
+Standalone fixture project exercising `--hosting` descriptor loading failure
+modes: an incompatible-type fixture, a factory whose `Create` throws, and a
+factory with no public parameterless constructor. Loaded by backend
+acceptance specifications the same way a real hosting adapter is.
 
 ## `squad.Issues`
 

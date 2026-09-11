@@ -27,6 +27,9 @@
   <ItemGroup>
     <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj" />
     <ProjectReference Include="..\squad.AgentProvider.Fake\squad.AgentProvider.Fake.csproj" />
+    <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.Hosting.Stdio\squad.Hosting.Stdio.csproj" />
+    <ProjectReference Include="..\squad.Hosting.Fake\squad.Hosting.Fake.csproj" />
   </ItemGroup>
 
   <Target Name="PublishSquadTools" BeforeTargets="VSTest">

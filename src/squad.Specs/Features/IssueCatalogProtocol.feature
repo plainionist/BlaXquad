@@ -2,14 +2,16 @@ Feature: Issue catalog protocol
 
   squad-hq discovers Markdown issue files directly inside the fixed workspace "docs/issues" directory and returns
   them as an ordered, read-only catalog through the real "issues.list" UI protocol command - a dedicated request,
-  independent of "state.snapshot", driven here through the real, separately launched "squad-hq --ui stdio" process
-  and the real headless UI client. No step here reads the issue files or the catalog directly from disk; every
-  observation crosses the real protocol.
+  independent of "state.snapshot", driven here through the real, separately launched stdio-hosted process and the
+  real headless UI client. No step here reads the issue files or the catalog directly from disk; every observation
+  crosses the real protocol.
 
   Background:
-    Given a git project prepared with a "coder" role using the fake provider fixture
-    When squad-hq is launched with "--ui stdio"
-    And the ui sends "ui.ready"
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    When the operator launches Headquarters with the "stdio" UI transport
+    And a UI-protocol client sends "ui.ready"
 
   Scenario: A missing issue directory reports a successful, empty catalog
     When the ui requests the issue catalog with request id "req-missing"

@@ -4,7 +4,6 @@ using squad.Application;
 using squad.Hosting.Abstractions;
 using squad.Issues;
 using squad.Photino;
-using squad.Stdio;
 using squad.Workspaces;
 using squad.Host.Control;
 using squad.Host.Runtime;
@@ -22,15 +21,15 @@ static class Launch
         const string Reset = "\u001b[0m";
 
         var (providerDescriptor, providerRemaining) = ProviderOption.Extract(args);
-        var (uiMode, remaining) = UiOption.Extract(providerRemaining);
+        var (hostingDescriptor, remaining) = HostingOption.Extract(providerRemaining);
 
         switch (remaining.ElementAtOrDefault(0))
         {
             case "--continue":
-                RunMain(remaining.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true, providerDescriptor, uiMode);
+                RunMain(remaining.ElementAtOrDefault(1) ?? Directory.GetCurrentDirectory(), continueLaunch: true, providerDescriptor, hostingDescriptor);
                 return 0;
             default:
-                RunMain(remaining.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false, providerDescriptor, uiMode);
+                RunMain(remaining.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory(), continueLaunch: false, providerDescriptor, hostingDescriptor);
                 return 0;
         }
 
@@ -41,7 +40,7 @@ static class Launch
                 ? string.Join(" ", aggregate.Flatten().InnerExceptions.Select(inner => inner.Message))
                 : exception.Message;
 
-        void RunMain(string root, bool continueLaunch, ProviderDescriptor? providerDescriptor, UiMode uiMode)
+        void RunMain(string root, bool continueLaunch, ProviderDescriptor? providerDescriptor, HostingDescriptor? hostingDescriptor)
         {
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var layout = ProjectLayout.Create(root);
@@ -59,17 +58,19 @@ static class Launch
             {
                 var viewModel = new SquadViewModel();
                 var issueCatalog = new WorkspaceIssueCatalog(layout.WorkingDir);
-                IWindowHost windowHost = uiMode == UiMode.Stdio
-                    ? new StdioWindowHost(viewModel, issueCatalog)
-                    : new PhotinoWindowHost(viewModel, issueCatalog, layout.WorkingDir);
-                var sleepInhibitor = new SleepInhibitor();
+                // An explicit "--hosting" descriptor loads its factory at process startup, exactly like an
+                // explicit "--provider" descriptor. Omitting it still directly composes Photino - runtime-loading
+                // the packaged default hosting plug-in is Slice 2's job, not this one's.
+                var hostingRuntime = hostingDescriptor is not null
+                    ? HostingLoader.Load(hostingDescriptor).Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog))
+                    : new HostingRuntime(new PhotinoWindowHost(viewModel, issueCatalog, layout.WorkingDir), new SleepInhibitor());
                 var launchPreparer = new LaunchPreparer(layout, continueLaunch);
 
                 application = SquadApplication.Create(
                     launchPreparer,
                     agentProviderFactory,
-                    windowHost,
-                    sleepInhibitor,
+                    hostingRuntime.WindowHost,
+                    hostingRuntime.SleepInhibitor,
                     viewModel,
                     hostLease: hostLease!);
                 hostLease = null;

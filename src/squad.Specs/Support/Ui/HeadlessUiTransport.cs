@@ -5,7 +5,7 @@ using squad.Specs.Support.Processes;
 namespace squad.Specs.Support.Ui;
 
 /// <summary>
-/// Owns the raw stdio transport behind one launched "squad-hq --ui stdio" process: writing framed lines to
+/// Owns the raw stdio transport behind one launched, stdio-hosted squad-hq process: writing framed lines to
 /// standard input, draining standard output and standard error concurrently into synchronized snapshots so a
 /// full stderr pipe can never block a pending stdout read (or vice versa), closing standard input to signal the
 /// process the UI is gone, and rendering the combined process/output diagnostics block a bounded wait reports on
