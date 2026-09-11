@@ -360,6 +360,12 @@ public sealed class BackendScenario : IDisposable
     public Task WaitForLatestRoleStatusAsync(string role, string status, TimeSpan? timeout = null) =>
         RequireUi().WaitForLatestRoleStatusAsync(role, status, timeout, DescribeControlDiagnostics());
 
+    /// <summary>Returns the "role" names reported by the most recently published "state.snapshot" message, in
+    /// publication order - proving role order flows end to end from configuration through the real UI protocol
+    /// rather than relying on unordered dictionary enumeration.</summary>
+    public Task<IReadOnlyList<string>> LatestSnapshotRoleOrderAsync(TimeSpan? timeout = null) =>
+        RequireUi().LatestSnapshotRoleOrderAsync(timeout, DescribeControlDiagnostics());
+
     /// <summary>Sends a prompt to the given role through the real UI protocol - the same path a real user
     /// interface uses, never a shortcut into the provider.</summary>
     public void SendPrompt(string role, string prompt)

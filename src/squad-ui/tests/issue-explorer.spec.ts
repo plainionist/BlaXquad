@@ -8,6 +8,10 @@ import {
   protocolMessage,
 } from './support/dashboardHarness'
 
+function playButton(page: import('@playwright/test').Page, title: string) {
+  return page.getByRole('button', { name: `Prepare the first role's prompt for ${title}` })
+}
+
 function issueTrigger(page: import('@playwright/test').Page) {
   return page.getByRole('button', { name: 'Issues', exact: true })
 }
@@ -206,6 +210,78 @@ test('copy remains enabled with no configured roles and never sends a UI protoco
   await expect.poll(() => clipboardWrites(page)).toEqual([issueCatalog[0].path])
   const messageCountAfter = await page.evaluate(() => window.__blaxquadHarness!.messages.length)
   expect(messageCountAfter).toBe(messageCountBefore)
+})
+
+test('play replaces and focuses the first configured role\'s draft with the exact issue path, leaving other roles\' drafts untouched', async ({ page }) => {
+  await loadSnapshot(page)
+  const coderPrompt = page.getByLabel('Message coder')
+  const reviewerPrompt = page.getByLabel('Message reviewer')
+  const writerPrompt = page.getByLabel('Message writer')
+  await reviewerPrompt.fill('existing reviewer draft')
+  await writerPrompt.fill('existing writer draft')
+
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+
+  await playButton(page, issueCatalog[0].title).click()
+
+  await expect(coderPrompt).toHaveValue(`process this issue: '${issueCatalog[0].path}'`)
+  await expect(coderPrompt).toBeFocused()
+  await expect(reviewerPrompt).toHaveValue('existing reviewer draft')
+  await expect(writerPrompt).toHaveValue('existing writer draft')
+})
+
+test('play targets the first configured role even when a different role reports runtime activity first, and does not send prompt.send', async ({ page }) => {
+  await loadSnapshot(page)
+
+  // Runtime activity for a non-first role arrives before Play is used; targeting must still follow
+  // squad.json's configured order, not "most recently active."
+  await deliverHostMessages(page, [
+    protocolMessage('transcript.update', {
+      payload: {
+        role: 'reviewer',
+        sequence: 2,
+        operation: 'append',
+        entryIndex: 1,
+        entry: { occurredAt: '2026-03-01T12:05:00Z', source: 'assistant', content: 'Reviewer is now active.' },
+      },
+    }),
+  ])
+
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+  const messageCountBefore = await page.evaluate(() => window.__blaxquadHarness!.messages.length)
+
+  await playButton(page, issueCatalog[0].title).click()
+
+  await expect(page.getByLabel('Message coder')).toHaveValue(`process this issue: '${issueCatalog[0].path}'`)
+  await expect(page.getByLabel('Message reviewer')).toHaveValue('')
+
+  const messageCountAfter = await page.evaluate(() => window.__blaxquadHarness!.messages.length)
+  expect(messageCountAfter).toBe(messageCountBefore) // Play never emits a protocol command by itself.
+
+  // The user must still explicitly submit; Play only stages the draft.
+  await page.getByLabel('Message coder').press('Enter')
+  const sendMessage = await lastClientMessage(page)
+  expect(sendMessage.type).toBe('prompt.send')
+})
+
+test('play is disabled with no configured roles, while copy remains enabled', async ({ page }) => {
+  await loadRoleSnapshots(page, [])
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+
+  await expect(playButton(page, issueCatalog[0].title)).toBeDisabled()
+  await expect(page.getByRole('button', { name: `Copy path for ${issueCatalog[0].title}` })).toBeEnabled()
 })
 
 interface Box { x: number, y: number, width: number, height: number }

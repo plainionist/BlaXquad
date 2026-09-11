@@ -27,6 +27,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .issue-menu-item-label { overflow-wrap: anywhere; }
 .issue-action { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 1px solid #3c3c3c; border-radius: 3px; background: #2d2d2d; color: #cccccc; line-height: 1; cursor: pointer; }
 .issue-action:hover, .issue-action:focus-visible { background: #04395e; outline: none; }
+.issue-action:disabled { opacity: 0.4; cursor: not-allowed; }
+.issue-action:disabled:hover { background: #2d2d2d; }
 .issue-status { min-width: 220px; margin: 0; padding: 8px 10px; border: 1px solid #3c3c3c; border-radius: 3px; background: #252526; color: #cccccc; }
 .issue-status-error { border-color: #f14c4c; background: #5a1d1d; color: #f8d7da; }
 .issue-copy-status { margin: 0; min-height: 1em; font-size: 12px; color: #4ec9b0; }

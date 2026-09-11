@@ -162,6 +162,14 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesRoleSLatestPublishedStatusAs(string role, string status) =>
         Await(myScenario.WaitForLatestRoleStatusAsync(role, status));
 
+    [Then("the backend scenario observes state.snapshot roles reported in order {string}")]
+    public void ThenTheBackendScenarioObservesStateSnapshotRolesReportedInOrder(string commaSeparatedRoles)
+    {
+        var expected = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var actual = Await(myScenario.LatestSnapshotRoleOrderAsync());
+        Assert.That(actual, Is.EqualTo(expected));
+    }
+
     [Then("the backend scenario observes a session started for role {string} across the control pipe")]
     public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
         Await(myScenario.WaitForRoleSessionStartedAsync(role));

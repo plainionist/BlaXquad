@@ -6,10 +6,12 @@ const props = defineProps<{
   issues: readonly IssueDescriptor[]
   isLoading: boolean
   error: string | null
+  hasTargetRole: boolean
 }>()
 
 const emit = defineEmits<{
   open: []
+  play: [path: string]
 }>()
 
 const root = ref<HTMLElement | null>(null)
@@ -37,6 +39,12 @@ async function copyPath(issue: IssueDescriptor) {
     copyFailed.value = true
     copyAnnouncement.value = `Could not copy ${issue.path}. Try again.`
   }
+}
+
+function play(issue: IssueDescriptor) {
+  if (!props.hasTargetRole) return
+  emit('play', issue.path)
+  close()
 }
 
 function toggle() {
@@ -135,6 +143,15 @@ onBeforeUnmount(() => {
                 @click.stop="copyPath(issue)"
               >
                 ⧉
+              </button>
+              <button
+                type="button"
+                class="issue-action issue-action-play"
+                :aria-label="`Prepare the first role's prompt for ${issue.title}`"
+                :disabled="!hasTargetRole"
+                @click.stop="play(issue)"
+              >
+                ▶
               </button>
             </span>
           </li>

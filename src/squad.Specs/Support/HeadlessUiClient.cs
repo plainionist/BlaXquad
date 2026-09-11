@@ -163,6 +163,17 @@ public sealed class HeadlessUiClient
             timeout,
             additionalDiagnostics);
 
+    /// <summary>Returns the "role" names reported by the most recently published "state.snapshot" message, in
+    /// publication order - proving "state.snapshot.roles" preserves configured role order end to end rather than
+    /// relying on unordered dictionary enumeration.</summary>
+    public async Task<IReadOnlyList<string>> LatestSnapshotRoleOrderAsync(
+        TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var snapshot = await WaitForLatestStateSnapshotAsync(
+            _ => true, "a state.snapshot message", timeout, additionalDiagnostics);
+        return RoleNamesInOrder(snapshot);
+    }
+
     /// <summary>Waits until a "transcript.update" message reports the given content for the given role.</summary>
     public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
@@ -926,6 +937,23 @@ public sealed class HeadlessUiClient
             }
         }
         return 0;
+    }
+
+    private static IReadOnlyList<string> RoleNamesInOrder(JsonElement element)
+    {
+        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+        var names = new List<string>();
+        foreach (var roleElement in roles.EnumerateArray())
+        {
+            if (roleElement.TryGetProperty("role", out var name) && name.ValueKind == JsonValueKind.String)
+            {
+                names.Add(name.GetString()!);
+            }
+        }
+        return names;
     }
 
     private static bool RoleHasStatus(JsonElement element, string role, string status)

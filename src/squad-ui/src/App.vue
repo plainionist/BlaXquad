@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import ProtocolErrorBanner from './components/ProtocolErrorBanner.vue'
 import IssueExplorer from './components/IssueExplorer.vue'
 import RolePanel from './components/RolePanel.vue'
@@ -35,6 +36,22 @@ const {
   cancelRole,
   dismissProtocolError,
 } = useDashboardSession()
+
+const rolePanels = new Map<string, InstanceType<typeof RolePanel>>()
+
+function setRolePanelRef(roleName: string, instance: unknown) {
+  if (instance) rolePanels.set(roleName, instance as InstanceType<typeof RolePanel>)
+  else rolePanels.delete(roleName)
+}
+
+const firstRoleName = computed(() => roles.value[0]?.role ?? null)
+
+function playIssue(path: string) {
+  const target = firstRoleName.value
+  if (!target) return
+  updatePrompt(target, `process this issue: '${path}'`)
+  rolePanels.get(target)?.focusPrompt()
+}
 </script>
 
 <template>
@@ -49,13 +66,16 @@ const {
       :issues="issues"
       :is-loading="issuesLoading"
       :error="catalogError"
+      :has-target-role="firstRoleName !== null"
       @open="requestCatalog"
+      @play="playIssue"
     />
 
     <section v-if="hasRoles" class="role-grid" aria-label="Agent roles">
       <RolePanel
         v-for="role in roles"
         :key="role.role"
+        :ref="el => setRolePanelRef(role.role, el)"
         :role="role"
         :permissions="permissionsFor(role.role)"
         :inputs="inputsFor(role.role)"

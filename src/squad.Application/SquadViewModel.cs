@@ -21,6 +21,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private readonly CancellationTokenSource myShutdown = new();
     private readonly ConcurrentDictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AgentRoleState> myRoles = new(StringComparer.Ordinal);
+    private readonly List<string> myRoleOrder = [];
     private readonly TranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myTranscriptRetentionOptions;
     private readonly RoleOperationCoordinator myRoleOperations = new();
@@ -49,14 +50,19 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         foreach (var role in roleNames)
         {
-            myRoles.TryAdd(role, new AgentRoleState(role, myTranscriptArchive, myTranscriptRetentionOptions));
+            if (myRoles.TryAdd(role, new AgentRoleState(role, myTranscriptArchive, myTranscriptRetentionOptions)))
+            {
+                myRoleOrder.Add(role);
+            }
         }
         NotifyStateChanged();
     }
 
     public JsonElement CreateSnapshot()
     {
-        var roles = myRoles.Values.Select(role => role.CreateSnapshot()).ToArray();
+        // Enumerate in configured role order (myRoleOrder), not myRoles.Values, so state.snapshot.roles matches
+        // blaxquad/squad.json regardless of Dictionary enumeration behavior.
+        var roles = myRoleOrder.Select(role => myRoles[role].CreateSnapshot()).ToArray();
         return JsonSerializer.SerializeToElement(new
         {
             roles = roles.Select(role => new
@@ -103,7 +109,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntriesPerRole);
-        return myRoles.Values
+        return myRoleOrder
+            .Select(role => myRoles[role])
             .Select(role => role.Transcript.CreateTranscriptSnapshot(maxEntriesPerRole))
             .ToArray();
     }

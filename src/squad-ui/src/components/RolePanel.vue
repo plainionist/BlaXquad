@@ -48,12 +48,19 @@ const emit = defineEmits<{
 }>()
 
 const transcript = ref<InstanceType<typeof VirtualTranscript> | null>(null)
+const composer = ref<InstanceType<typeof PromptComposer> | null>(null)
 const working = computed(() =>
   props.role.isWorking || props.role.status !== 'idle')
 
 function scrollTranscriptToEnd() {
   transcript.value?.scrollToEnd()
 }
+
+function focusPrompt() {
+  composer.value?.focusPrompt()
+}
+
+defineExpose({ focusPrompt })
 </script>
 
 <template>
@@ -107,6 +114,7 @@ function scrollTranscriptToEnd() {
     />
 
     <PromptComposer
+      ref="composer"
       :role="role.role"
       :status="role.status"
       :prompt="prompt"

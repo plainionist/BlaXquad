@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps<{
   role: string
@@ -18,6 +18,14 @@ const promptModel = computed({
   get: () => props.prompt,
   set: (prompt: string) => emit('update:prompt', prompt),
 })
+
+const textarea = ref<HTMLTextAreaElement | null>(null)
+
+function focusPrompt() {
+  textarea.value?.focus()
+}
+
+defineExpose({ focusPrompt })
 </script>
 
 <template>
@@ -25,6 +33,7 @@ const promptModel = computed({
     <label class="sr-only" :for="`prompt-${role}`">Message {{ role }}</label>
     <textarea
       :id="`prompt-${role}`"
+      ref="textarea"
       v-model="promptModel"
       rows="1"
       placeholder="Message this role"
