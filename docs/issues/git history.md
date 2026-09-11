@@ -20,3 +20,5 @@ u can use the icon for issues from: https://github.com/plainionist/md-issue-expl
 
 and for git history it is something indicating sone branching - i guess u ll find something or get some idea
 
+and add tooltip showing then names like "issues" and "history"
+
