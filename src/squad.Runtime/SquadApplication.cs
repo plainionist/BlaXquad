@@ -7,7 +7,7 @@ using squad.Host.Control;
 using squad.Workspaces;
 using System.Runtime.ExceptionServices;
 
-namespace squad.Host.Runtime;
+namespace squad.Runtime;
 
 /// <summary>
 /// Owns the process-wide startup, running, and cleanup lifecycle, including the window, backend generation,

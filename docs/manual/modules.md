@@ -74,13 +74,6 @@ Enforces one headquarters process per project and provides local process
 control. It owns the host lock and metadata, named-pipe shutdown and readiness
 requests, client access, and stale-state cleanup.
 
-## `squad.Host.Runtime`
-
-Coordinates the headquarters lifecycle after composition. It sequences startup
-and cleanup, owns the provider-runtime generation, registers started sessions
-into the application model, observes session events and failures, and starts
-and stops handoff, window, and sleep resources.
-
 ## `squad.Hosting.Abstractions`
 
 Defines the narrow platform-hosting contracts for the desktop window lifecycle
@@ -125,6 +118,14 @@ paths, and orders the catalog by ascending priority and filename.
 Supplies shared process and CLI infrastructure: executable discovery,
 synchronous and asynchronous child-process execution, output capture,
 cancellation, result values, and exit-code exceptions.
+
+## `squad.Runtime`
+
+Coordinates the headquarters lifecycle after composition. It sequences startup
+and cleanup, owns the provider-runtime generation, registers started sessions
+into the application model, observes session events and failures, and starts
+and stops handoff, window, and sleep resources. It depends on the separate
+`squad.Host.Control` module for project ownership and local process control.
 
 ## `squad.Transcripts`
 

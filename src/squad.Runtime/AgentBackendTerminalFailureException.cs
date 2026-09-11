@@ -1,4 +1,4 @@
-namespace squad.Host.Runtime;
+namespace squad.Runtime;
 
 /// <summary>
 /// Wraps a fatal, backend-wide <see cref="squad.AgentProvider.Abstractions.IAgentBackendFailureSource"/> failure so

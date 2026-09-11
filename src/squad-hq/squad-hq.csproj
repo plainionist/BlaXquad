@@ -31,7 +31,7 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Host.Control\squad.Host.Control.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
-    <ProjectReference Include="..\squad.Host.Runtime\squad.Host.Runtime.csproj"
+    <ProjectReference Include="..\squad.Runtime\squad.Runtime.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
   </ItemGroup>
 </Project>

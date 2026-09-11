@@ -3,7 +3,7 @@ using squad.Application;
 using squad.Handoffs.Delivery;
 using squad.Hosting.Abstractions;
 
-namespace squad.Host.Runtime;
+namespace squad.Runtime;
 
 /// <summary>
 /// Owns the current backend generation and coordinates session registration, handoff recovery, handoff polling,
