@@ -258,7 +258,7 @@ Focused acceptance: `StdioTransportConcurrentDispatchAndShutdown.feature`,
 `PromptIsolationAndReadiness.feature`, the interaction publication/cancellation scenarios, terminal-provider failure
 scenarios, and cleanup-diagnostic scenarios.
 
-### Slice 6 - Scenario composition owns all scenario lifetimes
+### Slice 6 - Scenario composition owns all scenario lifetimes [done]
 
 **Outcome:** Every default, replacement, and explicitly concurrent backend scenario remains black-box and is cleaned
 up by one scenario-scoped composition root while the final support tree and namespaces communicate ownership.
@@ -341,3 +341,7 @@ Provider fixtures live under `Support/Agents`, echo types are gone, and the Head
 ## Slice 5 review (2f71268a5e) — accepted
 
 **Status: complete (2f71268a5e).** Control types live under `Support/Agents/Control`. Internal `ObservationJournal` owns synchronized lifecycle, active session ids, prompts/observations, protocol errors, bounded waits, undisposed-session reporting, and diagnostic rendering. `ControlPipeDuplex` remains the single-reader/correlated-reply transport; the server remains the authenticated protocol/semantic command owner. No interface around either. Both custom control exceptions are gone; missing/rejected sessions throw `InvalidOperationException` and bounded waits throw `TimeoutException` with the same diagnostic text. Authentication, protocol-version validation, correlation ids, acknowledgement-before-backend-failure, cancellation, and disposal are unchanged.
+
+## Slice 6 review (9b0f539e56) — accepted
+
+**Status: complete (9b0f539e56).** Scenario types live under `Support/Scenarios` with matching namespace. `BackendScenario` creates, tracks, and disposes replacement launches and independent-project children; recovery restarts and host-coexistence setup go through that API, and those bindings no longer construct scenarios or workspaces or own AfterScenario teardown. Named children stay independently addressable. Children dispose before owned workspaces; the process runner still disposes before temp-tree deletion. The six-folder ownership map is in `docs/manual/test-strategy.md`. Feature wording and production APIs are unchanged.
