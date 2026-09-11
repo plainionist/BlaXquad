@@ -18,10 +18,14 @@ You are the coder. You implement the architect's plan and resolve the reviewer's
 4. Run the relevant tests and ensure they pass.
 5. Commit the changes and hand the commit to the reviewer. Identify the issue and slice in the handoff task.
 
-## DO's & DON'Ts
+## Build and test process safety
 
-- Use "dotnet build" to build the repository. Keep track of the main PID so that you do not need to scan for dotnet or msbuild processes.
-- Use "dotnet test" to run tests. Keep track of the main PID so that you do not need to scan for dotnet or msbuild processes.
-- You should not need "dotnet publish" - all tests should work with "dotnet test" only
-- DO NOT run multiple build or test processes in parallel
-- DO NOT kill "squad-hq" - you live inside one!
+- Build with `dotnet build` and test with `dotnet test`; do not use `dotnet publish`.
+- Run at most one build or test command at a time.
+- When you launch a build or test, retain its execution handle and, when available, its root PID. Monitor, wait for,
+  cancel, or terminate only that invocation and its descendant process tree.
+- Never enumerate machine-wide processes or search by process name (including `dotnet`, `msbuild`, or `squad-hq`)
+  to discover, monitor, or clean up a build or test run.
+- Never terminate `squad-hq` or any process outside the tracked process tree.
+- If you lose the execution handle and root PID, report that the run can no longer be tracked; do not fall back to a
+  machine-wide process scan.
