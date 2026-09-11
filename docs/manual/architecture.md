@@ -296,12 +296,12 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
 - **Squad configuration** is checked-in project state. It defines a leader role (explicit, or the first configured
   role by default), the roles, and their execution settings and is read at startup; it is not dynamically watched.
 - **Source and commits** remain owned by Git. Roles work in the main checkout or dedicated worktrees. A normal launch
-  resets dedicated worktrees and queues; a continued launch preserves them.
-- **Handoff queues** are durable per-worktree state, serialized as versioned, typed JSON documents
-  (`.handoff.json`). Filesystem moves are the authoritative task, batch, delivery, and completion transitions.
-  A continued launch preserves an already-JSON queue only: it refuses to start against any worktree still holding
-  a legacy, pre-JSON `.handoff` artifact, so upgrading requires draining such a queue with the previous release or
-  discarding it with a normal (non-continued) launch first.
+  resets dedicated worktrees to the current `HEAD`; a continued launch preserves that worktree content unchanged.
+- **Handoff queues** are file-backed state serialized as versioned, typed JSON documents (`.handoff.json`).
+  Filesystem moves are the authoritative task, batch, delivery, and completion transitions within one Headquarters
+  run. Handoffs are launch-scoped, not restart-safe: every launch, continued or not, discards each configured
+  worktree's complete handoff-state directory before any role session starts or delivery polling runs, so
+  "--continue" preserves only worktree (Git) content.
 - **Headquarters ownership** is local runtime state backed by a project lock, process metadata, and a named-pipe endpoint.
 - **Role and interaction state** is authoritative in the headquarters application model and exists only for the
   current process.
@@ -322,9 +322,9 @@ These observations describe current consequences of the design; they are not red
   on one authoritative model and one state-serialization point. This gives clear ordering but couples those flows
   operationally.
 3. **Filesystem collaboration contract.** The two executables depend on shared naming, JSON schema, ordering, and
-  atomic move conventions. This makes handoffs durable and restart-safe while coupling independently running
-  processes to the same filesystem schema; a schema upgrade is finite rather than dual-format, so a continued
-  launch refuses a legacy or mixed queue instead of silently reading it.
+  atomic move conventions. This makes handoffs durable within one Headquarters run while coupling independently
+  running processes to the same filesystem schema; queues are launch-scoped rather than restart-safe, so every
+  launch discards prior queue state instead of needing a dual-format reader or migration path.
 4. **Cross-language UI contract.** C# and TypeScript maintain the same versioned message shapes independently. The
   protocol is explicit, but there is no generated shared schema.
 5. **In-process provider plug-ins.** Provider neutrality is enforced by contracts, but plug-ins execute inside
@@ -332,8 +332,8 @@ These observations describe current consequences of the design; they are not red
   failure domain.
 6. **UI-gated startup.** A UI client must complete its ready handshake before provider sessions start. Presentation
   availability is therefore part of backend startup, including in stdio mode.
-7. **Asymmetric durability.** Git state and preserved handoffs survive process replacement; live sessions,
-  interactions, role projections, and transcripts do not.
+7. **Asymmetric durability.** Git state survives process replacement; queued handoffs, live sessions, interactions,
+  role projections, and transcripts do not - every launch starts handoff queues fresh.
 8. **Concentrated composition.** Workspace, lifecycle, provider, UI, handoff, and Headquarters-control implementations are
   selected together by the headquarters composition root, so cross-cutting startup changes converge there.
 

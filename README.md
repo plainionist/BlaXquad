@@ -37,8 +37,9 @@ Launch the squad from the target repository:
 squad-hq launch
 ```
 
-By default, launch resets dedicated worktrees to the current `HEAD`. To keep
-existing work and handoffs, use:
+By default, launch resets dedicated worktrees to the current `HEAD` and clears
+each role's durable handoff queue. To keep existing worktree changes (but not
+queued handoffs, which are always cleared on launch), use:
 
 ```sh
 squad-hq launch --continue

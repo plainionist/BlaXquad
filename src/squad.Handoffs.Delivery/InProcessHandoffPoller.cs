@@ -39,9 +39,6 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
         }
     }
 
-    public Task RecoverAsync(CancellationToken cancellationToken = default) =>
-        myDelivery.RecoverAsync(myRoles, cancellationToken);
-
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         Task? polling;

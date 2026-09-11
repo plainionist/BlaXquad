@@ -353,7 +353,7 @@ language merely because it is technically precise or names a C# type.
 | Agent sessions         | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, idle, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
 | Transcript protocol    | A UI-protocol client receives typed updates, synchronization, pages, archived entries, sequence positions, and truncation state. Ordered collections use tables.                                                                                  |
 | Role commands          | A role agent runs the documented `squad` context, handoff, `ready-for-next`, and `done-with-current` commands from its worktree.                                                                                                                  |
-| Handoff delivery       | An operator or role agent observes durable handoff fan-out, notification, retry, recovery, and queue state using glossary terms.                                                                                                                  |
+| Handoff delivery       | An operator or role agent observes durable handoff fan-out, notification, retry, launch-scoped queue clearing, and queue state using glossary terms.                                                                                              |
 | Public adapters        | An operator selects the documented UI or provider adapter, while UI-protocol and provider-SPI users exercise their respective public contracts.                                                                                                   |
 
 ### Choose the smallest form of variation

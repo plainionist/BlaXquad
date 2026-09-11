@@ -50,30 +50,6 @@ sealed class HandoffDeliveryService
         }
     }
 
-    public async Task RecoverAsync(IReadOnlyList<RoleRow> roles, CancellationToken cancellationToken = default)
-    {
-        foreach (var role in roles)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!HasPendingInbox(role.WorktreePath))
-            {
-                continue;
-            }
-            try
-            {
-                await myNotifier.NotifyAsync(role.Role, cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception exception)
-            {
-                myLog.Append(["notify-failed", role.Role, exception.Message]);
-            }
-        }
-    }
-
     private async Task DeliverAsync(Dictionary<string, RoleRow> roles, string senderRole, string path, CancellationToken cancellationToken)
     {
         var document = HandoffJson.Read(path);
@@ -112,17 +88,6 @@ sealed class HandoffDeliveryService
                 myLog.Append(["notify-failed", roleInfo.Role, exception.Message]);
             }
         }
-    }
-
-    private static bool HasPendingInbox(string worktreePath)
-    {
-        var handoffs = Path.Combine(worktreePath, ".blaxquad", "handoffs", "inbox");
-        return new[] { "new", "in_process" }.Any(state =>
-        {
-            var directory = Path.Combine(handoffs, state);
-            return Directory.Exists(directory)
-                && Directory.EnumerateFiles(directory, "*" + HandoffDocument.FileSuffix, SearchOption.TopDirectoryOnly).Any();
-        });
     }
 
     /// <summary>Writes a recipient's durable copy only if it does not already exist, so a retried delivery never
