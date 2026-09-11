@@ -1,3 +1,4 @@
+using System.Text.Json;
 using squad.AgentProvider.Fake.Control;
 using squad.Hosting.Stdio;
 using squad.Specs.Support.Processes;
@@ -305,7 +306,7 @@ public sealed class BackendScenario : IDisposable
             environmentOverrides[FakeProviderControlServer.FailDisposalMessageEnvironmentVariable] = failDisposalMessage;
         }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
-        IReadOnlyList<string> launchArguments = ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root];
+        IReadOnlyList<string> launchArguments = ["launch", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root];
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
             launchArguments,
@@ -580,6 +581,10 @@ public sealed class BackendScenario : IDisposable
     /// discovers.</summary>
     public void WriteIssueFile(string fileName, string content) => myWorkspace.WriteFile($"docs/issues/{fileName}", content);
 
+    /// <summary>Resolves a path directly under the project (workspace) root - generic to proving any tool's own
+    /// command genuinely ran with the expected working directory, without a bespoke path helper per tool.</summary>
+    public string PathInRoot(string relativePath) => myWorkspace.PathInWorkspace(Path.Combine(relativePath.Split('/')));
+
     /// <summary>Removes the fixed workspace <c>docs/issues</c> directory entirely, if present, so a scenario can
     /// prove a missing issue directory is a successful empty catalog rather than a protocol error.</summary>
     public void RemoveIssuesDirectory()
@@ -623,6 +628,29 @@ public sealed class BackendScenario : IDisposable
     /// message - the observable outcome of a genuine issue-catalog filesystem failure.</summary>
     public Task<string> WaitForCorrelatedProtocolErrorAsync(string requestId, TimeSpan? timeout = null) =>
         RequireUi().WaitForCorrelatedProtocolErrorAsync(requestId, timeout);
+
+    /// <summary>Rewrites `blaxquad/squad.json` for every role already configured by <see cref="ConfigureRoles(string[])"/>,
+    /// adding the given raw JSON value under the given top-level field name (an array literal, or a malformed one
+    /// such as "[]") - generic to any current or future per-tool launch command field, so a scenario can arrange
+    /// one as a single semantic workspace operation without a bespoke method per tool.</summary>
+    public void ConfigureToolCommandRaw(string fieldName, string commandJson) => myWorkspace.ConfigureToolCommand(fieldName, commandJson);
+
+    /// <summary>Same as <see cref="ConfigureToolCommandRaw"/>, but renders a well-formed command array from the
+    /// given executable and arguments, so most scenarios never need to hand-author the JSON array literal.
+    /// </summary>
+    public void ConfigureToolCommand(string fieldName, params string[] command) =>
+        ConfigureToolCommandRaw(fieldName, "[" + string.Join(", ", command.Select(item => JsonSerializer.Serialize(item))) + "]");
+
+    /// <summary>Sends an arbitrary, payload-free command by name, tagging it with the given request ID - generic
+    /// to any current or future workspace tool's own "open" command, so a new tool never needs a bespoke send
+    /// method here.</summary>
+    public void SendCommand(string type, string requestId) => RequireUi().SendCommand(type, requestId);
+
+    /// <summary>Waits for the "workspace-tools.snapshot" message the "ui.ready" handshake publishes exactly once,
+    /// and returns the given boolean field from its payload - generic to any current or future workspace tool's
+    /// own availability flag.</summary>
+    public Task<bool> WaitForWorkspaceToolsFlagAsync(string fieldName, TimeSpan? timeout = null) =>
+        RequireUi().WaitForWorkspaceToolsFlagAsync(fieldName, timeout);
 
     /// <summary>Reconciles the most recently published transcript synchronization for the given role with every
     /// transcript update published afterward, exactly as a reconnecting dashboard client must - proving the

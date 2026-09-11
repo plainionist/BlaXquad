@@ -17,6 +17,8 @@ const {
   issuesLoading,
   catalogError,
   requestCatalog,
+  gitHistoryAvailable,
+  openGitHistory,
   permissionsFor,
   inputsFor,
   elicitationsFor,
@@ -71,14 +73,25 @@ function playIssue(path: string) {
       @dismiss="dismissProtocolError"
     />
 
-    <IssueExplorer
-      :issues="issues"
-      :is-loading="issuesLoading"
-      :error="catalogError"
-      :has-target-role="targetRoleName !== null"
-      @open="requestCatalog"
-      @play="playIssue"
-    />
+    <div class="toolbar-row">
+      <IssueExplorer
+        :issues="issues"
+        :is-loading="issuesLoading"
+        :error="catalogError"
+        :has-target-role="targetRoleName !== null"
+        @open="requestCatalog"
+        @play="playIssue"
+      />
+
+      <button
+        type="button"
+        class="issue-trigger"
+        :disabled="!gitHistoryAvailable"
+        @click="openGitHistory"
+      >
+        Git history
+      </button>
+    </div>
 
     <section v-if="hasRoles" class="role-grid" aria-label="Agent roles">
       <RolePanel

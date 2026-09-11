@@ -34,13 +34,14 @@ sealed class PhotinoWindowHost : IWindowHost
     private Thread? myUiThread;
     private bool myStarted;
 
-    public PhotinoWindowHost(ISquadUi ui, IIssueCatalog issueCatalog, string workspaceDirectory)
+    public PhotinoWindowHost(ISquadUi ui, IIssueCatalog issueCatalog, IWorkspaceTools workspaceTools, string workspaceDirectory)
     {
         myUiDirectory = Path.Combine(AppContext.BaseDirectory, "ui");
         myTitle = CreateTitle(workspaceDirectory);
         mySession = new(
             ui,
             issueCatalog,
+            workspaceTools,
             SendSerializedMessage,
             () => myUiReady.TrySetResult());
     }

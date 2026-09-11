@@ -1,5 +1,9 @@
 {
   "leader": "architect",
+  "gitHistoryCommand": [
+    "TortoiseGitProc.exe",
+    "/command:log"
+  ],
   "roles": [
     {
       "name": "architect",

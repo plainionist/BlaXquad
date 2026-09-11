@@ -122,7 +122,33 @@ public static class SquadConfigurationLoader
             throw Error($"leader '{leader}' in {configFile} must match a configured role name");
         }
 
-        return new SquadConfiguration(roles, leader, sharedWorktreePaths);
+        var gitHistoryCommand = ValidateGitHistoryCommand(document.GitHistoryCommand, configFile);
+
+        return new SquadConfiguration(roles, leader, sharedWorktreePaths, gitHistoryCommand);
+    }
+
+    // An omitted "gitHistoryCommand" is a valid "Git history unavailable" configuration, not an error: the array
+    // only needs validation once it is actually configured. The first item is the executable and every remaining
+    // item is one exact argument; both a missing executable and any blank item are configuration errors, matching
+    // how every other configured array in this file is validated.
+    private static IReadOnlyList<string>? ValidateGitHistoryCommand(List<string>? configured, string configFile)
+    {
+        if (configured is null)
+        {
+            return null;
+        }
+        if (configured.Count == 0 || string.IsNullOrWhiteSpace(configured[0]))
+        {
+            throw Error($"gitHistoryCommand in {configFile} must start with a non-blank executable");
+        }
+        foreach (var item in configured)
+        {
+            if (string.IsNullOrWhiteSpace(item))
+            {
+                throw Error($"gitHistoryCommand in {configFile} cannot contain a blank item");
+            }
+        }
+        return configured;
     }
 
     private static IReadOnlyList<string> ValidateSharedWorktreePaths(

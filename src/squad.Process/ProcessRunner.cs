@@ -5,6 +5,26 @@ namespace squad.Process;
 /// <summary>Runs external commands with captured output through synchronous, checked, and cancellable paths.</summary>
 public static class ProcessRunner
 {
+    /// <summary>
+    /// Starts an independent child process without redirecting its output or waiting for it to exit - for a
+    /// detached GUI tool the caller must never block on or capture. Never invokes a shell; arguments are passed
+    /// exactly as given, with no interpolation or re-parsing.
+    /// </summary>
+    public static void Start(string fileName, IEnumerable<string> args, string workingDirectory)
+    {
+        var psi = new ProcessStartInfo(fileName)
+        {
+            UseShellExecute = false,
+            WorkingDirectory = workingDirectory,
+        };
+        foreach (var a in args)
+        {
+            psi.ArgumentList.Add(a);
+        }
+        using var process = System.Diagnostics.Process.Start(psi)
+            ?? throw new InvalidOperationException($"Failed to start '{fileName}'.");
+    }
+
     /// <summary>Returns the child result without treating a non-zero exit code as an exception.</summary>
     public static ProcessResult Run(string fileName, IEnumerable<string> args, string? workingDirectory = null, IReadOnlyDictionary<string, string>? environment = null)
     {

@@ -1,6 +1,6 @@
 using squad.Ui.Abstractions;
 
-namespace squad.Issues;
+namespace squad.Tools.Issues;
 
 /// <summary>
 /// Discovers Markdown issue files directly inside the fixed workspace <c>docs/issues</c> directory and parses them

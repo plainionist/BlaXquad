@@ -25,6 +25,7 @@ export function useDashboardSession() {
     elicitationsFor,
   } = useRoleInteractions(permissions, inputs, elicitations)
   const protocolError = ref<string | null>(null)
+  const gitHistoryAvailable = ref(false)
   const {
     promptFor,
     updatePrompt,
@@ -79,6 +80,7 @@ export function useDashboardSession() {
   bridge.onTranscriptPage(applyTranscriptPage)
   bridge.onArchivedTranscriptEntry(applyArchivedTranscriptEntry)
   bridge.onIssues(applyIssues)
+  bridge.onWorkspaceTools((snapshot) => { gitHistoryAvailable.value = snapshot.gitHistoryAvailable })
   bridge.onError((message, requestId) => {
     if (applyCatalogProtocolError(message, requestId)) return
     protocolError.value = message
@@ -160,6 +162,11 @@ export function useDashboardSession() {
     bridge.send('role.abort', { role })
   }
 
+  function openGitHistory() {
+    if (!gitHistoryAvailable.value) return
+    bridge.send('git-history.open')
+  }
+
   function dismissProtocolError() {
     protocolError.value = null
   }
@@ -183,6 +190,8 @@ export function useDashboardSession() {
     issuesLoading,
     catalogError,
     requestCatalog,
+    gitHistoryAvailable: readonly(gitHistoryAvailable),
+    openGitHistory,
     permissionsFor,
     inputsFor,
     elicitationsFor,

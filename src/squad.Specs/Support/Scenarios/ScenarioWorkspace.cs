@@ -69,6 +69,28 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
+    /// Rewrites `blaxquad/squad.json` for every role already configured by <see cref="ConfigureRoles(string[])"/>,
+    /// adding the given raw JSON value under the given top-level field name (an array literal, or a malformed one
+    /// such as "[]"), preserving each role's worktree mapping - generic to any current or future per-tool launch
+    /// command field, so a specification can arrange one as a single semantic workspace operation without a
+    /// bespoke method per tool.
+    /// </summary>
+    public void ConfigureToolCommand(string fieldName, string commandJson)
+    {
+        var rolesJson = string.Join(",\n", myRoleWorktrees.Keys.Select(role => RoleJson(role, null)));
+        var leader = myRoleWorktrees.Keys.First();
+        WriteFile("blaxquad/squad.json", $$"""
+            {
+              "leader": "{{leader}}",
+              "{{fieldName}}": {{commandJson}},
+              "roles": [
+            {{rolesJson}}
+              ]
+            }
+            """ + "\n");
+    }
+
+    /// <summary>
     /// Creates a non-empty directory at <paramref name="relativePath"/> inside the given role's own worktree
     /// (recorded by <see cref="ConfigureProject"/>), so a real launch attempting to replace it with a shared
     /// worktree path link genuinely finds pre-existing content it must not silently discard.
