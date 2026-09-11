@@ -1,4 +1,4 @@
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Ui;
 
 /// <summary>Test-owned, decoded shape of one entry inside a "transcript.synchronize" message - the dashboard
 /// protocol's <c>entryIndex</c>, <c>source</c>, and <c>content</c> fields, kept behind <see cref="HeadlessUiClient"/>

@@ -1,4 +1,4 @@
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Ui;
 
 /// <summary>Test-owned, decoded shape of one "transcript.update" message - the dashboard protocol's
 /// <c>sequence</c>, <c>operation</c>, <c>entryIndex</c>, and (for an appended or replaced entry) <c>source</c> and

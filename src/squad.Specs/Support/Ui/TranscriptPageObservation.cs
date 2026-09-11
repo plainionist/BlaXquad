@@ -1,4 +1,4 @@
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Ui;
 
 /// <summary>Test-owned, decoded shape of one "transcript.page" message for one role - the dashboard protocol's
 /// ordered, indexed <see cref="TranscriptEntryObservation"/> entries immediately preceding the requested index,

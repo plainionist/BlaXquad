@@ -1,4 +1,5 @@
 using squad.Specs.Support.Processes;
+using squad.Specs.Support.Ui;
 
 namespace squad.Specs.Support;
 
@@ -325,9 +326,8 @@ public sealed class BackendScenario : IDisposable
         var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
         if (!myProcess.WaitForExit(deadlineMilliseconds))
         {
-            throw new HeadlessUiWaitTimeoutException(
-                "the backend process to exit",
-                myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
+            throw new TimeoutException(
+                $"Timed out waiting for the backend process to exit.\n{myUi.DescribeDiagnostics(DescribeControlDiagnostics())}");
         }
 
         // Reads through CancellableChildProcess.GetExitCode rather than myProcess.ExitCode directly: a process
@@ -360,8 +360,8 @@ public sealed class BackendScenario : IDisposable
             }
             if (DateTime.UtcNow >= deadline)
             {
-                throw new HeadlessUiWaitTimeoutException(
-                    $"standard error to contain '{text}'", myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
+                throw new TimeoutException(
+                    $"Timed out waiting for standard error to contain '{text}'.\n{myUi.DescribeDiagnostics(DescribeControlDiagnostics())}");
             }
             await Task.Delay(TimeSpan.FromMilliseconds(25));
         }
@@ -713,9 +713,8 @@ public sealed class BackendScenario : IDisposable
         var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
         if (!myProcess.WaitForExit(deadlineMilliseconds))
         {
-            throw new HeadlessUiWaitTimeoutException(
-                "the backend process to exit after requesting shutdown",
-                myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
+            throw new TimeoutException(
+                $"Timed out waiting for the backend process to exit after requesting shutdown.\n{myUi.DescribeDiagnostics(DescribeControlDiagnostics())}");
         }
 
         return Task.FromResult(myProcess.ExitCode);
@@ -897,9 +896,8 @@ public sealed class BackendScenario : IDisposable
             }
             if (DateTime.UtcNow >= deadline)
             {
-                throw new HeadlessUiWaitTimeoutException(
-                    "the backend process to exit after repeatedly requesting shutdown",
-                    myUi.DescribeDiagnostics(DescribeControlDiagnostics()));
+                throw new TimeoutException(
+                    $"Timed out waiting for the backend process to exit after repeatedly requesting shutdown.\n{myUi.DescribeDiagnostics(DescribeControlDiagnostics())}");
             }
             // This attempt's own process has already finished (most likely because the host-control endpoint
             // was not reachable yet) but the launched process is still running - retry with a fresh attempt.
@@ -967,9 +965,8 @@ public sealed class BackendScenario : IDisposable
         var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
         if (!process.WaitForExit(deadlineMilliseconds))
         {
-            throw new HeadlessUiWaitTimeoutException(
-                "the backend process to exit after deliberate termination",
-                myUi?.DescribeDiagnostics(DescribeControlDiagnostics()) ?? ProcessDiagnostics.Describe(process));
+            throw new TimeoutException(
+                $"Timed out waiting for the backend process to exit after deliberate termination.\n{myUi?.DescribeDiagnostics(DescribeControlDiagnostics()) ?? ProcessDiagnostics.Describe(process)}");
         }
     }
 

@@ -1,4 +1,4 @@
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Ui;
 
 /// <summary>Test-owned, decoded shape of one "transcript.entry" message for one role and entry index - the
 /// dashboard protocol's authoritative answer for whether that entry's content is still available (evicted from

@@ -1,16 +1,15 @@
 using System.Text.Json;
 using System.Linq;
-using squad.Specs.Support.Processes;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Ui;
 
 /// <summary>
-/// Semantic client for one launched "squad-hq --ui stdio" process. It owns the process's standard input, drains
-/// standard output and standard error concurrently with two independent background readers so a full stderr pipe
-/// can never block a pending stdout read (or vice versa), and privately frames the newline-delimited, versioned UI
-/// protocol envelopes. Step definitions see only readiness, prompt sending, abort/interaction-response sending,
-/// role-status/usage waiting, transcript waiting, and protocol-error reporting - never raw JSON, envelopes,
-/// streams, or the child process itself.
+/// Semantic client for one launched "squad-hq --ui stdio" process. It privately frames the newline-delimited,
+/// versioned UI protocol envelopes on top of a <see cref="HeadlessUiTransport"/> that owns the process's standard
+/// input/output/error, and reconciles transcript envelopes through <see cref="TranscriptProtocol"/>. Step
+/// definitions see only readiness, prompt sending, abort/interaction-response sending, role-status/usage waiting,
+/// transcript waiting, and protocol-error reporting - never raw JSON, envelopes, streams, or the child process
+/// itself.
 /// </summary>
 public sealed class HeadlessUiClient
 {
@@ -18,11 +17,7 @@ public sealed class HeadlessUiClient
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
-    private readonly System.Diagnostics.Process myProcess;
-    private readonly TextWriter myStandardInput;
-    private readonly object myLinesLock = new();
-    private readonly List<string> myStdOutLines = [];
-    private readonly List<string> myStdErrLines = [];
+    private readonly HeadlessUiTransport myTransport;
 
     /// <summary>
     /// Convenience constructor for the common case: a process launched by <see cref="System.Diagnostics.Process.Start()" />
@@ -40,10 +35,7 @@ public sealed class HeadlessUiClient
     /// </summary>
     public HeadlessUiClient(System.Diagnostics.Process process, TextWriter standardInput, TextReader standardOutput, TextReader standardError)
     {
-        myProcess = process;
-        myStandardInput = standardInput;
-        Drain(standardOutput, myStdOutLines);
-        Drain(standardError, myStdErrLines);
+        myTransport = new HeadlessUiTransport(process, standardInput, standardOutput, standardError);
     }
 
     /// <summary>
@@ -162,7 +154,7 @@ public sealed class HeadlessUiClient
     /// <summary>Waits until a "transcript.update" message reports the given content for the given role.</summary>
     public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         WaitForMessageAsync(
-            element => IsTranscriptUpdate(element, role, content),
+            element => TranscriptProtocol.IsTranscriptUpdate(element, role, content),
             $"a transcript update for role '{role}' with content '{content}'",
             timeout,
             additionalDiagnostics);
@@ -178,12 +170,12 @@ public sealed class HeadlessUiClient
             ? $"a transcript update for role '{role}' with source '{source}'"
             : $"a transcript update for role '{role}' with source '{source}' and content '{content}'";
         var element = await WaitForMessageAsync(
-            transcriptUpdate => IsMatchingTranscriptEntryUpdate(transcriptUpdate, role, source, content),
+            transcriptUpdate => TranscriptProtocol.IsMatchingTranscriptEntryUpdate(transcriptUpdate, role, source, content),
             description,
             timeout,
             additionalDiagnostics,
             skip);
-        return ParseTranscriptUpdate(element);
+        return TranscriptProtocol.ParseTranscriptUpdate(element);
     }
 
     /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.update" message reports the given
@@ -199,12 +191,12 @@ public sealed class HeadlessUiClient
             ? $"a transcript update for role '{role}' with operation '{operation}'"
             : $"a transcript update for role '{role}' with operation '{operation}' and content '{content}'";
         var element = await WaitForMessageAsync(
-            transcriptUpdate => IsMatchingTranscriptOperationUpdate(transcriptUpdate, role, operation, content),
+            transcriptUpdate => TranscriptProtocol.IsMatchingTranscriptOperationUpdate(transcriptUpdate, role, operation, content),
             description,
             timeout,
             additionalDiagnostics,
             skip);
-        return ParseTranscriptUpdate(element);
+        return TranscriptProtocol.ParseTranscriptUpdate(element);
     }
 
     /// <summary>Waits until the most recently published "transcript.synchronize" message includes a role entry for
@@ -217,12 +209,12 @@ public sealed class HeadlessUiClient
         Func<string>? additionalDiagnostics = null)
     {
         var element = await WaitForMessageAsync(
-            transcriptSynchronize => TryGetTranscriptSynchronizationEntries(transcriptSynchronize, role, out var entries) && matches(entries),
+            transcriptSynchronize => TranscriptProtocol.TryGetTranscriptSynchronizationEntries(transcriptSynchronize, role, out var entries) && matches(entries),
             $"a transcript synchronization for role '{role}' matching the expected entries",
             timeout,
             additionalDiagnostics);
-        TryGetTranscriptSynchronizationEntries(element, role, out var observedEntries);
-        return new TranscriptSynchronizationObservation(role, GetRoleSynchronizationSequence(element, role), observedEntries);
+        TranscriptProtocol.TryGetTranscriptSynchronizationEntries(element, role, out var observedEntries);
+        return new TranscriptSynchronizationObservation(role, TranscriptProtocol.GetRoleSynchronizationSequence(element, role), observedEntries);
     }
 
     /// <summary>Counts how many "transcript.synchronize" messages including an entry list for the given role have
@@ -230,10 +222,10 @@ public sealed class HeadlessUiClient
     /// not the initial "ui.ready" handshake or any earlier explicit request that already satisfies some predicate -
     /// passes this count as <c>skip</c> to <see cref="WaitForNextTranscriptSynchronizationAsync"/>.</summary>
     public int CountTranscriptSynchronizations(string role) =>
-        CopyLines(myStdOutLines).Count(line =>
+        myTransport.CopyStdOutLines().Count(line =>
         {
             using var document = JsonDocument.Parse(line);
-            return TryGetTranscriptSynchronizationEntries(document.RootElement, role, out _);
+            return TranscriptProtocol.TryGetTranscriptSynchronizationEntries(document.RootElement, role, out _);
         });
 
     /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.synchronize" message that includes
@@ -248,13 +240,13 @@ public sealed class HeadlessUiClient
         string role, int skip, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         var element = await WaitForMessageAsync(
-            candidate => TryGetTranscriptSynchronizationEntries(candidate, role, out _),
+            candidate => TranscriptProtocol.TryGetTranscriptSynchronizationEntries(candidate, role, out _),
             $"a new transcript synchronization for role '{role}'",
             timeout,
             additionalDiagnostics,
             skip);
-        TryGetTranscriptSynchronizationEntries(element, role, out var entries);
-        return new TranscriptSynchronizationObservation(role, GetRoleSynchronizationSequence(element, role), entries);
+        TranscriptProtocol.TryGetTranscriptSynchronizationEntries(element, role, out var entries);
+        return new TranscriptSynchronizationObservation(role, TranscriptProtocol.GetRoleSynchronizationSequence(element, role), entries);
     }
 
     /// <summary>Waits until the <paramref name="skip"/>-plus-first "transcript.page" message for the given role has
@@ -266,7 +258,7 @@ public sealed class HeadlessUiClient
         string role, int skip = 0, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         var element = await WaitForMessageAsync(
-            page => IsTranscriptPageForRole(page, role),
+            page => TranscriptProtocol.IsTranscriptPageForRole(page, role),
             $"a transcript page for role '{role}'",
             timeout,
             additionalDiagnostics,
@@ -274,7 +266,7 @@ public sealed class HeadlessUiClient
         var payload = GetPayload(element);
         return new TranscriptPageObservation(
             role,
-            ParseTranscriptEntries(payload),
+            TranscriptProtocol.ParseTranscriptEntries(payload),
             payload.TryGetProperty("hasMore", out var hasMore) && hasMore.GetBoolean(),
             payload.TryGetProperty("historyTruncated", out var historyTruncated) && historyTruncated.GetBoolean());
     }
@@ -289,7 +281,7 @@ public sealed class HeadlessUiClient
         string role, int entryIndex, int skip = 0, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         var element = await WaitForMessageAsync(
-            entry => IsArchivedEntryForRoleAndIndex(entry, role, entryIndex),
+            entry => TranscriptProtocol.IsArchivedEntryForRoleAndIndex(entry, role, entryIndex),
             $"an archived transcript entry {entryIndex} for role '{role}'",
             timeout,
             additionalDiagnostics,
@@ -330,15 +322,15 @@ public sealed class HeadlessUiClient
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
-            var stdOut = CopyLines(myStdOutLines);
-            if (TryReconcileTranscript(stdOut, role, out var reconciled) && matches(reconciled))
+            var stdOut = myTransport.CopyStdOutLines();
+            if (TranscriptProtocol.TryReconcileTranscript(stdOut, role, out var reconciled) && matches(reconciled))
             {
                 return reconciled;
             }
             if (DateTime.UtcNow >= deadline)
             {
-                throw new HeadlessUiWaitTimeoutException(
-                    $"a reconciled transcript synchronization for role '{role}' matching the expected entries",
+                throw new TimeoutException(
+                    $"Timed out waiting for a reconciled transcript synchronization for role '{role}' matching the expected entries.\n" +
                     DescribeDiagnostics(stdOut, additionalDiagnostics));
             }
             await Task.Delay(PollInterval);
@@ -407,11 +399,7 @@ public sealed class HeadlessUiClient
     /// version, a missing or unknown type, a missing role or request id, a mistyped payload field, or JSON that
     /// does not parse at all.
     /// </summary>
-    public void SendRawEnvelope(string rawJsonLine)
-    {
-        myStandardInput.WriteLine(rawJsonLine);
-        myStandardInput.Flush();
-    }
+    public void SendRawEnvelope(string rawJsonLine) => myTransport.WriteLine(rawJsonLine);
 
     /// <summary>
     /// Builds a diagnostics snapshot of the launched process's command/lifecycle state, its captured standard
@@ -419,26 +407,26 @@ public sealed class HeadlessUiClient
     /// client's own semantic waits (for example lifecycle cleanup awaiting process exit) can report the same
     /// bounded-wait diagnostics without exposing the process, raw JSON, or protocol envelopes themselves.
     /// </summary>
-    public string DescribeDiagnostics() => DescribeDiagnostics(CopyLines(myStdOutLines), additionalDiagnostics: null);
+    public string DescribeDiagnostics() => DescribeDiagnostics(myTransport.CopyStdOutLines(), additionalDiagnostics: null);
 
     /// <summary>Same as the parameterless overload, but appends the given caller-supplied diagnostics (for
     /// example combined provider/control-pipe observations) to the same single diagnostics block.</summary>
     public string DescribeDiagnostics(Func<string>? additionalDiagnostics) =>
-        DescribeDiagnostics(CopyLines(myStdOutLines), additionalDiagnostics);
+        DescribeDiagnostics(myTransport.CopyStdOutLines(), additionalDiagnostics);
 
     /// <summary>
     /// A snapshot of every standard-error line captured from the launched process so far, joined with newlines.
     /// Exposed for specifications proving a clean CLI diagnostic reached standard error on a startup failure -
     /// distinct from <see cref="DescribeDiagnostics()"/>, which exists only for test-failure reporting.
     /// </summary>
-    public string CapturedStandardError() => string.Join('\n', CopyLines(myStdErrLines));
+    public string CapturedStandardError() => string.Join('\n', myTransport.CopyStdErrLines());
 
     /// <summary>
     /// A snapshot of every standard-output line captured from the launched process so far, joined with newlines.
     /// Exposed for specifications proving nothing (or something) has reached standard output yet - for example
     /// that no protocol message is written before the "ui.ready" handshake completes.
     /// </summary>
-    public string CapturedStandardOutput() => string.Join('\n', CopyLines(myStdOutLines));
+    public string CapturedStandardOutput() => string.Join('\n', myTransport.CopyStdOutLines());
 
     /// <summary>
     /// True only if every line captured on standard output so far is one complete, well-formed protocol envelope -
@@ -448,13 +436,13 @@ public sealed class HeadlessUiClient
     /// output before asserting on it instead of vacuously passing against an empty buffer.
     /// </summary>
     public bool EveryCapturedStandardOutputLineIsAWellFormedEnvelope() =>
-        CopyLines(myStdOutLines) is { Count: > 0 } lines && lines.All(IsWellFormedEnvelope);
+        myTransport.CopyStdOutLines() is { Count: > 0 } lines && lines.All(IsWellFormedEnvelope);
 
     /// <summary>
     /// True only if standard error carries no line that looks like a protocol envelope - proving the protocol and
     /// process-diagnostic output streams stay genuinely separate even while the protocol is active.
     /// </summary>
-    public bool StandardErrorContainsNoProtocolEnvelope() => !CopyLines(myStdErrLines).Any(IsWellFormedEnvelope);
+    public bool StandardErrorContainsNoProtocolEnvelope() => !myTransport.CopyStdErrLines().Any(IsWellFormedEnvelope);
 
     private static bool IsWellFormedEnvelope(string line)
     {
@@ -486,8 +474,7 @@ public sealed class HeadlessUiClient
         {
             envelope["payload"] = payload;
         }
-        myStandardInput.WriteLine(JsonSerializer.Serialize(envelope));
-        myStandardInput.Flush();
+        myTransport.WriteLine(JsonSerializer.Serialize(envelope));
     }
 
     /// <summary>
@@ -495,19 +482,7 @@ public sealed class HeadlessUiClient
     /// closing - squad-hq treats end of standard input as the "the UI is gone" signal regardless of which launcher
     /// created the process.
     /// </summary>
-    public void CloseStandardInput() => myStandardInput.Close();
-
-    private void Drain(TextReader reader, List<string> destination) =>
-        Task.Run(async () =>
-        {
-            while (await reader.ReadLineAsync() is { } line)
-            {
-                lock (myLinesLock)
-                {
-                    destination.Add(line);
-                }
-            }
-        });
+    public void CloseStandardInput() => myTransport.CloseStandardInput();
 
     private async Task<JsonElement> WaitForMessageAsync(
         Func<JsonElement, bool> predicate, string description, TimeSpan? timeout, Func<string>? additionalDiagnostics, int skip = 0)
@@ -515,7 +490,7 @@ public sealed class HeadlessUiClient
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
-            var stdOut = CopyLines(myStdOutLines);
+            var stdOut = myTransport.CopyStdOutLines();
             var remainingToSkip = skip;
             foreach (var line in stdOut)
             {
@@ -532,7 +507,7 @@ public sealed class HeadlessUiClient
             }
             if (DateTime.UtcNow >= deadline)
             {
-                throw new HeadlessUiWaitTimeoutException(description, DescribeDiagnostics(stdOut, additionalDiagnostics));
+                throw new TimeoutException($"Timed out waiting for {description}.\n{DescribeDiagnostics(stdOut, additionalDiagnostics)}");
             }
             await Task.Delay(PollInterval);
         }
@@ -548,7 +523,7 @@ public sealed class HeadlessUiClient
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
-            var stdOut = CopyLines(myStdOutLines);
+            var stdOut = myTransport.CopyStdOutLines();
             JsonElement? latestSnapshot = null;
             foreach (var line in stdOut)
             {
@@ -564,47 +539,14 @@ public sealed class HeadlessUiClient
             }
             if (DateTime.UtcNow >= deadline)
             {
-                throw new HeadlessUiWaitTimeoutException(description, DescribeDiagnostics(stdOut, additionalDiagnostics));
+                throw new TimeoutException($"Timed out waiting for {description}.\n{DescribeDiagnostics(stdOut, additionalDiagnostics)}");
             }
             await Task.Delay(PollInterval);
         }
     }
 
-    private string DescribeDiagnostics(List<string> capturedStdOut, Func<string>? additionalDiagnostics)
-    {
-        var stdOutText = capturedStdOut.Count switch
-        {
-            0 => "(none)",
-            <= 10 => string.Join('\n', capturedStdOut),
-            _ => $"... ({capturedStdOut.Count - 10} earlier lines omitted)\n" + string.Join('\n', capturedStdOut.TakeLast(10)),
-        };
-        var stdErrLines = CopyLines(myStdErrLines);
-        var stdErrText = stdErrLines.Count switch
-        {
-            0 => "(none)",
-            <= 10 => string.Join('\n', stdErrLines),
-            _ => $"... ({stdErrLines.Count - 10} earlier lines omitted)\n" + string.Join('\n', stdErrLines.TakeLast(10)),
-        };
-        var core = $"""
-            Process:
-            {ProcessDiagnostics.Describe(myProcess)}
-            Last known UI state:
-            {SummarizeUiState(capturedStdOut)}
-            StdOut:
-            {stdOutText}
-            StdErr:
-            {stdErrText}
-            """;
-        return additionalDiagnostics is null ? core : $"{core}\n{additionalDiagnostics()}";
-    }
-
-    private List<string> CopyLines(List<string> lines)
-    {
-        lock (myLinesLock)
-        {
-            return [.. lines];
-        }
-    }
+    private string DescribeDiagnostics(IReadOnlyList<string> capturedStdOut, Func<string>? additionalDiagnostics) =>
+        myTransport.DescribeDiagnostics(capturedStdOut, () => SummarizeUiState(capturedStdOut), additionalDiagnostics);
 
     private static string SummarizeUiState(IReadOnlyList<string> stdOutLines)
     {
@@ -623,261 +565,6 @@ public sealed class HeadlessUiClient
     private static bool IsStateSnapshot(JsonElement element) => IsType(element, "state.snapshot");
 
     private static bool IsProtocolError(JsonElement element) => IsType(element, "protocol.error");
-
-    private static bool IsTranscriptPageForRole(JsonElement element, string role)
-    {
-        if (!IsType(element, "transcript.page"))
-        {
-            return false;
-        }
-        var payload = GetPayload(element);
-        return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role;
-    }
-
-    private static bool IsArchivedEntryForRoleAndIndex(JsonElement element, string role, int entryIndex)
-    {
-        if (!IsType(element, "transcript.entry"))
-        {
-            return false;
-        }
-        var payload = GetPayload(element);
-        return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role
-            && payload.TryGetProperty("entryIndex", out var entryIndexElement) && entryIndexElement.GetInt32() == entryIndex;
-    }
-
-    private static bool IsTranscriptUpdate(JsonElement element, string role, string content)
-    {
-        if (!IsType(element, "transcript.update"))
-        {
-            return false;
-        }
-        var payload = GetPayload(element);
-        return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role
-            && payload.TryGetProperty("entry", out var entry)
-            && entry.ValueKind == JsonValueKind.Object
-            && entry.TryGetProperty("content", out var contentElement)
-            && contentElement.GetString() == content;
-    }
-
-    private static bool IsMatchingTranscriptEntryUpdate(JsonElement element, string role, string source, string? content)
-    {
-        if (!IsType(element, "transcript.update"))
-        {
-            return false;
-        }
-        var payload = GetPayload(element);
-        if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role)
-        {
-            return false;
-        }
-        if (!payload.TryGetProperty("entry", out var entry) || entry.ValueKind != JsonValueKind.Object)
-        {
-            return false;
-        }
-        if (!entry.TryGetProperty("source", out var sourceElement) || sourceElement.GetString() != source)
-        {
-            return false;
-        }
-        return content is null
-            || (entry.TryGetProperty("content", out var contentElement) && contentElement.GetString() == content);
-    }
-
-    private static bool IsMatchingTranscriptOperationUpdate(JsonElement element, string role, string operation, string? content)
-    {
-        if (!IsType(element, "transcript.update"))
-        {
-            return false;
-        }
-        var payload = GetPayload(element);
-        if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role)
-        {
-            return false;
-        }
-        if (!payload.TryGetProperty("operation", out var operationElement) || operationElement.GetString() != operation)
-        {
-            return false;
-        }
-        return content is null || ResolveTranscriptUpdateContent(payload) == content;
-    }
-
-    private static string? ResolveTranscriptUpdateContent(JsonElement payload)
-    {
-        if (payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object
-            && entry.TryGetProperty("content", out var entryContentElement) && entryContentElement.ValueKind == JsonValueKind.String)
-        {
-            return entryContentElement.GetString();
-        }
-        if (payload.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String)
-        {
-            return contentElement.GetString();
-        }
-        return null;
-    }
-
-    private static TranscriptUpdateObservation ParseTranscriptUpdate(JsonElement element)
-    {
-        var payload = GetPayload(element);
-        var role = payload.GetProperty("role").GetString()!;
-        var sequence = payload.GetProperty("sequence").GetInt64();
-        var operation = payload.GetProperty("operation").GetString()!;
-        var entryIndex = payload.GetProperty("entryIndex").GetInt32();
-        var hasEntry = payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object;
-        var source = hasEntry
-            && entry.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String
-            ? sourceElement.GetString()
-            : null;
-        var hasArchivedContent = hasEntry
-            && entry.TryGetProperty("hasArchivedContent", out var hasArchivedContentElement)
-            && hasArchivedContentElement.GetBoolean();
-        var contentStart = hasEntry && entry.TryGetProperty("contentStart", out var contentStartElement)
-            ? contentStartElement.GetInt64()
-            : 0;
-        var content = ResolveTranscriptUpdateContent(payload);
-        var hasAnnouncement = payload.TryGetProperty("announcement", out var announcement) && announcement.ValueKind == JsonValueKind.Object;
-        var announcementTruncated = hasAnnouncement
-            && announcement.TryGetProperty("truncated", out var announcementTruncatedElement)
-            && announcementTruncatedElement.GetBoolean();
-        var announcementContentLength = hasAnnouncement
-            && announcement.TryGetProperty("content", out var announcementContentElement)
-            && announcementContentElement.ValueKind == JsonValueKind.String
-            ? announcementContentElement.GetString()!.Length
-            : (int?)null;
-        return new TranscriptUpdateObservation(
-            role,
-            sequence,
-            operation,
-            entryIndex,
-            source,
-            content,
-            hasArchivedContent,
-            contentStart,
-            announcementTruncated,
-            announcementContentLength);
-    }
-
-    private static bool TryGetTranscriptSynchronizationEntries(
-        JsonElement element, string role, out IReadOnlyList<TranscriptEntryObservation> entries)
-    {
-        entries = [];
-        if (!IsType(element, "transcript.synchronize"))
-        {
-            return false;
-        }
-        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
-        {
-            return false;
-        }
-        foreach (var roleElement in roles.EnumerateArray())
-        {
-            if (!roleElement.TryGetProperty("role", out var name) || name.GetString() != role)
-            {
-                continue;
-            }
-            entries = ParseTranscriptEntries(roleElement);
-            return true;
-        }
-        return false;
-    }
-
-    /// <summary>Reconciles the most recently published "transcript.synchronize" message for the role (its
-    /// entries seed the result, its sequence is the high-water mark) with every "transcript.update" message for
-    /// the role published afterward, applied in publication order by "append"/"append-content"/"replace"
-    /// semantics. Returns false only if no synchronization for the role has been published yet.</summary>
-    private static bool TryReconcileTranscript(
-        IReadOnlyList<string> stdOutLines, string role, out IReadOnlyList<TranscriptEntryObservation> entries)
-    {
-        entries = [];
-        JsonElement? latestSynchronization = null;
-        foreach (var line in stdOutLines)
-        {
-            using var document = JsonDocument.Parse(line);
-            if (TryGetTranscriptSynchronizationEntries(document.RootElement, role, out _))
-            {
-                latestSynchronization = document.RootElement.Clone();
-            }
-        }
-        if (latestSynchronization is not { } synchronization)
-        {
-            return false;
-        }
-        TryGetTranscriptSynchronizationEntries(synchronization, role, out var seededEntries);
-        var highWaterMark = GetRoleSynchronizationSequence(synchronization, role);
-
-        var reconciled = new SortedDictionary<int, (string Source, string Content)>();
-        foreach (var entry in seededEntries)
-        {
-            reconciled[entry.EntryIndex] = (entry.Source, entry.Content);
-        }
-        foreach (var line in stdOutLines)
-        {
-            using var document = JsonDocument.Parse(line);
-            var element = document.RootElement;
-            if (!IsType(element, "transcript.update"))
-            {
-                continue;
-            }
-            var payload = GetPayload(element);
-            if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role
-                || payload.GetProperty("sequence").GetInt64() <= highWaterMark)
-            {
-                continue;
-            }
-            var entryIndex = payload.GetProperty("entryIndex").GetInt32();
-            switch (payload.GetProperty("operation").GetString())
-            {
-                case "append":
-                case "replace":
-                    var entry = payload.GetProperty("entry");
-                    reconciled[entryIndex] = (entry.GetProperty("source").GetString()!, entry.GetProperty("content").GetString()!);
-                    break;
-                case "append-content":
-                    if (reconciled.TryGetValue(entryIndex, out var existing))
-                    {
-                        reconciled[entryIndex] = (existing.Source, existing.Content + payload.GetProperty("content").GetString());
-                    }
-                    break;
-            }
-        }
-        entries = reconciled.Select(pair => new TranscriptEntryObservation(pair.Key, pair.Value.Source, pair.Value.Content)).ToList();
-        return true;
-    }
-
-    private static IReadOnlyList<TranscriptEntryObservation> ParseTranscriptEntries(JsonElement roleElement)
-    {
-        if (!roleElement.TryGetProperty("entries", out var entriesElement) || entriesElement.ValueKind != JsonValueKind.Array)
-        {
-            return [];
-        }
-        var entries = new List<TranscriptEntryObservation>();
-        foreach (var entry in entriesElement.EnumerateArray())
-        {
-            var entryIndex = entry.GetProperty("entryIndex").GetInt32();
-            var source = entry.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.String
-                ? sourceElement.GetString()!
-                : "";
-            var content = entry.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String
-                ? contentElement.GetString()!
-                : "";
-            entries.Add(new TranscriptEntryObservation(entryIndex, source, content));
-        }
-        return entries;
-    }
-
-    private static long GetRoleSynchronizationSequence(JsonElement element, string role)
-    {
-        if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
-        {
-            return 0;
-        }
-        foreach (var roleElement in roles.EnumerateArray())
-        {
-            if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role)
-            {
-                return roleElement.TryGetProperty("sequence", out var sequenceElement) ? sequenceElement.GetInt64() : 0;
-            }
-        }
-        return 0;
-    }
 
     private static bool RoleHasStatus(JsonElement element, string role, string status)
     {
