@@ -290,4 +290,24 @@ Acceptance criteria:
 - All shipped, documented, and test-generated configurations declare an explicit valid leader, and every protocol
   surface consistently uses version 5.
 
+**Status: changes requested (7be8433b3c)**
+
+#### Review findings on 7be8433b3c
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Configuration/SquadConfigurationLoader.cs` (omitted/blank `leader` falls back to
+  `roles[0]`); `src/squad.Specs/Features/LeaderConfiguration.feature` (omitted and blank default-to-first scenarios);
+  `README.md` and `docs/manual/architecture.md` (optional-leader documentation).
+- **Violated behavior:** Slice 5 requires a non-empty top-level `leader` that is an exact ordinal match for one
+  configured role name. Missing, blank, and unknown leaders are configuration errors with no first-role fallback.
+  Headquarters must reject startup before creating role sessions in all three cases. Gherkin must observe rejected
+  missing, blank, and unknown leaders. Shipped and documented configuration must treat `leader` as required.
+- **Root cause:** Validation treats omitted and whitespace-only `leader` as “use the first configured role,” and the
+  new feature plus README/architecture text encode that fallback as the intended contract.
+- **Required outcome:** Reject missing and blank `leader` the same way an unknown name is already rejected: non-zero
+  exit, a specific configuration error mentioning `leader`, no role session started. Keep unknown-name rejection.
+  Replace the fallback Gherkin scenarios with black-box rejection of missing and blank leaders. Describe `leader` as
+  required in README and Manual configuration text, with no positional default.
+
 Slices 1–4 are complete. Only Slice 5 is active.
