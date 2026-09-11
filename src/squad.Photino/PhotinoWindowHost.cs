@@ -13,6 +13,7 @@ namespace squad.Photino;
 /// </summary>
 public sealed class PhotinoWindowHost : IWindowHost
 {
+    private const double myInitialWindowScale = 0.75;
     private const int mySilentLogVerbosity = 0;
     private const int myUseImmersiveDarkMode = 20;
     private const int myUseImmersiveDarkModeBeforeWindows10_2004 = 19;
@@ -90,7 +91,7 @@ public sealed class PhotinoWindowHost : IWindowHost
                 .SetUseOsDefaultSize(false)
                 .SetSize(new Size(1800, 1000))
                 .Center()
-                .RegisterWindowCreatedHandler((sender, eventArgs) => EnableWindowsDarkTitleBar(window))
+                .RegisterWindowCreatedHandler((sender, eventArgs) => SizeAndStyleWindow(window))
                 .RegisterWindowClosingHandler((sender, eventArgs) => myClosed.TrySetResult())
                 .RegisterWebMessageReceivedHandler((sender, message) => _ = ReceiveMessageAsync(message))
                 .Load(index);
@@ -182,6 +183,17 @@ public sealed class PhotinoWindowHost : IWindowHost
         {
             throw new InvalidOperationException("Photino requires a graphical display. Launch from a session with DISPLAY or WAYLAND_DISPLAY configured.");
         }
+    }
+
+    private static void SizeAndStyleWindow(PhotinoWindow window)
+    {
+        var workArea = window.MainMonitor.WorkArea;
+        window
+            .SetSize(new Size(
+                (int)(workArea.Width * myInitialWindowScale),
+                (int)(workArea.Height * myInitialWindowScale)))
+            .Center();
+        EnableWindowsDarkTitleBar(window);
     }
 
     private static void EnableWindowsDarkTitleBar(PhotinoWindow window)
