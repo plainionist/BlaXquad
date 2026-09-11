@@ -21,7 +21,7 @@ forming a documentation-only slice.
 Only one slice may be implemented or reviewed at a time. Slice 2 starts only
 after Slice 1 is accepted.
 
-### Slice 1 - Rename the production Copilot provider module
+### Slice 1 - Rename the production Copilot provider module [done]
 
 **Outcome:** The default provider is built, packaged, discovered, and
 documented exclusively as `squad.AgentProvider.CopilotSdk`, while
@@ -58,6 +58,17 @@ Acceptance criteria:
 - The focused `ProviderPackaging.feature` scenarios pass, the solution builds,
   and active source and manual documentation contain no old module or
   namespace reference.
+
+**Status: complete (c725eeb42c).** The default provider project, assembly,
+namespaces, publish-target import, dependency-manifest filename, and launch
+descriptor are `squad.AgentProvider.CopilotSdk`. `squad-hq` still has no
+compile-time provider project reference; packaging copies the renamed
+assembly, `GitHub.Copilot.SDK.dll`, and native runtime assets unless
+`IncludeCopilotSdkProvider` is false. `ProviderPackaging.feature` and bindings
+assert the new assembly name; active source and `docs/manual/modules.md` /
+`docs/manual/test-strategy.md` no longer use `squad.CopilotSdk`.
+
+Slice 1 is complete. Slice 2 remains pending until the architect activates it.
 
 ### Slice 2 - Extract the fake provider module
 
