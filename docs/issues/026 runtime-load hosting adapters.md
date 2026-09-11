@@ -194,7 +194,7 @@ The current manual conflict is intentional scope, not an alternative design:
 when the backend harness moves to explicit hosting selection. The slices below are ordered dependencies; hand off
 and accept exactly one before starting the next.
 
-### Slice 1: Runtime-load the test-owned stdio host
+### Slice 1: Runtime-load the test-owned stdio host [done]
 
 **Outcome:** Every backend acceptance launch selects the stdio hosting bundle with an explicit `--hosting`
 descriptor, while `squad-hq` no longer references stdio or exposes the built-in `--ui` mode.
@@ -282,6 +282,12 @@ again, exactly as required.
 unhandled exception - reusing the existing "the launch fails with a hosting diagnostic containing" assertion step.
 
 All 169 `squad.Specs` tests pass, including both new/changed scenarios.
+
+**Status: complete (790d5ea0b2).** Backend launches select stdio through an explicit `--hosting`
+descriptor; `squad-hq` no longer references stdio or `--ui`. Hosting-selection covers the required
+diagnostics, including unloadable assemblies, and the duplicate-contract fixture is a published
+plug-in layout with a real `.deps.json` so missing unification would fail the ready handshake.
+Slice 2 remains pending until the architect activates it.
 
 ### Slice 2: Runtime-load and package Photino as the default
 
