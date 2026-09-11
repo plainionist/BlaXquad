@@ -60,6 +60,8 @@ static class Handoff
                 return 1;
             }
 
+            LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(Path.Combine(roleWorktreeRoot, ".blaxquad", "handoffs"));
+
             return intent == "commit"
                 ? RunCommit(rest, roleWorktreeRoot, roles, sender)
                 : RunNote(rest, roleWorktreeRoot, roles, sender);
@@ -71,6 +73,11 @@ static class Handoff
                 Console.Error.WriteLine(ex.Message);
             }
             return ex.ExitCode;
+        }
+        catch (LegacyHandoffQueueException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
         }
     }
 
@@ -134,7 +141,7 @@ static class Handoff
         }
 
         var stateDir = Path.Combine(roleWorktreeRoot, ".blaxquad", "handoffs");
-        var outboxFile = WriteHandoff(stateDir, "git_handoff", priority, recipients, sender, task: task, commit: canonicalCommit, message: null);
+        var outboxFile = WriteHandoff(stateDir, HandoffKind.GitHandoff, priority, recipients, sender, task: task, commit: canonicalCommit, message: null);
         Console.WriteLine($"HANDOFF QUEUED: {outboxFile}");
         return 0;
     }
@@ -172,7 +179,7 @@ static class Handoff
         }
 
         var stateDir = Path.Combine(roleWorktreeRoot, ".blaxquad", "handoffs");
-        var outboxFile = WriteHandoff(stateDir, "note", priority, recipients, sender, task: null, commit: null, message: message);
+        var outboxFile = WriteHandoff(stateDir, HandoffKind.Note, priority, recipients, sender, task: null, commit: null, message: message);
         Console.WriteLine($"HANDOFF QUEUED: {outboxFile}");
         return 0;
     }
@@ -293,7 +300,7 @@ static class Handoff
     }
 
     static string WriteHandoff(
-        string stateDir, string type, string priority, List<string> recipients, string sender,
+        string stateDir, HandoffKind kind, string priority, List<string> recipients, string sender,
         string? task, string? commit, string? message)
     {
         var timestampId = Timestamps.IdNow();
@@ -301,49 +308,33 @@ static class Handoff
         var sequence = SequenceCounter.Next(stateDir);
         var id = $"{timestampId}_{sequence}_from_{sender}";
         var recipientSlug = string.Join("_", recipients);
-        var filename = $"{priority}_{timestampId}_{sequence}_from_{sender}_to_{recipientSlug}.handoff";
+        var filename = $"{priority}_{timestampId}_{sequence}_from_{sender}_to_{recipientSlug}{HandoffDocument.FileSuffix}";
 
         var outboxDir = Path.Combine(stateDir, "outbox");
-        var tmpDir = Path.Combine(outboxDir, "tmp");
-        var tmpFile = Path.Combine(tmpDir, $"{filename}.tmp");
         var outboxFile = Path.Combine(outboxDir, filename);
 
-        var handoffBody = type switch
+        var document = new HandoffDocument
         {
-            "git_handoff" => $"merge_and_process {sender} {commit}",
-            "note" => message ?? "",
-            _ => "",
+            SchemaVersion = HandoffDocument.CurrentSchemaVersion,
+            Id = id,
+            From = sender,
+            To = recipients,
+            Recipient = null,
+            Priority = Priority.Parse(priority),
+            Kind = kind,
+            GitHandoff = kind == HandoffKind.GitHandoff ? new GitHandoffData(task!, commit!) : null,
+            Note = kind == HandoffKind.Note ? new NoteData(message!) : null,
+            CreatedAt = createdAt,
+            EnqueuedAt = null,
+            DequeuedAt = null,
+            CompletedAt = null,
         };
 
-        var lines = new List<string>
-        {
-            $"id: {id}",
-            $"from: {sender}",
-            $"to: {string.Join(",", recipients)}",
-            $"priority: {priority}",
-            $"type: {type}",
-        };
-        if (type == "git_handoff")
-        {
-            lines.Add($"role: {sender}");
-            lines.Add($"task: {task}");
-            lines.Add($"commit: {commit}");
-        }
-        else if (type == "note")
-        {
-            lines.Add($"message: {message}");
-        }
-        lines.Add($"created_at: {createdAt}");
-        lines.Add("");
-        lines.Add(handoffBody);
-
-        Directory.CreateDirectory(tmpDir);
         Directory.CreateDirectory(outboxDir);
         Directory.CreateDirectory(Path.Combine(stateDir, "sent"));
         Directory.CreateDirectory(Path.Combine(stateDir, "failed"));
 
-        File.WriteAllText(tmpFile, string.Join("\n", lines) + "\n");
-        File.Move(tmpFile, outboxFile);
+        HandoffJson.Write(outboxFile, document);
         return outboxFile;
     }
 }

@@ -46,9 +46,12 @@ usage and readiness, and normalizes provider and tool events.
 
 ## `squad.Handoffs`
 
-Provides shared file-backed handoff primitives: header and body parsing,
-priority validation, sequence and timestamp generation, and queue entry listing
-and rendering.
+Provides shared file-backed handoff primitives: the versioned typed JSON
+document model, centralized serializer options and validation, priority
+formatting, sequence and timestamp generation, queue entry listing and
+rendering, and the shared legacy-queue preflight that rejects a legacy or
+mixed `.handoff`/`.handoff.json` queue rather than reading it - a queue must
+be drained with the previous release or discarded with a normal launch.
 
 ## `squad.Handoffs.Delivery`
 

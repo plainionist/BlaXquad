@@ -264,9 +264,11 @@ public sealed class BackendScenario : IDisposable
     /// <see cref="StartAsync{TProviderFactory}"/> when <see cref="EnableFakeProviderControl"/>,
     /// <see cref="GateProviderStartupAfterSessions"/>, <see cref="FailProviderBeforeRuntime"/>, or
     /// <see cref="FailProviderAfterSessions"/> were called, so a fake-provider launch through this seam can still
-    /// be observed across the control pipe.
+    /// be observed across the control pipe. <paramref name="continueLaunch"/> passes the real "--continue" flag,
+    /// like <see cref="StartAsync{TProviderFactory}"/>, for a specification proving a workspace-preparation
+    /// failure that only a continued launch reaches (readiness is never a possibility either way here).
     /// </summary>
-    public void LaunchWithoutReadyHandshake<TProviderFactory>()
+    public void LaunchWithoutReadyHandshake<TProviderFactory>(bool continueLaunch = false)
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
         var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
@@ -295,9 +297,12 @@ public sealed class BackendScenario : IDisposable
             environmentOverrides[FakeProviderControlServer.FailDisposalMessageEnvironmentVariable] = failDisposalMessage;
         }
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
+        IReadOnlyList<string> launchArguments = continueLaunch
+            ? ["launch", "--continue", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root]
+            : ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root];
         myProcess = myWorkspace.StartProcess(
             myWorkspace.BackendSpecSquadHqExecutablePath,
-            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            launchArguments,
             environment,
             redirectStandardInput: true);
         myUi = new HeadlessUiClient(myProcess);

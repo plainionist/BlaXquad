@@ -33,6 +33,13 @@ public sealed class HandoffSteps
     public void GivenRoleHasAnUncommittedChange(string role) =>
         myWorkspace.WriteFileInRoleWorktree(role, $"{role}-dirty-change.txt", "not committed\n");
 
+    [Given("{string} has a legacy handoff artifact in its outbox")]
+    public void GivenRoleHasALegacyHandoffArtifactInItsOutbox(string role) =>
+        myWorkspace.WriteFileInRoleWorktree(
+            role,
+            Path.Combine(".blaxquad", "handoffs", "outbox", $"50_legacy_from_{role}_to_reviewer.handoff"),
+            $"id: legacy\nfrom: {role}\nto: reviewer\npriority: 50\ntype: note\nmessage: legacy\n\nlegacy\n");
+
     [Given("{string} prepares a Git handoff with task {string} to:")]
     [When("{string} prepares a Git handoff with task {string} to:")]
     public void GivenRolePreparesAGitHandoffToRecipients(string role, string task, Table recipients) =>

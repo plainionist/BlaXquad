@@ -6,10 +6,14 @@ namespace squad.Specs.Support.Mailboxes;
 /// Arranges durable inbound task and batch state directly on disk for a role's worktree, for prerequisite queue
 /// state that cannot be produced through a supported command (several competing queued tasks, an already
 /// in-process task or batch, or a pre-existing completion-archive collision). Confines the on-disk task file layout
-/// and serialization so step definitions never construct or parse it directly.
+/// and JSON serialization so step definitions never construct or parse it directly. Writes plain JSON text
+/// independently of production's <c>squad.Handoffs</c> model so a scenario never depends on production
+/// serialization internals.
 /// </summary>
 public sealed class TaskMailboxFixture
 {
+    private const string FileSuffix = ".handoff.json";
+
     private readonly ScenarioWorkspace myWorkspace;
     private int mySequence;
 
@@ -47,7 +51,7 @@ public sealed class TaskMailboxFixture
     internal void DuplicateCurrentTaskIntoCompletedArchive(string role)
     {
         var inProcess = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", "in_process");
-        var source = Directory.GetFiles(inProcess, "*.handoff").Single();
+        var source = Directory.GetFiles(inProcess, "*" + FileSuffix).Single();
         var target = Path.Combine(
             myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", "completed", Path.GetFileName(source));
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -57,12 +61,25 @@ public sealed class TaskMailboxFixture
     private void Write(string role, string state, string sender, string priority, string task, string? batchName = null)
     {
         mySequence++;
-        var filename = $"{priority}_20260822T120000Z_{mySequence:D6}_from_{sender}_to_{role}.handoff";
+        var filename = $"{priority}_20260822T120000Z_{mySequence:D6}_from_{sender}_to_{role}{FileSuffix}";
         var content =
-            $"id: test-{mySequence}\nfrom: {sender}\nto: {role}\nrecipient: {role}\npriority: {priority}\ntype: git_handoff\ntask: {task}\ncommit: 0123456789\n\nmerge_and_process {sender} 0123456789\n";
+            $$"""
+            {
+              "schemaVersion": 1,
+              "id": "test-{{mySequence}}",
+              "from": "{{sender}}",
+              "to": ["{{role}}"],
+              "recipient": "{{role}}",
+              "priority": {{int.Parse(priority)}},
+              "kind": "git_handoff",
+              "gitHandoff": { "task": "{{task}}", "commit": "0123456789" },
+              "createdAt": "2026-08-22T12:00:00Z",
+              "enqueuedAt": "2026-08-22T12:00:00Z"
+            }
+            """;
         var stateDir = batchName is null ? state : Path.Combine(state, batchName);
         var path = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", stateDir, filename);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, content.Replace("\n", Environment.NewLine));
+        File.WriteAllText(path, content);
     }
 }

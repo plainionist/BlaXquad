@@ -67,6 +67,58 @@ Feature: Workspace and configuration failures terminate at the command boundary
     And Headquarters' standard error does not contain "Unhandled exception"
     And role "coder"'s durable file "notes.md" still contains "Keep this note."
 
+  Scenario: A continued launch rejects a legacy handoff queue instead of processing it
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And role "coder" has a durable file ".blaxquad/handoffs/outbox/50_legacy_from_coder_to_reviewer.handoff" containing "legacy queue artifact"
+    When the operator launches Headquarters, continuing from durable state, without completing the ready handshake
+    And Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "LEGACY_HANDOFF_QUEUE"
+    And Headquarters' standard error does not contain "Provider startup failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And role "coder"'s durable file ".blaxquad/handoffs/outbox/50_legacy_from_coder_to_reviewer.handoff" still contains "legacy queue artifact"
+
+  Scenario: A continued launch rejects a mixed legacy and JSON handoff queue without delivering the JSON sibling
+    Given `blaxquad/squad.json` configures:
+      | role     |
+      | coder    |
+      | reviewer |
+    And role "coder" has a durable file ".blaxquad/handoffs/outbox/50_legacy_from_coder_to_reviewer.handoff" containing "legacy queue artifact"
+    And role "coder" has a durable file ".blaxquad/handoffs/outbox/60_valid_from_coder_to_reviewer.handoff.json" containing:
+      """
+      {
+        "schemaVersion": 1,
+        "id": "mixed-queue-sibling",
+        "from": "coder",
+        "to": ["reviewer"],
+        "priority": 60,
+        "kind": "note",
+        "note": { "message": "Sibling JSON handoff." },
+        "createdAt": "2026-08-22T12:00:00Z"
+      }
+      """
+    When the operator launches Headquarters, continuing from durable state, without completing the ready handshake
+    And Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "LEGACY_HANDOFF_QUEUE"
+    And role "coder"'s durable file ".blaxquad/handoffs/outbox/50_legacy_from_coder_to_reviewer.handoff" still contains "legacy queue artifact"
+    And role "coder"'s durable file ".blaxquad/handoffs/outbox/60_valid_from_coder_to_reviewer.handoff.json" still contains:
+      """
+      {
+        "schemaVersion": 1,
+        "id": "mixed-queue-sibling",
+        "from": "coder",
+        "to": ["reviewer"],
+        "priority": 60,
+        "kind": "note",
+        "note": { "message": "Sibling JSON handoff." },
+        "createdAt": "2026-08-22T12:00:00Z"
+      }
+      """
+    And "reviewer" has no new handoff
+
   Scenario: A missing required helper script reports a clear diagnostic
     Given `blaxquad/squad.json` configures:
       | role  |

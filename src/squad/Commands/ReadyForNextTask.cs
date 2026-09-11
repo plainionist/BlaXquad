@@ -8,7 +8,8 @@ static class ReadyForNextTask
 {
     public static int Run(string[] args)
     {
-        var inbox = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs", "inbox");
+        var handoffsDir = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs");
+        var inbox = Path.Combine(handoffsDir, "inbox");
         var newDir = Path.Combine(inbox, "new");
         var inProcessDir = Path.Combine(inbox, "in_process");
         var completedDir = Path.Combine(inbox, "completed");
@@ -19,6 +20,8 @@ static class ReadyForNextTask
 
         try
         {
+            LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(handoffsDir);
+
             var inProcessBatches = HandoffQueue.BatchDirs(inProcessDir);
             var inProcessFiles = HandoffQueue.HandoffFiles(inProcessDir);
 
@@ -53,7 +56,7 @@ static class ReadyForNextTask
             }
 
             File.Move(sourceFile, targetFile);
-            HandoffHeaders.SetHeader(targetFile, "dequeued_at", Timestamps.Now());
+            HandoffJson.Update(targetFile, document => document with { DequeuedAt = Timestamps.Now() });
             HandoffQueue.PrintTask(Console.Out, targetFile);
             return 0;
         }
@@ -64,6 +67,11 @@ static class ReadyForNextTask
                 Console.Error.WriteLine(ex.Message);
             }
             return ex.ExitCode;
+        }
+        catch (LegacyHandoffQueueException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
         }
     }
 

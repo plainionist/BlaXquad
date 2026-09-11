@@ -1,6 +1,7 @@
 using squad.Process;
 using System.Text.RegularExpressions;
 using squad.Configuration;
+using squad.Handoffs;
 
 namespace squad.Workspaces;
 
@@ -131,6 +132,10 @@ public sealed class WorkspacePreparer
 
             ClearConfiguredHandoffs(ctx, cancellationToken);
         }
+        else
+        {
+            EnsureNoLegacyHandoffQueues(ctx, cancellationToken);
+        }
 
         PrepareSharedWorktreePaths(ctx, cancellationToken);
     }
@@ -190,12 +195,31 @@ public sealed class WorkspacePreparer
 
     public void PrepareHandoffDirs(Ctx ctx)
     {
-        string[] subdirs = ["outbox/tmp", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed"];
+        string[] subdirs = ["outbox", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed"];
         foreach (var row in ctx.Roles)
         {
             foreach (var dir in subdirs)
             {
                 Directory.CreateDirectory(Path.Combine(row.WorktreePath, ".blaxquad", "handoffs", dir));
+            }
+        }
+    }
+
+    /// <summary>Rejects a continued launch whose durable queues still contain a legacy, pre-JSON ".handoff"
+    /// artifact; a fresh (non-continued) launch instead drains every queue via <see cref="ClearConfiguredHandoffs"/>.</summary>
+    private static void EnsureNoLegacyHandoffQueues(Ctx ctx, CancellationToken cancellationToken)
+    {
+        var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        foreach (var worktreePath in ctx.Roles.Select(row => row.WorktreePath).Distinct(pathComparer))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(Path.Combine(worktreePath, ".blaxquad", "handoffs"));
+            }
+            catch (LegacyHandoffQueueException exception)
+            {
+                throw new WorkspacePreparationException(exception.Message, exception);
             }
         }
     }
@@ -215,6 +239,10 @@ public sealed class WorkspacePreparer
                     continue;
                 }
                 foreach (var handoff in Directory.EnumerateFiles(path, "*.handoff"))
+                {
+                    File.Delete(handoff);
+                }
+                foreach (var handoff in Directory.EnumerateFiles(path, "*" + HandoffDocument.FileSuffix))
                 {
                     File.Delete(handoff);
                 }

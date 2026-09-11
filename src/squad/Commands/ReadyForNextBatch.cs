@@ -8,7 +8,8 @@ static class ReadyForNextBatch
 {
     public static int Run(string[] args)
     {
-        var inbox = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs", "inbox");
+        var handoffsDir = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs");
+        var inbox = Path.Combine(handoffsDir, "inbox");
         var newDir = Path.Combine(inbox, "new");
         var inProcessDir = Path.Combine(inbox, "in_process");
         var completedDir = Path.Combine(inbox, "completed");
@@ -19,6 +20,8 @@ static class ReadyForNextBatch
 
         try
         {
+            LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(handoffsDir);
+
             var inProcessBatches = HandoffQueue.BatchDirs(inProcessDir);
             var inProcessFiles = HandoffQueue.HandoffFiles(inProcessDir);
 
@@ -45,9 +48,9 @@ static class ReadyForNextBatch
                 return 0;
             }
 
-            var batchPriority = HandoffHeaders.HeaderField(newFiles[0], "priority") ?? "50";
+            var batchPriority = HandoffJson.Read(newFiles[0]).Priority;
             var batchDir = NewBatchDir(inProcessDir);
-            var selectedFiles = newFiles.Where(f => (HandoffHeaders.HeaderField(f, "priority") ?? "50") == batchPriority).ToList();
+            var selectedFiles = newFiles.Where(f => HandoffJson.Read(f).Priority == batchPriority).ToList();
 
             Directory.CreateDirectory(batchDir);
             foreach (var sourceFile in selectedFiles)
@@ -59,12 +62,12 @@ static class ReadyForNextBatch
                 }
 
                 File.Move(sourceFile, targetFile);
-                HandoffHeaders.SetHeader(targetFile, "dequeued_at", Timestamps.Now());
+                HandoffJson.Update(targetFile, document => document with { DequeuedAt = Timestamps.Now() });
             }
 
             if (selectedFiles.Count == 0)
             {
-                Fail(2, $"AMBIGUOUS_TASK_STATE: no tasks selected for batch priority {batchPriority}.");
+                Fail(2, $"AMBIGUOUS_TASK_STATE: no tasks selected for batch priority {Priority.Format(batchPriority)}.");
             }
 
             HandoffQueue.PrintBatch(Console.Out, batchDir);
@@ -77,6 +80,11 @@ static class ReadyForNextBatch
                 Console.Error.WriteLine(ex.Message);
             }
             return ex.ExitCode;
+        }
+        catch (LegacyHandoffQueueException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
         }
     }
 

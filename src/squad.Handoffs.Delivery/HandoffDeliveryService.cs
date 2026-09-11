@@ -8,12 +8,6 @@ namespace squad.Handoffs.Delivery;
 /// </summary>
 sealed class HandoffDeliveryService
 {
-    private static readonly string[] myPreferredHeaderOrder =
-    [
-        "id", "from", "to", "recipient", "priority", "type", "role", "commit",
-        "message", "created_at", "enqueued_at", "dequeued_at", "completed_at",
-    ];
-
     private readonly IRoleNotifier myNotifier;
     private readonly HandoffDeliveryLog myLog;
 
@@ -82,23 +76,10 @@ sealed class HandoffDeliveryService
 
     private async Task DeliverAsync(Dictionary<string, RoleRow> roles, string senderRole, string path, CancellationToken cancellationToken)
     {
-        var filename = Path.GetFileName(path);
-        var (headers, body) = ParseMessage(path);
-        if (!headers.TryGetValue("to", out var to) || string.IsNullOrEmpty(to))
-        {
-            Fail(path, "missing to header");
-            return;
-        }
-
-        var recipients = SplitRecipients(to);
-        if (recipients.Length == 0)
-        {
-            Fail(path, "missing to header");
-            return;
-        }
+        var document = HandoffJson.Read(path);
 
         var deliveries = new List<(string Recipient, RoleRow RoleInfo)>();
-        foreach (var recipient in recipients)
+        foreach (var recipient in document.To)
         {
             if (!roles.TryGetValue(recipient, out var roleInfo))
             {
@@ -107,16 +88,13 @@ sealed class HandoffDeliveryService
             deliveries.Add((recipient, roleInfo));
         }
 
+        var filename = Path.GetFileName(path);
         foreach (var (recipient, roleInfo) in deliveries)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var target = Path.Combine(roleInfo.WorktreePath, ".blaxquad", "handoffs", "inbox", "new", filename);
-            var deliveredHeaders = new Dictionary<string, string>(headers)
-            {
-                ["recipient"] = recipient,
-                ["enqueued_at"] = Timestamps.Now(),
-            };
-            WriteRecipientArtifact(target, RenderMessage(deliveredHeaders, body));
+            var delivered = document with { Recipient = recipient, EnqueuedAt = Timestamps.Now() };
+            WriteRecipientArtifact(target, delivered);
         }
 
         var sentDir = Path.Combine(roles[senderRole].WorktreePath, ".blaxquad", "handoffs", "sent");
@@ -142,65 +120,20 @@ sealed class HandoffDeliveryService
         return new[] { "new", "in_process" }.Any(state =>
         {
             var directory = Path.Combine(handoffs, state);
-            return Directory.Exists(directory) && Directory.EnumerateFiles(directory, "*.handoff", SearchOption.TopDirectoryOnly).Any();
+            return Directory.Exists(directory)
+                && Directory.EnumerateFiles(directory, "*" + HandoffDocument.FileSuffix, SearchOption.TopDirectoryOnly).Any();
         });
     }
 
-    private static (Dictionary<string, string> Headers, string Body) ParseMessage(string path)
-    {
-        var (header, body) = HandoffHeaders.SplitMessage(File.ReadAllText(path));
-        var headers = new Dictionary<string, string>();
-        foreach (var rawLine in header.Split('\n'))
-        {
-            var line = rawLine.TrimEnd('\r');
-            var parts = line.Split(": ", 2);
-            if (parts.Length == 2 && parts[0].Length > 0 && parts[1].Length > 0)
-            {
-                headers[parts[0]] = parts[1];
-            }
-        }
-        return (headers, body);
-    }
-
-    private static string[] SplitRecipients(string to)
-    {
-        var recipients = to.Split(',');
-        var end = recipients.Length;
-        while (end > 0 && recipients[end - 1].Length == 0)
-        {
-            end--;
-        }
-        return recipients[..end];
-    }
-
-    private static string RenderMessage(Dictionary<string, string> headers, string body)
-    {
-        var remaining = headers.Keys.Except(myPreferredHeaderOrder).OrderBy(k => k, StringComparer.Ordinal);
-        var lines = myPreferredHeaderOrder.Concat(remaining).Where(headers.ContainsKey).Select(k => $"{k}: {headers[k]}");
-        return string.Join("\n", lines) + "\n\n" + body;
-    }
-
-    private static void WriteRecipientArtifact(string target, string content)
+    /// <summary>Writes a recipient's durable copy only if it does not already exist, so a retried delivery never
+    /// overwrites an already-persisted artifact.</summary>
+    private static void WriteRecipientArtifact(string target, HandoffDocument delivered)
     {
         if (Path.Exists(target))
         {
             return;
         }
-        var targetDir = Path.GetDirectoryName(target)!;
-        Directory.CreateDirectory(targetDir);
-        var tmp = Path.Combine(targetDir, $".inbox.{Guid.NewGuid():N}");
-        try
-        {
-            File.WriteAllText(tmp, content);
-            File.Move(tmp, target);
-        }
-        finally
-        {
-            if (File.Exists(tmp))
-            {
-                File.Delete(tmp);
-            }
-        }
+        HandoffJson.Write(target, delivered);
     }
 
     private static void MoveWithCollision(string source, string targetDir)
@@ -224,5 +157,3 @@ sealed class HandoffDeliveryService
         MoveWithCollision(path, failedDir);
     }
 }
-
-
