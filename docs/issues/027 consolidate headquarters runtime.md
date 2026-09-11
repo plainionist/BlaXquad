@@ -232,7 +232,7 @@ assembly and dependency. Slice 2 remains pending until the architect activates i
 contention is `TryAcquire` translated at `Launch`; `squad.Host.Control` no longer references `squad.Process`. Slice 3
 remains pending until the architect activates it.
 
-### Slice 3: Merge process control into `squad.Runtime` [in progress]
+### Slice 3: Merge process control into `squad.Runtime` [done]
 
 **Outcome:** A published `squad-hq` uses one `squad.Runtime` assembly for lifecycle and process control, with the
 control component remaining structurally separate.
@@ -250,6 +250,10 @@ control component remaining structurally separate.
    `squad-hq` contains `squad.Runtime.dll` and no `squad.Host.Control.dll`.
 5. Run the ownership, coexistence, lifecycle, early-shutdown, readiness, startup-failure, termination, and cleanup
    scenarios. Build and publish from clean outputs and confirm the merged project has no `squad.Process` dependency.
+
+**Status: complete (a6e351249c).** Control lives under `squad.Runtime.Control`; `squad.Host.Control` is removed;
+`RuntimePackaging` proves the published `squad-hq` carries `squad.Runtime.dll` only. Slice 4 remains pending until
+the architect activates it.
 
 ### Slice 4: Adopt Headquarters process-control terminology [pending]
 
