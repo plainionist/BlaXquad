@@ -1,4 +1,4 @@
-namespace squad.Specs.Support.Agents.Control;
+namespace squad.AgentProvider.Fake.Control;
 
 /// <summary>
 /// Handles one "reply" command pushed from <see cref="FakeProviderControlServer"/> to

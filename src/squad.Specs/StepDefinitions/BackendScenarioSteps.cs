@@ -1,5 +1,5 @@
 using System.Text.Json;
-using squad.Specs.Support.Agents;
+using squad.AgentProvider.Fake;
 using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Ui;
 

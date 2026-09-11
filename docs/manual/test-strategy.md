@@ -34,7 +34,7 @@ squad.Specs
   |     |-- real handoff delivery
   |     |-- real application and host runtime
   |     |-- UiProtocolSession over stdin/stdout
-  |     `-- fake provider loaded from squad.Specs.dll
+  |     `-- fake provider loaded from squad.AgentProvider.Fake.dll
   |
   |-- headless UI client <-------- JSON over stdin/stdout
   `-- fake-agent controller <----- test-owned named pipe
@@ -68,13 +68,18 @@ Examples of supported scenario language are:
 
 ### Keep one backend specification project
 
-All feature files, step definitions, the scenario driver, the fake provider, and test support remain in
-`squad.Specs`.
+All feature files, step definitions, the scenario driver, and test support remain in `squad.Specs`. The fake
+agent-provider adapter is the one exception: it lives in its own `squad.AgentProvider.Fake` module, loaded into the
+launched `squad-hq` process through the same explicit `--provider` descriptor a real provider uses, so it is
+exercised across the identical assembly-loading boundary a production provider crosses. Only its reflection-loaded
+fixture factory types (`FakeAgentProviderFactory`, `ValidProviderFixtureFactory`, `ThrowingProviderFixtureFactory`,
+`IncompatibleProviderFixture`) are public; its runtime, sessions, event stream, and control transport stay internal,
+with `squad.Specs` granted access through `InternalsVisibleTo`.
 
-Internal folders and helper types may separate responsibilities inside that project, but those are test implementation
-details. They must not become new assemblies or reproduce the product module boundaries.
+Internal folders and helper types may separate responsibilities inside `squad.Specs`, but those are test
+implementation details. They must not become new assemblies or reproduce the product module boundaries.
 
-`src/squad.Specs/Support` is organized into six responsibility folders, one owner per folder, with namespaces matching
+`src/squad.Specs/Support` is organized into four responsibility folders, one owner per folder, with namespaces matching
 each folder. This is an ownership map for navigating test support, not a mandate to add a layer around every file:
 
 | Folder | Namespace | Owner |
@@ -82,9 +87,12 @@ each folder. This is an ownership map for navigating test support, not a mandate
 | `Scenarios` | `squad.Specs.Support.Scenarios` | The scenario composition root (`BackendScenario`), its role/command adapters, and the temporary Git workspace it drives. `BackendScenario` is the single scenario-scoped owner of normal shutdown, emergency teardown, and every replacement launch or explicit independent-project child it creates. |
 | `Processes` | `squad.Specs.Support.Processes` | Child-process execution, captured command results, and process diagnostics. |
 | `Ui` | `squad.Specs.Support.Ui` | The headless UI protocol client and its decoded transcript/synchronization/page observations. |
-| `Agents` | `squad.Specs.Support.Agents` | Fake agent-provider fixtures and provider-selection fixtures. |
-| `Agents/Control` | `squad.Specs.Support.Agents.Control` | The private fake-provider control transport, protocol, handlers, and observation state. |
 | `Mailboxes` | `squad.Specs.Support.Mailboxes` | Durable handoff and task mailbox setup and observation fixtures. |
+
+The fake agent-provider adapter's own folders live under `src/squad.AgentProvider.Fake` instead: its top level
+(namespace `squad.AgentProvider.Fake`) holds the fake provider fixtures and provider-selection fixtures, and
+`Control` (namespace `squad.AgentProvider.Fake.Control`) holds the private fake-provider control transport,
+protocol, handlers, and observation state.
 
 ### Keep production infrastructure real
 
@@ -226,7 +234,7 @@ without `squad.AgentProvider.CopilotSdk`, provider selection must happen at proc
 Headquarters loads a provider factory selected explicitly by a trusted command-line option or installation manifest:
 
 - the production package selects the Copilot SDK provider by default;
-- backend specs explicitly select the fake provider from `squad.Specs.dll`; and
+- backend specs explicitly select the fake provider from `squad.AgentProvider.Fake.dll`; and
 - no provider assembly is discovered or loaded from the target workspace.
 
 Loading arbitrary code from a repository configuration is prohibited. An alternate provider path must be an explicit
@@ -419,7 +427,7 @@ assemblies.
 Before migrating the full suite, prove one complete vertical path:
 
 1. Publish `squad-hq` without `squad.AgentProvider.CopilotSdk`.
-2. Start the actual executable with the stdio UI and the fake provider from `squad.Specs.dll`.
+2. Start the actual executable with the stdio UI and the fake provider from `squad.AgentProvider.Fake.dll`.
 3. Complete the real UI-ready handshake.
 4. Let headquarters create a fake session for a configured role.
 5. Send a prompt through the real versioned UI JSON protocol.

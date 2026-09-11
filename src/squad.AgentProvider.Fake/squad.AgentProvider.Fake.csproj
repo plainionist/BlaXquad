@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Grants squad.Specs access to this module's internal fake-provider runtime, sessions, event stream, and
+         control transport, so only the four reflection-loaded fixture types below stay public. -->
+    <InternalsVisibleTo Include="squad.Specs" />
+  </ItemGroup>
+
+</Project>

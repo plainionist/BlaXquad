@@ -2,7 +2,7 @@ using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text.Json;
 
-namespace squad.Specs.Support.Agents.Control;
+namespace squad.AgentProvider.Fake.Control;
 
 /// <summary>
 /// Test-runner end of the private fake-provider control transport: a uniquely named local named pipe whose name
@@ -13,7 +13,7 @@ namespace squad.Specs.Support.Agents.Control;
 /// gives this endpoint exactly one background dispatch loop, so concurrent session observations and their
 /// acknowledgements can never compete to read the pipe.
 /// </summary>
-public sealed class FakeProviderControlServer : IAsyncDisposable
+internal sealed class FakeProviderControlServer : IAsyncDisposable
 {
     public const string PipeNameEnvironmentVariable = "BLAXQUAD_FAKE_CONTROL_PIPE";
     public const string TokenEnvironmentVariable = "BLAXQUAD_FAKE_CONTROL_TOKEN";

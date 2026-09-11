@@ -1,5 +1,5 @@
 using squad.Specs.Support.Scenarios;
-using squad.Specs.Support.Agents;
+using squad.AgentProvider.Fake;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -39,9 +39,16 @@ public sealed class ProviderSelectionSteps
         Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Unhandled exception"));
     }
 
+    [Then("the fake provider factory is defined by squad.AgentProvider.Fake, not squad.Specs")]
+    public void ThenTheFakeProviderFactoryIsDefinedBySquadAgentProviderFake()
+    {
+        var assemblyName = typeof(FakeAgentProviderFactory).Assembly.GetName().Name;
+        Assert.That(assemblyName, Is.EqualTo("squad.AgentProvider.Fake"));
+    }
+
     private void Launch(string providerDescriptor) =>
         myWorkspace.RunTool("squad-hq", ["launch", "--provider", providerDescriptor, myWorkspace.Root]);
 
     private static string Descriptor(Type fixtureType) =>
-        $"{typeof(ProviderSelectionSteps).Assembly.Location};{fixtureType.FullName}";
+        $"{fixtureType.Assembly.Location};{fixtureType.FullName}";
 }

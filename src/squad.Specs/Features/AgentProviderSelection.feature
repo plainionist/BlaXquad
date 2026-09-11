@@ -18,3 +18,6 @@ Feature: Agent provider selection
   Scenario: A provider constructor failure is surfaced clearly
     When the operator launches Headquarters with a provider whose constructor throws
     Then the launch fails with a provider diagnostic containing "threw during construction"
+
+  Scenario: The fake provider fixture is defined by its own module, not squad.Specs
+    Then the fake provider factory is defined by squad.AgentProvider.Fake, not squad.Specs

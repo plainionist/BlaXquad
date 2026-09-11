@@ -31,6 +31,15 @@ Adapts the GitHub Copilot SDK to the provider-neutral contracts. It starts and
 stops the provider runtime, manages role sessions and interactions, reports
 usage and readiness, and normalizes provider and tool events.
 
+## `squad.AgentProvider.Fake`
+
+Standalone fake agent-provider adapter loaded by backend acceptance
+specifications through the same explicit `--provider` descriptor a real
+provider uses. Exposes only the reflection-loaded fixture factory types the
+production loader needs; its fake runtime, sessions, event stream, and
+private control transport stay internal, with `squad.Specs` granted access
+through `InternalsVisibleTo`.
+
 ## `squad.Application`
 
 Owns authoritative live role state and user operations, including the active

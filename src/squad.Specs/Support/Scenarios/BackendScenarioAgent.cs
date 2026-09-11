@@ -1,4 +1,4 @@
-using squad.Specs.Support.Agents.Control;
+using squad.AgentProvider.Fake.Control;
 
 namespace squad.Specs.Support.Scenarios;
 
@@ -8,7 +8,7 @@ namespace squad.Specs.Support.Scenarios;
 /// replies - every control-pipe DTO and provider <c>AgentEvent</c> value stays behind this API, never leaking into
 /// Gherkin step definitions.
 /// </summary>
-public sealed class BackendScenarioAgent(FakeProviderControlServer control, string role, Func<string>? uiDiagnostics)
+internal sealed class BackendScenarioAgent(FakeProviderControlServer control, string role, Func<string>? uiDiagnostics)
 {
     /// <summary>Waits until this role's session has reported a prompt across the control pipe and returns its
     /// content. On timeout, reports one diagnostics block combining process, UI protocol, and provider/control

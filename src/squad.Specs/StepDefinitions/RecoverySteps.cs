@@ -1,5 +1,5 @@
 using squad.Specs.Support.Scenarios;
-using squad.Specs.Support.Agents;
+using squad.AgentProvider.Fake;
 using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;

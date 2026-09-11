@@ -1,4 +1,4 @@
-using squad.Specs.Support.Agents.Control;
+using squad.AgentProvider.Fake.Control;
 using squad.Specs.Support.Processes;
 using squad.Specs.Support.Ui;
 
@@ -115,7 +115,7 @@ public sealed class BackendScenario : IDisposable
     /// through environment variables the fake provider itself reads - never a command-line argument or file.
     /// Returns the server so step definitions can wait for session-start and session-disposal observations.
     /// </summary>
-    public FakeProviderControlServer EnableFakeProviderControl()
+    internal FakeProviderControlServer EnableFakeProviderControl()
     {
         myControl = FakeProviderControlServer.Create();
         return myControl;
@@ -740,7 +740,7 @@ public sealed class BackendScenario : IDisposable
     /// behind this API. Requires <see cref="EnableFakeProviderControl"/> to have been called before
     /// <see cref="StartAsync{TProviderFactory}"/>.
     /// </summary>
-    public BackendScenarioAgent Agent(string role) => new(RequireControl(), role, DescribeUiDiagnostics());
+    internal BackendScenarioAgent Agent(string role) => new(RequireControl(), role, DescribeUiDiagnostics());
 
     /// <summary>
     /// Waits until the fake provider has reported, across the private control pipe, that the given role's

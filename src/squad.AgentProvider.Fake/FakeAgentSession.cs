@@ -1,9 +1,9 @@
 using System.Text.Json;
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
-using squad.Specs.Support.Agents.Control;
+using squad.AgentProvider.Fake.Control;
 
-namespace squad.Specs.Support.Agents;
+namespace squad.AgentProvider.Fake;
 
 /// <summary>
 /// Provider-side session for <see cref="FakeAgentProviderFactory"/>. Establishes itself by publishing the real

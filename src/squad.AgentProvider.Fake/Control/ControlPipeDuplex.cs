@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squad.Specs.Support.Agents.Control;
+namespace squad.AgentProvider.Fake.Control;
 
 /// <summary>
 /// Shared newline-delimited, versioned JSON duplex for one end of the fake-provider control pipe. Owns exactly

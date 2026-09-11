@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace squad.Specs.Support.Agents.Control;
+namespace squad.AgentProvider.Fake.Control;
 
 /// <summary>
 /// Synchronized observation state for one <see cref="FakeProviderControlServer"/> connection: the session

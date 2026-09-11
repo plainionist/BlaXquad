@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace squad.Specs.Support.Agents.Control;
+namespace squad.AgentProvider.Fake.Control;
 
 /// <summary>Routes one "emit" command pushed across the fake-provider control pipe to whichever live session it
 /// names, publishing the resulting production <c>AgentEvent</c> (or completing/failing the session) and returning

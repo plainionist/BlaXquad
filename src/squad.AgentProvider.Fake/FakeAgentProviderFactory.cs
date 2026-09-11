@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 
-namespace squad.Specs.Support.Agents;
+namespace squad.AgentProvider.Fake;
 
 /// <summary>
 /// Minimal fake <see cref="IAgentProviderFactory"/> loaded into the real, separately launched, published

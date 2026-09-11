@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using squad.Specs.Support.Scenarios;
-using squad.Specs.Support.Agents;
+using squad.AgentProvider.Fake;
 
 namespace squad.Specs.StepDefinitions;
 

@@ -1,4 +1,4 @@
-namespace squad.Specs.Support.Agents.Control;
+namespace squad.AgentProvider.Fake.Control;
 
 /// <summary>Handles one "fail-backend" command pushed from <see cref="FakeProviderControlServer"/> to
 /// <see cref="FakeProviderControlClient"/>, faulting the fake provider's backend-wide

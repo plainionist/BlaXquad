@@ -1,8 +1,8 @@
 using squad.AgentProvider.Abstractions;
 using System.Text.Json;
-using squad.Specs.Support.Agents.Control;
+using squad.AgentProvider.Fake.Control;
 
-namespace squad.Specs.Support.Agents;
+namespace squad.AgentProvider.Fake;
 
 /// <summary>
 /// Provider-side runtime for <see cref="FakeAgentProviderFactory"/>. Establishes one <see cref="FakeAgentSession"/>
