@@ -208,3 +208,38 @@ flow or introduce the dual-format behavior this issue removes.
 Headquarters fan-out, task or batch claim, restart recovery, and completion; every transition remains durable and
 atomic; invalid, legacy, or mixed queues fail without losing or partially delivering an artifact; no production
 legacy-grammar code remains; and the focused black-box handoff suite passes.
+
+## Slice 1 review (ba0b044129) — changes requested
+
+### Finding 1 — Medium
+
+- **Location:** `docs/manual/glossary.md` (Handoff / Handoff queue); `docs/manual/architecture.md` (State ownership
+  and durability; Architectural characteristics item 3); `docs/manual/modules.md` (`squad.Handoffs`).
+- **Violated behavior:** Required design and slice 8 require the manual to describe the typed JSON contract, derived
+  payload, and the finite drain-or-reset upgrade policy: existing queues must be drained with the previous release
+  or discarded by a normal launch; a continued launch preserves only JSON queues and must not start on legacy or
+  mixed queues. Architecture currently says a continued launch preserves worktrees and queues with no upgrade
+  exception.
+- **Root cause:** The commit only swapped `.handoff` for `.handoff.json`, noted a versioned JSON document, and
+  mentioned legacy-queue detection. It did not document drain-or-reset, that payload text is derived from variant
+  fields rather than persisted, or that `--continue` refuses a legacy or mixed queue.
+- **Required outcome:** Update glossary, architecture, and module inventory so an operator can see the JSON
+  contract, derived payload, atomic filesystem queue, and drain-or-reset policy without reading source. State
+  ownership must not imply that a continued launch preserves a pre-JSON queue.
+
+### Finding 2 — Medium
+
+- **Location:** `src/squad.Specs/Support/Mailboxes/HandoffMailboxObserver.cs` (`Parse` omits timestamps);
+  `src/squad.Specs/Features/Delivery.feature`; `src/squad.Specs/Features/Handoffs.feature`;
+  `src/squad.Specs/Features/HeadquartersWorkspaceFailures.feature`.
+- **Violated behavior:** Acceptance requires lifecycle timestamps to survive each rewrite. Slice 7 requires focused
+  black-box coverage for timestamp preservation and for rejecting mixed queues without partial mutation. The suite
+  never observes `createdAt` / `enqueuedAt` / `dequeuedAt` / `completedAt` across delivery, claim, or completion. Mixed
+  queues are unproven: both new legacy scenarios seed only a `.handoff` artifact, so a sibling `.handoff.json` being
+  delivered, claimed, or overwritten would not fail.
+- **Root cause:** Observers were switched to JSON property reads for sender, recipients, priority, kind, and
+  payload, but timestamps were left unread. Legacy fixtures cover a legacy-only queue, which cannot show that JSON
+  artifacts in the same queue stay unprocessed.
+- **Required outcome:** Prove through the real `squad` / `squad-hq` processes that timestamps survive fan-out, claim,
+  and completion rewrites, and that a mixed queue (legacy `.handoff` plus `.handoff.json` in any scanned state) fails
+  as a unit with no JSON artifact created, delivered, claimed, or altered.
