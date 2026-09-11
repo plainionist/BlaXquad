@@ -1,5 +1,5 @@
 ---
-title: rename roles
+title: squad - roles - squad members
 priority: 40
 ---
 
@@ -16,3 +16,4 @@ that makes absolutely sense because even if we have 2 coders we will not duplica
 initial prompt (agent file)
 
 ==> adapt the naming consistently in the code base
+
