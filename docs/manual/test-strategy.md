@@ -74,6 +74,18 @@ All feature files, step definitions, the scenario driver, the fake provider, and
 Internal folders and helper types may separate responsibilities inside that project, but those are test implementation
 details. They must not become new assemblies or reproduce the product module boundaries.
 
+`src/squad.Specs/Support` is organized into six responsibility folders, one owner per folder, with namespaces matching
+each folder. This is an ownership map for navigating test support, not a mandate to add a layer around every file:
+
+| Folder | Namespace | Owner |
+| --- | --- | --- |
+| `Scenarios` | `squad.Specs.Support.Scenarios` | The scenario composition root (`BackendScenario`), its role/command adapters, and the temporary Git workspace it drives. `BackendScenario` is the single scenario-scoped owner of normal shutdown, emergency teardown, and every replacement launch or explicit independent-project child it creates. |
+| `Processes` | `squad.Specs.Support.Processes` | Child-process execution, captured command results, and process diagnostics. |
+| `Ui` | `squad.Specs.Support.Ui` | The headless UI protocol client and its decoded transcript/synchronization/page observations. |
+| `Agents` | `squad.Specs.Support.Agents` | Fake agent-provider fixtures and provider-selection fixtures. |
+| `Agents/Control` | `squad.Specs.Support.Agents.Control` | The private fake-provider control transport, protocol, handlers, and observation state. |
+| `Mailboxes` | `squad.Specs.Support.Mailboxes` | Durable handoff and task mailbox setup and observation fixtures. |
+
 ### Keep production infrastructure real
 
 Use real:

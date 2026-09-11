@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Agents;
 
 namespace squad.Specs.StepDefinitions;
@@ -8,9 +8,10 @@ namespace squad.Specs.StepDefinitions;
 /// including the asynchronous "begins waiting" / "remains pending" / "succeeds" form of
 /// `squad-hq wait-for-agent` used to prove readiness follows a role's own idle and busy transitions rather than
 /// merely a synchronous confirmation. Requests the scenario's single <see cref="BackendScenario"/> instance rather
-/// than constructing its own, so agent-session steps bound elsewhere observe the same running process. Owns only
-/// the replacement Headquarters launch it creates itself; the shared scenario's own process remains
-/// <see cref="BackendScenarioSteps"/>'s teardown responsibility.
+/// than constructing its own, so agent-session steps bound elsewhere observe the same running process. The
+/// replacement Headquarters launch it creates is a tracked child of that same instance (see
+/// <see cref="BackendScenario.StartReplacementAsync{TProviderFactory}"/>) and is disposed by it, not by this
+/// binding.
 /// </summary>
 [Binding]
 public sealed class HeadquartersLifecycleSteps
@@ -25,9 +26,6 @@ public sealed class HeadquartersLifecycleSteps
     {
         myScenario = scenario;
     }
-
-    [AfterScenario]
-    public void CleanUp() => myReplacementHeadquarters?.Dispose();
 
     [Given("role {string} has a durable file {string} containing {string}")]
     [When("role {string} has a durable file {string} containing {string}")]

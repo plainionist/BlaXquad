@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Agents;
 using squad.Specs.Support.Mailboxes;
 
@@ -31,7 +31,6 @@ public sealed class RecoverySteps
     private readonly BackendScenario myScenario;
     private readonly HandoffMailboxObserver myMailbox;
     private readonly TaskMailboxFixture myTaskMailbox;
-    private BackendScenario? myReplacementScenario;
     private BackendScenario? myCurrentScenario;
 
     public RecoverySteps(ScenarioWorkspace workspace, BackendScenario scenario, HandoffMailboxObserver mailbox, TaskMailboxFixture taskMailbox)
@@ -41,9 +40,6 @@ public sealed class RecoverySteps
         myMailbox = mailbox;
         myTaskMailbox = taskMailbox;
     }
-
-    [AfterScenario]
-    public void CleanUp() => myReplacementScenario?.Dispose();
 
     [Given("{string} already has the recipient copy")]
     public void GivenRoleAlreadyHasTheRecipientCopy(string role) =>
@@ -76,8 +72,8 @@ public sealed class RecoverySteps
     public async Task WhenTheOperatorRestartsHeadquartersContinuingFromDurableState()
     {
         await myCurrentScenario!.ShutdownAsync();
-        myReplacementScenario = new BackendScenario(myWorkspace);
-        await StartCurrentScenarioAsync(myReplacementScenario);
+        var replacement = myScenario.CreateReplacement();
+        await StartCurrentScenarioAsync(replacement);
     }
 
     private async Task StartCurrentScenarioAsync(BackendScenario scenario)

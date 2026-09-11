@@ -2,7 +2,7 @@ using squad.Specs.Support.Agents.Control;
 using squad.Specs.Support.Processes;
 using squad.Specs.Support.Ui;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Scenarios;
 
 /// <summary>
 /// Test-owned lifetime and composition root for one backend-process specification. It wires together the Git
@@ -29,11 +29,19 @@ public sealed class BackendScenario : IDisposable
     private int? myFailProviderAfterSessions;
     private string? myFailProviderDisposalMessage;
     private bool myDisposed;
+    private readonly bool myOwnsWorkspace;
+    private readonly List<BackendScenario> myChildren = [];
     private readonly List<string> myConfiguredRoles = [];
 
     public BackendScenario(ScenarioWorkspace workspace)
+        : this(workspace, ownsWorkspace: false)
+    {
+    }
+
+    private BackendScenario(ScenarioWorkspace workspace, bool ownsWorkspace)
     {
         myWorkspace = workspace;
+        myOwnsWorkspace = ownsWorkspace;
     }
 
     /// <summary>Whether the backend process has completed the real "ui.ready" handshake.</summary>
@@ -937,16 +945,47 @@ public sealed class BackendScenario : IDisposable
         StartWaitForAgent(role, timeout ?? DefaultTimeout);
 
     /// <summary>
-    /// Starts a brand-new <see cref="BackendScenario"/> against this exact same workspace, proving a healthy
-    /// replacement process can acquire the same project and reach readiness after this scenario's own process
-    /// released it - for example after a normal host-controlled shutdown. The caller owns the returned scenario's
-    /// lifetime exactly like this one; it is not disposed automatically by this scenario.
+    /// Creates a not-yet-started <see cref="BackendScenario"/> child sharing this exact same workspace - for a
+    /// replacement launch that must still be configured (for example enabling the fake-provider control
+    /// transport, or requesting "--continue") before it starts. Tracked and disposed by this scenario like every
+    /// other child it creates (see <see cref="Dispose"/>); step definitions must not construct a replacement
+    /// directly.
     /// </summary>
-    public async Task<BackendScenario> StartReplacementAsync<TProviderFactory>(TimeSpan? timeout = null)
-        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
+    public BackendScenario CreateReplacement()
     {
         var replacement = new BackendScenario(myWorkspace);
-        await replacement.StartAsync<TProviderFactory>(timeout);
+        myChildren.Add(replacement);
+        return replacement;
+    }
+
+    /// <summary>
+    /// Creates a brand-new, fully independent <see cref="BackendScenario"/> owning its own fresh
+    /// <see cref="ScenarioWorkspace"/> - for scenarios that must prove two unrelated squad-hq processes never
+    /// interfere with each other. Each caller keeps the returned instance addressable under its own label; this
+    /// scenario only tracks and disposes it (see <see cref="Dispose"/>) like every other child it creates. Step
+    /// definitions must not construct an independent project's workspace or scenario directly.
+    /// </summary>
+    public BackendScenario CreateIndependentProject()
+    {
+        var child = new BackendScenario(new ScenarioWorkspace(), ownsWorkspace: true);
+        myChildren.Add(child);
+        return child;
+    }
+
+    /// <summary>
+    /// Starts a brand-new <see cref="BackendScenario"/> against this exact same workspace, proving a healthy
+    /// replacement process can acquire the same project and reach readiness after this scenario's own process
+    /// released it - for example after a normal host-controlled shutdown. <paramref name="continueLaunch"/>
+    /// passes the real "--continue" flag through to <see cref="StartAsync{TProviderFactory}"/> for a replacement
+    /// that must resume from durable state a prior launch already left on disk. Tracked and disposed by this
+    /// scenario (see <see cref="CreateReplacement"/> and <see cref="Dispose"/>); callers address the returned
+    /// instance directly only for its own observable state, never for its lifetime.
+    /// </summary>
+    public async Task<BackendScenario> StartReplacementAsync<TProviderFactory>(TimeSpan? timeout = null, bool continueLaunch = false)
+        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
+    {
+        var replacement = CreateReplacement();
+        await replacement.StartAsync<TProviderFactory>(timeout, continueLaunch);
         return replacement;
     }
 
@@ -973,13 +1012,19 @@ public sealed class BackendScenario : IDisposable
 
     /// <summary>
     /// Emergency cleanup for a scenario that never reached, or never completed, a normal host-control shutdown.
-    /// Requests shutdown one more time on a best-effort basis, waits a bounded grace period for the exact process
-    /// this scenario launched to exit on its own, and only then forcibly terminates that same process - never any
-    /// other process, even one launched by another concurrently running scenario. Never throws, so a cleanup
-    /// failure here can never replace a scenario's real failure. Idempotent: a scenario-scoped consumer disposes
-    /// this instance explicitly (so cleanup runs before <see cref="ScenarioWorkspace.Dispose"/> may otherwise
-    /// dispose the same tracked process out from under it), while Reqnroll's container disposes it a second time
-    /// as the constructor-injected owner of this shared instance; the second call is a safe no-op.
+    /// Disposes every child scenario this instance created (see <see cref="CreateReplacement"/> and
+    /// <see cref="CreateIndependentProject"/>) first - so a replacement or independent-project process is never
+    /// left running, or racing this scenario's own workspace teardown - then requests shutdown one more time on a
+    /// best-effort basis, waits a bounded grace period for the exact process this scenario launched to exit on its
+    /// own, and only then forcibly terminates that same process - never any other process, even one launched by
+    /// another concurrently running scenario. Finally disposes this scenario's own workspace, but only when this
+    /// scenario created it itself (see <see cref="CreateIndependentProject"/>); a workspace shared with a parent
+    /// scenario, or constructor-injected by Reqnroll, remains that owner's responsibility. Never throws, so a
+    /// cleanup failure here can never replace a scenario's real failure. Idempotent: a scenario-scoped consumer
+    /// disposes this instance explicitly (so cleanup runs before <see cref="ScenarioWorkspace.Dispose"/> may
+    /// otherwise dispose the same tracked process out from under it), while Reqnroll's container disposes it a
+    /// second time as the constructor-injected owner of this shared instance; the second call is a safe no-op. No
+    /// binding may become a second owner of a child this scenario itself created.
     /// </summary>
     public void Dispose()
     {
@@ -988,6 +1033,11 @@ public sealed class BackendScenario : IDisposable
             return;
         }
         myDisposed = true;
+
+        foreach (var child in myChildren)
+        {
+            child.Dispose();
+        }
 
         try
         {
@@ -998,31 +1048,34 @@ public sealed class BackendScenario : IDisposable
             Console.Error.WriteLine($"BackendScenario cleanup: control pipe disposal failed: {exception.Message}");
         }
 
-        if (myProcess is not { HasExited: false } process)
+        if (myProcess is { HasExited: false } process)
         {
-            return;
-        }
-
-        try
-        {
-            myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root]);
-        }
-        catch (Exception exception)
-        {
-            Console.Error.WriteLine($"BackendScenario cleanup: best-effort shutdown request failed: {exception.Message}");
-        }
-
-        try
-        {
-            if (!process.WaitForExit((int)ShutdownGracePeriod.TotalMilliseconds))
+            try
             {
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit((int)DefaultTimeout.TotalMilliseconds);
+                myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root]);
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine($"BackendScenario cleanup: best-effort shutdown request failed: {exception.Message}");
+            }
+
+            try
+            {
+                if (!process.WaitForExit((int)ShutdownGracePeriod.TotalMilliseconds))
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit((int)DefaultTimeout.TotalMilliseconds);
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine($"BackendScenario cleanup: forced termination failed: {exception.Message}");
             }
         }
-        catch (Exception exception)
+
+        if (myOwnsWorkspace)
         {
-            Console.Error.WriteLine($"BackendScenario cleanup: forced termination failed: {exception.Message}");
+            myWorkspace.Dispose();
         }
     }
 

@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 using System.Text.Json;
 
 namespace squad.Specs.StepDefinitions;

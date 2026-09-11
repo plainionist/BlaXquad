@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Agents;
 
 namespace squad.Specs.StepDefinitions;
@@ -6,17 +6,26 @@ namespace squad.Specs.StepDefinitions;
 /// <summary>
 /// Launches two independent squad-hq stdio processes, each against its own <see cref="ScenarioWorkspace"/> and
 /// <see cref="BackendScenario"/> pair, to prove that stopping or terminating one instance never disturbs the
-/// other. Drives every process exclusively through the shared <see cref="BackendScenario"/> process driver and the
-/// shared <see cref="FakeAgentProviderFactory"/> fixture - never touching workspace paths, process handles,
-/// protocol DTOs, or raw JSON directly; each project's "coder" role answers its own prompts automatically
+/// other. Each independent project is created through the scenario's single shared <see cref="BackendScenario"/>
+/// composition root (see <see cref="BackendScenario.CreateIndependentProject"/>), which tracks and disposes both
+/// child scenarios and their own workspaces; this binding never constructs a <see cref="ScenarioWorkspace"/> or
+/// <see cref="BackendScenario"/> directly and owns no teardown of its own. Drives every process exclusively
+/// through the shared <see cref="BackendScenario"/> process driver and the shared
+/// <see cref="FakeAgentProviderFactory"/> fixture - never touching workspace paths, process handles, protocol
+/// DTOs, or raw JSON directly; each project's "coder" role answers its own prompts automatically
 /// ("echo: {prompt}") across the shared fake-provider control pipe instead of a second, narrower provider fixture.
 /// </summary>
 [Binding]
 public sealed class HostCoexistenceSteps
 {
-    private readonly Dictionary<string, ScenarioWorkspace> myWorkspacesByLabel = new(StringComparer.Ordinal);
+    private readonly BackendScenario myScenario;
     private readonly Dictionary<string, BackendScenario> myScenariosByLabel = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> myExitCodesByLabel = new(StringComparer.Ordinal);
+
+    public HostCoexistenceSteps(BackendScenario scenario)
+    {
+        myScenario = scenario;
+    }
 
     [Given("the operator configures independent squad projects {string} and {string}")]
     public void GivenTheOperatorConfiguresIndependentSquadProjects(string firstLabel, string secondLabel)
@@ -71,25 +80,9 @@ public sealed class HostCoexistenceSteps
         Assert.That(myScenariosByLabel[label].IsRunning, Is.True, $"Project '{label}' should still be running.");
     }
 
-    [AfterScenario]
-    public void CleanUp()
-    {
-        foreach (var scenario in myScenariosByLabel.Values)
-        {
-            scenario.Dispose();
-        }
-        foreach (var workspace in myWorkspacesByLabel.Values)
-        {
-            workspace.Dispose();
-        }
-    }
-
     private void CreateProject(string label)
     {
-        var workspace = new ScenarioWorkspace();
-        myWorkspacesByLabel[label] = workspace;
-
-        var scenario = new BackendScenario(workspace);
+        var scenario = myScenario.CreateIndependentProject();
         scenario.ConfigureRole("coder");
         scenario.EnableFakeProviderControl();
         myScenariosByLabel[label] = scenario;

@@ -1,6 +1,6 @@
 using squad.Specs.Support.Processes;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Scenarios;
 
 /// <summary>
 /// Semantic handle for one real CLI command process a <see cref="BackendScenario"/> started without waiting for

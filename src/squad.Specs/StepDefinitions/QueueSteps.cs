@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;

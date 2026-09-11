@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using squad.Specs.Support.Processes;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Scenarios;
 
 public sealed class ScenarioWorkspace : IDisposable
 {

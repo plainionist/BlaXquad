@@ -1,6 +1,6 @@
 using squad.Specs.Support.Agents.Control;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Scenarios;
 
 /// <summary>
 /// Narrow, semantic controller for one role's fake-provider session, returned by <see cref="BackendScenario.Agent"/>.

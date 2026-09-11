@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.Support.Mailboxes;
 
