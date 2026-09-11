@@ -31,6 +31,95 @@ public sealed class ScenarioWorkspace : IDisposable
     public void WriteFile(string relativePath, string content) => WriteFileUnder(Root, relativePath, content);
 
     /// <summary>
+    /// Deletes a file previously written into this workspace (for example a configuration or constitution file),
+    /// so a specification can arrange a missing-file workspace failure as one semantic operation.
+    /// </summary>
+    public void DeleteFile(string relativePath) =>
+        File.Delete(Path.Combine(Root, Path.Combine(relativePath.Split('/'))));
+
+    /// <summary>
+    /// Rewrites `blaxquad/squad.json` back to the healthy configuration <see cref="ConfigureProject"/> or
+    /// <see cref="ConfigureRoles(string[])"/> already established for every currently configured role, for a
+    /// specification proving a previously reported workspace failure (for example a missing or malformed
+    /// configuration file) no longer blocks a subsequent launch once the underlying problem is fixed.
+    /// </summary>
+    public void RestoreProjectConfiguration() =>
+        WriteSquadConfiguration(
+            myRoleWorktrees.Keys.FirstOrDefault(),
+            myRoleWorktrees.Keys.Select(role => (Role: role, ReceiveMode: (string?)null)).ToList());
+
+    /// <summary>
+    /// Declares <paramref name="sharedRelativePath"/> as a `sharedWorktreePaths` entry in `blaxquad/squad.json`
+    /// for every role already configured by <see cref="ConfigureRoles(string[])"/>, preserving each role's worktree
+    /// mapping, for a specification that arranges an unsafe (non-empty) shared worktree path as a semantic
+    /// workspace operation.
+    /// </summary>
+    public void ConfigureSharedWorktreePath(string sharedRelativePath)
+    {
+        var rolesJson = string.Join(",\n", myRoleWorktrees.Keys.Select(role => RoleJson(role, null)));
+        var leader = myRoleWorktrees.Keys.First();
+        WriteFile("blaxquad/squad.json", $$"""
+            {
+              "leader": "{{leader}}",
+              "sharedWorktreePaths": ["{{sharedRelativePath}}"],
+              "roles": [
+            {{rolesJson}}
+              ]
+            }
+            """ + "\n");
+    }
+
+    /// <summary>
+    /// Creates a non-empty directory at <paramref name="relativePath"/> inside the given role's own worktree
+    /// (recorded by <see cref="ConfigureProject"/>), so a real launch attempting to replace it with a shared
+    /// worktree path link genuinely finds pre-existing content it must not silently discard.
+    /// </summary>
+    public void SeedNonEmptyDirectory(string role, string relativePath)
+    {
+        var target = Path.Combine(myRoleWorktrees[role], Path.Combine(relativePath.Split('/')));
+        Directory.CreateDirectory(target);
+        File.WriteAllText(Path.Combine(target, "existing.txt"), "pre-existing content\n");
+    }
+
+    /// <summary>
+    /// Copies the published, provider-free backend-spec squad-hq deployment (see
+    /// <see cref="BackendSpecSquadHqExecutablePath"/>) into a directory owned by this workspace with its required
+    /// "squad" helper script removed, so a specification can prove a missing helper script is detected through a
+    /// real deployment - never by deleting the shared, concurrently used test-output helper other scenarios still
+    /// depend on. Returns the copied deployment's own squad-hq executable path.
+    /// </summary>
+    public string CreateBackendSpecDeploymentMissingHelperScript()
+    {
+        var source = Path.GetDirectoryName(BackendSpecSquadHqExecutablePath)!;
+        var destination = PathInWorkspace("squad-hq-deployment-without-helper");
+        CopyDirectoryRecursive(source, destination);
+
+        var helperName = OperatingSystem.IsWindows() ? "squad.exe" : "squad";
+        var helperPath = Path.Combine(destination, helperName);
+        if (File.Exists(helperPath))
+        {
+            File.Delete(helperPath);
+        }
+
+        var executableName = OperatingSystem.IsWindows() ? "squad-hq.exe" : "squad-hq";
+        return Path.Combine(destination, executableName);
+    }
+
+    private static void CopyDirectoryRecursive(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var file in Directory.EnumerateFiles(source))
+        {
+            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
+        }
+        foreach (var directory in Directory.EnumerateDirectories(source))
+        {
+            CopyDirectoryRecursive(directory, Path.Combine(destination, Path.GetFileName(directory)));
+        }
+    }
+
+
+    /// <summary>
     /// Writes a file into a role's worktree recorded by <see cref="ConfigureProject"/>, so specifications can seed
     /// role-owned content (for example an agent's own working-tree change) without resolving or retaining the
     /// worktree path themselves.

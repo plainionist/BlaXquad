@@ -6,6 +6,7 @@
     <ProjectReference Include="..\squad.Handoffs.Delivery\squad.Handoffs.Delivery.csproj" />
     <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj" />
     <ProjectReference Include="..\squad.Host.Control\squad.Host.Control.csproj" />
+    <ProjectReference Include="..\squad.Workspaces\squad.Workspaces.csproj" />
   </ItemGroup>
 
 </Project>

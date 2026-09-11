@@ -907,6 +907,56 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public void RepairHandoffOutbox(string role) => myWorkspace.RepairRoleHandoffOutbox(role);
 
+    /// <summary>Deletes `blaxquad/squad.json`, for a specification proving a missing project configuration file
+    /// terminates launch with a clear diagnostic rather than continuing with invalid state.</summary>
+    public void RemoveProjectConfiguration() => myWorkspace.DeleteFile("blaxquad/squad.json");
+
+    /// <summary>Overwrites `blaxquad/squad.json` with content that is not valid JSON, for a specification proving
+    /// a malformed project configuration file terminates launch with a clear diagnostic.</summary>
+    public void CorruptProjectConfiguration() => myWorkspace.WriteFile("blaxquad/squad.json", "{ this is not valid json");
+
+    /// <summary>
+    /// Rewrites `blaxquad/squad.json` back to the healthy configuration already established for every configured
+    /// role (see <see cref="ScenarioWorkspace.RestoreProjectConfiguration"/>), for a specification proving a
+    /// previously reported workspace failure no longer blocks a subsequent launch once fixed.
+    /// </summary>
+    public void RestoreProjectConfiguration() => myWorkspace.RestoreProjectConfiguration();
+
+    /// <summary>Deletes `blaxquad/constitution.prompt`, for a specification proving a missing constitution file
+    /// terminates launch with a clear diagnostic rather than continuing with invalid state.</summary>
+    public void RemoveConstitutionPrompt() => myWorkspace.DeleteFile("blaxquad/constitution.prompt");
+
+    /// <summary>
+    /// Declares <paramref name="sharedPath"/> as a shared worktree path and seeds a pre-existing, non-empty
+    /// directory at that path inside the given role's own worktree, for a specification proving launch refuses to
+    /// silently discard content it does not own while replacing a shared worktree path with a link.
+    /// </summary>
+    public void ConfigureSharedWorktreePathWithExistingContent(string sharedPath, string role)
+    {
+        myWorkspace.ConfigureSharedWorktreePath(sharedPath);
+        myWorkspace.SeedNonEmptyDirectory(role, sharedPath);
+    }
+
+    /// <summary>
+    /// Launches an isolated copy of the published backend-spec squad-hq deployment with its required "squad"
+    /// helper script removed (see <see cref="ScenarioWorkspace.CreateBackendSpecDeploymentMissingHelperScript"/>),
+    /// without ever completing the "ui.ready" handshake, for the specification proving a missing helper script is
+    /// detected and reported before any role session is attempted - never by deleting the shared, concurrently
+    /// used helper script other scenarios still depend on.
+    /// </summary>
+    public void LaunchDeploymentMissingHelperScriptWithoutReadyHandshake<TProviderFactory>()
+        where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
+    {
+        var executable = myWorkspace.CreateBackendSpecDeploymentMissingHelperScript();
+        var descriptor = $"{typeof(TProviderFactory).Assembly.Location};{typeof(TProviderFactory).FullName}";
+        myProcess = myWorkspace.StartProcess(
+            executable,
+            ["launch", "--provider", descriptor, "--ui", "stdio", myWorkspace.Root],
+            environment: null,
+            redirectStandardInput: true);
+        myUi = new HeadlessUiClient(myProcess);
+    }
+
     /// <summary>
     /// Configures the next <see cref="StartAsync{TProviderFactory}"/> launch's fake provider to pause
     /// immediately before creating the given number of sessions - for example 0 pauses before the very first

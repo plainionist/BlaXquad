@@ -110,3 +110,66 @@ already available to every supported agent runtime.
   change.
 - Bundled agent instructions contain enough command syntax for normal handoffs
   without first invoking `squad handoff --help`.
+
+## Implementation plan
+
+### Slice 1: Queue typed handoffs directly from the CLI
+
+**Outcome:** An instructed role can queue either its committed work or a note
+with one direct command, without creating a draft, while existing handoff
+delivery continues to consume the same durable representation.
+
+1. Replace the draft-file entry point in `squad.Commands.Handoff` with explicit
+   `commit` and `note` dispatch. Parse each form into its own typed request
+   rather than reconstructing the draft-header dictionary:
+   - `commit --to <roles> --task <task> [--commit <revision>] [--priority NN]`
+   - `note --to <roles> --message <message> [--priority NN]`
+   Reject missing option values, duplicate or unknown options, unexpected
+   positional arguments, and options belonging to the other intent. Keep
+   validation failures actionable and print only the relevant one-line usage;
+   make primary help describe the direct forms and not the draft schema.
+2. Resolve sender, configured roles, and the role worktree once for either
+   request. Preserve recipient validation, the 80-character task/message
+   limits, and the two-digit priority validation. Default priority to `50`.
+   Resolve an explicit Git revision, or `HEAD` when omitted, to a commit and
+   persist Git's canonical ten-character abbreviation; explicit revisions are
+   not restricted to already-abbreviated hexadecimal object IDs.
+3. Before resolving an implicit `HEAD`, use Git status in the role worktree to
+   reject staged, unstaged, or untracked non-ignored changes with a diagnostic
+   telling the role to commit first. Apply this guard only when `--commit` was
+   omitted so an intentional explicit revision remains usable in a dirty
+   worktree.
+4. Feed the validated typed request into one durable handoff writer. Preserve
+   filename construction, canonical header names and order, generated payload,
+   atomic outbox publication, and queue-directory initialization exactly so
+   Headquarters delivery and inbox consumers do not change.
+5. Cut over the black-box `Handoffs.feature` to the direct commands. Replace
+   draft-writing support with captured command arguments used by the existing
+   role-tool runner, delete `HandoffDraftWriter`, and remove draft-removal
+   assertions. Keep Delivery and Recovery scenarios using the same public
+   steps so they also exercise the new note form without duplicating setup.
+   Cover:
+   - clean `HEAD` and priority `50` defaults;
+   - explicit revision and priority overrides;
+   - a note sent to multiple recipients;
+   - dirty-worktree rejection for implicit `HEAD` and successful intentional
+     use of `--commit` from that dirty worktree;
+   - representative recipient, priority, length, option-shape, and Git-object
+     validation failures with focused diagnostics;
+   - direct-form help plus unchanged queued headers and payload.
+6. Put both generic command templates, defaults, and the clean-`HEAD`
+   requirement in `blaxquad/constitution.prompt`. Keep role prompts focused on
+   workflow, but name `squad handoff commit` or `squad handoff note` where each
+   role sends work. Update the handoff glossary and the test-strategy CLI
+   example so no bundled guidance or test API still teaches draft creation.
+7. Remove the legacy draft parser, draft schema collections, temporary-input
+   deletion, and compatibility form in this slice. All bundled callers are
+   migrated together, so retaining that private intermediate contract would
+   preserve the duplication this issue removes. Do not add a test whose only
+   purpose is proving the removed form is unavailable.
+
+**Acceptance:** The focused handoff command scenarios pass through the
+published `squad` executable, the Delivery and Recovery scenarios continue to
+observe the unchanged durable protocol, and a repository search finds no
+remaining bundled `squad handoff <draft-file>` instructions or draft-builder
+support.

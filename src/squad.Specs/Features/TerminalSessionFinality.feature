@@ -2,8 +2,8 @@ Feature: Terminal session finality
 
   A terminal session failure or a graceful completion makes a role's status final and prevents further mutation of
   its published state: once terminal, a role's pending interactions are removed, later commands addressed to it are
-  rejected, and any further work published under that same session identity - a late reply, a late readiness
-  change, a late interaction request, or a late second termination - never resurrects the role, changes its
+  rejected, and any further work published under that same session identity - a late reply, a late idle transition,
+  a late interaction request, or a late second termination - never resurrects the role, changes its
   transcript, or opens a new pending interaction, whether the transcript is checked as it stands or refreshed
   through a later synchronization. A terminal role never prevents a healthy sibling role from continuing to handle
   prompts, and it never obstructs an otherwise normal shutdown through Headquarters.
@@ -41,7 +41,7 @@ Feature: Terminal session finality
     Then the transcript for role "coder" does not contain "should not resurrect the role" within 2 seconds
     When the "coder" agent requests permission "permission-2" with description "Late request?"
     Then the dashboard shows no pending permission "permission-2" for role "coder"
-    When the "coder" agent emits readiness "ready"
+    When the "coder" agent emits idle
     And the "coder" agent fails its session with message "late failure after stop"
     Then the dashboard shows role "coder"'s latest status as "stopped"
     When the user requests a fresh transcript synchronization for role "coder"
@@ -59,7 +59,7 @@ Feature: Terminal session finality
     Then the transcript for role "coder" does not contain "should not resurrect the role" within 2 seconds
     When the "coder" agent requests permission "permission-2" with description "Late request?"
     Then the dashboard shows no pending permission "permission-2" for role "coder"
-    When the "coder" agent emits readiness "ready"
+    When the "coder" agent emits idle
     And the "coder" agent completes its session
     Then the dashboard shows role "coder"'s latest status as "error"
     When the user requests a fresh transcript synchronization for role "coder"
@@ -71,7 +71,7 @@ Feature: Terminal session finality
     When the "coder" agent completes its session
     Then the dashboard shows role "coder" at status "stopped"
     When the "coder" agent emits a final assistant message "still coming after stop"
-    And the "coder" agent emits readiness "ready"
+    And the "coder" agent emits idle
     And the "coder" agent fails its session with message "stale failure"
     And the operator shuts down Headquarters
     Then Headquarters exits with code 0

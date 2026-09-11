@@ -1,13 +1,10 @@
-using squad.AgentProvider.Abstractions;
 using squad.Process;
-using squad.Configuration;
-using squad.Handoffs;
 using squad.Handoffs.Delivery;
 using squad.Application;
+using squad.Hosting.Abstractions;
 using squad.Issues;
 using squad.Photino;
 using squad.Stdio;
-using squad.Ui.Abstractions;
 using squad.Workspaces;
 using squad.Host.Control;
 using squad.Host.Runtime;
@@ -44,76 +41,11 @@ static class Launch
                 ? string.Join(" ", aggregate.Flatten().InnerExceptions.Select(inner => inner.Message))
                 : exception.Message;
 
-        Ctx BuildContext(string workingDirArgument)
-        {
-            var layout = ProjectLayout.Create(workingDirArgument);
-            return new Ctx
-            {
-                WorkingDir = layout.WorkingDir,
-                ScriptDir = layout.ScriptDir,
-                PackDir = layout.PackDir,
-                WorktreesDir = layout.WorktreesDir,
-                ConfigFile = layout.ConfigFile,
-                RolesDir = layout.RolesDir,
-                ConstitutionFile = layout.ConstitutionFile,
-                StateDir = layout.StateDir,
-                HandoffLog = layout.HandoffLog,
-                Roles = [],
-            };
-        }
-
-        Ctx PrepareContext(Ctx context)
-        {
-            new WorkspacePreparer(Fail).Parse(context);
-            return context;
-        }
-
-        AgentBackendContext BuildBackendContext(Ctx context)
-        {
-            var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            var environment = new Dictionary<string, string>(comparer);
-            foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
-            {
-                if (entry.Key is string key && entry.Value is not null)
-                {
-                    environment[key] = entry.Value.ToString()!;
-                }
-            }
-
-            var existingPath = environment.TryGetValue("PATH", out var pathValue) ? pathValue : string.Empty;
-            if (string.IsNullOrEmpty(existingPath))
-            {
-                environment["PATH"] = context.ScriptDir;
-            }
-            else
-            {
-                var parts = existingPath.Split(Path.PathSeparator);
-                if (!parts.Contains(context.ScriptDir, comparer))
-                {
-                    environment["PATH"] = string.Join(Path.PathSeparator, context.ScriptDir, existingPath);
-                }
-            }
-
-            return new AgentBackendContext(
-                context.WorkingDir,
-                context.ScriptDir,
-                context.Roles.Select(role => new AgentRoleContext(
-                    role.Role,
-                    role.DisplayName,
-                    role.WorktreePath,
-                    InitialInstruction(role.Role),
-                    role.Permissions,
-                    role.Model,
-                    role.Effort)).ToArray(),
-                environment);
-        }
-
         void RunMain(string root, bool continueLaunch, ProviderDescriptor? providerDescriptor, UiMode uiMode)
         {
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
-            var context = BuildContext(root);
-            context.ContinueLaunch = continueLaunch;
-            HostLease? hostLease = HostLease.Acquire(context.WorkingDir);
+            var layout = ProjectLayout.Create(root);
+            HostLease? hostLease = HostLease.Acquire(layout.WorkingDir);
             SquadApplication? application = null;
             using var consoleCancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler? cancelHandler = (_, eventArgs) =>
@@ -123,44 +55,21 @@ static class Launch
             };
             Console.CancelKeyPress += cancelHandler;
 
-            void LogHandoff(string[] parts)
-            {
-                Directory.CreateDirectory(context.StateDir);
-                File.AppendAllText(context.HandoffLog, $"{Timestamps.Now()} {string.Join(" ", parts)}\n");
-            }
-
             try
             {
-                var preparer = new WorkspacePreparer(Fail);
                 var viewModel = new SquadViewModel();
-                var issueCatalog = new WorkspaceIssueCatalog(context.WorkingDir);
-                var runtime = Create(context.WorkingDir, viewModel, issueCatalog, agentProviderFactory, uiMode);
-                var startupPlan = SquadStartupPlanFactory.ForWorkspace(
-                    context,
-                    preparer,
-                    prepareContextAsync: async cancellationToken =>
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        if (!ExecutableLocator.Exists("git"))
-                        {
-                            Fail($"{Red}Error:{Reset} 'git' is required but not installed.");
-                        }
-                        await preparer.InitializeGitRepoAsync(context, cancellationToken);
-                        await preparer.EnsureRuntimeGitExcludesAsync(context, cancellationToken);
-                        cancellationToken.ThrowIfCancellationRequested();
-                        PrepareContext(context);
-                        return BuildBackendContext(context);
-                    });
+                var issueCatalog = new WorkspaceIssueCatalog(layout.WorkingDir);
+                IWindowHost windowHost = uiMode == UiMode.Stdio
+                    ? new StdioWindowHost(viewModel, issueCatalog)
+                    : new PhotinoWindowHost(viewModel, issueCatalog, layout.WorkingDir);
+                var sleepInhibitor = new SleepInhibitor();
+                var launchPreparer = new LaunchPreparer(layout, continueLaunch);
 
                 application = SquadApplication.Create(
-                    startupPlan,
-                    runtime.AgentProviderFactory,
-                    handoffPumpFactory: notifier => new InProcessHandoffPoller(
-                        () => context.Roles.Select(r => new RoleRow(r.Role, r.WorktreeName, r.WorktreePath, r.DisplayName, r.ReceiveMode)).ToArray(),
-                        notifier,
-                        LogHandoff),
-                    runtime.WindowHost,
-                    runtime.SleepInhibitor,
+                    launchPreparer,
+                    agentProviderFactory,
+                    windowHost,
+                    sleepInhibitor,
                     viewModel,
                     hostLease: hostLease!);
                 hostLease = null;
@@ -179,6 +88,10 @@ static class Launch
                 {
                     Fail($"{Red}Error:{Reset} Handoff delivery failed: {DescribeFailure(exception)}");
                 }
+                catch (WorkspacePreparationException exception)
+                {
+                    Fail($"{Red}Error:{Reset} {exception.Message}");
+                }
                 catch (Exception exception) when (exception is not CliExitException)
                 {
                     Fail($"{Red}Error:{Reset} Provider startup failed: {DescribeFailure(exception)}");
@@ -195,21 +108,10 @@ static class Launch
         }
     }
 
-    private static RuntimeMode Create(string workingDirectory, ISquadUi ui, IIssueCatalog issueCatalog, IAgentProviderFactory agentProviderFactory, UiMode uiMode) =>
-        new(
-            agentProviderFactory,
-            uiMode == UiMode.Stdio ? new StdioWindowHost(ui, issueCatalog) : new PhotinoWindowHost(ui, issueCatalog, workingDirectory),
-            new SleepInhibitor());
-
     // Built from data strings only (no squad.CopilotSdk source or assembly reference) so squad-hq stays
     // free of a compile-time dependency on the default provider while still launching with it by default.
     private static ProviderDescriptor DefaultProviderDescriptor() =>
         new(Path.Combine(AppContext.BaseDirectory, DefaultProviderAssemblyName), DefaultProviderTypeName);
-
-
-    private static string InitialInstruction(string role) =>
-        "Read blaxquad/constitution.prompt, then read every file it refers to recursively, and obey all of those instructions.\n" +
-        $"Read blaxquad/roles/{role}.prompt, then read every file it refers to recursively, and follow all of those instructions.\n";
 }
 
 

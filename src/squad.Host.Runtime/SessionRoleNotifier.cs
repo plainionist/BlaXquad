@@ -4,32 +4,20 @@ using squad.Handoffs.Delivery;
 namespace squad.Host.Runtime;
 
 /// <summary>
-/// Routes handoff wake-ups through the same lifecycle admission authority used by interactive commands, rejecting
-/// notifications for completed or retired sessions.
+/// Routes handoff wake-ups through the application's active-session admission, the same authority interactive
+/// commands use, so a role with no admissible session simply fails the same way an interactive command would.
 /// </summary>
 internal sealed class SessionRoleNotifier : IRoleNotifier
 {
     private const string myWakeMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
-    private readonly SessionRegistry mySessions;
     private readonly SquadViewModel myViewModel;
 
-    internal SessionRoleNotifier(SessionRegistry sessions, SquadViewModel viewModel)
+    internal SessionRoleNotifier(SquadViewModel viewModel)
     {
-        mySessions = sessions;
         myViewModel = viewModel;
     }
 
-    public async Task NotifyAsync(string role, CancellationToken cancellationToken = default)
-    {
-        // Handoff routing uses the same current-generation authority as command dispatch: a role with no leaseable
-        // session (unregistered, completed, or the registry no longer accepting work) must not even attempt a
-        // wake-up send.
-        if (!mySessions.TryLeaseSession(role, out _))
-        {
-            throw new InvalidOperationException($"No active session for role '{role}'.");
-        }
-        await myViewModel.SendHarnessAsync(role, myWakeMessage, cancellationToken);
-    }
+    public Task NotifyAsync(string role, CancellationToken cancellationToken = default) =>
+        myViewModel.SendHarnessAsync(role, myWakeMessage, cancellationToken);
 }
-
 

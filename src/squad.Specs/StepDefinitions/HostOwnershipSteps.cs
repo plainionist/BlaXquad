@@ -69,7 +69,10 @@ public sealed class HostOwnershipSteps
         myScenario.EnableFakeProviderControl();
         await myScenario.StartAsync<FakeAgentProviderFactory>();
         await myScenario.WaitForRoleSessionStartedAsync(role);
-        await myScenario.Agent(role).EmitReadinessAsync("busy");
+        // Expresses "busy" as a genuine outstanding real prompt the agent has not yet replied to, rather than
+        // through a fake-only readiness control command - "emits idle" below is what later makes it ready.
+        myScenario.SendPrompt(role, "still working");
+        await myScenario.Agent(role).WaitForPromptAsync(prompt => prompt == "still working");
     }
 
     [Given("an {string} linked worktree")]
