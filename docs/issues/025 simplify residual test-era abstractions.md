@@ -288,7 +288,7 @@ backend, and disposes the poller only when it was created. Delivery logs to `Han
 `Launch.Create`, `SquadStartupPlanFactory`, and `SquadStartupPlan` are gone. Architecture records the lifecycle to
 workspace-manager dependency.
 
-### Slice 3 - Production lifecycle events are the only readiness source [in progress]
+### Slice 3 - Production lifecycle events are the only readiness source [done]
 
 **Outcome:** `wait-for-agent` derives readiness from the same session, prompt, idle, stopped, and failed events that
 real providers publish, with no fake-only product capability.
@@ -309,6 +309,11 @@ real providers publish, with no fake-only product capability.
 `PromptIsolationAndReadiness`, the readiness scenarios in `HostOwnership`, `TerminalSessionFinality`, healthy
 lifecycle, early shutdown, and terminal session/provider scenarios preserve their process-visible outcomes without
 new product test hooks.
+
+**Status: complete (69ab3c9f1c).** Probe, readiness event, generation invalidation, and fake `readiness` control
+command are gone. `GetRoleReadinessAsync` is local tri-state from projected session/prompt/idle/stopped/failed
+state. `HostLease.SetAgentReadinessProvider` is unchanged. Busy fakes use an outstanding prompt; ready/stale
+paths use `AgentIdleEvent`. Manual wording matches that vocabulary.
 
 ### Slice 4 - Application commands use one active-session and admission authority
 
