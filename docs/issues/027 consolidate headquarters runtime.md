@@ -232,7 +232,7 @@ assembly and dependency. Slice 2 remains pending until the architect activates i
 contention is `TryAcquire` translated at `Launch`; `squad.Host.Control` no longer references `squad.Process`. Slice 3
 remains pending until the architect activates it.
 
-### Slice 3: Merge process control into `squad.Runtime` [pending]
+### Slice 3: Merge process control into `squad.Runtime` [in progress]
 
 **Outcome:** A published `squad-hq` uses one `squad.Runtime` assembly for lifecycle and process control, with the
 control component remaining structurally separate.
