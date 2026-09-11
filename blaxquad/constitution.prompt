@@ -16,3 +16,18 @@ These names always refer to the persistent roles in this squad, not to generic, 
 - Never create or invoke a substitute agent to perform another squad role.
 - Do not set "MSBUILDDISABLENODEREUSE" for no good reason
 - Do not re-run tests to deal with flakiness - fix it!
+
+## Handoff commands
+
+Queue a handoff directly; there is no intermediate draft file.
+
+```text
+squad handoff commit --to <role>[,<role>...] --task "<short-stable-task-name>"
+squad handoff note --to <role>[,<role>...] --message "<short message>"
+```
+
+- The sender is inferred from your current role worktree.
+- `commit` defaults to `HEAD` and requires a clean worktree; commit your changes first, or pass an explicit
+  `--commit <revision>` to hand off a different or earlier commit from a dirty worktree.
+- Priority defaults to `50`; pass `--priority NN` (two digits) to override it.
+- Role prompts state only when and to whom each role hands off.
