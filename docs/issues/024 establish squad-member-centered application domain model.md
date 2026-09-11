@@ -471,7 +471,7 @@ role, missing prompt, role-named leader, legacy v1) fail before any member sessi
 Gherkin stay role-shaped with member names mapped at the boundary. Slice 2 remains pending until the architect
 activates it.
 
-### Slice 2 - Make one aggregate own each member's mutable state [in progress]
+### Slice 2 - Make one aggregate own each member's mutable state [done]
 
 **Outcome:** Every state transition for one member updates its status, transcript, pending interactions, operation
 state, and failure state through one cohesive aggregate without consulting another member-keyed state holder.
@@ -500,6 +500,13 @@ After routing, no aggregate, projector, interaction holder, transcript state, op
 accepts or indexes by member/role. Snapshots are immutable and internally consistent. Existing transcript ordering,
 retention, interaction restoration, abort retry, terminal finality, sibling-failure behavior, serialized messages,
 and UI behavior are unchanged. No test source changes in this slice.
+
+**Status: complete (a5290ee808).** Each member has one aggregate that owns projected status, provider-session
+association, transcript, pending interactions, and operation/abort/failure. The ordered member directory is the only
+application-domain collection keyed by member identity. Immutable member snapshots include identity, display name,
+role metadata, state, usage, pending interactions, and transcript position. Architecture documentation describes
+this ownership without claiming processor isolation or Headquarters/`Squad` replacement. Slice 3 remains pending
+until the architect activates it.
 
 ### Slice 3 - Give every member an independent typed processor
 
@@ -630,7 +637,7 @@ CLI remain unchanged, and no test source changes in this slice.
 - Adding tests for internal aggregates, processors, concurrency, generation ownership, replacement internals, or
   other non-configuration implementation details.
 
-## Slice 2 review (c078fc6e07) — changes requested
+## Slice 2 review (c078fc6e07) — addressed (a5290ee808)
 
 ### Finding 1 — Medium
 
