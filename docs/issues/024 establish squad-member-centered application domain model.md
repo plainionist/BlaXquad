@@ -540,7 +540,7 @@ aggregate. Typed prompt, harness, abort, interaction, event, terminal, starting,
 replace the shared command channel. Completions carry generation, member, and operation identity and are dropped
 when stale. Slice 4 is active.
 
-### Slice 4 - Separate Headquarters from the replaceable Squad generation [in progress]
+### Slice 4 - Separate Headquarters from the replaceable Squad generation [done]
 
 **Outcome:** Headquarters owns a process shell and one serialized active-squad slot, while one `Squad` owns and
 retires every resource whose lifetime follows a generation through a single contract.
@@ -581,6 +581,11 @@ still reports primary and cleanup failures correctly and releases every external
 `SquadApplication` compatibility type remains. The later restart issue can invoke the replacement operation without
 moving generation resources again. Headquarters control remains version 1, UI protocol remains version 5, Vue and
 CLI remain unchanged, and no test source changes in this slice.
+
+**Status: complete (06b35d4271).** Headquarters is the process shell with one serialized active-squad slot;
+`Squad` owns and retires each generation. `ReplaceSquadAsync` is unwired. A conclusive retirement that empties the
+slot while Headquarters remains running uninstalls that generation from the process-lifetime port; process-wide
+stop keeps a retired generation installed. All issue 024 slices are complete.
 
 ## Acceptance criteria
 
@@ -750,7 +755,7 @@ This commit merges `origin/main` (transcript assembly fold) into the slice 3 bra
 `MemberProcessor`, `MemberMessage`, or the ViewModel mutation/routing design. Findings 1-3 from the cc2c93a618
 review remain unresolved and still block acceptance.
 
-## Slice 4 review (6032f74351) — changes requested
+## Slice 4 review (6032f74351) — addressed (06b35d4271)
 
 ### Finding 1 — High
 
