@@ -181,7 +181,7 @@ cleanup, focused acceptance scenarios, and a complete `squad.Specs` run before r
 Focused acceptance: `Handoffs.feature`, `Delivery.feature`, `TaskQueue.feature`, `BatchQueue.feature`, and
 `Recovery.feature`.
 
-### Slice 2 - Process execution and cleanup have one owner
+### Slice 2 - Process execution and cleanup have one owner [done]
 
 **Outcome:** Real CLI processes still run, capture output, receive isolated cancellation, and clean up with the same
 bounded diagnostics while low-level process mechanics live under `Support/Processes`.
@@ -314,3 +314,7 @@ followed by the complete `squad.Specs` suite.
 ## Slice 1 review (2cb3b53c7c) — accepted
 
 **Status: complete (2cb3b53c7c).** Mailbox support is under `Support/Mailboxes` with matching namespace and one type per file (`QueuedHandoff` extracted). Bindings use constructor-injected, scenario-scoped mailbox instances that share `ScenarioWorkspace` instead of calling `new`. Members are internal; types stay public for Reqnroll resolution. Stable file ordering, byte-for-byte recovery snapshots, fan-out headers, archive-collision setup, and role-worktree scoping are unchanged.
+
+## Slice 2 review (9620f59c05) — accepted
+
+**Status: complete (9620f59c05).** Process types live under `Support/Processes`. Internal `ScenarioProcessRunner` owns start/run, stream capture, environment construction, normalization, tracking, and bounded termination. `ScenarioWorkspace` still chooses tools and working directories, applies Git identity, records `LastResult`, and disposes the runner before deleting the temp tree. Unused `StartHeadlessUiClient`, `StartTool`, and the params `ConfigureProject` overload are gone. Platform process-group code stays private in `CancellableChildProcess`; no process interface or fake process was added.
