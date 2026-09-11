@@ -54,7 +54,7 @@ const targetRoleName = computed(() => {
 function playIssue(path: string) {
   const target = targetRoleName.value
   if (!target) return
-  updatePrompt(target, `process this issue: '${path}'`)
+  updatePrompt(target, `process this issue: "${path}"`)
   rolePanels.get(target)?.focusPrompt()
 }
 </script>

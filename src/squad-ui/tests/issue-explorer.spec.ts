@@ -229,7 +229,7 @@ test('play replaces and focuses the configured leader\'s draft with the exact is
 
   await playButton(page, issueCatalog[0].title).click()
 
-  await expect(coderPrompt).toHaveValue(`process this issue: '${issueCatalog[0].path}'`)
+  await expect(coderPrompt).toHaveValue(`process this issue: "${issueCatalog[0].path}"`)
   await expect(coderPrompt).toBeFocused()
   await expect(reviewerPrompt).toHaveValue('existing reviewer draft')
   await expect(writerPrompt).toHaveValue('existing writer draft')
@@ -261,7 +261,7 @@ test('play targets the configured leader even when a different role reports runt
 
   await playButton(page, issueCatalog[0].title).click()
 
-  await expect(page.getByLabel('Message coder')).toHaveValue(`process this issue: '${issueCatalog[0].path}'`)
+  await expect(page.getByLabel('Message coder')).toHaveValue(`process this issue: "${issueCatalog[0].path}"`)
   await expect(page.getByLabel('Message reviewer')).toHaveValue('')
 
   const messageCountAfter = await page.evaluate(() => window.__blaxquadHarness!.messages.length)
@@ -301,7 +301,7 @@ test('play targets the configured leader by name even when the leader is not the
 
   await playButton(page, issueCatalog[0].title).click()
 
-  await expect(page.getByLabel('Message architect')).toHaveValue(`process this issue: '${issueCatalog[0].path}'`)
+  await expect(page.getByLabel('Message architect')).toHaveValue(`process this issue: "${issueCatalog[0].path}"`)
   await expect(page.getByLabel('Message reviewer')).toHaveValue('')
   await expect(page.getByLabel('Message coder')).toHaveValue('')
 })

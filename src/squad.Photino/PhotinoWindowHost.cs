@@ -88,7 +88,7 @@ public sealed class PhotinoWindowHost : IWindowHost
                 .SetTitle(myTitle)
                 .SetIconFile(icon)
                 .SetUseOsDefaultSize(false)
-                .SetSize(new Size(1440, 900))
+                .SetSize(new Size(1800, 1000))
                 .Center()
                 .RegisterWindowCreatedHandler((sender, eventArgs) => EnableWindowsDarkTitleBar(window))
                 .RegisterWindowClosingHandler((sender, eventArgs) => myClosed.TrySetResult())
