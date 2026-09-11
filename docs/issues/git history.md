@@ -132,7 +132,7 @@ resolved executable path. The dashboard button starts disabled, follows `workspa
 
 ### Slice 2 - Present the workspace icon toolbar
 
-**Status:** pending Slice 1 acceptance
+**Status:** in progress
 
 Make the two working actions a cohesive presentation component without changing their protocol behavior.
 
