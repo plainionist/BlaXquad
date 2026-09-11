@@ -182,10 +182,6 @@ to update and no other open issue owns part of this merge.
 
 ## Implementation plan
 
-Exactly one slice is required. The project move, CLI boundary adjustment, behavior protection, obsolete-name cleanup,
-and directly affected documentation all serve one acceptance claim and must not be split into mechanical,
-characterization, or documentation-only handoffs.
-
 The existing black-box suite already protects the externally triggerable behavior in `HostOwnership.feature`,
 `HostCoexistence.feature`, `HeadquartersLifecycle.feature`, `HeadquartersEarlyShutdown.feature`,
 `HeadquartersCleanupDiagnostics.feature`, `HeadquartersPartialStartupFailure.feature`, and
@@ -194,46 +190,77 @@ process-level trigger. Preserve its terminal signal and its place in the runtime
 friend assembly, reflection, injectable product seam, protocol command, or test-only production branch merely to
 force that internal failure.
 
-### Slice 1: Consolidate the Headquarters runtime without changing process behavior [in progress]
+Every slice below is an independently buildable and integratable commit. Its documentation and focused acceptance
+coverage must describe the repository state produced by that slice; no slice may depend on a later cleanup to restore
+correctness.
 
-**Outcome:** A published `squad-hq` contains one `squad.Runtime` assembly while launch ownership, readiness, shutdown,
-failure propagation, and cleanup remain compatible through the existing Headquarters commands and persisted control
-state.
+### Slice 1: Rename the lifecycle assembly to `squad.Runtime` [planned]
 
-1. Rename `src/squad.Host.Runtime` and its project to `src/squad.Runtime/squad.Runtime.csproj`. Move every
-   `squad.Host.Control` source into `src/squad.Runtime/Control`, remove the old control project, replace both solution
-   entries with one `squad.Runtime` entry, and replace the two `squad-hq` references with one runtime reference.
-   Preserve all existing runtime dependency edges except the obsolete control edge; the merged project must not gain
-   a `squad.Process` dependency.
-2. Change lifecycle namespaces to `squad.Runtime` and control namespaces to `squad.Runtime.Control`. Rename
-   `HostLease`, `HostControlClient`, `HostControlRequest`, and the distinct cleanup lease to their
-   `Headquarters*` forms. Keep request parsing, pipe serving, lock/metadata work, and stale cleanup in dedicated
-   control types; do not move that logic into `SquadApplication`. Make implementation helpers internal and expose
-   only the types needed by the separate `squad-hq` composition assembly.
-3. Replace the lease's `CliExitException` dependency with one presentation-neutral
-   `HeadquartersControlException`, preserving the original cause. Translate that exception to the existing exit code
-   and the equivalent Headquarters-worded duplicate-launch diagnostic in `Launch`; do not broaden the catch to
-   unrelated runtime failures. Keep lease acquisition before workspace preparation or provider startup, and preserve
-   transfer/disposal ownership if composition fails.
-4. Delete `HostProjectRoot`. At the `WaitForAgent` command boundary, compose the existing
-   `squad.Configuration.ProjectRoot.ResolveViaGit` and `ResolveProjectRoot` operations to retain main-checkout and
-   linked-worktree discovery without duplicating Git execution in the runtime module. Preserve argument validation
-   order and the current project-discovery diagnostic.
-5. Preserve `.blaxquad/host.lock`, `.blaxquad/host.json` and its schema, the `blaxquad-*` pipe-name algorithm,
-   protocol version `1`, command strings, normalization rules, stale-state locking, readiness values, early-shutdown
-   race, server-failure observation, and cleanup order byte-for-byte or behavior-for-behavior as applicable.
-6. Update source identifiers, CLI diagnostics, XML comments, Gherkin prose and bindings, test-support names, and
-   `docs/Manual/architecture.md`, `modules.md`, and `test-strategy.md` to use Headquarters terminology where "host"
-   means the running process. Do not rename persisted artifacts, wire values, provider `IAgentRuntime` concepts,
-   generic window-hosting terms, or the `squad.Hosting.*` modules.
-7. Extend existing black-box coverage only if the move exposes an observable gap. Do not add tests for namespaces,
-   project references, private helpers, or the mere absence of removed types. Keep the focused ownership,
-   coexistence, readiness, lifecycle, early-shutdown, startup-failure, termination, and cleanup scenarios green,
-   then run the full backend Gherkin suite.
-8. From cleaned outputs, build the solution and publish `squad-hq`. Confirm the dependency manifest and publish
-   directory contain `squad.Runtime.dll` exactly once and contain neither old assembly. Search tracked source,
-   project/solution files, documentation, scripts, and generated-spec inputs for obsolete assembly, namespace, and
-   process-control terminology; do not edit `bin` or `obj` output as source.
+**Outcome:** Headquarters lifecycle code is built and published as `squad.Runtime`, while the unchanged
+`squad.Host.Control` assembly continues to provide process control.
+
+1. Rename `src/squad.Host.Runtime` and `squad.Host.Runtime.csproj` to
+   `src/squad.Runtime/squad.Runtime.csproj`, change its lifecycle namespaces to `squad.Runtime`, and update all
+   production call sites.
+2. Replace only the runtime solution and `squad-hq` project references. Keep `squad.Host.Control` as the runtime
+   project's existing dependency and do not move or rename any control source or type in this slice.
+3. Update `docs/Manual/modules.md` and any directly affected architecture text to describe the valid intermediate
+   graph: `squad.Runtime` owns lifecycle coordination and still depends on the separate `squad.Host.Control` module.
+4. Build and publish from clean outputs. Confirm `squad.Runtime.dll` replaces `squad.Host.Runtime.dll`, while
+   `squad.Host.Control.dll` remains present, and run the focused healthy lifecycle and termination scenarios.
+
+### Slice 2: Remove CLI presentation from `squad.Host.Control` [pending]
+
+**Outcome:** The still-separate control module owns only process-control mechanics and no longer depends on
+`squad.Process` for command presentation or Git-based CLI project discovery.
+
+1. Delete `HostProjectRoot`. At the `WaitForAgent` command boundary, compose
+   `squad.Configuration.ProjectRoot.ResolveViaGit` and `ResolveProjectRoot` so main-checkout, linked-worktree, explicit
+   root, validation-order, and missing-project behavior remain unchanged.
+2. Replace the lease's `CliExitException` with one presentation-neutral `HostControlException` that preserves its
+   cause. Translate only that exception to the existing exit code and duplicate-launch diagnostic in `Launch`; do not
+   broaden the catch to unrelated runtime failures.
+3. Remove the `squad.Process` project reference from `squad.Host.Control`. Keep all module, namespace, and existing
+   Host terminology unchanged so this slice contains only the dependency and presentation-boundary correction.
+4. Run the focused duplicate-launch, main-checkout discovery, linked-worktree discovery, missing-project, equivalent
+   path, stale-state recovery, and shutdown scenarios, then build the solution.
+
+### Slice 3: Merge process control into `squad.Runtime` [pending]
+
+**Outcome:** A published `squad-hq` uses one `squad.Runtime` assembly for lifecycle and process control, with the
+control component remaining structurally separate.
+
+1. Move the remaining `squad.Host.Control` sources into `src/squad.Runtime/Control`, change their namespace to
+   `squad.Runtime.Control`, and update lifecycle and `squad-hq` call sites. Keep the existing `Host*` type names and
+   operator diagnostics in this slice.
+2. Remove `squad.Host.Control.csproj`, its solution entry, the runtime-to-control project edge, and the second
+   `squad-hq` reference. Keep request parsing, pipe serving, lock/metadata ownership, stale cleanup, and client access
+   in dedicated control types rather than folding them into `SquadApplication`.
+3. Internalize only helpers whose cross-assembly visibility became unnecessary; keep the lease, client, and
+   presentation-neutral exception public because `squad-hq` consumes them.
+4. Update `docs/Manual/modules.md` and architecture descriptions to show one runtime module with distinct lifecycle
+   and control components. Add or extend an architecture-fitness acceptance scenario that proves a clean published
+   `squad-hq` contains `squad.Runtime.dll` and no `squad.Host.Control.dll`.
+5. Run the ownership, coexistence, lifecycle, early-shutdown, readiness, startup-failure, termination, and cleanup
+   scenarios. Build and publish from clean outputs and confirm the merged project has no `squad.Process` dependency.
+
+### Slice 4: Adopt Headquarters process-control terminology [pending]
+
+**Outcome:** Source, diagnostics, specifications, and manuals consistently call the running process
+Headquarters while persisted and wire compatibility remains unchanged.
+
+1. Rename `HostLease`, `HostControlClient`, `HostControlRequest`, `CleanupLease`, and `HostControlException` to their
+   cohesive `Headquarters*` names. Rename corresponding source fields, locals, test-support identifiers, feature
+   names, bindings, comments, and XML documentation that refer to the running process.
+2. Update operator diagnostics and Gherkin/manual prose from "squad host" and "host-control" to Headquarters terms.
+   Update `docs/Manual/architecture.md`, `modules.md`, and `test-strategy.md` in the same commit.
+3. Do not rename `.blaxquad/host.lock`, `.blaxquad/host.json` or its schema, the `blaxquad-*` pipe identity, protocol
+   version `1`, `ping`, `shutdown`, or `agent-status`. Do not rename provider `IAgentRuntime`, generic window-hosting
+   concepts, or any `squad.Hosting.*` module.
+4. Run the full backend Gherkin suite and product build. Search tracked source, project/solution files,
+   documentation, scripts, and generated-spec inputs for obsolete assembly, namespace, and process-control terms,
+   allowing only persisted/wire compatibility names and historical text in this issue. Confirm the final clean
+   publish contains `squad.Runtime.dll` exactly once and neither old assembly.
 
 ## Acceptance criteria
 
