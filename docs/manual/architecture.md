@@ -183,10 +183,14 @@ flowchart LR
 - **Lifecycle coordination** owns the process phase, the current provider-runtime generation, session-started
   registration into the application model, event observation, startup completion, and ordered teardown. Command
   admission and active-session selection belong to the application model.
-- **Application model** owns the authoritative projection for every role and is the sole owner of the active
-  role-session catalog and command admission. Under one synchronization boundary it serializes state changes,
-  admits or rejects commands, selects the current session for a role, coordinates concurrent operations per role,
-  records pending interactions, and derives transcripts from provider events.
+- **Application model** owns an ordered directory of configured members, keyed only by member identity - the only
+  application-domain collection keyed that way. After routing selects a member, one per-member aggregate is the
+  sole mutable owner of that member's projected status, provider-session association, transcript, pending
+  interactions, and operation/abort/failure state; its local collections are keyed only by request or operation
+  identity, never by another member or role. The facade itself holds no mutable member state: it serializes
+  commands and provider events through one shared channel, admits or rejects commands, routes each command to the
+  addressed member's aggregate, and composes the immutable per-member snapshots those aggregates produce into the
+  squad-wide read model published at the unchanged version-5 UI boundary.
 - **Provider adapter** translates the provider-neutral session model into the selected provider. Provider-specific
   event types and callbacks do not cross into the application model.
 - **UI protocol** translates between JSON messages and application operations. It controls snapshot publication,
@@ -303,8 +307,8 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
   worktree's complete handoff-state directory before any role session starts or delivery polling runs, so
   "--continue" preserves only worktree (Git) content.
 - **Headquarters ownership** is local runtime state backed by a project lock, process metadata, and a named-pipe endpoint.
-- **Role and interaction state** is authoritative in the headquarters application model and exists only for the
-  current process.
+- **Role and interaction state** is authoritative in the headquarters application model, owned per member by that
+  member's aggregate, and exists only for the current process.
 - **Transcript state** is bounded. Recent content is held in memory and older content is paged from a private
   temporary archive; both disappear when headquarters shuts down.
 - **Dashboard state** is transient presentation state. Drafts, scroll position, focus, and local transcript caches
@@ -318,9 +322,11 @@ These observations describe current consequences of the design; they are not red
 
 1. **Single local authority.** One headquarters process owns one project. Local locking, named pipes, worktrees, and
   in-memory state make this a single-machine architecture rather than a distributed service.
-2. **Central application model.** All role commands, provider events, interactions, and transcript changes converge
-  on one authoritative model and one state-serialization point. This gives clear ordering but couples those flows
-  operationally.
+2. **Central application model.** All role commands and provider events converge on one facade and one
+  command/event-serialization point, which routes each to the addressed member's aggregate. State itself is owned
+  independently per member - one aggregate per member owns that member's status, transcript, interactions, and
+  operation/abort/failure state - but the shared serialization point still couples every member's command and
+  event flow operationally.
 3. **Filesystem collaboration contract.** The two executables depend on shared naming, JSON schema, ordering, and
   atomic move conventions. This makes handoffs durable within one Headquarters run while coupling independently
   running processes to the same filesystem schema; queues are launch-scoped rather than restart-safe, so every

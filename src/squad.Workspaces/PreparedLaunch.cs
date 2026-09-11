@@ -10,7 +10,7 @@ namespace squad.Workspaces;
 /// </summary>
 public sealed record PreparedLaunch(
     AgentBackendContext BackendContext,
-    IReadOnlyList<string> MemberNames,
+    IReadOnlyList<MemberConfigRow> Members,
     string Leader,
     IReadOnlyList<RoleRow> HandoffMembers,
     string HandoffLogPath);

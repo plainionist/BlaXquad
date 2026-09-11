@@ -40,6 +40,12 @@ public sealed class MemberTranscriptState
         mySyncRoot = syncRoot;
     }
 
+    /// <summary>The sequence number through which this member's retained transcript entries are current.</summary>
+    public long TranscriptSequence
+    {
+        get { lock (mySyncRoot) return myTranscriptSequence; }
+    }
+
     /// <summary>
     /// Returns the newest retained entries and the sequence through which they are current, with flags indicating
     /// whether older or truncated archive history exists.

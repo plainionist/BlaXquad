@@ -16,15 +16,14 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 {
     private readonly Channel<Func<Task>> myCommands = Channel.CreateUnbounded<Func<Task>>();
     private readonly CancellationTokenSource myShutdown = new();
-    private readonly Dictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, MemberAggregate> myMembers = new(StringComparer.Ordinal);
     private readonly List<string> myMemberOrder = [];
     private string myLeader = "";
     private readonly TranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myTranscriptRetentionOptions;
     private readonly Task myEventLoop;
-    // The one synchronization boundary for command admission and active-session selection: myAccepting and
-    // mySessions are read and written only while holding this lock, so a stopping transition and a session
+    // The one synchronization boundary for command admission and active-session selection: myAccepting and each
+    // member's Session are read and written only while holding this lock, so a stopping transition and a session
     // capture can never interleave.
     private readonly object myAdmissionLock = new();
     private readonly HashSet<Task> myAcceptedCommands = [];
@@ -40,13 +39,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public event Action<UiRefreshPriority>? SnapshotRequested;
     public event Action<TranscriptUpdate>? TranscriptChanged;
 
-    public void InitializeRoles(IEnumerable<string> roleNames)
+    public void InitializeRoles(IEnumerable<MemberConfiguration> members)
     {
-        foreach (var role in roleNames)
+        foreach (var member in members)
         {
-            if (myMembers.TryAdd(role, new MemberAggregate(role, myTranscriptArchive, myTranscriptRetentionOptions)))
+            if (myMembers.TryAdd(member.Member, new MemberAggregate(member.Member, member.DisplayName, member.Role, myTranscriptArchive, myTranscriptRetentionOptions)))
             {
-                myMemberOrder.Add(role);
+                myMemberOrder.Add(member.Member);
             }
         }
         NotifyStateChanged();
@@ -82,13 +81,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 contextLimitTokens = member.ContextLimitTokens,
                 eventCount = member.EventCount,
             }),
-            permissions = myMemberOrder.SelectMany(id => myMembers[id].Permissions).Select(permission => new
+            permissions = members.SelectMany(member => member.Permissions).Select(permission => new
             {
                 requestId = permission.RequestId,
                 role = permission.Role,
                 description = permission.Description,
             }),
-            inputs = myMemberOrder.SelectMany(id => myMembers[id].Inputs).Select(input => new
+            inputs = members.SelectMany(member => member.Inputs).Select(input => new
             {
                 requestId = input.RequestId,
                 role = input.Role,
@@ -96,7 +95,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
                 choices = input.Choices,
                 allowFreeform = input.AllowFreeform,
             }),
-            elicitations = myMemberOrder.SelectMany(id => myMembers[id].Elicitations).Select(elicitation => new
+            elicitations = members.SelectMany(member => member.Elicitations).Select(elicitation => new
             {
                 requestId = elicitation.RequestId,
                 role = elicitation.Role,
@@ -176,7 +175,10 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public void RegisterSession(IAgentSession session)
     {
         lock (myAdmissionLock)
-            mySessions[session.Role] = session;
+            if (myMembers.TryGetValue(session.Role, out var member))
+            {
+                member.Session = session;
+            }
     }
 
     public Task MarkRoleFailedAsync(string role, Exception exception)
@@ -430,7 +432,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         lock (myAdmissionLock)
         {
             if (myAccepting
-                && mySessions.TryGetValue(role, out var candidate)
+                && myMembers.TryGetValue(role, out var member)
+                && member.Session is { } candidate
                 && !candidate.Completion.IsCompleted)
             {
                 session = candidate;
@@ -596,7 +599,11 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         IAgentSession[] sessions;
         lock (myAdmissionLock)
-            sessions = mySessions.Values.ToArray();
+            sessions = myMembers.Values
+                .Select(member => member.Session)
+                .Where(session => session is not null)
+                .Select(session => session!)
+                .ToArray();
         foreach (var session in sessions)
         {
             if (!session.Completion.IsCompleted)

@@ -1,8 +1,15 @@
+using squad.AgentProvider.Abstractions.Agents;
+
 namespace squad.Application.Members;
 
-/// <summary>Captures one member's state at a single synchronization boundary for snapshot publication.</summary>
+/// <summary>
+/// Captures one member's configured identity, presentation, projected status, pending interactions, and transcript
+/// position at a single synchronization boundary for immutable snapshot publication.
+/// </summary>
 internal sealed record MemberSnapshot(
     string Id,
+    string DisplayName,
+    string Role,
     string Status,
     DateTimeOffset? LastEventAt,
     string? Error,
@@ -13,4 +20,8 @@ internal sealed record MemberSnapshot(
     decimal? AicUsed,
     long? ContextUsedTokens,
     long? ContextLimitTokens,
-    int EventCount);
+    int EventCount,
+    long TranscriptPosition,
+    IReadOnlyCollection<AgentPermissionRequest> Permissions,
+    IReadOnlyCollection<AgentInputRequest> Inputs,
+    IReadOnlyCollection<AgentElicitationRequest> Elicitations);
