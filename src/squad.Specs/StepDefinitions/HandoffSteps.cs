@@ -6,17 +6,15 @@ namespace squad.Specs.StepDefinitions;
 [Binding]
 public sealed class HandoffSteps
 {
-    private const string DraftPathKey = "handoffDraftPath";
+    private const string PendingArgsKey = "handoffPendingArgs";
     private const string SenderRoleKey = "handoffSenderRole";
     private const string CommitKey = "commit";
     private readonly ScenarioWorkspace myWorkspace;
-    private readonly HandoffDraftWriter myDrafts;
     private readonly HandoffMailboxObserver myMailbox;
 
-    public HandoffSteps(ScenarioWorkspace workspace, HandoffDraftWriter drafts, HandoffMailboxObserver mailbox)
+    public HandoffSteps(ScenarioWorkspace workspace, HandoffMailboxObserver mailbox)
     {
         myWorkspace = workspace;
-        myDrafts = drafts;
         myMailbox = mailbox;
     }
 
@@ -31,41 +29,43 @@ public sealed class HandoffSteps
         myWorkspace.Set(CommitKey, result.StdOut.Trim());
     }
 
-    [Given("{string} prepares a Git handoff with priority {string} and task {string} to:")]
-    public void GivenRolePreparesAGitHandoffToRecipients(string role, string priority, string task, Table recipients)
-    {
-        myWorkspace.Set(SenderRoleKey, role);
-        myWorkspace.Set(
-            DraftPathKey,
-            myDrafts.WriteGitHandoffDraft(role, RecipientsFrom(recipients), priority, task, myWorkspace.Get<string>(CommitKey)));
-    }
+    [Given("{string} has an uncommitted change")]
+    public void GivenRoleHasAnUncommittedChange(string role) =>
+        myWorkspace.WriteFileInRoleWorktree(role, $"{role}-dirty-change.txt", "not committed\n");
+
+    [Given("{string} has a legacy handoff artifact in its outbox")]
+    public void GivenRoleHasALegacyHandoffArtifactInItsOutbox(string role) =>
+        myWorkspace.WriteFileInRoleWorktree(
+            role,
+            Path.Combine(".blaxquad", "handoffs", "outbox", $"50_legacy_from_{role}_to_reviewer.handoff"),
+            $"id: legacy\nfrom: {role}\nto: reviewer\npriority: 50\ntype: note\nmessage: legacy\n\nlegacy\n");
+
+    [Given("{string} prepares a Git handoff with task {string} to:")]
+    [When("{string} prepares a Git handoff with task {string} to:")]
+    public void GivenRolePreparesAGitHandoffToRecipients(string role, string task, Table recipients) =>
+        PrepareCommit(role, priority: null, task, revision: null, recipients);
+
+    [Given("{string} prepares a Git handoff with priority {string} and task {string} for revision {string} to:")]
+    [When("{string} prepares a Git handoff with priority {string} and task {string} for revision {string} to:")]
+    public void GivenRolePreparesAGitHandoffForRevisionToRecipients(string role, string priority, string task, string revision, Table recipients) =>
+        PrepareCommit(role, priority, task, revision, recipients);
 
     [Given("{string} prepares a note with priority {string} and message {string} to:")]
     [When("{string} prepares a note with priority {string} and message {string} to:")]
-    public void GivenRolePreparesANoteToRecipients(string role, string priority, string message, Table recipients)
-    {
-        myWorkspace.Set(SenderRoleKey, role);
-        myWorkspace.Set(DraftPathKey, myDrafts.WriteNoteDraft(role, RecipientsFrom(recipients), priority, message));
-    }
+    public void GivenRolePreparesANoteToRecipients(string role, string priority, string message, Table recipients) =>
+        PrepareNote(role, priority, message, recipients);
 
-    [Given("{string} prepares this handoff draft:")]
-    public void GivenRolePreparesThisHandoffDraft(string role, string draft)
+    [When("{string} runs `squad handoff` with arguments:")]
+    public void WhenRoleRunsSquadHandoffWithArguments(string role, Table table)
     {
         myWorkspace.Set(SenderRoleKey, role);
-        myWorkspace.Set(DraftPathKey, myDrafts.WriteRawDraft(role, draft));
+        var args = table.Rows.Select(row => row["arg"]).ToList();
+        myWorkspace.RunRoleTool(role, "squad", ["handoff", .. args]);
     }
 
     [When("the {string} role agent runs `squad handoff` from its worktree")]
     public void WhenTheRoleAgentRunsSquadHandoffFromItsWorktree(string role) =>
-        myWorkspace.RunRoleTool(role, "squad", ["handoff", myWorkspace.Get<string>(DraftPathKey)]);
-
-    [Then("the draft is removed")]
-    public void ThenTheDraftIsRemoved() =>
-        Assert.That(File.Exists(myWorkspace.Get<string>(DraftPathKey)), Is.False);
-
-    [Then("the draft remains")]
-    public void ThenTheDraftRemains() =>
-        Assert.That(File.Exists(myWorkspace.Get<string>(DraftPathKey)), Is.True);
+        myWorkspace.RunRoleTool(role, "squad", ["handoff", .. myWorkspace.Get<List<string>>(PendingArgsKey)]);
 
     [Then("one handoff is queued")]
     public void ThenOneHandoffIsQueued() =>
@@ -121,6 +121,29 @@ public sealed class HandoffSteps
             Assert.That(handoff.Message, Is.EqualTo(message));
             Assert.That(handoff.Payload, Is.EqualTo(message));
         });
+    }
+
+    private void PrepareCommit(string role, string? priority, string task, string? revision, Table recipients)
+    {
+        myWorkspace.Set(SenderRoleKey, role);
+        var args = new List<string> { "commit", "--to", RecipientsFrom(recipients), "--task", task };
+        if (priority is not null)
+        {
+            args.Add("--priority");
+            args.Add(priority);
+        }
+        if (revision is not null)
+        {
+            args.Add("--commit");
+            args.Add(revision);
+        }
+        myWorkspace.Set(PendingArgsKey, args);
+    }
+
+    private void PrepareNote(string role, string priority, string message, Table recipients)
+    {
+        myWorkspace.Set(SenderRoleKey, role);
+        myWorkspace.Set(PendingArgsKey, new List<string> { "note", "--to", RecipientsFrom(recipients), "--priority", priority, "--message", message });
     }
 
     private QueuedHandoff SingleQueuedHandoff() => myMailbox.SingleQueuedHandoff(CurrentSender());

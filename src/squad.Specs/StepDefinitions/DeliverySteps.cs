@@ -19,6 +19,9 @@ public sealed class DeliverySteps
     /// a handoff is durably delivered.</summary>
     private const string WakeUpMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
     private const string SenderRole = "coder";
+    private const string CreatedAtKey = "handoffCreatedAt";
+    private const string EnqueuedAtKey = "handoffEnqueuedAt";
+    private const string DequeuedAtKey = "handoffDequeuedAt";
 
     private readonly ScenarioWorkspace myWorkspace;
     private readonly BackendScenario myScenario;
@@ -34,6 +37,10 @@ public sealed class DeliverySteps
     [When("{string} durably queues an invalid note to:")]
     public void WhenRoleDurablyQueuesAnInvalidNoteTo(string role, Table recipients) =>
         myMailbox.SeedInvalidOutboundNote(role, string.Join(",", recipients.Rows.Select(row => row["role"])), "Ready for review.");
+
+    [When("{string} durably queues a handoff with invalid content:")]
+    public void WhenRoleDurablyQueuesAHandoffWithInvalidContent(string role, string content) =>
+        myMailbox.SeedInvalidOutboundContent(role, content);
 
     [Given("{string} is busy with a prompt")]
     public async Task GivenRoleIsBusyWithAPrompt(string role)
@@ -71,9 +78,9 @@ public sealed class DeliverySteps
     public void ThenTheSenderHandoffIsArchivedAsFailed()
     {
         myWorkspace.WaitUntil(
-            () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffs(SenderRole).Count == 1,
+            () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffCount(SenderRole) == 1,
             "the host to archive the outbound handoff");
-        Assert.That(myMailbox.FailedHandoffs(SenderRole), Has.Exactly(1).Items);
+        Assert.That(myMailbox.FailedHandoffCount(SenderRole), Is.EqualTo(1));
     }
 
     [Then("{string} has one new handoff")]
@@ -87,6 +94,47 @@ public sealed class DeliverySteps
     [Then("the new handoff for {string} has recipient header {string}")]
     public void ThenTheNewHandoffHasRecipientHeader(string role, string recipient) =>
         Assert.That(myMailbox.NewInboxHandoffs(role).Single().Recipient, Is.EqualTo(recipient));
+
+    [Then("the new handoff for {string} carries createdAt and enqueuedAt timestamps but no dequeuedAt or completedAt timestamp")]
+    public void ThenTheNewHandoffCarriesCreatedAndEnqueuedTimestamps(string role)
+    {
+        var handoff = myMailbox.NewInboxHandoffs(role).Single();
+        Assert.That(handoff.CreatedAt, Is.Not.Null.And.Not.Empty);
+        Assert.That(handoff.EnqueuedAt, Is.Not.Null.And.Not.Empty);
+        Assert.That(handoff.DequeuedAt, Is.Null);
+        Assert.That(handoff.CompletedAt, Is.Null);
+        myWorkspace.Set(CreatedAtKey, handoff.CreatedAt);
+        myWorkspace.Set(EnqueuedAtKey, handoff.EnqueuedAt!);
+    }
+
+    [When("the {string} role agent claims the handoff via `squad ready-for-next`")]
+    public void WhenTheRoleAgentClaimsTheHandoffViaSquadReadyForNext(string role) =>
+        myWorkspace.RunRoleTool(role, "squad", ["ready-for-next"]);
+
+    [Then("the in-process handoff for {string} preserves its createdAt and enqueuedAt timestamps and now also carries a dequeuedAt timestamp")]
+    public void ThenTheInProcessHandoffPreservesTimestampsAndCarriesDequeuedAt(string role)
+    {
+        var handoff = myMailbox.InProcessInboxHandoffs(role).Single();
+        Assert.That(handoff.CreatedAt, Is.EqualTo(myWorkspace.Get<string>(CreatedAtKey)));
+        Assert.That(handoff.EnqueuedAt, Is.EqualTo(myWorkspace.Get<string>(EnqueuedAtKey)));
+        Assert.That(handoff.DequeuedAt, Is.Not.Null.And.Not.Empty);
+        Assert.That(handoff.CompletedAt, Is.Null);
+        myWorkspace.Set(DequeuedAtKey, handoff.DequeuedAt!);
+    }
+
+    [When("the {string} role agent completes the handoff via `squad done-with-current`")]
+    public void WhenTheRoleAgentCompletesTheHandoffViaSquadDoneWithCurrent(string role) =>
+        myWorkspace.RunRoleTool(role, "squad", ["done-with-current"]);
+
+    [Then("the completed handoff for {string} preserves its createdAt, enqueuedAt, and dequeuedAt timestamps and now also carries a completedAt timestamp")]
+    public void ThenTheCompletedHandoffPreservesTimestampsAndCarriesCompletedAt(string role)
+    {
+        var handoff = myMailbox.CompletedInboxHandoffs(role).Single();
+        Assert.That(handoff.CreatedAt, Is.EqualTo(myWorkspace.Get<string>(CreatedAtKey)));
+        Assert.That(handoff.EnqueuedAt, Is.EqualTo(myWorkspace.Get<string>(EnqueuedAtKey)));
+        Assert.That(handoff.DequeuedAt, Is.EqualTo(myWorkspace.Get<string>(DequeuedAtKey)));
+        Assert.That(handoff.CompletedAt, Is.Not.Null.And.Not.Empty);
+    }
 
     [Then("the {string} agent observes the handoff wake-up message")]
     public async Task ThenTheAgentObservesTheHandoffWakeUpMessage(string role) =>

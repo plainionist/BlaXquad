@@ -297,8 +297,11 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
   role by default), the roles, and their execution settings and is read at startup; it is not dynamically watched.
 - **Source and commits** remain owned by Git. Roles work in the main checkout or dedicated worktrees. A normal launch
   resets dedicated worktrees and queues; a continued launch preserves them.
-- **Handoff queues** are durable per-worktree state. Filesystem moves are the authoritative task, batch, delivery,
-  and completion transitions.
+- **Handoff queues** are durable per-worktree state, serialized as versioned, typed JSON documents
+  (`.handoff.json`). Filesystem moves are the authoritative task, batch, delivery, and completion transitions.
+  A continued launch preserves an already-JSON queue only: it refuses to start against any worktree still holding
+  a legacy, pre-JSON `.handoff` artifact, so upgrading requires draining such a queue with the previous release or
+  discarding it with a normal (non-continued) launch first.
 - **Host ownership** is local runtime state backed by a project lock, process metadata, and a named-pipe endpoint.
 - **Role and interaction state** is authoritative in the headquarters application model and exists only for the
   current process.
@@ -318,9 +321,10 @@ These observations describe current consequences of the design; they are not red
 2. **Central application model.** All role commands, provider events, interactions, and transcript changes converge
   on one authoritative model and one state-serialization point. This gives clear ordering but couples those flows
   operationally.
-3. **Filesystem collaboration contract.** The two executables depend on shared naming, header, ordering, and atomic
-  move conventions. This makes handoffs durable and restart-safe while coupling independently running processes to
-  the same filesystem schema.
+3. **Filesystem collaboration contract.** The two executables depend on shared naming, JSON schema, ordering, and
+  atomic move conventions. This makes handoffs durable and restart-safe while coupling independently running
+  processes to the same filesystem schema; a schema upgrade is finite rather than dual-format, so a continued
+  launch refuses a legacy or mixed queue instead of silently reading it.
 4. **Cross-language UI contract.** C# and TypeScript maintain the same versioned message shapes independently. The
   protocol is explicit, but there is no generated shared schema.
 5. **In-process provider plug-ins.** Provider neutrality is enforced by contracts, but plug-ins execute inside

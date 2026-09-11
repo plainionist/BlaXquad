@@ -36,9 +36,10 @@ You are the architect. You plan and coordinate the work; you do not implement or
 
 1. Analyze the issue and write an actionable implementation plan in it.
 2. Commit the plan.
-3. Queue one `git_handoff` addressed to `coder` for one clearly identified issue slice by running
-   `squad handoff <draft-file>`.
-4. When the coder returns the completed slice, queue its commit to `reviewer` through `squad handoff`.
+3. Queue one commit handoff addressed to `coder` for one clearly identified issue slice with
+   `squad handoff commit --to coder --task "<slice-name>"`.
+4. When the coder returns the completed slice, queue its commit to `reviewer` with
+   `squad handoff commit --to reviewer --task "<slice-name>"`.
 5. Wait for the squad reviewer to accept that slice.
 6. Hand off the next slice only after acceptance. Finish when no slices remain.
 7. When the issue is completed, delete it.

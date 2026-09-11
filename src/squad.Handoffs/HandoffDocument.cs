@@ -1,0 +1,113 @@
+namespace squad.Handoffs;
+
+/// <summary>
+/// The one durable, versioned JSON representation of a handoff, shared by the role CLI, Headquarters delivery, and
+/// role queue commands. <see cref="Kind"/> selects exactly one of <see cref="GitHandoff"/> or <see cref="Note"/>;
+/// the other must be absent. Recipients and priority use native JSON types rather than encoded delimiter-separated
+/// strings. <see cref="Validate"/> must be called after deserialization and before serialization so no producer or
+/// consumer can persist or act on an incomplete or self-contradictory document.
+/// </summary>
+public sealed record HandoffDocument
+{
+    /// <summary>The only schema version this release produces or accepts.</summary>
+    public const int CurrentSchemaVersion = 1;
+
+    /// <summary>The suffix identifying a durable handoff artifact as JSON, distinct from a legacy ".handoff" file.</summary>
+    public const string FileSuffix = ".handoff.json";
+
+    public required int SchemaVersion { get; init; }
+    public required string Id { get; init; }
+    public required string From { get; init; }
+    public required IReadOnlyList<string> To { get; init; }
+    public string? Recipient { get; init; }
+    public required int Priority { get; init; }
+    public required HandoffKind Kind { get; init; }
+    public GitHandoffData? GitHandoff { get; init; }
+    public NoteData? Note { get; init; }
+    public required string CreatedAt { get; init; }
+    public string? EnqueuedAt { get; init; }
+    public string? DequeuedAt { get; init; }
+    public string? CompletedAt { get; init; }
+
+    /// <summary>Derives the recipient-facing payload instruction from typed fields instead of persisting the same
+    /// information again in a second embedded mini-language.</summary>
+    public string RenderPayload() => Kind switch
+    {
+        HandoffKind.GitHandoff => $"merge_and_process {From} {GitHandoff!.Commit}",
+        HandoffKind.Note => Note!.Message,
+        _ => throw new HandoffFormatException($"unknown handoff kind {Kind}"),
+    };
+
+    /// <summary>Rejects an unsupported schema version, a missing or empty recipient list, and any kind/variant
+    /// pairing other than exactly the variant matching <see cref="Kind"/>.</summary>
+    public void Validate()
+    {
+        var errors = new List<string>();
+
+        if (SchemaVersion != CurrentSchemaVersion)
+        {
+            errors.Add($"unsupported schema version {SchemaVersion}; expected {CurrentSchemaVersion}");
+        }
+        if (string.IsNullOrWhiteSpace(Id))
+        {
+            errors.Add("missing id");
+        }
+        if (string.IsNullOrWhiteSpace(From))
+        {
+            errors.Add("missing from");
+        }
+        if (To is null || To.Count == 0 || To.Any(string.IsNullOrWhiteSpace))
+        {
+            errors.Add("missing or empty to");
+        }
+        if (string.IsNullOrWhiteSpace(CreatedAt))
+        {
+            errors.Add("missing createdAt");
+        }
+
+        switch (Kind)
+        {
+            case HandoffKind.GitHandoff:
+                ValidateVariant(errors, "git_handoff", GitHandoff, Note);
+                if (GitHandoff is not null)
+                {
+                    if (string.IsNullOrWhiteSpace(GitHandoff.Task))
+                    {
+                        errors.Add("missing gitHandoff.task");
+                    }
+                    if (string.IsNullOrWhiteSpace(GitHandoff.Commit))
+                    {
+                        errors.Add("missing gitHandoff.commit");
+                    }
+                }
+                break;
+            case HandoffKind.Note:
+                ValidateVariant(errors, "note", Note, GitHandoff);
+                if (Note is not null && string.IsNullOrWhiteSpace(Note.Message))
+                {
+                    errors.Add("missing note.message");
+                }
+                break;
+            default:
+                errors.Add($"unknown handoff kind {Kind}");
+                break;
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new HandoffFormatException(string.Join("; ", errors));
+        }
+    }
+
+    private static void ValidateVariant(List<string> errors, string kindLabel, object? expected, object? unexpected)
+    {
+        if (expected is null)
+        {
+            errors.Add($"kind '{kindLabel}' requires its matching variant data");
+        }
+        if (unexpected is not null)
+        {
+            errors.Add($"kind '{kindLabel}' must not carry the other variant's data");
+        }
+    }
+}

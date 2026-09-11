@@ -134,23 +134,34 @@ Managed approval requests still require an explicit response.
 ## Handoff
 
 A validated, durable message from one role to one or more other roles. A sender
-creates one with `squad handoff <draft-file>`. On success, the command removes
-the draft and places the generated `.handoff` file in the sender's outbox.
+creates one directly with `squad handoff commit` or `squad handoff note` - there
+is no intermediate draft file. On success, the command places the generated
+`.handoff.json` file - a versioned, typed JSON document (schema version `1`) -
+in the sender's outbox. The document records identity, sender, recipients as a
+JSON array, priority as a number, its kind and kind-specific data, and
+lifecycle timestamps; it does not persist the recipient-facing payload text,
+which is derived from the typed kind-specific data whenever a handoff is
+displayed or delivered.
 
 The supported handoff types are **Git handoff** and **note handoff**.
 
 ## Git handoff
 
-A handoff of type `git_handoff` that identifies a committed change. It carries
-a stable task name and an unambiguous 10-character commit abbreviation.
-BlaXquad generates a `merge_and_process <sender> <commit>` payload for the
-recipient. The handoff communicates the change; it does not itself merge the
-commit.
+A handoff of type `git_handoff` that identifies a committed change, created
+with `squad handoff commit --to <role>[,<role>...] --task <task>`. It carries
+a stable task name and an unambiguous 10-character commit abbreviation. The
+command resolves `HEAD` (or an explicit `--commit <revision>`) to a commit and
+persists Git's canonical ten-character abbreviation; a default `HEAD` handoff
+requires a clean worktree. BlaXquad generates a `merge_and_process <sender>
+<commit>` payload for the recipient. The handoff communicates the change; it
+does not itself merge the commit.
 
 ## Note handoff
 
-A handoff of type `note` containing a short message rather than a commit. A note
-may target one or several roles and its message is limited to 80 characters.
+A handoff of type `note` containing a short message rather than a commit,
+created with `squad handoff note --to <role>[,<role>...] --message <message>`.
+A note may target one or several roles and its message is limited to 80
+characters.
 
 ## Handoff queue
 
@@ -166,6 +177,14 @@ The durable state machine under each role worktree's `.blaxquad/handoffs/` direc
 | `inbox/completed/`  | Work explicitly completed by the recipient           |
 
 Moving files between these locations is the authoritative queue transition.
+
+A handoff queue holding any legacy, pre-JSON `.handoff` artifact in any of these
+locations cannot be processed: the role CLI and a continued Headquarters launch
+(`--continue`) both refuse to touch the queue rather than mix formats. An
+operator must drain such a queue with the previous BlaXquad release, or discard
+it entirely with a normal (non-continued) launch, before using a release that
+only understands `.handoff.json`. A continued launch never migrates a legacy
+queue in place; it only ever preserves an already-JSON queue.
 
 ## Handoff delivery
 

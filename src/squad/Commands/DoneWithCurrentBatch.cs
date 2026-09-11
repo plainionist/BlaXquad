@@ -8,7 +8,8 @@ static class DoneWithCurrentBatch
 {
     public static int Run(string[] args)
     {
-        var inbox = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs", "inbox");
+        var handoffsDir = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs");
+        var inbox = Path.Combine(handoffsDir, "inbox");
         var inProcessDir = Path.Combine(inbox, "in_process");
         var completedDir = Path.Combine(inbox, "completed");
 
@@ -17,6 +18,8 @@ static class DoneWithCurrentBatch
 
         try
         {
+            LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(handoffsDir);
+
             var inProcessBatches = HandoffQueue.BatchDirs(inProcessDir);
             var inProcessFiles = HandoffQueue.HandoffFiles(inProcessDir);
 
@@ -52,7 +55,7 @@ static class DoneWithCurrentBatch
             Directory.CreateDirectory(targetDir);
             foreach (var sourceFile in batchFiles)
             {
-                HandoffHeaders.SetHeader(sourceFile, "completed_at", completedAt);
+                HandoffJson.Update(sourceFile, document => document with { CompletedAt = completedAt });
                 var targetFile = Path.Combine(targetDir, Path.GetFileName(sourceFile));
                 if (Path.Exists(targetFile))
                 {
@@ -74,6 +77,11 @@ static class DoneWithCurrentBatch
                 Console.Error.WriteLine(ex.Message);
             }
             return ex.ExitCode;
+        }
+        catch (LegacyHandoffQueueException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
         }
     }
 

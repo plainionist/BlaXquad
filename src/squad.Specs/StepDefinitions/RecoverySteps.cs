@@ -21,10 +21,22 @@ public sealed class RecoverySteps
     private const string WakeUpMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
     /// <summary>A validly-formatted, but distinctly-payloaded, recipient artifact: parseable like a real delivery
     /// (so <see cref="HandoffMailboxObserver.NewInboxHandoffs"/> can still enumerate it), yet never producible by
-    /// a fresh delivery render, which always carries the original message body and its own "enqueued_at" header.
+    /// a fresh delivery render, which always carries the original message body and its own "enqueuedAt" property.
     /// Proves an "already persisted" recipient copy survives a retried delivery completely untouched.</summary>
     private const string RecipientCopyMarker =
-        "id: already-delivered-marker\nfrom: coder\nto: reviewer\nrecipient: reviewer\npriority: 50\ntype: note\nmessage: Already delivered marker\n\nAlready delivered marker\n";
+        """
+        {
+          "schemaVersion": 1,
+          "id": "already-delivered-marker",
+          "from": "coder",
+          "to": ["reviewer"],
+          "recipient": "reviewer",
+          "priority": 50,
+          "kind": "note",
+          "note": { "message": "Already delivered marker" },
+          "createdAt": "2026-08-22T12:00:00Z"
+        }
+        """;
     private const string SnapshotKey = "recoveryInboxSnapshot";
 
     private readonly ScenarioWorkspace myWorkspace;
