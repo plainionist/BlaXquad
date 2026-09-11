@@ -2,7 +2,7 @@ Feature: Squad host ownership
   A project has one authoritative host owner.
 
   Scenario: A duplicate launch fails clearly
-    Given a squad host is running
+    Given a squad host is running with an auto-echoing "architect" agent
     When the operator attempts a duplicate launch
     Then the duplicate launch fails without an exception trace
     When the user sends "still there?" to role "architect"

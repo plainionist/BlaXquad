@@ -36,14 +36,20 @@ public sealed class HostOwnershipSteps
     public async Task GivenASquadHostIsRunning()
     {
         myScenario.ConfigureRole(HostRole);
+        await myScenario.StartAsync<FakeAgentProviderFactory>();
+    }
+
+    [Given("a squad host is running with an auto-echoing {string} agent")]
+    public async Task GivenASquadHostIsRunningWithAnAutoEchoingAgent(string role)
+    {
+        myScenario.ConfigureRole(role);
         myScenario.EnableFakeProviderControl();
         await myScenario.StartAsync<FakeAgentProviderFactory>();
-        // The "duplicate launch fails clearly" scenario later sends a prompt and asserts on its echoed reply, so
-        // this shared setup step arms auto-echo once the role's session has genuinely started - the same
-        // fake-provider control pipe pattern every other prompt-echoing fixture in this suite uses - keeping
-        // every scenario that reuses this step (most of which never send a prompt at all) unaffected.
-        await myScenario.WaitForRoleSessionStartedAsync(HostRole);
-        await myScenario.Agent(HostRole).EnableAutoEchoAsync();
+        // Only this scenario sends a prompt and asserts on its echoed reply, so only its own setup step - never
+        // the shared, readiness-only "a squad host is running" - enables the fake-provider control pipe and arms
+        // auto-echo, once the role's session has genuinely started.
+        await myScenario.WaitForRoleSessionStartedAsync(role);
+        await myScenario.Agent(role).EnableAutoEchoAsync();
     }
 
     [Given("a Git project host with a ready {string} agent")]
