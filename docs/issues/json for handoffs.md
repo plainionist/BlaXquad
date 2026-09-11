@@ -151,3 +151,60 @@ supported schema.
 - Replacing YAML frontmatter or YamlDotNet with JSON.
 - Standardizing external command output, filenames, named-pipe framing, or other data that is not an
   application-owned persisted-file grammar.
+
+## Implementation plan
+
+### Architectural decisions
+
+- Use schema version `1` and a discriminated typed document owned by `squad.Handoffs`. The envelope contains the
+  identity, sender, recipient array, optional selected recipient, numeric priority, kind, and lifecycle timestamps;
+  kind-specific typed data contains either the Git task and commit or the note message. Do not persist a derived
+  recipient-facing payload.
+- Centralize strict `System.Text.Json` options, validation, reading, and atomic sibling-file writing in
+  `squad.Handoffs`. Reject unknown properties, unsupported versions, incomplete envelopes, invalid recipients or
+  priority, and missing, extra, or conflicting variant data before a queue mutation.
+- Keep priority and creation data in `.handoff.json` filenames for lexical queue ordering, but treat the typed
+  document as the metadata authority. Derive CLI payload text from the validated variant.
+- Do not ship a legacy reader or migrator. Before creating or processing handoffs, inspect every queue state for
+  legacy `.handoff` artifacts and fail the operation before any mutation; this also makes mixed queues fail as a
+  unit. Document that existing queues must be drained with the previous version or reset by a normal launch before
+  upgrading, while a continued launch preserves only JSON queues.
+
+### Slice 1: Replace the durable handoff representation end to end
+
+This is one atomic slice because changing a writer or reader independently would either break a supported queue
+flow or introduce the dual-format behavior this issue removes.
+
+1. Add the versioned handoff envelope, distinct Git and note data types, kind representation, centralized JSON
+   serializer options, schema validation, payload projection, `.handoff.json` discovery, and atomic write/update
+   operations to `squad.Handoffs`, keeping one top-level type per file.
+2. Change `squad handoff commit` and `squad handoff note` to construct validated documents with native recipient and
+   priority values and publish them through the shared atomic writer. Preserve command syntax, Git validation,
+   filename ordering fields, and outbox ownership.
+3. Change Headquarters delivery to deserialize once, validate the complete fan-out before writing any copy, create
+   one typed copy per selected recipient, set enqueue metadata, publish every copy atomically and idempotently, and
+   archive the sender only after all copies exist. Invalid JSON, schema versions, and variants must leave no
+   recipient copies, preserve the source in `failed`, and emit the existing controlled delivery diagnostic.
+4. Change task and batch discovery, claiming, display, and completion to use typed documents. Preserve filesystem
+   moves as authoritative state transitions, rewrite lifecycle timestamps atomically, retain collision behavior,
+   and format priorities as two digits only at filename or CLI presentation boundaries.
+5. Add a shared queue-format preflight used by the role CLI and continued Headquarters startup so any legacy or
+   mixed queue across `outbox`, `sent`, `failed`, `inbox/new`, `inbox/in_process`, or `inbox/completed` is rejected
+   before processing. Diagnostics must identify the unsupported legacy queue and direct the operator to drain it
+   with the previous version or reset it with a normal launch.
+6. Remove `HandoffHeaders`, delivery-local parsing/rendering, comma-separated persisted recipients, body separator
+   handling, and every production line search or mutation after all producers and consumers use the shared model.
+7. Update mailbox fixtures and observers to create and inspect JSON independently of production serialization.
+   Keep the existing creation, ordering, fan-out, retry, recovery, task, batch, collision, and pump-failure
+   scenarios, and add focused black-box coverage for native JSON values, selected recipients, lifecycle timestamp
+   preservation, malformed JSON, unsupported versions, invalid variants, and rejection of legacy and mixed queues
+   without partial mutation.
+8. Update the handoff glossary, architecture, and module inventory with the typed JSON contract, `.handoff.json`
+   suffix, derived payload, atomic queue semantics, and finite drain-or-reset upgrade policy. Repeat the
+   production-source audit and either confirm the table above or record any newly discovered application-owned
+   custom structured format with its disposition.
+
+**Exit criteria:** A handoff created through the real `squad` process remains valid, typed JSON through
+Headquarters fan-out, task or batch claim, restart recovery, and completion; every transition remains durable and
+atomic; invalid, legacy, or mixed queues fail without losing or partially delivering an artifact; no production
+legacy-grammar code remains; and the focused black-box handoff suite passes.
