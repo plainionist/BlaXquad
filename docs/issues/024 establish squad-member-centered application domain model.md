@@ -629,3 +629,52 @@ CLI remain unchanged, and no test source changes in this slice.
   fake-provider control API, Gherkin vocabulary, Vue components, or dashboard presentation.
 - Adding tests for internal aggregates, processors, concurrency, generation ownership, replacement internals, or
   other non-configuration implementation details.
+
+## Slice 2 review (c078fc6e07) — changes requested
+
+### Finding 1 — Medium
+
+- **Location:** `src/squad.Application/SquadViewModel.cs` (`mySessions`, `RegisterSession`, `TryCaptureSession`,
+  `RunForRoleAsync`, `CancelAllPendingInteractionsAsync`).
+- **Violated behavior:** Slice 2 acceptance requires the ordered member directory to be the only application-domain
+  collection keyed by member identity, and requires the member's provider-session association to be reached through
+  that aggregate rather than a parallel session map. After `GetMember`, `RunForRoleAsync` still indexes
+  `mySessions` by the compatibility `role` string. Session lifecycle may remain backend-owned; the association may
+  not.
+- **Root cause:** `PendingInteractionRegistry` and `RoleOperationCoordinator` were moved into `MemberAggregate`, but
+  the role-keyed `IAgentSession` dictionary was left on the facade as a second member-identity map.
+- **Required outcome:** After routing, obtain the current session from the selected `MemberAggregate`. Remove
+  `mySessions` as a member-keyed collection. Keep backend/runtime lifetime of session objects outside the aggregate.
+
+### Finding 2 — Medium
+
+- **Location:** `src/squad.Application/Members/MemberSnapshot.cs`; `MemberAggregate.CreateSnapshot`;
+  `SquadViewModel.CreateSnapshot` / `CreateTranscriptSnapshot`; `InitializeRoles`;
+  `src/squad.Workspaces/PreparedLaunch.cs` (`MemberNames` only).
+- **Violated behavior:** Slice 2 requires immutable member snapshots that contain member identity, display name,
+  genuine role metadata, state, usage, pending interactions, and transcript position, and that the facade compose
+  read models from those snapshots without exposing mutable member objects. `MemberSnapshot` is a renamed
+  `AgentRoleSnapshot` (status/usage only). The version-5 payload still reads live `Permissions`/`Inputs`/
+  `Elicitations` and transcript state from the mutable aggregate. The aggregate never receives display name or the
+  referenced role, so two members sharing `coder` cannot be snapshotted with genuine role metadata.
+- **Root cause:** Ownership of interactions and transcript was moved into the aggregate, but snapshot composition
+  and member metadata were left as they were when `AgentRoleState` held only projected agent fields.
+- **Required outcome:** Produce one immutable member snapshot under the aggregate's mutation boundary with the
+  fields above. Map the unchanged version-5 UI snapshot from those values. Thread configured member identity,
+  display name, and role reference into the aggregate at initialization. Do not change tests or wire field names.
+
+### Finding 3 — Medium
+
+- **Location:** `docs/manual/architecture.md` (Responsibility boundaries: Application model; State ownership:
+  "Role and interaction state"; Architectural characteristics item 2).
+- **Violated behavior:** Each slice must update directly affected architecture documentation. Internal architecture
+  docs must use `role` vs `member` per the naming rules. The application model is still described as one
+  synchronization boundary that records pending interactions, coordinates per-role operations, and owns the
+  role-session catalog together with projected role state. `docs/manual/modules.md` was updated; architecture was
+  not.
+- **Root cause:** The commit renamed application/transcript types and rewrote the module blurb, but left the C4
+  responsibility and state-ownership narrative on the pre-slice ViewModel-as-aggregate model.
+- **Required outcome:** Describe the ordered member directory, per-member aggregate ownership of projected state,
+  transcript, pending interactions, and operation/abort/failure, and facade-only routing plus immutable snapshot
+  composition. Keep public CLI/UI/control vocabulary unchanged. Do not claim slice 3 processor isolation or slice 4
+  Headquarters/`Squad` replacement.
