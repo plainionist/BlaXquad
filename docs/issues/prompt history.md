@@ -45,7 +45,7 @@ trimmed and converted into the existing protocol command. Keep DOM selection and
 `PromptComposer`. Route only history-navigation intents through `RolePanel` and `App`; do not add protocol messages,
 backend state, or browser persistence.
 
-### Slice 1: Recall and resend bounded per-role history
+### Slice 1: Recall and resend bounded per-role history [done]
 
 **Outcome:** From an empty composer, an operator can traverse and resend the current dashboard's recently submitted
 prompts without seeing prompts submitted to another role.
@@ -69,6 +69,12 @@ prompts without seeing prompts submitted to another role.
 **Exit criteria:** Acceptance criteria 1, 3, and 5 pass through the rendered dashboard, history is bounded and
 dashboard-local, and no C# or UI-protocol surface changes.
 
+**Status: complete (f7585613f9).** Empty-composer ArrowUp/Down traverses per-role in-memory history newest-to-oldest
+without wrapping, restores the empty draft past the newest entry, and resubmits through the existing `prompt.send`
+envelope and clear-on-send path. History records the trimmed sent value, retains duplicates, ignores submissions that
+produce no command, evicts oldest entries beyond 50, and resets on dashboard reload. `src/squad-ui/tests/prompt-history.spec.ts`
+covers those cases plus role isolation. No C# or UI-protocol surface changes.
+
 ### Slice 2: Preserve drafts and native textarea editing
 
 **Outcome:** An operator can enter history from an existing draft only at the absolute beginning, recover that draft,
@@ -89,3 +95,5 @@ and otherwise retain native multiline, editing, modifier, and IME behavior.
 **Exit criteria:** Acceptance criteria 2 and 4 pass, all keyboard rules in the issue are covered through browser-visible
 behavior, and the complete focused prompt-history and dashboard-interaction Playwright suites plus the `squad-ui`
 build pass.
+
+Slice 1 is complete. Slice 2 remains pending until the architect activates it.
