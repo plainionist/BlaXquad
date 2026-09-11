@@ -14,7 +14,11 @@
           BeforeTargets="Publish"
           Condition="'$(RuntimeIdentifier)' != '' and '$(IncludeCopilotSdkProvider)' == 'true'">
     <MSBuild Projects="$(MSBuildThisFileDirectory)squad.AgentProvider.CopilotSdk.csproj"
-             Targets="Restore;Publish"
+             Targets="Restore"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);TargetFramework=$(TargetFramework)" />
+    <MSBuild Projects="$(MSBuildThisFileDirectory)squad.AgentProvider.CopilotSdk.csproj"
+             Targets="Publish"
              BuildInParallel="false"
              Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);TargetFramework=$(TargetFramework);SelfContained=false;PublishDir=$(_CopilotSdkPublishOutputDirectory)" />
   </Target>
