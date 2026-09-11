@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents;
 
 /// <summary>Valid <see cref="IAgentProviderFactory"/> implementation used to prove that an explicit
 /// "--provider" descriptor loads and constructs successfully when squad-hq is launched as a real, separate

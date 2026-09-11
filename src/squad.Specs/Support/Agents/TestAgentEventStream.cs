@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using squad.AgentProvider.Abstractions.Agents;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents;
 
 /// <summary>
 /// Test-owned event-stream primitive backing every fixture's <c>IAgentSession.Events(...)</c> (the fake, echo,

@@ -1,4 +1,5 @@
 using squad.Specs.Support;
+using squad.Specs.Support.Agents;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -231,9 +232,9 @@ public sealed class HeadquartersLifecycleSteps
     [When("the operator launches a new Headquarters against the same project")]
     public void WhenTheOperatorLaunchesANewHeadquartersAgainstTheSameProject() =>
         // A replacement launch is a child of the same scenario owner (StartReplacementAsync targets this
-        // instance's own workspace), not an independent default facade; the echo provider is again a test-setup
+        // instance's own workspace), not an independent default facade; the fake provider is again a test-setup
         // choice kept out of Gherkin.
-        myReplacementHeadquarters = Await(myScenario.StartReplacementAsync<EchoAgentProviderFactory>());
+        myReplacementHeadquarters = Await(myScenario.StartReplacementAsync<FakeAgentProviderFactory>());
 
     [Then("the new Headquarters process reports ready")]
     public void ThenTheNewHeadquartersProcessReportsReady() =>

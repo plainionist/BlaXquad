@@ -1,8 +1,9 @@
 using System.Text.Json;
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
+using squad.Specs.Support;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents;
 
 /// <summary>
 /// Provider-side session for <see cref="FakeAgentProviderFactory"/>. Establishes itself by publishing the real
@@ -133,9 +134,9 @@ internal sealed class FakeAgentSession : IAgentSession, IAgentReadinessProbe
     /// <summary>Test-only control (not a production event): arms this session so every future <see cref="SendAsync"/>
     /// answers its prompt automatically with "echo: {prompt}" - reporting the prompt across the control pipe exactly
     /// like an ordinary send, but completing immediately instead of waiting for an explicit <see cref="DeliverReply"/>.
-    /// This is the same automatic reply <see cref="EchoAgentProviderFactory"/> hardcodes, exposed through the shared
-    /// fake-provider control transport so real-wire-framing specifications do not need a second, narrower provider
-    /// fixture.</summary>
+    /// This is the same automatic reply behavior the stdio UI protocol black-box scenarios' readiness-only fixture
+    /// once hardcoded, exposed through the shared fake-provider control transport so real-wire-framing
+    /// specifications do not need a second, narrower provider fixture.</summary>
     public void EnableAutoEcho() => myAutoEcho = true;
 
     /// <summary>Reports, when a control transport is configured, that the host aborted this session's current

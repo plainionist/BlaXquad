@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents;
 
 /// <summary>Valid <see cref="IAgentProviderFactory"/> implementation whose constructor always throws, used to
 /// prove that "--provider" selection surfaces construction failures with a clear diagnostic.</summary>

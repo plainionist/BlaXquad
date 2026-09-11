@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using System.Text.Json;
+using squad.Specs.Support.Agents;
 
 namespace squad.Specs.Support;
 

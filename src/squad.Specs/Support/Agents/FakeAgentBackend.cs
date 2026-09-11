@@ -1,6 +1,7 @@
 using squad.AgentProvider.Abstractions;
+using squad.Specs.Support;
 
-namespace squad.Specs.Support;
+namespace squad.Specs.Support.Agents;
 
 /// <summary>
 /// Provider-side backend for <see cref="FakeAgentProviderFactory"/>. Creates one runtime generation per the

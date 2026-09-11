@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using squad.Specs.Support;
+using squad.Specs.Support.Agents;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -35,7 +36,14 @@ public sealed class HostOwnershipSteps
     public async Task GivenASquadHostIsRunning()
     {
         myScenario.ConfigureRole(HostRole);
-        await myScenario.StartAsync<EchoAgentProviderFactory>();
+        myScenario.EnableFakeProviderControl();
+        await myScenario.StartAsync<FakeAgentProviderFactory>();
+        // The "duplicate launch fails clearly" scenario later sends a prompt and asserts on its echoed reply, so
+        // this shared setup step arms auto-echo once the role's session has genuinely started - the same
+        // fake-provider control pipe pattern every other prompt-echoing fixture in this suite uses - keeping
+        // every scenario that reuses this step (most of which never send a prompt at all) unaffected.
+        await myScenario.WaitForRoleSessionStartedAsync(HostRole);
+        await myScenario.Agent(HostRole).EnableAutoEchoAsync();
     }
 
     [Given("a Git project host with a ready {string} agent")]
