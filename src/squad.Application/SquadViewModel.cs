@@ -1,7 +1,7 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Application.Members;
-using squad.Transcripts;
+using squad.Application.Transcripts;
 using squad.Ui.Abstractions;
 using System.Text.Json;
 using System.Threading.Channels;

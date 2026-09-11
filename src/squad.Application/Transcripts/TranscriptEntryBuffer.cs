@@ -1,7 +1,7 @@
 using System.Text;
 using squad.Ui.Abstractions;
 
-namespace squad.Transcripts;
+namespace squad.Application.Transcripts;
 
 /// <summary>
 /// Accumulates one streaming transcript entry while retaining only a bounded tail and tracking its original content

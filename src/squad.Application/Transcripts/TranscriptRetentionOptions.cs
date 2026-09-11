@@ -1,7 +1,7 @@
-namespace squad.Transcripts;
+namespace squad.Application.Transcripts;
 
 /// <summary>Defines independent size bounds for live transcript state, archived history, and UI announcements.</summary>
-public sealed record TranscriptRetentionOptions(
+internal sealed record TranscriptRetentionOptions(
     int MaxRetainedEntries = 500,
     int MaxRetainedContentCharacters = 1_000_000,
     int MaxRetainedEntryCharacters = 250_000,

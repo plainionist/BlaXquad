@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
-using squad.Transcripts;
+using squad.Application.Transcripts;
 
 namespace squad.Application.Members;
 

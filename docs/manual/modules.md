@@ -47,7 +47,8 @@ admission. Each configured squad member has one member aggregate that is the sol
 projected agent status, transcript, pending interactions, and operation/abort coordination - keyed only by request
 or operation identity, never by another member. It projects agent events onto the addressed member's aggregate,
 coordinates prompts and aborts, integrates transcript state, and supplies UI snapshots composed from immutable
-member snapshots.
+member snapshots. Its `Transcripts` component owns per-member transcript state, including ordered entries, streaming
+buffers, tool-call correlation, live retention limits, durable archives, paging, and archived-entry reconstruction.
 
 ## `squad.Configuration`
 
@@ -122,12 +123,6 @@ one headquarters process per project and provides local process control: it
 owns the Headquarters lock and metadata, named-pipe shutdown and readiness requests,
 client access, and stale-state cleanup. Control code remains structurally
 separate from lifecycle coordination within the same assembly.
-
-## `squad.Transcripts`
-
-Owns per-member transcript state, including ordered entries, streaming buffers,
-tool-call correlation, live retention limits, durable archives, paging, and
-archived-entry reconstruction.
 
 ## `squad.Ui.Abstractions`
 
