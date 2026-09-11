@@ -68,16 +68,6 @@ Feature: Creating outbound handoffs
     And one handoff is queued
     And the queued handoff instructs merging the committed change
 
-  Scenario: Reject queuing a new handoff while a legacy artifact remains
-    Given "coder" has a legacy handoff artifact in its outbox
-    And "coder" prepares a note with priority "50" and message "Ready for review." to:
-      | role     |
-      | reviewer |
-    When the "coder" role agent runs `squad handoff` from its worktree
-    Then the command exits with code 2
-    And standard error contains "LEGACY_HANDOFF_QUEUE"
-    And no handoff is queued
-
   Scenario: Reject simultaneous priority and recipient errors in a note
     When "coder" runs `squad handoff` with arguments:
       | arg                                  |

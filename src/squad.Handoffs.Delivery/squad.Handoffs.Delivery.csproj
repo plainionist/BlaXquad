@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <ItemGroup>
-    <ProjectReference Include="..\squad.Configuration\squad.Configuration.csproj" />
-    <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj" />
-  </ItemGroup>
-
-</Project>

@@ -18,8 +18,6 @@ static class DoneWithCurrentTask
 
         try
         {
-            LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(handoffsDir);
-
             var inProcessBatches = HandoffQueue.BatchDirs(inProcessDir);
             var inProcessFiles = HandoffQueue.HandoffFiles(inProcessDir);
 
@@ -58,11 +56,6 @@ static class DoneWithCurrentTask
                 Console.Error.WriteLine(ex.Message);
             }
             return ex.ExitCode;
-        }
-        catch (LegacyHandoffQueueException ex)
-        {
-            Console.Error.WriteLine(ex.Message);
-            return 2;
         }
     }
 

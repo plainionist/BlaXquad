@@ -136,8 +136,8 @@ Managed approval requests still require an explicit response.
 A validated, durable message from one role to one or more other roles. A sender
 creates one directly with `squad handoff commit` or `squad handoff note` - there
 is no intermediate draft file. On success, the command places the generated
-`.handoff.json` file - a versioned, typed JSON document (schema version `1`) -
-in the sender's outbox. The document records identity, sender, recipients as a
+`.handoff.json` file - a typed JSON document - in the sender's outbox. The
+document records identity, sender, recipients as a
 JSON array, priority as a number, its kind and kind-specific data, and
 lifecycle timestamps; it does not persist the recipient-facing payload text,
 which is derived from the typed kind-specific data whenever a handoff is

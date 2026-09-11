@@ -5,7 +5,6 @@
   <Project Path="src/squad.Process/squad.Process.csproj" />
   <Project Path="src/squad.Application/squad.Application.csproj" />
   <Project Path="src/squad.Handoffs/squad.Handoffs.csproj" />
-  <Project Path="src/squad.Handoffs.Delivery/squad.Handoffs.Delivery.csproj" />
   <Project Path="src/squad.Transcripts/squad.Transcripts.csproj" />
   <Project Path="src/squad.Hosting.Photino/squad.Hosting.Photino.csproj" />
   <Project Path="src/squad.Hosting.Stdio/squad.Hosting.Stdio.csproj" />

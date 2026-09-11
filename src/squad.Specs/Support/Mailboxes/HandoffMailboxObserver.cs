@@ -66,7 +66,6 @@ public sealed class HandoffMailboxObserver
             path,
             $$"""
             {
-              "schemaVersion": 1,
               "id": "seed-{{Guid.NewGuid():N}}",
               "from": "{{senderRole}}",
               "to": [{{recipientArray}}],
@@ -80,9 +79,9 @@ public sealed class HandoffMailboxObserver
     }
 
     /// <summary>
-    /// Seeds a raw, scenario-authored outbound handoff artifact - malformed JSON, an unsupported schema version, or
-    /// a handoff kind whose variant data does not match - directly into a role's outbox, the only way a scenario
-    /// can arrange a durable artifact production's own writer would never itself produce.
+    /// Seeds a raw, scenario-authored outbound handoff artifact - malformed JSON or a handoff kind whose variant
+    /// data does not match - directly into a role's outbox, the only way a scenario can arrange a durable artifact
+    /// production's own writer would never itself produce.
     /// </summary>
     internal void SeedInvalidOutboundContent(string senderRole, string content)
     {
