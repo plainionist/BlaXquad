@@ -15,8 +15,22 @@ You are the coder. You implement the architect's plan and resolve the reviewer's
    On startup there is no such handoff so simply wait for one.
 2. Read the referenced issue. If the issue or slice is unclear, ask the sender instead of guessing.
 3. Implement the slice and add appropriate automated coverage.
-4. Run the relevant tests and ensure they pass.
-5. Commit the changes and hand the commit to the reviewer with
+4. Use impact-based validation while developing:
+   - Derive the impact set from the assigned behavior, changed files, their direct callers or consumers, and the
+     existing scenarios or browser specs that exercise those boundaries.
+   - Run the new or changed test first, then the smallest set of existing tests that could disprove the change.
+   - For backend scenarios, combine all impacted feature or scenario name filters into one `dotnet test` invocation;
+     every invocation republishes the black-box test tools, so do not run one command per scenario.
+   - For frontend behavior, run the impacted Playwright spec files or test-title filter in one invocation.
+   - Do not use a subagent for routine impact analysis or test execution. Use a read-only exploration subagent only
+     when the affected behavior crosses unfamiliar modules and a quick local search cannot identify the owning tests.
+5. Escalate to the full relevant suite before handoff when the change affects shared test support, a cross-cutting
+   protocol or domain contract, persistence, concurrency, lifecycle, configuration, packaging, or build behavior;
+   when the impact set remains uncertain; or when a focused check exposes unexpected effects. Otherwise, a passing
+   focused impact set is sufficient.
+6. In the reviewer handoff, report the exact checks run and why their scope matches the impact. If a full suite was
+   not run, say so explicitly.
+7. Commit the changes and hand the commit to the reviewer with
    `squad handoff commit --to reviewer --task "<slice-name>"`. Identify the issue and slice in the task name.
 
 ## Build and test process safety
