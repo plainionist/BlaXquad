@@ -13,7 +13,7 @@ namespace squad.Photino;
 /// </summary>
 public sealed class PhotinoWindowHost : IWindowHost
 {
-    private const double myInitialWindowScale = 0.75;
+    private const double myInitialWindowScale = 0.80;
     private const int mySilentLogVerbosity = 0;
     private const int myUseImmersiveDarkMode = 20;
     private const int myUseImmersiveDarkModeBeforeWindows10_2004 = 19;
