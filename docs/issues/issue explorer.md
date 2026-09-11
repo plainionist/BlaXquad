@@ -8,7 +8,7 @@ priority: 9999
 ## Goal
 
 Add a compact issue explorer above the agent panels so an operator can inspect repository issues, copy an issue path,
-or prepare the configured leader role to process an issue without sending the prompt automatically.
+or prepare the headquarters-resolved leader role to process an issue without sending the prompt automatically.
 
 ## User experience
 
@@ -27,10 +27,10 @@ Each issue entry has two icon actions:
 
 - **Copy** copies the issue path relative to the workspace root, using `/` separators, to the clipboard. For example:
   `docs/issues/issue explorer.md`.
-- **Play** puts `process this issue: '<relative path>'` into the configured leader's prompt draft and focuses that
+- **Play** puts `process this issue: '<relative path>'` into the resolved leader's prompt draft and focuses that
   role's prompt composer. It must not emit `prompt.send`; the user still submits the prompt with Enter or Send.
 
-If the configured leader is not available in the current UI state, keep Play disabled while leaving Copy available.
+If the resolved leader is not available in the current UI state, keep Play disabled while leaving Copy available.
 
 ## Architectural analysis
 
@@ -83,7 +83,7 @@ This is a protocol extension, so increment the protocol version in C# and TypeSc
 
 ## Resolved design decisions
 
-- Play replaces the configured leader's current draft immediately. It does not append or ask for confirmation.
+- Play replaces the resolved leader's current draft immediately. It does not append or ask for confirmation.
 - `blaxquad/squad.json` may name a top-level `leader`. A missing or blank value resolves to the first configured role;
   an explicit non-blank value must exactly match one configured role name.
 - The catalog is an independent, read-only filesystem concern. Put its transport-neutral descriptor and narrow
