@@ -34,9 +34,9 @@ Adopt this rule for application-owned persisted data:
 - JSON and `System.Text.Json` are the default when BlaXquad owns both producer and consumer;
 - human-authored files may use another established format when a maintained parser handles their structured data;
 - opaque prose, diagnostic text, lock files, and single scalar values do not become JSON merely to satisfy the
-	rule; and
+  rule; and
 - filesystem layout and atomic file operations may remain domain-specific because they represent queue and
-	ownership semantics, not serialization grammars.
+  ownership semantics, not serialization grammars.
 
 Migrate durable handoff documents to a typed, versioned JSON representation and remove the custom handoff header,
 body separator, persisted recipient-list encoding, parsing, rendering, and field-mutation code.
@@ -45,18 +45,18 @@ body separator, persisted recipient-list encoding, parsing, rendering, and field
 
 No other production-parsed file currently requires migration:
 
-| Data | Current format and parser | Action |
-| --- | --- | --- |
-| `blaxquad/squad.json` | JSON through `System.Text.Json` | Keep |
-| `.blaxquad/host.json` | JSON through `System.Text.Json` | Keep |
-| transcript entry metadata | JSON through `System.Text.Json`; transcript content is opaque UTF-8 text | Keep |
-| raw SDK event traces | JSON Lines through `System.Text.Json` | Keep |
-| `docs/issues/*.md` metadata | conventional Markdown YAML frontmatter through YamlDotNet | Keep |
-| handoff queue artifacts | custom headers, comma-separated recipients, and a blank-line-separated body | Migrate to JSON |
-| handoff sequence counter | one invariant-culture integer protected by a lock file | Keep as a scalar |
-| prompts and issue bodies | opaque text consumed as text | Keep |
-| `.gitignore` | external standard format; BlaXquad only ensures required entries exist | Keep |
-| handoff delivery log and `.error` diagnostics | append-only or opaque text, not parsed by production code | Keep |
+| Data                                          | Current format and parser                                                   | Action           |
+| --------------------------------------------- | --------------------------------------------------------------------------- | ---------------- |
+| `blaxquad/squad.json`                         | JSON through `System.Text.Json`                                             | Keep             |
+| `.blaxquad/host.json`                         | JSON through `System.Text.Json`                                             | Keep             |
+| transcript entry metadata                     | JSON through `System.Text.Json`; transcript content is opaque UTF-8 text    | Keep             |
+| raw SDK event traces                          | JSON Lines through `System.Text.Json`                                       | Keep             |
+| `docs/issues/*.md` metadata                   | conventional Markdown YAML frontmatter through YamlDotNet                   | Keep             |
+| handoff queue artifacts                       | custom headers, comma-separated recipients, and a blank-line-separated body | Migrate to JSON  |
+| handoff sequence counter                      | one invariant-culture integer protected by a lock file                      | Keep as a scalar |
+| prompts and issue bodies                      | opaque text consumed as text                                                | Keep             |
+| `.gitignore`                                  | external standard format; BlaXquad only ensures required entries exist      | Keep             |
+| handoff delivery log and `.error` diagnostics | append-only or opaque text, not parsed by production code                   | Keep             |
 
 The Markdown frontmatter splitter only identifies the conventional `---` envelope; YamlDotNet parses the structured
 content. Do not add a Markdown dependency solely to replace that small framing operation unless the application
@@ -132,16 +132,16 @@ supported schema.
 - Outbox publication and every inbox/sent/failed queue transition remain file-backed and atomic.
 - Multi-recipient delivery remains durable and idempotent, and lifecycle timestamps survive each rewrite.
 - Malformed JSON, unsupported versions, and invalid handoff variants produce controlled failures without losing the
-	source artifact.
+  source artifact.
 - Legacy queue compatibility follows one documented, finite policy and mixed-format queues cannot be processed
-	partially.
+  partially.
 - The manual describes JSON as an internal durable representation while keeping the CLI as the creation API and
-	filesystem moves as the authoritative queue transitions.
+  filesystem moves as the authoritative queue transitions.
 - Existing black-box handoff, delivery, recovery, task, and batch scenarios pass with JSON artifacts, with focused
-	scenarios added for malformed/version-incompatible documents and any supported migration path.
+  scenarios added for malformed/version-incompatible documents and any supported migration path.
 - A production-source search finds no other application-owned structured file parsed by a custom grammar; any new
-	finding is either migrated in this issue or recorded in the audit above with a concrete reason to remain plain
-	text or use its existing standard parser.
+  finding is either migrated in this issue or recorded in the audit above with a concrete reason to remain plain
+  text or use its existing standard parser.
 
 ## Non-goals
 
@@ -150,4 +150,4 @@ supported schema.
 - Converting plain prompts, issue prose, scalar counters, lock files, or diagnostics into structured documents.
 - Replacing YAML frontmatter or YamlDotNet with JSON.
 - Standardizing external command output, filenames, named-pipe framing, or other data that is not an
-	application-owned persisted-file grammar.
+  application-owned persisted-file grammar.
