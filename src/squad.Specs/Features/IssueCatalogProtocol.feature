@@ -114,7 +114,7 @@ Feature: Issue catalog protocol
       | path                    | title       | priority |
       | docs/issues/untitled.md | untitled.md | 3        |
 
-  Scenario: A response reports the normalized raw frontmatter block and exactly five non-blank preview lines
+  Scenario: A response reports the normalized raw frontmatter block and the first ten preview lines including blanks
     Given an issue file "detailed.md" with this content:
       """
       ---
@@ -123,12 +123,15 @@ Feature: Issue catalog protocol
       ---
       First line.
 
-      Second line.
       Third line.
-
       Fourth line.
-      Fifth line.
-      Sixth line, never previewed.
+
+      Sixth line.
+      Seventh line.
+      Eighth line.
+      Ninth line.
+      Tenth line.
+      Eleventh line, never previewed.
       """
     When the ui requests the issue catalog with request id "req-detail"
     Then the issue catalog response for request id "req-detail" includes an issue at path "docs/issues/detailed.md" with frontmatter:
@@ -141,10 +144,15 @@ Feature: Issue catalog protocol
     And that issue reports these preview lines:
       | line          |
       | First line.   |
-      | Second line.  |
+      |               |
       | Third line.   |
       | Fourth line.  |
-      | Fifth line.   |
+      |               |
+      | Sixth line.   |
+      | Seventh line. |
+      | Eighth line.  |
+      | Ninth line.   |
+      | Tenth line.   |
 
   Scenario: Malformed YAML frontmatter retains the issue with fallback title and priority instead of an error
     Given an issue file "malformed.md" with this content:
@@ -182,17 +190,20 @@ Feature: Issue catalog protocol
     And that issue reports these preview lines:
       | line |
 
-  Scenario: A document without any frontmatter delimiter has empty frontmatter and previews its first five non-blank lines
+  Scenario: A document without any frontmatter delimiter has empty frontmatter and previews its first ten lines
     Given an issue file "plain.md" with this content:
       """
       First line.
-
       Second line.
       Third line.
-
       Fourth line.
       Fifth line.
-      Sixth line, never previewed.
+      Sixth line.
+      Seventh line.
+      Eighth line.
+      Ninth line.
+      Tenth line.
+      Eleventh line, never previewed.
       """
     When the ui requests the issue catalog with request id "req-plain"
     Then the issue catalog response for request id "req-plain" includes an issue at path "docs/issues/plain.md" with empty frontmatter
@@ -203,6 +214,11 @@ Feature: Issue catalog protocol
       | Third line.  |
       | Fourth line. |
       | Fifth line.  |
+      | Sixth line.  |
+      | Seventh line. |
+      | Eighth line. |
+      | Ninth line.  |
+      | Tenth line.  |
 
   Scenario: Re-requesting the catalog after files change during the same session reports the changed catalog
     Given an issue file "first.md" with this content:
