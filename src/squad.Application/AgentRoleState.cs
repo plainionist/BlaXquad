@@ -1,5 +1,4 @@
 using squad.Transcripts;
-using squad.Ui.Abstractions;
 
 namespace squad.Application;
 

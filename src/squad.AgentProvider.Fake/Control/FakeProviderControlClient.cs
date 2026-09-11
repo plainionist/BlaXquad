@@ -1,6 +1,5 @@
 using System.IO.Pipes;
 using System.Text.Json;
-using squad.AgentProvider.Fake;
 
 namespace squad.AgentProvider.Fake.Control;
 

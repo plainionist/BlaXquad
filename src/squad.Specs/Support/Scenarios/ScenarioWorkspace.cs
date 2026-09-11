@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using squad.Specs.Support.Processes;
 
 namespace squad.Specs.Support.Scenarios;

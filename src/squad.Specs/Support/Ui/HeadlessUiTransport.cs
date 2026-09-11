@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
 using squad.Specs.Support.Processes;
 
 namespace squad.Specs.Support.Ui;
