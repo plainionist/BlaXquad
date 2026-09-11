@@ -505,10 +505,9 @@ and UI behavior are unchanged. No test source changes in this slice.
 association, transcript, pending interactions, and operation/abort/failure. The ordered member directory is the only
 application-domain collection keyed by member identity. Immutable member snapshots include identity, display name,
 role metadata, state, usage, pending interactions, and transcript position. Architecture documentation describes
-this ownership without claiming processor isolation or Headquarters/`Squad` replacement. Slice 3 remains pending
-until the architect activates it.
+this ownership without claiming processor isolation or Headquarters/`Squad` replacement. Slice 3 is active.
 
-### Slice 3 - Give every member an independent typed processor
+### Slice 3 - Give every member an independent typed processor [in progress]
 
 **Outcome:** Holding provider I/O for one member cannot delay commands, provider events, interactions, snapshots, or
 transcript publication for another member, while same-member ordering and cancellation remain unchanged.
