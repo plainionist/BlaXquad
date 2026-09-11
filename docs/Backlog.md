@@ -1,10 +1,7 @@
 
 ## v2 
 
-- https://x.com/dexhorthy/status/2087569590268391897
 - modularization, component boundaries, deep modules
-- build a knowledge base
-  - architecture
 
 ## v3
 
