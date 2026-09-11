@@ -79,6 +79,20 @@ Feature: Interaction publication and ownership
     When the user responds to permission "permission-1" for role "coder" with approved "true"
     Then the user observes a protocol error mentioning "permission-1"
 
+  Scenario: An accepted input response is published as a user transcript entry
+    When the "coder" agent requests input "input-1" with prompt "Which branch should I use?" and freeform "false":
+      | choice  |
+      | main    |
+      | develop |
+    When the user responds to input "input-1" for role "coder" with answer "main" and freeform "false"
+    Then the "coder" agent observes an input response for "input-1" with answer "main"
+    And the dashboard receives a transcript update for role "coder" with source "user" and content "main"
+    When the "reviewer" agent requests input "input-2" with prompt "What should the commit message be?" and freeform "true":
+      | choice |
+    When the user responds to input "input-2" for role "reviewer" with answer "Fix the flaky retry test" and freeform "true"
+    Then the "reviewer" agent observes an input response for "input-2" with answer "Fix the flaky retry test"
+    And the dashboard receives a transcript update for role "reviewer" with source "user" and content "Fix the flaky retry test"
+
   Scenario: Identical request IDs remain independent across two roles
     When the "coder" agent requests permission "shared-request" with description "Run the deploy script?"
     And the "reviewer" agent requests permission "shared-request" with description "Publish the release notes?"

@@ -114,6 +114,32 @@ test('shows semantic subagent activity with a yellow double-chevron prefix', asy
     .toHaveText('Code Review · gpt-5.6-sol · Review authentication changes')
 })
 
+test('shows an accepted input answer as a user transcript entry with a green prefix', async ({ page }) => {
+  await loadSnapshot(page)
+  await page.evaluate(() => {
+    window.__blaxquadHarness?.receive({
+      version: 5,
+      type: 'transcript.update',
+      payload: {
+        role: 'coder',
+        sequence: 2,
+        operation: 'append',
+        entryIndex: 1,
+        entry: {
+          occurredAt: '2026-03-01T12:00:01Z',
+          source: 'user',
+          content: 'main',
+        },
+      },
+    })
+  })
+
+  const entry = roleTranscript(page, 'coder').locator('.is-user')
+  await expect(entry.locator('.transcript-prefix')).toHaveText('>')
+  await expect(entry.locator('.transcript-prefix')).toHaveCSS('color', 'rgb(137, 209, 133)')
+  await expect(entry.locator('.transcript-content')).toHaveText('main')
+})
+
 test('puts send, cancel, and scroll-to-end controls beside the prompt', async ({ page }) => {
   await loadSnapshot(page)
 

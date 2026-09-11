@@ -557,17 +557,19 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private Task CompletePermissionCoreAsync(string expectedRole, string requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
             myInteractions.RemovePermission, myInteractions.RegisterPermission, expectedRole, requestId,
-            (session, token) => session.RespondToPermissionAsync(requestId, response, token), cancellationToken), cancellationToken);
+            (session, token) => session.RespondToPermissionAsync(requestId, response, token), onCompleted: null, cancellationToken), cancellationToken);
 
     private Task CompleteInputCoreAsync(string expectedRole, string requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
             myInteractions.RemoveInput, myInteractions.RegisterInput, expectedRole, requestId,
-            (session, token) => session.RespondToInputAsync(requestId, response, token), cancellationToken), cancellationToken);
+            (session, token) => session.RespondToInputAsync(requestId, response, token),
+            role => PublishInputAnswerTranscriptEntry(role, response),
+            cancellationToken), cancellationToken);
 
     private Task CompleteElicitationCoreAsync(string expectedRole, string requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
         EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
             myInteractions.RemoveElicitation, myInteractions.RegisterElicitation, expectedRole, requestId,
-            (session, token) => session.RespondToElicitationAsync(requestId, response, token), cancellationToken), cancellationToken);
+            (session, token) => session.RespondToElicitationAsync(requestId, response, token), onCompleted: null, cancellationToken), cancellationToken);
 
     private async Task CompleteInteractionCoreAsync<TRequest>(
         Func<string, string, (string Role, TRequest Request)> remove,
@@ -575,12 +577,14 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         string expectedRole,
         string requestId,
         Func<IAgentSession, CancellationToken, Task> respond,
+        Action<string>? onCompleted,
         CancellationToken cancellationToken)
     {
         var (role, request) = remove(expectedRole, requestId);
         try
         {
             await RunForRoleAsync(role, respond, cancellationToken);
+            onCompleted?.Invoke(role);
             UnprotectPendingTranscriptEntry(role, requestId);
             NotifyStateChanged();
         }
@@ -596,6 +600,25 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             }
             NotifyStateChanged();
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Appends the user's accepted input answer as a normal "user" transcript entry, reusing the same transcript
+    /// mutation and notification path as every other transcript source so the entry participates in live updates,
+    /// retention, paging, and reconnect recovery. Only reached after <see cref="IAgentSession.RespondToInputAsync"/>
+    /// has completed successfully; permission and elicitation responses never call this.
+    /// </summary>
+    private void PublishInputAnswerTranscriptEntry(string role, AgentInputResponse response)
+    {
+        if (response.Answer is null || !myRoles.TryGetValue(role, out var state))
+        {
+            return;
+        }
+        lock (state.SyncRoot)
+        {
+            var transcriptUpdate = state.Transcript.AddTranscriptEntry(new TranscriptEntry(DateTimeOffset.UtcNow, "user", response.Answer));
+            TranscriptChanged?.Invoke(transcriptUpdate);
         }
     }
 

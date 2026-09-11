@@ -157,6 +157,10 @@ public sealed class DashboardOperationsSteps
     public void WhenTheUserRespondsToInputForRoleWithAnswer(string requestId, string role, string answer) =>
         myScenario.RespondToInput(role, requestId, answer);
 
+    [When("the user responds to input {string} for role {string} with answer {string} and freeform {string}")]
+    public void WhenTheUserRespondsToInputForRoleWithAnswerAndFreeform(string requestId, string role, string answer, string wasFreeform) =>
+        myScenario.RespondToInput(role, requestId, answer, bool.Parse(wasFreeform));
+
     [When("the user responds to elicitation {string} for role {string} with action {string}:")]
     public void WhenTheUserRespondsToElicitationForRoleWithAction(string requestId, string role, string action, Table table)
     {
