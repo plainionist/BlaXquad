@@ -45,9 +45,11 @@ through `InternalsVisibleTo`.
 Owns authoritative live per-member state and user operations, including the active session catalog and command
 admission. Each configured squad member has one member aggregate that is the sole mutable owner of that member's
 projected agent status, transcript, pending interactions, and operation/abort coordination - keyed only by request
-or operation identity, never by another member. It projects agent events onto the addressed member's aggregate,
-coordinates prompts and aborts, integrates transcript state, and supplies UI snapshots composed from immutable
-member snapshots.
+or operation identity, never by another member - and one member processor: a bounded, single-reader mailbox that is
+the sole path through which that member's prompt, abort, interaction-response, and provider-event commands reach its
+aggregate, so one member's provider I/O can never delay another member's mailbox. It projects agent events onto the
+addressed member's aggregate, coordinates prompts and aborts, integrates transcript state, and supplies UI snapshots
+composed from immutable member snapshots.
 
 ## `squad.Configuration`
 

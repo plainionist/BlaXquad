@@ -187,9 +187,11 @@ flowchart LR
   application-domain collection keyed that way. After routing selects a member, one per-member aggregate is the
   sole mutable owner of that member's projected status, provider-session association, transcript, pending
   interactions, and operation/abort/failure state; its local collections are keyed only by request or operation
-  identity, never by another member or role. The facade itself holds no mutable member state: it serializes
-  commands and provider events through one shared channel, admits or rejects commands, routes each command to the
-  addressed member's aggregate, and composes the immutable per-member snapshots those aggregates produce into the
+  identity, never by another member or role. Each member also owns an independent processor: a bounded, single-
+  reader mailbox that is the sole path through which that member's commands and provider events reach its
+  aggregate, so one member's slow or blocked provider call can never delay another member's mailbox. The facade
+  itself holds no mutable member state: it admits or rejects commands, routes each command to the addressed
+  member's processor, and composes the immutable per-member snapshots those aggregates produce into the
   squad-wide read model published at the unchanged version-5 UI boundary.
 - **Provider adapter** translates the provider-neutral session model into the selected provider. Provider-specific
   event types and callbacks do not cross into the application model.
@@ -322,11 +324,11 @@ These observations describe current consequences of the design; they are not red
 
 1. **Single local authority.** One headquarters process owns one project. Local locking, named pipes, worktrees, and
   in-memory state make this a single-machine architecture rather than a distributed service.
-2. **Central application model.** All role commands and provider events converge on one facade and one
-  command/event-serialization point, which routes each to the addressed member's aggregate. State itself is owned
-  independently per member - one aggregate per member owns that member's status, transcript, interactions, and
-  operation/abort/failure state - but the shared serialization point still couples every member's command and
-  event flow operationally.
+2. **Central application model.** All role commands and provider events converge on one facade, which routes each to
+  the addressed member's own processor and aggregate. State and command/event serialization are both owned
+  independently per member - one processor and aggregate per member owns that member's mailbox ordering, status,
+  transcript, interactions, and operation/abort/failure state - so one member's command or event flow no longer
+  couples operationally with any other member's.
 3. **Filesystem collaboration contract.** The two executables depend on shared naming, JSON schema, ordering, and
   atomic move conventions. This makes handoffs durable within one Headquarters run while coupling independently
   running processes to the same filesystem schema; queues are launch-scoped rather than restart-safe, so every

@@ -4,7 +4,6 @@ using squad.Application.Members;
 using squad.Transcripts;
 using squad.Ui.Abstractions;
 using System.Text.Json;
-using System.Threading.Channels;
 
 namespace squad.Application;
 
@@ -14,26 +13,28 @@ namespace squad.Application;
 /// </summary>
 public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 {
-    private readonly Channel<Func<Task>> myCommands = Channel.CreateUnbounded<Func<Task>>();
     private readonly CancellationTokenSource myShutdown = new();
     private readonly Dictionary<string, MemberAggregate> myMembers = new(StringComparer.Ordinal);
+    // Each member's own independent mailbox and single-reader loop - the sole path through which a prompt, harness,
+    // abort, interaction-response, provider-event, or session-terminal message reaches that member's MemberAggregate.
+    // A slow or blocked provider call for one member can never delay another member's processor, and never delays
+    // this member's own provider-event or session-terminal messages either, since those are applied inline without
+    // awaiting provider I/O.
+    private readonly Dictionary<string, MemberProcessor> myProcessors = new(StringComparer.Ordinal);
     private readonly List<string> myMemberOrder = [];
     private string myLeader = "";
     private readonly TranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myTranscriptRetentionOptions;
-    private readonly Task myEventLoop;
     // The one synchronization boundary for command admission and active-session selection: myAccepting and each
     // member's Session are read and written only while holding this lock, so a stopping transition and a session
     // capture can never interleave.
     private readonly object myAdmissionLock = new();
-    private readonly HashSet<Task> myAcceptedCommands = [];
     private bool myAccepting = true;
 
     public SquadViewModel()
     {
         myTranscriptRetentionOptions = new TranscriptRetentionOptions();
         myTranscriptArchive = new TranscriptArchive(myTranscriptRetentionOptions);
-        myEventLoop = RunEventLoopAsync();
     }
 
     public event Action<UiRefreshPriority>? SnapshotRequested;
@@ -41,12 +42,40 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     public void InitializeRoles(IEnumerable<MemberConfiguration> members)
     {
-        foreach (var member in members)
+        foreach (var configuration in members)
         {
-            if (myMembers.TryAdd(member.Member, new MemberAggregate(member.Member, member.DisplayName, member.Role, myTranscriptArchive, myTranscriptRetentionOptions)))
+            var role = configuration.Member;
+            if (!myMembers.TryAdd(role, new MemberAggregate(role, configuration.DisplayName, configuration.Role, myTranscriptArchive, myTranscriptRetentionOptions)))
             {
-                myMemberOrder.Add(member.Member);
+                continue;
             }
+            myMemberOrder.Add(role);
+            myProcessors.Add(role, new MemberProcessor(
+                executePrompt: (operation, cancellationToken) => DispatchPromptAsync(role, operation, cancellationToken),
+                executeAbort: _ => AbortRoleAsync(role),
+                executeCompletePermission: (requestId, response, cancellationToken) => CompleteInteractionCoreAsync(
+                    role, requestId,
+                    m => m.RemovePermission(requestId),
+                    (m, request) => m.RegisterPermission(request),
+                    (session, token) => session.RespondToPermissionAsync(requestId, response, token),
+                    onCompleted: null,
+                    cancellationToken),
+                executeCompleteInput: (requestId, response, cancellationToken) => CompleteInteractionCoreAsync(
+                    role, requestId,
+                    m => m.RemoveInput(requestId),
+                    (m, request) => m.RegisterInput(request),
+                    (session, token) => session.RespondToInputAsync(requestId, response, token),
+                    completedRole => PublishInputAnswerTranscriptEntry(completedRole, response),
+                    cancellationToken),
+                executeCompleteElicitation: (requestId, response, cancellationToken) => CompleteInteractionCoreAsync(
+                    role, requestId,
+                    m => m.RemoveElicitation(requestId),
+                    (m, request) => m.RegisterElicitation(request),
+                    (session, token) => session.RespondToElicitationAsync(requestId, response, token),
+                    onCompleted: null,
+                    cancellationToken),
+                applyEvent: agentEvent => ApplyProjectedEvent(role, agentEvent),
+                markFailed: exception => MarkRoleFailedCore(role, exception)));
         }
         NotifyStateChanged();
     }
@@ -184,39 +213,21 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     public Task MarkRoleFailedAsync(string role, Exception exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
-        return EnqueueCoreAsync(() =>
-        {
-            if (!myMembers.TryGetValue(role, out var member))
-            {
-                return Task.CompletedTask;
-            }
-            member.MarkFailed();
-            RemovePendingInteractionsForMember(member);
-            lock (member.SyncRoot)
-            {
-                member.Status = "error";
-                member.Error = exception.Message;
-                member.IsWorking = false;
-                member.ActiveTool = null;
-            }
-            NotifyStateChanged();
-            return Task.CompletedTask;
-        }, myShutdown.Token);
+        return RouteIgnoringUnknownRoleAsync(role, processor => processor.MarkFailedAsync(exception));
     }
 
     private void BeginStopping()
     {
         lock (myAdmissionLock)
             myAccepting = false;
-        myCommands.Writer.TryComplete();
         myShutdown.Cancel();
     }
 
     public Task SendAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => DispatchPromptAsync(role, (session, token) => session.SendAsync(prompt, token), cancellationToken));
+        RouteAsync(role, processor => processor.SendPromptAsync((session, token) => session.SendAsync(prompt, token), cancellationToken));
 
     public Task SendHarnessAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => DispatchPromptAsync(role, (session, token) => session.SendHarnessAsync(prompt, token), cancellationToken));
+        RouteAsync(role, processor => processor.SendPromptAsync((session, token) => session.SendHarnessAsync(prompt, token), cancellationToken));
 
     /// <summary>
     /// Coalesces concurrent aborts for a role, cancels its active local operation, and waits for the provider abort.
@@ -226,35 +237,26 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         AbortRoleAndWaitAsync(role, cancellationToken);
 
     public Task CompletePermissionAsync(string role, string requestId, bool approved, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => CompletePermissionCoreAsync(role, requestId, new AgentPermissionResponse(approved), cancellationToken));
+        RouteAsync(role, processor => processor.CompletePermissionAsync(requestId, new AgentPermissionResponse(approved), cancellationToken));
 
     public Task CompleteInputAsync(string role, string requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => CompleteInputCoreAsync(role, requestId, new AgentInputResponse(answer, wasFreeform), cancellationToken));
+        RouteAsync(role, processor => processor.CompleteInputAsync(requestId, new AgentInputResponse(answer, wasFreeform), cancellationToken));
 
     public Task CompleteElicitationAsync(string role, string requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => CompleteElicitationCoreAsync(role, requestId, new AgentElicitationResponse(action, content), cancellationToken));
+        RouteAsync(role, processor => processor.CompleteElicitationAsync(requestId, new AgentElicitationResponse(action, content), cancellationToken));
 
     public Task EnqueueEventAsync(string role, AgentEvent agentEvent, CancellationToken cancellationToken = default) =>
-        TrackCommand(() => EnqueueCoreAsync(() => ApplyEventAsync(role, agentEvent), cancellationToken));
+        RouteIgnoringUnknownRoleAsync(role, processor => processor.ApplyEventAsync(agentEvent));
 
     /// <summary>
-    /// Stops accepting work, cancels pending provider interactions, and waits for every command accepted before
-    /// shutdown. Repeated calls are safe.
+    /// Stops accepting work, cancels pending provider interactions, and waits for every member's processor to drain
+    /// its queued messages and any in-flight detached operation. Repeated calls are safe.
     /// </summary>
     public async Task StopAsync()
     {
         BeginStopping();
         await CancelAllPendingInteractionsAsync();
-        Task[] accepted;
-        lock (myAdmissionLock)
-            accepted = myAcceptedCommands.ToArray();
-        try
-        {
-            await Task.WhenAll(accepted);
-        }
-        catch (OperationCanceledException) when (myShutdown.IsCancellationRequested)
-        {
-        }
+        await Task.WhenAll(myProcessors.Values.Select(processor => processor.RetireAsync()));
     }
 
     public async ValueTask DisposeAsync()
@@ -265,104 +267,80 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
         finally
         {
-            try
+            myShutdown.Dispose();
+            foreach (var member in myMembers.Values)
             {
-                await myEventLoop;
+                member.Dispose();
             }
-            catch (OperationCanceledException)
-            {
-            }
-            finally
-            {
-                myShutdown.Dispose();
-                foreach (var member in myMembers.Values)
-                {
-                    member.Dispose();
-                }
-                myTranscriptArchive.Dispose();
-            }
+            myTranscriptArchive.Dispose();
         }
     }
 
-    private async Task EnqueueCoreAsync(Func<Task> command, CancellationToken cancellationToken)
+    /// <summary>
+    /// Rejects a new command once shutdown has begun, then routes it to the named member's processor. The same
+    /// rejection - and the same "Unknown role" failure for a role that was never configured - reaches the caller as
+    /// a faulted task rather than a synchronous throw, matching every other public command entry point.
+    /// </summary>
+    private async Task RouteAsync(string role, Func<MemberProcessor, Task> action)
     {
         EnsureAccepting();
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var shutdownRegistration = myShutdown.Token.Register(() => completion.TrySetCanceled(myShutdown.Token));
-        await myCommands.Writer.WriteAsync(async () =>
-        {
-            try
-            {
-                await command();
-                completion.TrySetResult();
-            }
-            catch (Exception exception)
-            {
-                completion.TrySetException(exception);
-            }
-        }, cancellationToken);
-        await completion.Task;
+        await action(GetProcessor(role));
     }
 
-    private Task TrackCommand(Func<Task> operation)
+    /// <summary>
+    /// Rejects a new command once shutdown has begun, then routes it to the named member's processor - or silently
+    /// completes for a role that was never configured, matching this command's original no-op behavior for
+    /// provider events and failures the projector could reasonably see for a role it does not recognize.
+    /// </summary>
+    private async Task RouteIgnoringUnknownRoleAsync(string role, Func<MemberProcessor, Task> action)
     {
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (myAdmissionLock)
+        EnsureAccepting();
+        if (myProcessors.TryGetValue(role, out var processor))
         {
-            if (!myAccepting)
-            {
-                return Task.FromException(new InvalidOperationException("Squad is shutting down"));
-            }
-            myAcceptedCommands.Add(completion.Task);
+            await action(processor);
         }
-
-        _ = CompleteTrackedCommandAsync(operation, completion);
-        return completion.Task;
     }
 
-    private async Task CompleteTrackedCommandAsync(Func<Task> operation, TaskCompletionSource completion)
+    private MemberProcessor GetProcessor(string role)
     {
-        try
+        if (myProcessors.TryGetValue(role, out var processor))
         {
-            await operation();
-            completion.TrySetResult();
+            return processor;
         }
-        catch (OperationCanceledException exception)
-        {
-            completion.TrySetCanceled(exception.CancellationToken);
-        }
-        catch (Exception exception)
-        {
-            completion.TrySetException(exception);
-        }
-        finally
-        {
-            lock (myAdmissionLock)
-                myAcceptedCommands.Remove(completion.Task);
-        }
+        throw new InvalidOperationException($"Unknown role: {role}");
     }
 
-    private async Task RunEventLoopAsync()
-    {
-        await foreach (var command in myCommands.Reader.ReadAllAsync(myShutdown.Token))
-        {
-            await command();
-        }
-    }
-
-    private Task ApplyEventAsync(string role, AgentEvent agentEvent)
+    private void MarkRoleFailedCore(string role, Exception exception)
     {
         if (!myMembers.TryGetValue(role, out var member))
         {
-            return Task.CompletedTask;
+            return;
+        }
+        member.MarkFailed();
+        RemovePendingInteractionsForMember(member);
+        lock (member.SyncRoot)
+        {
+            member.Status = "error";
+            member.Error = exception.Message;
+            member.IsWorking = false;
+            member.ActiveTool = null;
+        }
+        NotifyStateChanged();
+    }
+
+    private void ApplyProjectedEvent(string role, AgentEvent agentEvent)
+    {
+        if (!myMembers.TryGetValue(role, out var member))
+        {
+            return;
         }
         if (member.IsFailed)
         {
-            return Task.CompletedTask;
+            return;
         }
         if (ShouldIgnoreEvent(member, agentEvent))
         {
-            return Task.CompletedTask;
+            return;
         }
         TranscriptUpdate? transcriptUpdate;
         lock (member.SyncRoot)
@@ -374,7 +352,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             }
         }
         NotifyStateChanged(IsImmediateUiEvent(agentEvent));
-        return Task.CompletedTask;
     }
 
     private async Task DispatchPromptAsync(string role, Func<IAgentSession, CancellationToken, Task> operation, CancellationToken cancellationToken)
@@ -385,11 +362,11 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         EnsureRoleAvailable(role);
         await member.WaitForAbortAsync(lifetimeCancellation.Token);
         member.ResumeEvents();
-        await EnqueueCoreAsync(() => MarkWaitingForResponseAsync(role), lifetimeCancellation.Token);
+        MarkWaitingForResponse(role);
         await RunForRoleAsync(role, operation, lifetimeCancellation.Token);
     }
 
-    private Task MarkWaitingForResponseAsync(string role)
+    private void MarkWaitingForResponse(string role)
     {
         if (myMembers.TryGetValue(role, out var member))
         {
@@ -400,7 +377,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             }
             NotifyStateChanged();
         }
-        return Task.CompletedTask;
     }
 
     private async Task RunForRoleAsync(
@@ -424,7 +400,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     /// <summary>
     /// Atomically checks admission and captures the role's current non-terminal session under
-    /// <see cref="myAdmissionLock"/> - the same synchronization boundary <see cref="TrackCommand"/> and
+    /// <see cref="myAdmissionLock"/> - the same synchronization boundary <see cref="RouteAsync"/> and
     /// <see cref="RegisterSession"/> use, so a stopping transition can never interleave with session selection.
     /// </summary>
     private bool TryCaptureSession(string role, out IAgentSession session)
@@ -469,7 +445,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         {
             try
             {
-                await TrackCommand(() => AbortRoleAsync(role));
+                await RouteAsync(role, processor => processor.AbortAsync(cancellationToken));
                 lease.Complete();
             }
             catch (Exception exception)
@@ -519,29 +495,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
             member.ActiveTool = null;
         }
     }
-
-    private Task CompletePermissionCoreAsync(string expectedRole, string requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
-        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
-            expectedRole, requestId,
-            member => member.RemovePermission(requestId),
-            (member, request) => member.RegisterPermission(request),
-            (session, token) => session.RespondToPermissionAsync(requestId, response, token), onCompleted: null, cancellationToken), cancellationToken);
-
-    private Task CompleteInputCoreAsync(string expectedRole, string requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
-        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
-            expectedRole, requestId,
-            member => member.RemoveInput(requestId),
-            (member, request) => member.RegisterInput(request),
-            (session, token) => session.RespondToInputAsync(requestId, response, token),
-            role => PublishInputAnswerTranscriptEntry(role, response),
-            cancellationToken), cancellationToken);
-
-    private Task CompleteElicitationCoreAsync(string expectedRole, string requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
-        EnqueueCoreAsync(() => CompleteInteractionCoreAsync(
-            expectedRole, requestId,
-            member => member.RemoveElicitation(requestId),
-            (member, request) => member.RegisterElicitation(request),
-            (session, token) => session.RespondToElicitationAsync(requestId, response, token), onCompleted: null, cancellationToken), cancellationToken);
 
     private async Task CompleteInteractionCoreAsync<TRequest>(
         string expectedRole,
