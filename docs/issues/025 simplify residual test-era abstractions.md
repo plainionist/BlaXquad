@@ -250,7 +250,7 @@ and keeps other failures off the workspace path. `HeadquartersWorkspaceFailures.
 configuration, missing constitution, missing helper, and non-empty shared-path collision through the published
 process.
 
-### Slice 2 - One immutable preparation result composes the runtime and delivery
+### Slice 2 - One immutable preparation result composes the runtime and delivery [in progress]
 
 **Outcome:** Headquarters performs one cancellable concrete preparation pipeline and constructs every
 post-preparation collaborator from the immutable values it produces.
