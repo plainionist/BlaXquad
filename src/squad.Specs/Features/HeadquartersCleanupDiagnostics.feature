@@ -5,10 +5,10 @@ Feature: Preserving primary and cleanup diagnostics through final release
   diagnostic on standard error (never a raw ".NET Unhandled exception" dump) with a non-zero exit, continues
   cleanup through every owned resource despite the cleanup failure, preserves durable workspace state it does
   not own, and permits a fresh, healthy launch against the same project afterward. Independently, provider
-  cleanup held at its own acknowledged boundary keeps the host genuinely owned - answering a real host-control
-  command - only until that cleanup actually finishes, releasing ownership no earlier - proven only through the
-  real process, the real "squad-hq shutdown" and "squad-hq wait-for-agent" host-control commands, and the
-  fake-provider control pipe, never through SquadApplication directly.
+  cleanup held at its own acknowledged boundary keeps Headquarters genuinely owned - answering a real
+  Headquarters-control command - only until that cleanup actually finishes, releasing ownership no earlier -
+  proven only through the real process, the real "squad-hq shutdown" and "squad-hq wait-for-agent"
+  Headquarters-control commands, and the fake-provider control pipe, never through SquadApplication directly.
 
   Scenario: A startup failure combined with an independent cleanup failure surfaces both diagnostics
     Given `blaxquad/squad.json` configures:
@@ -50,7 +50,7 @@ Feature: Preserving primary and cleanup diagnostics through final release
     When the operator launches a new Headquarters against the same project
     Then the new Headquarters process reports ready
 
-  Scenario: Provider cleanup held at its acknowledged boundary keeps the host owned until it completes
+  Scenario: Provider cleanup held at its acknowledged boundary keeps Headquarters owned until it completes
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |

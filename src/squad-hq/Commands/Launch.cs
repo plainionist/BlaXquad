@@ -45,9 +45,9 @@ static class Launch
         {
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var layout = ProjectLayout.Create(root);
-            if (!HostLease.TryAcquire(layout.WorkingDir, out var hostLease))
+            if (!HeadquartersLease.TryAcquire(layout.WorkingDir, out var headquartersLease))
             {
-                Fail($"A squad host is already running for {layout.WorkingDir}.");
+                Fail($"A Headquarters instance is already running for {layout.WorkingDir}.");
                 return;
             }
             SquadApplication? application = null;
@@ -76,8 +76,8 @@ static class Launch
                     hostingRuntime.WindowHost,
                     hostingRuntime.SleepInhibitor,
                     viewModel,
-                    hostLease: hostLease!);
-                hostLease = null;
+                    headquartersLease: headquartersLease!);
+                headquartersLease = null;
                 try
                 {
                     application.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
@@ -105,9 +105,9 @@ static class Launch
             finally
             {
                 Console.CancelKeyPress -= cancelHandler;
-                if (application is null && hostLease is not null)
+                if (application is null && headquartersLease is not null)
                 {
-                    hostLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                    headquartersLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 }
             }
         }

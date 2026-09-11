@@ -1,12 +1,12 @@
 Feature: Stopping safely before and during startup
 
-  A real squad-hq process that receives a host-control shutdown request at any point before it reaches readiness -
-  whether requested as early as the process can possibly be reached, or while provider startup is genuinely
-  paused part-way through registering role sessions - never publishes readiness, never delivers a new command to
-  a provider session, disposes every session already registered, terminates cleanly, preserves durable workspace
-  state it does not own, releases every externally observable resource, and permits a fresh, healthy launch
-  against the same project afterward - proven only through the real process, the real "squad-hq shutdown" and
-  "squad-hq wait-for-agent" host-control commands, and the fake-provider control pipe, never through
+  A real squad-hq process that receives a Headquarters-control shutdown request at any point before it reaches
+  readiness - whether requested as early as the process can possibly be reached, or while provider startup is
+  genuinely paused part-way through registering role sessions - never publishes readiness, never delivers a new
+  command to a provider session, disposes every session already registered, terminates cleanly, preserves durable
+  workspace state it does not own, releases every externally observable resource, and permits a fresh, healthy
+  launch against the same project afterward - proven only through the real process, the real "squad-hq shutdown"
+  and "squad-hq wait-for-agent" Headquarters-control commands, and the fake-provider control pipe, never through
   SquadApplication or a lifecycle trace.
 
   Scenario: Shutdown requested as early as possible prevents startup from ever completing

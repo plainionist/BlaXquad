@@ -69,7 +69,7 @@ public sealed class DeliverySteps
     {
         myWorkspace.WaitUntil(
             () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffs(SenderRole).Count == 1,
-            "the host to archive the outbound handoff");
+            "Headquarters to archive the outbound handoff");
         Assert.That(myMailbox.SentHandoffs(SenderRole), Has.Exactly(1).Items);
         Assert.That(myMailbox.FailedHandoffs(SenderRole), Is.Empty);
     }
@@ -79,7 +79,7 @@ public sealed class DeliverySteps
     {
         myWorkspace.WaitUntil(
             () => myMailbox.SentHandoffs(SenderRole).Count + myMailbox.FailedHandoffCount(SenderRole) == 1,
-            "the host to archive the outbound handoff");
+            "Headquarters to archive the outbound handoff");
         Assert.That(myMailbox.FailedHandoffCount(SenderRole), Is.EqualTo(1));
     }
 
@@ -147,8 +147,8 @@ public sealed class DeliverySteps
     [Then("the {string} agent's rejected harness send proves no wake-up was delivered")]
     public async Task ThenTheAgentsRejectedHarnessSendProvesNoWakeUpWasDelivered(string role)
     {
-        // Wait for the host to have observably attempted (and failed) the harness send, proving absence rather
-        // than merely snapshotting state before the host got around to attempting the notification.
+        // Wait for Headquarters to have observably attempted (and failed) the harness send, proving absence rather
+        // than merely snapshotting state before Headquarters got around to attempting the notification.
         await myScenario.Agent(role).WaitForHarnessRejectedAsync();
         Assert.That(myScenario.Agent(role).LatestHarnessMessage(), Is.Not.EqualTo(WakeUpMessage));
     }

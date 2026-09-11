@@ -16,14 +16,14 @@ static class Shutdown
         var projectRoot = Path.GetFullPath(args.ElementAtOrDefault(0) ?? Directory.GetCurrentDirectory());
         try
         {
-            if (HostControlClient.ShutdownAsync(projectRoot, TimeSpan.FromSeconds(15)).GetAwaiter().GetResult())
+            if (HeadquartersControlClient.ShutdownAsync(projectRoot, TimeSpan.FromSeconds(15)).GetAwaiter().GetResult())
             {
                 return 0;
             }
         }
         catch (Exception exception) when (exception is IOException or TimeoutException or UnauthorizedAccessException or OperationCanceledException)
         {
-            Console.Error.WriteLine($"Could not contact squad host: {exception.Message}");
+            Console.Error.WriteLine($"Could not contact Headquarters: {exception.Message}");
             return 1;
         }
         return 0;

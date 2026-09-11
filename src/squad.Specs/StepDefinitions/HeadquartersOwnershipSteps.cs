@@ -5,55 +5,55 @@ using squad.AgentProvider.Fake;
 namespace squad.Specs.StepDefinitions;
 
 /// <summary>
-/// Host-ownership and project-isolation language: a project has one authoritative host, `squad-hq launch` refuses
-/// a duplicate launch while the original host keeps answering, and `squad-hq shutdown` / `squad-hq wait-for-agent`
-/// resolve that same host from an equivalent path, a linked worktree, or the default checkout. Requests the
-/// scenario's single <see cref="BackendScenario"/> instance rather than constructing its own, so its "a squad host
-/// is running" / "a Git project host with a ready/busy ... agent" setup steps stand up the same process that the
-/// shared Headquarters-lifecycle launch/shutdown/wait-for-agent vocabulary then drives - reusing that vocabulary
-/// for shutdown and wait-for-agent outcomes here rather than a second dialect for the same real host-control
-/// commands. Only the project-root-discovery contexts genuinely unique to this feature (an equivalent path, a
-/// linked worktree, no explicit root, or a zero timeout) get their own steps, sharing the same
-/// `squad-hq wait-for-agent` verb phrase.
+/// Headquarters-ownership and project-isolation language: a project has one authoritative Headquarters instance,
+/// `squad-hq launch` refuses a duplicate launch while the original Headquarters instance keeps answering, and
+/// `squad-hq shutdown` / `squad-hq wait-for-agent` resolve that same Headquarters instance from an equivalent path,
+/// a linked worktree, or the default checkout. Requests the scenario's single <see cref="BackendScenario"/> instance
+/// rather than constructing its own, so its "Headquarters is running" / "Headquarters is running in a Git project
+/// with a ready/busy ... agent" setup steps stand up the same process that the shared Headquarters-lifecycle
+/// launch/shutdown/wait-for-agent vocabulary then drives - reusing that vocabulary for shutdown and wait-for-agent
+/// outcomes here rather than a second dialect for the same real Headquarters-control commands. Only the
+/// project-root-discovery contexts genuinely unique to this feature (an equivalent path, a linked worktree, no
+/// explicit root, or a zero timeout) get their own steps, sharing the same `squad-hq wait-for-agent` verb phrase.
 /// </summary>
 [Binding]
-public sealed class HostOwnershipSteps
+public sealed class HeadquartersOwnershipSteps
 {
-    private const string HostRole = "architect";
+    private const string HeadquartersRole = "architect";
 
     private readonly ScenarioWorkspace myWorkspace;
     private readonly BackendScenario myScenario;
     private string? myLinkedWorktree;
     private TimeSpan myWaitElapsed;
 
-    public HostOwnershipSteps(ScenarioWorkspace workspace, BackendScenario scenario)
+    public HeadquartersOwnershipSteps(ScenarioWorkspace workspace, BackendScenario scenario)
     {
         myWorkspace = workspace;
         myScenario = scenario;
     }
 
-    [Given("a squad host is running")]
-    public async Task GivenASquadHostIsRunning()
+    [Given("Headquarters is running")]
+    public async Task GivenHeadquartersIsRunning()
     {
-        myScenario.ConfigureRole(HostRole);
+        myScenario.ConfigureRole(HeadquartersRole);
         await myScenario.StartAsync<FakeAgentProviderFactory>();
     }
 
-    [Given("a squad host is running with an auto-echoing {string} agent")]
-    public async Task GivenASquadHostIsRunningWithAnAutoEchoingAgent(string role)
+    [Given("Headquarters is running with an auto-echoing {string} agent")]
+    public async Task GivenHeadquartersIsRunningWithAnAutoEchoingAgent(string role)
     {
         myScenario.ConfigureRole(role);
         myScenario.EnableFakeProviderControl();
         await myScenario.StartAsync<FakeAgentProviderFactory>();
         // Only this scenario sends a prompt and asserts on its echoed reply, so only its own setup step - never
-        // the shared, readiness-only "a squad host is running" - enables the fake-provider control pipe and arms
+        // the shared, readiness-only "Headquarters is running" - enables the fake-provider control pipe and arms
         // auto-echo, once the role's session has genuinely started.
         await myScenario.WaitForRoleSessionStartedAsync(role);
         await myScenario.Agent(role).EnableAutoEchoAsync();
     }
 
-    [Given("a Git project host with a ready {string} agent")]
-    public async Task GivenAGitProjectHostWithAReadyAgent(string role)
+    [Given("Headquarters is running in a Git project with a ready {string} agent")]
+    public async Task GivenHeadquartersIsRunningInAGitProjectWithAReadyAgent(string role)
     {
         myScenario.ConfigureRole(role);
         myScenario.EnableFakeProviderControl();
@@ -62,8 +62,8 @@ public sealed class HostOwnershipSteps
         await myScenario.Agent(role).EmitIdleAsync();
     }
 
-    [Given("a Git project host with a busy {string} agent")]
-    public async Task GivenAGitProjectHostWithABusyAgent(string role)
+    [Given("Headquarters is running in a Git project with a busy {string} agent")]
+    public async Task GivenHeadquartersIsRunningInAGitProjectWithABusyAgent(string role)
     {
         myScenario.ConfigureRole(role);
         myScenario.EnableFakeProviderControl();
@@ -91,8 +91,8 @@ public sealed class HostOwnershipSteps
     public void WhenTheOperatorRequestsShutdownForTheEmptyProject() =>
         myWorkspace.RunTool("squad-hq", ["shutdown", myWorkspace.Root]);
 
-    [When("the host process is abruptly terminated")]
-    public void WhenTheHostProcessIsAbruptlyTerminated() => myScenario.Terminate();
+    [When("the Headquarters process is abruptly terminated")]
+    public void WhenTheHeadquartersProcessIsAbruptlyTerminated() => myScenario.Terminate();
 
     [Then("the operator's shutdown succeeds")]
     public void ThenTheOperatorSShutdownSucceeds() => Assert.That(myWorkspace.LastResult?.ExitCode, Is.Zero);
@@ -173,14 +173,14 @@ public sealed class HostOwnershipSteps
         });
     }
 
-    [Then("the readiness wait reports the host as unavailable")]
-    public void ThenTheReadinessWaitReportsTheHostAsUnavailable()
+    [Then("the readiness wait reports Headquarters as unavailable")]
+    public void ThenTheReadinessWaitReportsHeadquartersAsUnavailable()
     {
         Assert.Multiple(() =>
         {
             Assert.That(myWorkspace.LastResult?.ExitCode, Is.Not.Zero);
             Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("did not become ready"));
-            Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("squad host unavailable"));
+            Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("Headquarters unavailable"));
             Assert.That(myWaitElapsed, Is.LessThan(TimeSpan.FromSeconds(3)));
         });
     }
@@ -193,7 +193,7 @@ public sealed class HostOwnershipSteps
     public void ThenTheDuplicateLaunchFailsWithoutAnExceptionTrace()
     {
         Assert.That(myWorkspace.LastResult?.ExitCode, Is.Not.Zero);
-        Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("A squad host is already running"));
+        Assert.That(myWorkspace.LastResult?.StdErr, Does.Contain("A Headquarters instance is already running"));
         Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Unhandled exception"));
     }
 

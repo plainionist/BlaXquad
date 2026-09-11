@@ -9,7 +9,8 @@ namespace squad.Specs.StepDefinitions;
 /// "squad handoff" queued into a role's own worktree, durable inbox fixtures seeded directly on disk for
 /// otherwise-uncreatable "already delivered" or "pre-existing" prerequisites, Headquarters launched or restarted
 /// against durable state through the scenario's own shared <see cref="BackendScenario"/> (and, for restart
-/// scenarios, a second independently launched replacement host against the same workspace), and the recipient's
+/// scenarios, a second independently launched replacement Headquarters instance against the same workspace), and
+/// the recipient's
 /// own fake session reporting wake-up harness messages across the fake-provider control pipe. Never constructs
 /// <c>InProcessHandoffPoller</c>, <c>HandoffDeliveryService</c>, <c>IRoleNotifier</c>, or a role-row product type.
 /// </summary>

@@ -5,10 +5,10 @@ using System.Text.Json;
 namespace squad.Runtime.Control;
 
 /// <summary>
-/// Holds the cross-process project lock, publishes host metadata, and serves the local control pipe until disposal.
-/// Acquisition fails when another live host owns the same normalized project root.
+/// Holds the cross-process project lock, publishes Headquarters metadata, and serves the local control pipe until disposal.
+/// Acquisition fails when another live Headquarters instance owns the same normalized project root.
 /// </summary>
-public sealed class HostLease : IAsyncDisposable
+public sealed class HeadquartersLease : IAsyncDisposable
 {
     private readonly string myProjectRoot;
     private readonly string myStateDir;
@@ -21,7 +21,7 @@ public sealed class HostLease : IAsyncDisposable
     private Task? myServer;
     private bool myDisposed;
 
-    private HostLease(string projectRoot, FileStream lockFile, string pipeName)
+    private HeadquartersLease(string projectRoot, FileStream lockFile, string pipeName)
     {
         myProjectRoot = projectRoot;
         myStateDir = Path.Combine(projectRoot, ".blaxquad");
@@ -40,10 +40,10 @@ public sealed class HostLease : IAsyncDisposable
         Volatile.Write(ref myAgentReadinessProvider, provider);
     }
 
-    /// <summary>Attempts to acquire exclusive host ownership and start the control endpoint before returning.
-    /// Returns <see langword="false"/> for expected lock contention (another live host owns the project); other
+    /// <summary>Attempts to acquire exclusive Headquarters ownership and start the control endpoint before returning.
+    /// Returns <see langword="false"/> for expected lock contention (another live Headquarters instance owns the project); other
     /// acquisition failures propagate as exceptions.</summary>
-    public static bool TryAcquire(string projectRoot, out HostLease? lease)
+    public static bool TryAcquire(string projectRoot, out HeadquartersLease? lease)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
@@ -65,7 +65,7 @@ public sealed class HostLease : IAsyncDisposable
         try
         {
             var pipeName = PipeNameFor(projectRoot);
-            var candidate = new HostLease(projectRoot, lockFile!, pipeName);
+            var candidate = new HeadquartersLease(projectRoot, lockFile!, pipeName);
             candidate.WriteMetadata();
             var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             candidate.myServer = candidate.RunServerAsync(ready);
@@ -92,7 +92,7 @@ public sealed class HostLease : IAsyncDisposable
         }
     }
 
-    /// <summary>Removes host metadata only after acquiring the project lock, proving that the record is stale.</summary>
+    /// <summary>Removes Headquarters metadata only after acquiring the project lock, proving that the record is stale.</summary>
     internal static bool RemoveStaleMetadata(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
@@ -105,7 +105,7 @@ public sealed class HostLease : IAsyncDisposable
         return true;
     }
 
-    /// <summary>Returns whether the project lock can be acquired momentarily, indicating that no live host owns it.</summary>
+    /// <summary>Returns whether the project lock can be acquired momentarily, indicating that no live Headquarters instance owns it.</summary>
     internal static bool TryAcquireProbe(string projectRoot)
     {
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
@@ -117,10 +117,10 @@ public sealed class HostLease : IAsyncDisposable
     }
 
     /// <summary>
-    /// Acquires cleanup ownership only when no live host holds the project lock. The returned lease must remain
+    /// Acquires cleanup ownership only when no live Headquarters instance holds the project lock. The returned lease must remain
     /// alive while stale metadata is inspected or removed.
     /// </summary>
-    internal static bool TryAcquireCleanupLease(string projectRoot, out CleanupLease? lease)
+    internal static bool TryAcquireCleanupLease(string projectRoot, out HeadquartersCleanupLease? lease)
     {
         projectRoot = NormalizeProjectRoot(projectRoot);
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
@@ -131,7 +131,7 @@ public sealed class HostLease : IAsyncDisposable
         {
             lockFile = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
             LockFile(lockFile);
-            lease = new CleanupLease(stateDir, lockFile);
+            lease = new HeadquartersCleanupLease(stateDir, lockFile);
             return true;
         }
         catch (IOException)
@@ -219,7 +219,7 @@ public sealed class HostLease : IAsyncDisposable
     }
 
     private async Task<string> CreateResponseAsync(
-        HostControlRequest? request,
+        HeadquartersControlRequest? request,
         CancellationToken cancellationToken)
     {
         if (request is null)
@@ -254,7 +254,7 @@ public sealed class HostLease : IAsyncDisposable
         return $"{{\"version\":1,\"status\":\"ok\",\"message\":\"{request.Command}\"}}";
     }
 
-    private static HostControlRequest? ParseRequest(string? request)
+    private static HeadquartersControlRequest? ParseRequest(string? request)
     {
         if (string.IsNullOrWhiteSpace(request))
         {
@@ -282,7 +282,7 @@ public sealed class HostLease : IAsyncDisposable
                 && roleElement.ValueKind == JsonValueKind.String
                 ? roleElement.GetString()
                 : null;
-            return new HostControlRequest(command, role);
+            return new HeadquartersControlRequest(command, role);
         }
         catch (JsonException) { return null; }
     }
@@ -327,7 +327,7 @@ public sealed class HostLease : IAsyncDisposable
         {
             if (flock((int)file.SafeFileHandle.DangerousGetHandle(), 6) != 0)
             {
-                throw new IOException("The host lock is already held.");
+                throw new IOException("The Headquarters lock is already held.");
             }
             return;
         }

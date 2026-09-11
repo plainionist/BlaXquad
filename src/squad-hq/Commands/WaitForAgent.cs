@@ -15,7 +15,7 @@ internal static class WaitForAgent
         }
         try
         {
-            HostControlClient.WaitForAgentAsync(projectRoot, role, timeout).GetAwaiter().GetResult();
+            HeadquartersControlClient.WaitForAgentAsync(projectRoot, role, timeout).GetAwaiter().GetResult();
             Console.WriteLine($"Agent '{role}' is ready.");
             return 0;
         }

@@ -31,7 +31,7 @@ Feature: Stdio UI protocol over the real published process
     When a UI-protocol client requests transcript synchronization
     Then a recovery "transcript.synchronize" message for role "coder" is written to stdout
 
-  Scenario: A host-controlled shutdown closes the process without closing standard input
+  Scenario: A Headquarters-controlled shutdown closes the process without closing standard input
     When a UI-protocol client sends "ui.ready"
     Then a "transcript.update" message for role "coder" with content "Session started." is written to stdout
     When the operator shuts down Headquarters

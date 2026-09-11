@@ -10,7 +10,7 @@ not a .NET assembly.
 ## `squad-hq`
 
 Headquarters executable and composition root. Implements `launch`, `shutdown`,
-and `wait-for-agent`, and wires workspace preparation, host control, the
+and `wait-for-agent`, and wires workspace preparation, Headquarters control, the
 Copilot backend, handoff delivery, application state, and the desktop UI.
 
 ## `squad`
@@ -64,7 +64,7 @@ be drained with the previous release or discarded with a normal launch.
 
 ## `squad.Handoffs.Delivery`
 
-Runs host-side handoff delivery. It polls role outboxes, durably writes
+Runs Headquarters-side handoff delivery. It polls role outboxes, durably writes
 recipient inbox copies, archives sent or failed items, recovers pending
 notifications, and wakes recipient sessions.
 
@@ -120,7 +120,7 @@ and cleanup, owns the provider-runtime generation, registers started sessions
 into the application model, observes session events and failures, and starts
 and stops handoff, window, and sleep resources. Its `Control` component enforces
 one headquarters process per project and provides local process control: it
-owns the host lock and metadata, named-pipe shutdown and readiness requests,
+owns the Headquarters lock and metadata, named-pipe shutdown and readiness requests,
 client access, and stale-state cleanup. Control code remains structurally
 separate from lifecycle coordination within the same assembly.
 
@@ -138,7 +138,7 @@ updates, pages, and archived entries.
 
 ## `squad.Ui.Protocol`
 
-Owns the versioned JSON protocol between the host and dashboard: envelope
+Owns the versioned JSON protocol between Headquarters and dashboard: envelope
 validation, command routing, snapshot publication, transcript sequencing and
 journaling, synchronization, recovery, and protocol errors.
 

@@ -37,7 +37,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
             {
                 // Blocks on the same cancellation token SquadRuntimeController.StartAsync was given, which
                 // SquadApplication.RunAsync cancels the instant its own shutdown-vs-startup race resolves in
-                // shutdown's favor - proving a host-control shutdown requested while provider startup is paused
+                // shutdown's favor - proving a Headquarters-control shutdown requested while provider startup is paused
                 // here still terminates cleanly and disposes every session already registered above, without
                 // ever needing a synthetic pause a production caller could actually observe.
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);

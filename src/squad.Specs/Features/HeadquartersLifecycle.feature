@@ -1,13 +1,13 @@
 Feature: Healthy headquarters lifecycle
 
   An operator launches a real multi-role squad-hq process, waits for every configured agent session to reach
-  readiness, shuts it down cleanly through the public `squad-hq shutdown` host-control command, and can relaunch it
-  against the same project afterward. Headquarters preserves durable workspace state it does not own and releases
-  every externally observable resource on shutdown - proven only through the real process, the real UI protocol,
-  and the real `squad-hq wait-for-agent` and `squad-hq shutdown` host-control commands, never through
-  SquadApplication, a host lease object, or a lifecycle trace.
+  readiness, shuts it down cleanly through the public `squad-hq shutdown` Headquarters-control command, and can
+  relaunch it against the same project afterward. Headquarters preserves durable workspace state it does not own
+  and releases every externally observable resource on shutdown - proven only through the real process, the real
+  UI protocol, and the real `squad-hq wait-for-agent` and `squad-hq shutdown` Headquarters-control commands, never
+  through SquadApplication, a Headquarters lease object, or a lifecycle trace.
 
-  Scenario: A healthy multi-role headquarters process reaches full readiness and shuts down through host control
+  Scenario: A healthy multi-role headquarters process reaches full readiness and shuts down through Headquarters control
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
