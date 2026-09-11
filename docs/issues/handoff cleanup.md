@@ -63,7 +63,7 @@ Acceptance criteria:
 handoff-state directory before sessions or delivery start. Startup recovery and the Headquarters legacy-queue
 preflight are gone. Slice 2 remains pending until the architect activates it.
 
-### Slice 2: Remove handoff document versioning
+### Slice 2: Remove handoff document versioning [done]
 
 1. Remove `CurrentSchemaVersion`, `SchemaVersion`, its validation branch, and producer initialization from the shared
    handoff document model and CLI.
@@ -81,6 +81,9 @@ Acceptance criteria:
   timestamps.
 - Malformed JSON and invalid kind/variant documents still fail explicitly before any recipient copy is delivered.
 - No production or acceptance-support code references a handoff schema version.
+
+**Status: complete (9565375).** Handoff documents have no `schemaVersion` field; launch remains the format
+boundary. Slice 3 remains pending until the architect activates it.
 
 ### Slice 3: Remove legacy-queue guarding
 
