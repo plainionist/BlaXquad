@@ -7,7 +7,7 @@ priority: 10
 
 ## Problem
 
-`src/squad.Specs/Support` is a flat namespace containing 36 files with several unrelated responsibilities:
+`src/squad.Specs/Support` is a flat namespace containing 35 files with several unrelated responsibilities:
 
 - scenario orchestration and workspace setup;
 - child-process execution and diagnostics;
@@ -27,7 +27,7 @@ still needs an explicit reason to exist; a custom type that only renames a built
 adds maintenance cost without adding behavior.
 
 This issue concerns the implementation structure of the acceptance-test support. The feature language and binding
-organization are handled by [Build a reusable Gherkin step language](024%20build%20a%20reusable%20gherkin%20step%20language.md).
+organization were handled by the completed "Build a reusable Gherkin step language" work and remain out of scope here.
 
 ## Goal
 
@@ -106,24 +106,178 @@ Use reference searches before deleting or merging support. Remove dead fixtures,
 duplicate formatting or waiting logic only after confirming that no scenario depends on their behavior. Preserve
 bounded waits, deterministic acknowledgements, cancellation, cleanup, and failure diagnostics.
 
-## Implementation plan
+## Verified inventory
 
-1. Inventory every support type, its callers, its state, and its external boundary. Record its target owner and mark
-	 dead code, duplicate behavior, unnecessary public accessibility, and files containing multiple top-level types.
-2. Establish the folder and namespace structure with mechanical moves first. Keep each migration slice compiling and
-	 avoid mixing moves with behavioral rewrites.
-3. Move scenario/workspace, process, UI, agent-provider/control, and mailbox support into their owners. Update
-	 namespaces and imports, and split multiple top-level types into separate files.
-4. Review the three custom exceptions against actual handling and diagnostic needs. Remove unjustified types,
-	 consolidate repeated message construction, and keep distinct failure categories where callers rely on them.
-5. Review the largest classes for independent responsibilities. Extract only cohesive owners, beginning with code
-	 that has separate state or I/O lifecycle; leave orchestration in `BackendScenario`.
-6. Remove support that is demonstrably unused or duplicates an established helper. Reduce public types and members
-	 to the minimum required by Reqnroll bindings and the child-process provider-loading boundary.
-7. Run the complete black-box specification suite after each responsibility is migrated. Fix namespace, lifecycle,
-	 synchronization, and diagnostics regressions within that slice before continuing.
-8. Update `docs/manual/test-strategy.md` only if the cleanup establishes a durable support-organization rule that
-	 future acceptance tests need to follow.
+The current tree contains 35 C# files. Every existing file has the following owner and disposition:
+
+| Owner | Existing files | Disposition |
+| --- | --- | --- |
+| `Scenarios` | `BackendScenario.cs`, `BackendScenarioAgent.cs`, `BackendScenarioCommand.cs`, `ScenarioWorkspace.cs` | Keep the semantic scenario facade, role/command adapters, and temporary-workspace owner together. Extract only the low-level process runner from `ScenarioWorkspace`. |
+| `Processes` | `CancellableChildProcess.cs`, `CommandResult.cs`, `ProcessDiagnostics.cs` | Keep isolated cancellation, captured command results, and process diagnostics together. Add the extracted scenario-owned child-process runner here. |
+| `Ui` | `ArchivedTranscriptEntryObservation.cs`, `HeadlessUiClient.cs`, `HeadlessUiWaitTimeoutException.cs`, `TranscriptEntryObservation.cs`, `TranscriptPageObservation.cs`, `TranscriptSynchronizationObservation.cs`, `TranscriptUpdateObservation.cs` | Keep semantic UI operations and decoded observations together. Extract stream capture and transcript parsing/reconciliation; remove the custom timeout type. |
+| `Agents` | `EchoAgentProviderFactory.cs`, `FakeAgentBackend.cs`, `FakeAgentProviderFactory.cs`, `FakeAgentRuntime.cs`, `FakeAgentSession.cs`, `IncompatibleProviderFixture.cs`, `TestAgentEventStream.cs`, `ThrowingProviderFixtureFactory.cs`, `ValidProviderFixtureFactory.cs` | Keep provider fixtures and provider-side lifecycle together. Remove the redundant echo provider; retain the fake session and event stream as cohesive owners. |
+| `Agents/Control` | `ControlPipeDuplex.cs`, `FakeProviderControlClient.cs`, `FakeProviderControlProtocolException.cs`, `FakeProviderControlServer.cs`, `FakeProviderControlTimeoutException.cs`, `FakeProviderEmitHandler.cs`, `FakeProviderFailBackendHandler.cs`, `FakeProviderReplyHandler.cs` | Keep the private fake-provider transport, protocol, handlers, and observations together. Extract the observation journal and remove both custom exception types. |
+| `Mailboxes` | `HandoffDraftWriter.cs`, `HandoffMailboxObserver.cs`, `TaskMailboxFixture.cs`, `TaskMailboxObserver.cs` | Keep durable handoff/task setup and observation together. Move the `QueuedHandoff` top-level record out of `HandoffMailboxObserver.cs` into its own file. |
+
+`EchoAgentProviderFactory.cs` currently contains four top-level types and `HandoffMailboxObserver.cs` contains two.
+Removing the obsolete echo fixture eliminates the first violation; extracting `QueuedHandoff.cs` fixes the second.
+
+## Architecture decisions
+
+- Use exactly these namespaces: `squad.Specs.Support.Scenarios`, `.Processes`, `.Ui`, `.Agents`,
+  `.Agents.Control`, and `.Mailboxes`.
+- Keep `BackendScenario` as the semantic composition root and normal/emergency teardown owner. It may coordinate
+  workspace, process, UI, and fake-provider collaborators, but step definitions must not construct default support
+  graphs themselves. Explicit concurrent projects and replacement launches remain children created and tracked by
+  that root.
+- Extract a scenario-owned process runner from `ScenarioWorkspace`; it owns `ProcessStartInfo`, redirected-stream
+  capture, tracked child processes, and bounded process cleanup. `ScenarioWorkspace` retains temporary-directory,
+  Git-project, worktree, tool-selection, and filesystem cleanup semantics.
+- Extract the headless UI's redirected-stream capture/journal from `HeadlessUiClient`, and extract transcript message
+  parsing/reconciliation into a protocol-focused helper. `HeadlessUiClient` remains the semantic UI client; do not
+  add a generic UI abstraction or a pass-through interface.
+- Extract the fake-control observation state, bounded waits, and diagnostic rendering from
+  `FakeProviderControlServer`. The server remains the semantic command surface and owns the authenticated pipe
+  lifecycle through `ControlPipeDuplex`.
+- Keep `CancellableChildProcess` intact: its private Windows and Unix implementations serve one cohesive
+  isolated-child-process responsibility. Keep `FakeAgentSession` intact: its state and deterministic controls all
+  govern one `IAgentSession` lifecycle. Size alone does not justify another split.
+- Remove `FakeProviderControlProtocolException`, `FakeProviderControlTimeoutException`, and
+  `HeadlessUiWaitTimeoutException`. No caller catches or asserts any concrete one of these types, and none carries
+  structured state. Use `InvalidOperationException` for rejected protocol operations and `TimeoutException` for
+  bounded waits while preserving the current process, UI, protocol, and provider diagnostic text.
+- Remove `EchoAgentProviderFactory` and its backend/runtime/session types. Its only two setup call sites need
+  readiness, which `FakeAgentProviderFactory` already provides; controlled auto-echo already exists for scenarios
+  that actually need a reply.
+- Remove the proven-unused `ScenarioWorkspace.StartHeadlessUiClient`, `ScenarioWorkspace.StartTool`, and
+  `ScenarioWorkspace.ConfigureProject(params string[])` members. Retain the named control-handler delegates and
+  `TestAgentEventStream`: they have live callers and express the private protocol/session contracts without adding
+  interfaces or layers.
+- Make support types and members internal unless Reqnroll must construct them or the separately launched provider
+  loader must reflect over them. The provider factory fixture types selected through `--provider` remain public;
+  public accessibility is not otherwise a convenience default.
+
+## Implementation slices
+
+Only one slice may be in progress at a time. Each slice includes its moves, namespace/import changes, owner-specific
+cleanup, focused acceptance scenarios, and a complete `squad.Specs` run before review.
+
+### Slice 1 - Mailbox support has one durable-state owner
+
+**Outcome:** Handoff and task setup/observation retain their exact on-disk behavior while all mailbox support is under
+`Support/Mailboxes` with one top-level type per file.
+
+- Move the four mailbox files to `Support/Mailboxes` and change their namespace to
+  `squad.Specs.Support.Mailboxes`.
+- Extract `QueuedHandoff` unchanged into `QueuedHandoff.cs`.
+- Replace `new HandoffDraftWriter`, `new HandoffMailboxObserver`, `new TaskMailboxFixture`, and
+  `new TaskMailboxObserver` in bindings with constructor-injected, scenario-scoped instances sharing the existing
+  `ScenarioWorkspace`. Do not move parsing, file naming, seeding, or state-transition knowledge into step
+  definitions.
+- Reduce mailbox types and members to internal accessibility where Reqnroll resolution permits it.
+- Preserve stable file ordering, byte-for-byte recovery snapshots, fan-out headers, archive-collision setup, and
+  role-worktree scoping.
+
+Focused acceptance: `Handoffs.feature`, `Delivery.feature`, `TaskQueue.feature`, `BatchQueue.feature`, and
+`Recovery.feature`.
+
+### Slice 2 - Process execution and cleanup have one owner
+
+**Outcome:** Real CLI processes still run, capture output, receive isolated cancellation, and clean up with the same
+bounded diagnostics while low-level process mechanics live under `Support/Processes`.
+
+- Move `CancellableChildProcess`, `CommandResult`, and `ProcessDiagnostics` to `Support/Processes` and update all
+  imports.
+- Extract an internal `ScenarioProcessRunner` from `ScenarioWorkspace`. It owns start/run mechanics, redirected
+  stream capture, environment construction, output normalization, process tracking, and bounded child termination.
+  `ScenarioWorkspace` continues to choose published tools and working directories, apply Git identity, record the
+  latest command result, and dispose the runner before deleting its temporary tree.
+- Delete the unused `StartHeadlessUiClient`, `StartTool`, and parameter-array `ConfigureProject` overload after
+  reference verification.
+- Keep the platform-specific process-group code private inside `CancellableChildProcess`; do not introduce a process
+  interface or fake process.
+
+Focused acceptance: `Context.feature`, `AgentProviderSelection.feature`, `UiSelection.feature`,
+`HeadquartersTermination.feature`, and `HeadquartersCleanupDiagnostics.feature`.
+
+### Slice 3 - Headless UI transport and protocol observations are separate
+
+**Outcome:** The real stdio UI protocol retains framing, ordering, transcript reconciliation, and timeout diagnostics
+while stream I/O and transcript interpretation have explicit owners under `Support/Ui`.
+
+- Move the headless client and all six UI/transcript observation files to `Support/Ui`.
+- Extract an internal headless UI transport that owns standard-input writes, concurrent stdout/stderr draining,
+  synchronized snapshots, input closure, and process/output diagnostics.
+- Extract transcript envelope matching, decoding, paging, and synchronization/update reconciliation into one
+  protocol-focused helper. Keep role state, usage, tool, and pending-interaction predicates in the semantic client
+  unless they acquire independent state or lifecycle.
+- Remove `HeadlessUiWaitTimeoutException`; throw `TimeoutException` with the existing description and full combined
+  process/UI/provider diagnostic block.
+- Keep raw JSON and stream access behind `HeadlessUiClient`; do not change protocol version, commands, wait ordering,
+  skip semantics, or observation records.
+
+Focused acceptance: `StdioUiProtocol.feature`, `StdioUiProtocolMultiRole.feature`, `UiProtocolValidation.feature`,
+all `Transcript*.feature` files, and the dashboard interaction scenarios.
+
+### Slice 4 - Provider fixtures have one lifecycle owner
+
+**Outcome:** Provider-selection and fake-session behavior remain unchanged while provider fixtures live under
+`Support/Agents` and the duplicate echo stack is gone.
+
+- Move the fake backend/factory/runtime/session, provider-selection fixtures, and `TestAgentEventStream` to
+  `Support/Agents`.
+- Replace the two `EchoAgentProviderFactory` launch sites with `FakeAgentProviderFactory`, then delete
+  `EchoAgentProviderFactory.cs` and its three additional top-level types. Do not enable a control pipe where those
+  readiness-only scenarios do not need one.
+- Keep `FakeAgentSession` as the owner of one session's event stream, pending reply/abort/disposal state, readiness
+  generation, and deterministic controls. Do not split event publication from the state it mutates.
+- Keep only the four externally reflected provider fixture types public:
+  `FakeAgentProviderFactory`, `ValidProviderFixtureFactory`, `ThrowingProviderFixtureFactory`, and
+  `IncompatibleProviderFixture`.
+
+Focused acceptance: `AgentProviderSelection.feature`, `ProviderPackaging.feature`, `HeadquartersLifecycle.feature`,
+and the host-ownership replacement scenarios.
+
+### Slice 5 - Fake-provider control transport owns protocol state
+
+**Outcome:** Concurrent fake-provider commands and observations retain deterministic acknowledgements, bounded waits,
+and complete diagnostics while transport and observation state are explicit owners under `Support/Agents/Control`.
+
+- Move the duplex, client, server, handlers, and current control exceptions to `Support/Agents/Control`.
+- Extract an internal observation journal from `FakeProviderControlServer`. It owns the synchronized lifecycle list,
+  active session ids, latest prompts and generic observations, observation counts, protocol errors, bounded
+  observation waits, undisposed-session reporting, and diagnostic rendering.
+- Keep `ControlPipeDuplex` as the single-reader/correlated-reply transport and keep the server as the authenticated
+  protocol/semantic command owner; do not add an interface around either one.
+- Remove both custom control exceptions. Preserve immediate `InvalidOperationException` failures for missing/rejected
+  sessions and `TimeoutException` failures with the full control plus UI/process diagnostic text.
+- Preserve authentication, protocol-version validation, correlation ids, acknowledgement-before-backend-failure
+  ordering, cancellation, and disposal behavior.
+
+Focused acceptance: `StdioTransportConcurrentDispatchAndShutdown.feature`,
+`PromptIsolationAndReadiness.feature`, the interaction publication/cancellation scenarios, terminal-provider failure
+scenarios, and cleanup-diagnostic scenarios.
+
+### Slice 6 - Scenario composition owns all scenario lifetimes
+
+**Outcome:** Every default, replacement, and explicitly concurrent backend scenario remains black-box and is cleaned
+up by one scenario-scoped composition root while the final support tree and namespaces communicate ownership.
+
+- Move `BackendScenario`, `BackendScenarioAgent`, `BackendScenarioCommand`, and `ScenarioWorkspace` to
+  `Support/Scenarios`; update binding imports without changing feature wording.
+- Make `BackendScenario` create, track, and dispose replacement launches and explicit independent-project children.
+  Route recovery restarts and host-coexistence setup through that API instead of constructing
+  `BackendScenario`/`ScenarioWorkspace` directly in bindings. Preserve the intentional ability to address each named
+  child independently.
+- Keep normal shutdown explicit and emergency termination bounded. Dispose child scenarios before their workspaces
+  and dispose the process runner before workspace deletion; no binding may become a second teardown owner.
+- Complete the accessibility/reference sweep owner by owner. Do not add forwarding interfaces, production hooks, or
+  production-facing APIs.
+- Add the durable six-folder ownership map to `docs/Manual/test-strategy.md`; keep detailed behavior in the existing
+  feature files.
+
+Focused acceptance: `HostCoexistence.feature`, `Recovery.feature`, all headquarters lifecycle/termination features,
+followed by the complete `squad.Specs` suite.
 
 ## Acceptance criteria
 
@@ -156,4 +310,3 @@ bounded waits, deterministic acknowledgements, cancellation, cleanup, and failur
 - Replacing real Git, filesystem, process, UI protocol, host-control, handoff, or task behavior with mocks.
 - Changing product behavior, supported protocols, scenario semantics, or timing guarantees.
 - Enforcing arbitrary file-size or line-count limits.
-
