@@ -194,7 +194,7 @@ Every slice below is an independently buildable and integratable commit. Its doc
 coverage must describe the repository state produced by that slice; no slice may depend on a later cleanup to restore
 correctness.
 
-### Slice 1: Rename the lifecycle assembly to `squad.Runtime` [planned]
+### Slice 1: Rename the lifecycle assembly to `squad.Runtime` [in progress]
 
 **Outcome:** Headquarters lifecycle code is built and published as `squad.Runtime`, while the unchanged
 `squad.Host.Control` assembly continues to provide process control.
