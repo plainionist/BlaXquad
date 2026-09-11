@@ -229,6 +229,37 @@ the stdio protocol, readiness, concurrent command admission, EOF, cancellation, 
 cleanup scenarios run through the explicit stdio factory; provider diagnostics are unchanged; and source/dependency
 searches show no `--ui`, `UiMode`, `UiOption`, or `squad.Hosting.Stdio` reference in `squad-hq`.
 
+**Status: changes requested (f861f8d244)**
+
+#### Review findings on f861f8d244
+
+**Finding 1 — medium**
+
+- **Location:** `src/squad.Specs/Features/HostingSelection.feature`
+  (`A hosting plug-in deployed alongside duplicate contract assemblies still loads`) and
+  `ScenarioWorkspace.CreateHostingFixtureDeploymentWithDuplicateContracts`.
+- **Violated behavior:** Slice 1 requires a fixture deployed with duplicate contract assemblies so the scenario
+  fails if contract types are loaded into the plug-in context instead of unified with headquarters.
+- **Root cause:** The isolated deployment copies the plug-in and contract DLLs but not the plug-in's
+  `.deps.json`. `PluginLoadContext` resolves sibling assemblies only through `AssemblyDependencyResolver`, which
+  needs that manifest. Without it, `Load` returns null and the default context still supplies headquarters'
+  contract assemblies, so omitting names from `HostingLoader`'s shared set would still complete the ready handshake.
+- **Required outcome:** Deploy the plug-in in a layout `AssemblyDependencyResolver` actually uses, including
+  dependency metadata that maps the copied contract DLLs. With unification disabled, the published process must
+  fail the ready handshake with a type-incompatible hosting diagnostic; with unification enabled, it must still
+  complete the handshake.
+
+**Finding 2 — medium**
+
+- **Location:** `src/squad.Specs/Features/HostingSelection.feature`
+- **Violated behavior:** Slice 1 requires a black-box hosting diagnostic for unloadable assemblies, distinct from
+  a missing file, as part of "every diagnostic" the hosting-selection scenarios must cover.
+- **Root cause:** `PluginLoader` maps `BadImageFormatException`, `IOException`, and `UnauthorizedAccessException`
+  to "Hosting assembly could not be loaded", but no scenario launches `--hosting` against a present, unloadable
+  file. Hosting-selection covers assembly-not-found, not unloadable.
+- **Required outcome:** Launch the published process with `--hosting` pointing at an existing non-assembly file
+  and prove a non-zero exit, stderr containing the unloadable diagnostic, and no unhandled exception.
+
 ### Slice 2: Runtime-load and package Photino as the default
 
 **Outcome:** Omitting `--hosting` loads a complete Photino hosting bundle from the packaged sibling plug-in, with no
