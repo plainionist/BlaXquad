@@ -19,12 +19,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .issue-toolbar { position: relative; z-index: 30; display: flex; align-items: center; flex: 0 0 auto; }
 .issue-trigger { height: 30px; padding: 0 14px; border: 1px solid #3c3c3c; border-radius: 3px; background: #2d2d2d; color: #cccccc; }
 .issue-panel { position: absolute; top: calc(100% + 4px); left: 0; display: flex; gap: 8px; max-width: calc(100vw - 20px); }
-.issue-menu-column { display: flex; flex-direction: column; gap: 6px; min-width: 220px; max-width: 320px; }
-.issue-menu { max-height: 320px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid #3c3c3c; border-radius: 3px; background: #252526; box-shadow: 0 2px 8px rgb(0 0 0 / 28%); }
+.issue-menu-column { display: flex; flex-direction: column; gap: 6px; min-width: 330px; max-width: 480px; }
+.issue-menu { max-height: 480px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid #3c3c3c; border-radius: 3px; background: #252526; box-shadow: 0 2px 8px rgb(0 0 0 / 28%); }
 .issue-menu-item, .issue-menu-empty { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 2px; overflow-wrap: anywhere; cursor: default; }
 .issue-menu-item.is-selected, .issue-menu-item:hover, .issue-menu-item:focus-visible { background: #04395e; outline: none; }
 .issue-menu-empty { color: #858585; font-style: italic; }
 .issue-menu-item-label { overflow-wrap: anywhere; }
+.issue-menu-item-actions { display: inline-flex; gap: 4px; }
 .issue-action { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 1px solid #3c3c3c; border-radius: 3px; background: #2d2d2d; color: #cccccc; line-height: 1; cursor: pointer; }
 .issue-action:hover, .issue-action:focus-visible { background: #04395e; outline: none; }
 .issue-action:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -33,8 +34,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .issue-status-error { border-color: #f14c4c; background: #5a1d1d; color: #f8d7da; }
 .issue-copy-status { margin: 0; min-height: 1em; font-size: 12px; color: #4ec9b0; }
 .issue-copy-status-error { color: #f8d7da; }
-.issue-flyout { min-width: 280px; max-width: 420px; max-height: 320px; overflow-y: auto; padding: 8px 10px; border: 1px solid #3c3c3c; border-radius: 3px; background: #1e1e1e; }
-.issue-flyout-frontmatter, .issue-flyout-preview { margin: 0 0 8px; overflow-wrap: anywhere; white-space: pre-wrap; color: #d4d4d4; font-family: 'Cascadia Mono', 'Consolas', monospace; font-size: 12px; }
+.issue-flyout { min-width: 280px; max-width: 420px; max-height: 480px; overflow-y: auto; padding: 8px 10px; border: 1px solid #3c3c3c; border-radius: 3px; background: #1e1e1e; }
+.issue-flyout-frontmatter, .issue-flyout-preview { margin: 0 0 8px; overflow-wrap: anywhere; white-space: pre-wrap; color: #d4d4d4; font-family: 'Cascadia Mono', 'Consolas', monospace; font-size: 14px; }
 .issue-flyout-preview:last-child { margin-bottom: 0; }
 .role-grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(480px, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: stretch; overflow-x: auto; }
 .role-panel { min-width: 480px; min-height: 0; height: 100%; display: flex; flex-direction: column; border: 1px solid #3c3c3c; border-radius: 3px; background: #1e1e1e; overflow: hidden; }
