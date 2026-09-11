@@ -60,8 +60,6 @@ static class Handoff
                 return 1;
             }
 
-            LegacyHandoffQueueGuard.EnsureNoLegacyArtifacts(Path.Combine(roleWorktreeRoot, ".blaxquad", "handoffs"));
-
             return intent == "commit"
                 ? RunCommit(rest, roleWorktreeRoot, roles, sender)
                 : RunNote(rest, roleWorktreeRoot, roles, sender);
@@ -73,11 +71,6 @@ static class Handoff
                 Console.Error.WriteLine(ex.Message);
             }
             return ex.ExitCode;
-        }
-        catch (LegacyHandoffQueueException ex)
-        {
-            Console.Error.WriteLine(ex.Message);
-            return 2;
         }
     }
 
