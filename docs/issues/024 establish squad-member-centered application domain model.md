@@ -507,7 +507,7 @@ application-domain collection keyed by member identity. Immutable member snapsho
 role metadata, state, usage, pending interactions, and transcript position. Architecture documentation describes
 this ownership without claiming processor isolation or Headquarters/`Squad` replacement. Slice 3 is active.
 
-### Slice 3 - Give every member an independent typed processor [in progress]
+### Slice 3 - Give every member an independent typed processor [done]
 
 **Outcome:** Holding provider I/O for one member cannot delay commands, provider events, interactions, snapshots, or
 transcript publication for another member, while same-member ordering and cancellation remain unchanged.
@@ -534,6 +534,11 @@ transcript publication for another member, while same-member ordering and cancel
 cross-member ordering dependency. Blocked `coder-a` I/O cannot delay `coder-b`, including when both reference
 `coder`; same-member commands still serialize and stale completions/events cannot reopen canceled or terminal work.
 No test source changes in this slice, and every existing observable ordering remains unchanged.
+
+**Status: complete (1d4dde5924).** Each member has a bounded single-reader processor that is the sole writer of its
+aggregate. Typed prompt, harness, abort, interaction, event, terminal, starting, outcome, and retirement messages
+replace the shared command channel. Completions carry generation, member, and operation identity and are dropped
+when stale. Slice 4 remains pending until the architect activates it.
 
 ### Slice 4 - Separate Headquarters from the replaceable Squad generation
 
@@ -685,7 +690,7 @@ CLI remain unchanged, and no test source changes in this slice.
   composition. Keep public CLI/UI/control vocabulary unchanged. Do not claim slice 3 processor isolation or slice 4
   Headquarters/`Squad` replacement.
 
-## Slice 3 review (cc2c93a618) — changes requested
+## Slice 3 review (cc2c93a618) — addressed (1d4dde5924)
 
 ### Finding 1 — Medium
 
@@ -739,7 +744,7 @@ CLI remain unchanged, and no test source changes in this slice.
   Distinguish prompt and harness without an opaque operation delegate. Keep public CLI/UI/control contracts and
   tests unchanged.
 
-## Slice 3 review (cf7f906994) — changes requested
+## Slice 3 review (cf7f906994) — addressed (1d4dde5924)
 
 This commit merges `origin/main` (transcript assembly fold) into the slice 3 branch. It does not change
 `MemberProcessor`, `MemberMessage`, or the ViewModel mutation/routing design. Findings 1-3 from the cc2c93a618
