@@ -184,7 +184,7 @@ test observes full explorer containment plus a 390px role-panel box. Shrinking t
 `updates virtual row geometry when wrapped content changes width` fail deterministically; that brittleness is
 outside this slice.
 
-### Slice 3 - Copy an issue path (pending)
+### Slice 3 - Copy an issue path (in progress)
 
 **Outcome:** An operator can copy an issue's exact workspace-relative path even when no role is configured.
 
@@ -228,4 +228,4 @@ Acceptance criteria:
 - The target textarea has focus and no protocol envelope is emitted by Play.
 - Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
 
-Slices 1 and 2 are complete. Later slices remain pending until the architect activates the next one.
+Slices 1 and 2 are complete. Only Slice 3 is active; Slice 4 remains pending until its reviewer accepts it.
