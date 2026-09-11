@@ -13,4 +13,5 @@ public sealed record PreparedLaunch(
     IReadOnlyList<string> RoleNames,
     string Leader,
     IReadOnlyList<RoleRow> HandoffRoles,
-    string HandoffLogPath);
+    string HandoffLogPath,
+    IReadOnlyList<string>? GitHistoryCommand);

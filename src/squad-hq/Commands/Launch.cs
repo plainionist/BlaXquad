@@ -63,7 +63,7 @@ static class Launch
             {
                 var viewModel = new SquadViewModel();
                 var issueCatalog = new WorkspaceIssueCatalog(layout.WorkingDir);
-                var gitHistoryTool = GitHistoryTool.Resolve(layout.WorkingDir, layout.ConfigFile);
+                var gitHistoryTool = new GitHistoryTool(layout.WorkingDir);
                 // An explicit "--hosting" descriptor and the packaged default (Photino) both load their factory at
                 // process startup through the same HostingLoader, exactly like "--provider" and its default. squad-hq
                 // has no compile-time dependency on either concrete hosting assembly.
@@ -77,6 +77,7 @@ static class Launch
                     hostingRuntime.WindowHost,
                     hostingRuntime.SleepInhibitor,
                     viewModel,
+                    gitHistoryTool,
                     headquartersLease: headquartersLease!);
                 headquartersLease = null;
                 try

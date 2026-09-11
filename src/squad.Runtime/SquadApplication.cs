@@ -3,6 +3,7 @@ using squad.AgentProvider.Abstractions;
 using squad.Application;
 using squad.Handoffs.Delivery;
 using squad.Runtime.Control;
+using squad.Ui.Abstractions;
 using squad.Workspaces;
 using System.Runtime.ExceptionServices;
 
@@ -21,6 +22,7 @@ public sealed class SquadApplication : IAsyncDisposable
     private readonly IWindowHost myWindowHost;
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
+    private readonly IWorkspaceTools myWorkspaceTools;
     private readonly HeadquartersLease myHeadquartersLease;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
@@ -39,9 +41,11 @@ public sealed class SquadApplication : IAsyncDisposable
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
+        IWorkspaceTools workspaceTools,
         HeadquartersLease headquartersLease)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(workspaceTools);
         ArgumentNullException.ThrowIfNull(headquartersLease);
 
         var notifier = new SessionRoleNotifier(viewModel);
@@ -52,6 +56,7 @@ public sealed class SquadApplication : IAsyncDisposable
             windowHost,
             sleepInhibitor,
             viewModel,
+            workspaceTools,
             headquartersLease);
     }
 
@@ -62,6 +67,7 @@ public sealed class SquadApplication : IAsyncDisposable
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
+        IWorkspaceTools workspaceTools,
         HeadquartersLease headquartersLease)
     {
         myLaunchPreparer = launchPreparer;
@@ -70,6 +76,7 @@ public sealed class SquadApplication : IAsyncDisposable
         myWindowHost = windowHost;
         mySleepInhibitor = sleepInhibitor;
         myViewModel = viewModel;
+        myWorkspaceTools = workspaceTools;
         myHeadquartersLease = headquartersLease;
     }
 
@@ -172,6 +179,7 @@ public sealed class SquadApplication : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
         var prepared = await myLaunchPreparer.PrepareAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+        myWorkspaceTools.Configure(prepared.GitHistoryCommand);
         myAgentBackend = await myAgentProviderFactory.CreateAsync(prepared.BackendContext, cancellationToken);
         myHandoffPump = new InProcessHandoffPoller(
             prepared.HandoffRoles, myHandoffNotifier, new HandoffDeliveryLog(prepared.HandoffLogPath));

@@ -62,7 +62,8 @@ public sealed class LaunchPreparer
             myContext.Roles.Select(role => role.Role).ToArray(),
             myContext.Leader,
             myContext.Roles.Select(role => new RoleRow(role.Role, role.WorktreeName, role.WorktreePath, role.DisplayName, role.ReceiveMode)).ToArray(),
-            myContext.HandoffLog);
+            myContext.HandoffLog,
+            myContext.GitHistoryCommand);
     }
 
     private static AgentBackendContext BuildBackendContext(Ctx context)

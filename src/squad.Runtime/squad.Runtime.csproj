@@ -5,6 +5,7 @@
     <ProjectReference Include="..\squad.Application\squad.Application.csproj" />
     <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj" />
     <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj" />
     <ProjectReference Include="..\squad.Workspaces\squad.Workspaces.csproj" />
   </ItemGroup>
 

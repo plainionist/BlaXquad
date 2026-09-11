@@ -1,68 +1,45 @@
-using System.Text.Json;
 using squad.Process;
 using squad.Ui.Abstractions;
 
 namespace squad.Tools.History;
 
 /// <summary>
-/// Resolves the optional `gitHistoryCommand` configured in `blaxquad/squad.json` and launches it in the workspace
-/// directory. A missing configuration file, a missing or unresolvable command, or any other read failure simply
-/// leaves Git history unavailable - a malformed but present command is still rejected up front by
-/// <c>SquadConfigurationLoader</c>, so this narrow reader never needs to duplicate that validation.
+/// Launches the optional `gitHistoryCommand` configured in `blaxquad/squad.json` in the workspace directory.
+/// Constructed once, unconfigured, alongside every other collaborator that shares the hosting context; a later
+/// <see cref="Configure"/> call - made from the validated, immutable prepared-launch result, never by re-reading
+/// or re-parsing `squad.json` here - resolves the configured executable exactly once, before the window starts.
+/// An omitted command, or one whose executable does not resolve, simply leaves Git history unavailable; a
+/// malformed but present command is rejected up front by `SquadConfigurationLoader`, so this type never needs to
+/// duplicate that validation.
 /// </summary>
 public sealed class GitHistoryTool : IWorkspaceTools
 {
     private readonly string myWorkingDirectory;
-    private readonly string? myExecutable;
-    private readonly IReadOnlyList<string> myArguments;
+    private string? myResolvedExecutable;
+    private IReadOnlyList<string> myArguments = [];
 
-    private GitHistoryTool(string workingDirectory, string? executable, IReadOnlyList<string> arguments)
+    public GitHistoryTool(string workingDirectory)
     {
         myWorkingDirectory = workingDirectory;
-        myExecutable = executable;
-        myArguments = arguments;
     }
 
-    public bool GitHistoryAvailable => myExecutable is not null;
+    public bool GitHistoryAvailable => myResolvedExecutable is not null;
 
-    /// <summary>Reads `gitHistoryCommand` directly from the given `squad.json`, resolving its executable against
-    /// `PATH`/`PATHEXT` (or an explicitly qualified path). Never throws: any problem reading or resolving the
-    /// command results in Git history being reported unavailable.</summary>
-    public static GitHistoryTool Resolve(string workingDirectory, string configFile)
+    public void Configure(IReadOnlyList<string>? gitHistoryCommand)
     {
-        try
-        {
-            using var document = JsonDocument.Parse(File.ReadAllText(configFile));
-            if (!document.RootElement.TryGetProperty("gitHistoryCommand", out var commandElement)
-                || commandElement.ValueKind != JsonValueKind.Array)
-            {
-                return new GitHistoryTool(workingDirectory, null, []);
-            }
-
-            var command = commandElement.EnumerateArray()
-                .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() : null)
-                .Where(item => !string.IsNullOrWhiteSpace(item))
-                .Select(item => item!)
-                .ToArray();
-            if (command.Length == 0 || !ExecutableLocator.Exists(command[0]))
-            {
-                return new GitHistoryTool(workingDirectory, null, []);
-            }
-
-            return new GitHistoryTool(workingDirectory, command[0], command.Skip(1).ToArray());
-        }
-        catch
-        {
-            return new GitHistoryTool(workingDirectory, null, []);
-        }
+        myResolvedExecutable = gitHistoryCommand is { Count: > 0 } command
+            ? ExecutableLocator.Resolve(command[0])
+            : null;
+        myArguments = myResolvedExecutable is null ? [] : gitHistoryCommand!.Skip(1).ToArray();
     }
 
     public void OpenGitHistory()
     {
-        if (myExecutable is null)
+        if (myResolvedExecutable is null)
         {
             throw new InvalidOperationException("Git history is not available.");
         }
-        ProcessRunner.Start(myExecutable, myArguments, myWorkingDirectory);
+        ProcessRunner.Start(myResolvedExecutable, myArguments, myWorkingDirectory);
     }
 }
+

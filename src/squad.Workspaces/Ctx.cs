@@ -19,6 +19,7 @@ internal class Ctx
     public List<RoleConfigRow> Roles { get; set; } = [];
     public string Leader { get; set; } = "";
     public IReadOnlyList<string> SharedWorktreePaths { get; set; } = [];
+    public IReadOnlyList<string>? GitHistoryCommand { get; set; }
 }
 
 
