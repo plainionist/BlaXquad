@@ -1,4 +1,5 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
+using squad.Specs.Support.Agents;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -12,22 +13,22 @@ public sealed class ProviderSelectionSteps
         myWorkspace = workspace;
     }
 
-    [When("the executable launches with a provider assembly that does not exist")]
-    public void WhenTheExecutableLaunchesWithAMissingProviderAssembly() =>
+    [When("the operator launches Headquarters with a provider assembly that does not exist")]
+    public void WhenTheOperatorLaunchesHeadquartersWithAMissingProviderAssembly() =>
         Launch($"{myWorkspace.PathInWorkspace("does-not-exist.dll")};Whatever.Type");
 
-    [When("the executable launches with an incompatible provider type")]
-    public void WhenTheExecutableLaunchesWithAnIncompatibleProviderType() =>
+    [When("the operator launches Headquarters with an incompatible provider type")]
+    public void WhenTheOperatorLaunchesHeadquartersWithAnIncompatibleProviderType() =>
         Launch(Descriptor(typeof(IncompatibleProviderFixture)));
 
-    [When("the executable launches with the provider option specified twice")]
-    public void WhenTheExecutableLaunchesWithTheProviderOptionSpecifiedTwice() =>
+    [When("the operator launches Headquarters with the provider option specified twice")]
+    public void WhenTheOperatorLaunchesHeadquartersWithTheProviderOptionSpecifiedTwice() =>
         myWorkspace.RunTool(
             "squad-hq",
             ["launch", "--provider", Descriptor(typeof(ValidProviderFixtureFactory)), "--provider", Descriptor(typeof(ValidProviderFixtureFactory)), myWorkspace.Root]);
 
-    [When("the executable launches with a provider whose constructor throws")]
-    public void WhenTheExecutableLaunchesWithAThrowingProviderConstructor() =>
+    [When("the operator launches Headquarters with a provider whose constructor throws")]
+    public void WhenTheOperatorLaunchesHeadquartersWithAThrowingProviderConstructor() =>
         Launch(Descriptor(typeof(ThrowingProviderFixtureFactory)));
 
     [Then("the launch fails with a provider diagnostic containing {string}")]

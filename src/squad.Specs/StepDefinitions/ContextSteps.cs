@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 using System.Text.Json;
 
 namespace squad.Specs.StepDefinitions;
@@ -13,15 +13,8 @@ public sealed class ContextSteps
         myWorkspace = workspace;
     }
 
-    [Given("a Git project with context roles {string}")]
-    public void GivenAGitProjectWithContextRoles(string commaSeparatedRoles)
-    {
-        var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        myWorkspace.ConfigureProject(roles);
-    }
-
-    [When("the {string} worktree queries its role context without a legacy role environment variable")]
-    public void WhenTheWorktreeQueriesItsRoleContextWithoutALegacyRoleEnvironmentVariable(string role) =>
+    [When("the {string} role agent runs `squad context` from its worktree without a legacy role environment variable")]
+    public void WhenTheRoleAgentRunsSquadContextFromItsWorktreeWithoutALegacyRoleEnvironmentVariable(string role) =>
         myWorkspace.RunRoleTool(role, "squad", ["context", "--field", "role"]);
 
     [Then("the context role is {string}")]
@@ -34,8 +27,8 @@ public sealed class ContextSteps
         });
     }
 
-    [When("the {string} worktree queries JSON context with a shared source path")]
-    public void WhenTheWorktreeQueriesJsonContextWithASharedSourcePath(string role) =>
+    [When("the {string} role agent runs `squad context --json` from its worktree with a shared source path")]
+    public void WhenTheRoleAgentRunsSquadContextJsonFromItsWorktreeWithASharedSourcePath(string role) =>
         myWorkspace.RunRoleTool(
             role,
             "squad",

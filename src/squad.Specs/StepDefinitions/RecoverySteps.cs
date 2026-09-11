@@ -1,15 +1,17 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
+using squad.Specs.Support.Agents;
+using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;
 
 /// <summary>
 /// Drives durable-delivery recovery scenarios exclusively across the real process/protocol boundary: a real
 /// "squad handoff" queued into a role's own worktree, durable inbox fixtures seeded directly on disk for
-/// otherwise-uncreatable "already delivered" or "pre-existing" prerequisites, a real squad-hq host (and, for
-/// restart scenarios, a second independently launched replacement host against the same workspace), and the
-/// recipient's own fake session reporting wake-up harness messages across the fake-provider control pipe. Never
-/// constructs <c>InProcessHandoffPoller</c>, <c>HandoffDeliveryService</c>, <c>IRoleNotifier</c>, or a role-row
-/// product type.
+/// otherwise-uncreatable "already delivered" or "pre-existing" prerequisites, Headquarters launched or restarted
+/// against durable state through the scenario's own shared <see cref="BackendScenario"/> (and, for restart
+/// scenarios, a second independently launched replacement host against the same workspace), and the recipient's
+/// own fake session reporting wake-up harness messages across the fake-provider control pipe. Never constructs
+/// <c>InProcessHandoffPoller</c>, <c>HandoffDeliveryService</c>, <c>IRoleNotifier</c>, or a role-row product type.
 /// </summary>
 [Binding]
 public sealed class RecoverySteps
@@ -26,43 +28,17 @@ public sealed class RecoverySteps
     private const string SnapshotKey = "recoveryInboxSnapshot";
 
     private readonly ScenarioWorkspace myWorkspace;
+    private readonly BackendScenario myScenario;
     private readonly HandoffMailboxObserver myMailbox;
-    private readonly HandoffDraftWriter myDrafts;
     private readonly TaskMailboxFixture myTaskMailbox;
-    private BackendScenario? myScenario;
-    private BackendScenario? myReplacementScenario;
     private BackendScenario? myCurrentScenario;
-    private string[] myRoles = [];
 
-    public RecoverySteps(ScenarioWorkspace workspace)
+    public RecoverySteps(ScenarioWorkspace workspace, BackendScenario scenario, HandoffMailboxObserver mailbox, TaskMailboxFixture taskMailbox)
     {
         myWorkspace = workspace;
-        myMailbox = new HandoffMailboxObserver(workspace);
-        myDrafts = new HandoffDraftWriter(workspace);
-        myTaskMailbox = new TaskMailboxFixture(workspace);
-    }
-
-    [AfterScenario]
-    public void CleanUp()
-    {
-        myScenario?.Dispose();
-        myReplacementScenario?.Dispose();
-    }
-
-    [Given("delivery roles {string}")]
-    public void GivenDeliveryRoles(string commaSeparatedRoles)
-    {
-        myRoles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        myScenario = new BackendScenario(myWorkspace);
-        myScenario.ConfigureRoles(myRoles);
-    }
-
-    [Given("{string} has an outbound note to {string}")]
-    [When("{string} has an outbound note to {string}")]
-    public void GivenRoleHasAnOutboundNoteTo(string role, string recipient)
-    {
-        var draftPath = myDrafts.WriteNoteDraft(role, recipient, "50", "Ready for review.");
-        myWorkspace.RunRoleTool(role, "squad", ["handoff", draftPath]);
+        myScenario = scenario;
+        myMailbox = mailbox;
+        myTaskMailbox = taskMailbox;
     }
 
     [Given("{string} already has the recipient copy")]
@@ -89,25 +65,22 @@ public sealed class RecoverySteps
         _ => throw new ArgumentOutOfRangeException(nameof(lifecycle), lifecycle, "Expected 'stops' or 'fails'."),
     };
 
-    [When("the squad host processes the handoff outbox")]
-    public Task WhenTheSquadHostProcessesTheHandoffOutbox() => StartCurrentScenarioAsync(myScenario!);
+    [When("the operator launches Headquarters, continuing from durable state")]
+    public Task WhenTheOperatorLaunchesHeadquartersContinuingFromDurableState() => StartCurrentScenarioAsync(myScenario);
 
-    [When("the squad host starts")]
-    public Task WhenTheSquadHostStarts() => StartCurrentScenarioAsync(myScenario!);
-
-    [When("the squad host restarts with a replacement session")]
-    public async Task WhenTheSquadHostRestartsWithAReplacementSession()
+    [When("the operator restarts Headquarters, continuing from durable state")]
+    public async Task WhenTheOperatorRestartsHeadquartersContinuingFromDurableState()
     {
-        await myScenario!.ShutdownAsync();
-        myReplacementScenario = new BackendScenario(myWorkspace);
-        await StartCurrentScenarioAsync(myReplacementScenario);
+        await myCurrentScenario!.ShutdownAsync();
+        var replacement = myScenario.CreateReplacement();
+        await StartCurrentScenarioAsync(replacement);
     }
 
     private async Task StartCurrentScenarioAsync(BackendScenario scenario)
     {
         scenario.EnableFakeProviderControl();
         await scenario.StartAsync<FakeAgentProviderFactory>(continueLaunch: true);
-        foreach (var role in myRoles)
+        foreach (var role in myScenario.ConfiguredRoles)
         {
             await scenario.WaitForRoleSessionStartedAsync(role);
         }

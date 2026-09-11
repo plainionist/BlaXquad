@@ -1,4 +1,5 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
+using squad.Specs.Support.Mailboxes;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -10,26 +11,12 @@ public sealed class QueueSteps
     private readonly TaskMailboxFixture myTaskMailbox;
     private readonly TaskMailboxObserver myTaskObserver;
 
-    public QueueSteps(ScenarioWorkspace workspace)
+    public QueueSteps(ScenarioWorkspace workspace, TaskMailboxFixture taskMailbox, TaskMailboxObserver taskObserver)
     {
         myWorkspace = workspace;
-        myTaskMailbox = new TaskMailboxFixture(workspace);
-        myTaskObserver = new TaskMailboxObserver(workspace);
+        myTaskMailbox = taskMailbox;
+        myTaskObserver = taskObserver;
     }
-
-    [Given("a Git project with task role {string}")]
-    public void GivenAGitProjectWithTaskRole(string role) => myWorkspace.ConfigureProject(role);
-
-    [Given("a Git project with batch role {string}")]
-    public void GivenAGitProjectWithBatchRole(string role)
-    {
-        myWorkspace.ConfigureProject(role);
-        myWorkspace.SetRoleReceiveMode(role, "batch");
-    }
-
-    [Given("a Git project with role {string} and an empty receive mode")]
-    public void GivenAGitProjectWithRoleAndAnEmptyReceiveMode(string role) =>
-        myWorkspace.SetRoleReceiveMode(role, "");
 
     [Given("{string} has these queued tasks:")]
     [Given("{string} has this queued task:")]
@@ -67,8 +54,12 @@ public sealed class QueueSteps
     public void GivenTheCompletionArchiveAlreadyContainsThatTask() =>
         myTaskMailbox.DuplicateCurrentTaskIntoCompletedArchive(myWorkspace.Get<string>(CurrentRoleKey));
 
-    [When("{string} checks for work")]
-    public void WhenRoleChecksForWork(string role)
+    [Given("the {string} role has an empty receive mode")]
+    public void GivenTheRoleHasAnEmptyReceiveMode(string role) =>
+        myWorkspace.ConfigureReceiveMode(role, "");
+
+    [When("the {string} role agent runs `squad ready-for-next` from its worktree")]
+    public void WhenTheRoleAgentRunsSquadReadyForNextFromItsWorktree(string role)
     {
         myWorkspace.Set(CurrentRoleKey, role);
         myWorkspace.RunRoleTool(role, "squad", ["ready-for-next"]);
@@ -78,8 +69,8 @@ public sealed class QueueSteps
     public void GivenANestedDirectoryExists() =>
         Directory.CreateDirectory(myWorkspace.PathInWorkspace("nested", "current"));
 
-    [When("the nested directory checks for work")]
-    public void WhenTheNestedDirectoryChecksForWork() =>
+    [When("the nested directory runs `squad ready-for-next`")]
+    public void WhenTheNestedDirectoryRunsSquadReadyForNext() =>
         myWorkspace.RunTool(
             "squad",
             ["ready-for-next"],
@@ -89,12 +80,12 @@ public sealed class QueueSteps
     public void GivenAGitProjectWithTwoRolesSharingTheCurrentWorktree() =>
         myWorkspace.ConfigureProjectWithRolesSharingWorktree("coder", "reviewer");
 
-    [When("the ambiguous current worktree checks for work")]
-    public void WhenTheAmbiguousCurrentWorktreeChecksForWork() =>
+    [When("the ambiguous current worktree runs `squad ready-for-next`")]
+    public void WhenTheAmbiguousCurrentWorktreeRunsSquadReadyForNext() =>
         myWorkspace.RunTool("squad", ["ready-for-next"]);
 
-    [When("{string} completes the current work")]
-    public void WhenRoleCompletesTheCurrentWork(string role)
+    [When("the {string} role agent runs `squad done-with-current` from its worktree")]
+    public void WhenTheRoleAgentRunsSquadDoneWithCurrentFromItsWorktree(string role)
     {
         myWorkspace.Set(CurrentRoleKey, role);
         myWorkspace.RunRoleTool(role, "squad", ["done-with-current"]);

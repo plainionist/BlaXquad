@@ -10,37 +10,44 @@ Feature: Stopping safely before and during startup
   SquadApplication or a lifecycle trace.
 
   Scenario: Shutdown requested as early as possible prevents startup from ever completing
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario launches squad-hq with the fake provider fixture without completing the ready handshake
-    And the backend scenario starts watching for role "coder" to become ready
-    And the backend scenario requests a host-control shutdown as soon as it is reachable while sending the prompt "too late" to role "coder"
-    Then the backend scenario observes an exit code of zero
-    And the backend scenario observes role "coder" was never reported ready
-    And the backend scenario observes no session was ever started for role "coder"
-    And the backend scenario observes role "coder" received no prompt
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters without completing the ready handshake
+    And the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
+    And the operator requests shutdown as soon as it is reachable
+    And the user sends "too late" to role "coder"
+    And Headquarters' pending shutdown completes
+    Then Headquarters exits with code 0
+    And role "coder" was never reported ready
+    And Headquarters never starts an agent session for role "coder"
+    And the "coder" agent has received no prompt
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
 
   Scenario: Shutdown requested while provider startup is paused disposes the already-started session
-    Given a backend scenario configured with roles "coder,reviewer"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario gates provider startup after 1 session has started
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario observes no session was ever started for role "reviewer"
-    When the backend scenario starts watching for role "coder" to become ready
-    And the backend scenario requests a host-control shutdown while sending the prompt "too late" to role "reviewer"
-    Then the backend scenario observes an exit code of zero
-    And the backend scenario observes role "coder" was never reported ready
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario observes no session was ever started for role "reviewer"
-    And the backend scenario observes role "reviewer" received no prompt
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role     |
+      | coder    |
+      | reviewer |
+    And Headquarters' startup pauses after 1 session has started
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters never starts an agent session for role "reviewer"
+    When the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
+    And the operator begins shutting down Headquarters without waiting for it to exit
+    And the user sends "too late" to role "reviewer"
+    And Headquarters' process exits on its own
+    Then Headquarters exits with code 0
+    And role "coder" was never reported ready
+    And Headquarters disposes the agent session for role "coder"
+    And Headquarters never starts an agent session for role "reviewer"
+    And the "reviewer" agent has received no prompt
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready

@@ -74,6 +74,18 @@ All feature files, step definitions, the scenario driver, the fake provider, and
 Internal folders and helper types may separate responsibilities inside that project, but those are test implementation
 details. They must not become new assemblies or reproduce the product module boundaries.
 
+`src/squad.Specs/Support` is organized into six responsibility folders, one owner per folder, with namespaces matching
+each folder. This is an ownership map for navigating test support, not a mandate to add a layer around every file:
+
+| Folder | Namespace | Owner |
+| --- | --- | --- |
+| `Scenarios` | `squad.Specs.Support.Scenarios` | The scenario composition root (`BackendScenario`), its role/command adapters, and the temporary Git workspace it drives. `BackendScenario` is the single scenario-scoped owner of normal shutdown, emergency teardown, and every replacement launch or explicit independent-project child it creates. |
+| `Processes` | `squad.Specs.Support.Processes` | Child-process execution, captured command results, and process diagnostics. |
+| `Ui` | `squad.Specs.Support.Ui` | The headless UI protocol client and its decoded transcript/synchronization/page observations. |
+| `Agents` | `squad.Specs.Support.Agents` | Fake agent-provider fixtures and provider-selection fixtures. |
+| `Agents/Control` | `squad.Specs.Support.Agents.Control` | The private fake-provider control transport, protocol, handlers, and observation state. |
+| `Mailboxes` | `squad.Specs.Support.Mailboxes` | Durable handoff and task mailbox setup and observation fixtures. |
+
 ### Keep production infrastructure real
 
 Use real:
@@ -297,11 +309,92 @@ The target architecture does not require:
 
 Once scenarios use the process boundary, these surfaces can be removed based on production call sites.
 
-## Scenario design
+## Gherkin language
 
-Prefer scenarios that cross a meaningful boundary:
+Every feature specifies behavior for one identifiable user: an operator, a role's agent, a configuration author, or
+a UI-protocol client or provider implementer exercising a documented public contract. Choose that user first, then
+write only in terms that user can know - the exact names published by the manual, CLI help, the configuration
+schema, the visible dashboard, and supported protocols.
+
+`BackendScenario`, a role-interaction scenario, a backend-spec fixture, the fake-provider fixture or its private
+control pipe, a recording object, and any other test-support type are implementation details of the bindings. They
+must never appear as a feature's actor or observable outcome. A feature devoted only to that test infrastructure
+must be recast around the public behavior it enables, or removed if it has no independent user-facing contract.
+
+### Canonical vocabulary modules
+
+Each module below owns one coherent vocabulary, derived from `docs/manual/glossary.md`, the rest of the manual, CLI
+help, the public configuration shape, and documented protocols. A binding class may implement several modules, but
+it must not invent a second dialect for a module another binding class already owns, and a term is not user
+language merely because it is technically precise or names a C# type.
+
+| Module | User perspective and vocabulary |
+| --- | --- |
+| Project configuration | A configuration author configures roles, worktrees, models, permissions, and receive modes in `blaxquad/squad.json`. Role collections and records use tables. |
+| Headquarters lifecycle | An operator launches, waits for, shuts down, or otherwise terminates Headquarters through `squad-hq`; process results and diagnostics remain explicit. |
+| Dashboard operations | A user sends prompts, aborts work, and answers interactions for a role; the dashboard shows role state, usage, interactions, and transcript content. |
+| Agent sessions | A provider implementer observes session start and disposal, receives role prompts or responses, and emits typed replies, readiness, usage, interaction, failure, and tool events. The fake provider and its control transport stay behind these steps. |
+| Transcript protocol | A UI-protocol client receives typed updates, synchronization, pages, archived entries, sequence positions, and truncation state. Ordered collections use tables. |
+| Role commands | A role agent runs the documented `squad` context, handoff, `ready-for-next`, and `done-with-current` commands from its worktree. |
+| Handoff delivery | An operator or role agent observes durable handoff fan-out, notification, retry, recovery, and queue state using glossary terms. |
+| Public adapters | An operator selects the documented UI or provider adapter, while UI-protocol and provider-SPI users exercise their respective public contracts. |
+
+### Choose the smallest form of variation
+
+- Use a typed parameter (`{string}`, `{int}`, ...) when one scalar value varies.
+- Use a data table for collections, records with optional fields, ordered event streams, or groups of related
+  observations.
+- Use a scenario outline when the same behavior is exercised across a matrix of examples.
+- Use separate steps only when the behavior or externally observable meaning is actually different - never for
+  singular versus plural wording, a boolean, a count, content length, or the presence of an optional field.
+
+Replace comma-separated lists and string-encoded booleans with a table or typed conversion wherever the shape itself
+communicates the contract. Do not replace many narrow, meaningful phrases with one opaque mega-step whose generic
+table is a programming language in disguise.
+
+Tables and parameter conversions must be strict: validate that a table declares only its required and supported
+columns and rejects an unrecognized one, parse booleans and enums as typed values, preserve row order where it is
+observable, and report malformed data clearly rather than silently ignoring or defaulting it.
+
+### Compose, do not hard-code, orderings and races
+
+For concurrent and failure scenarios, express reusable concepts - a pending operation, an independently started
+command, a released operation, an action performed while another is pending - rather than one sentence that
+hard-codes a specific pair of concurrent actions. Synchronization must stay deterministic through observable
+acknowledgements and bounded waits, never sleeps.
+
+### Organize bindings by language module, not by feature
+
+Split responsibilities into binding classes named after the vocabulary they implement, not one class per feature.
+Reqnroll resolves one scenario-scoped owner of the `BackendScenario` facade for every language module a scenario
+uses: binding classes request `BackendScenario` (or another shared collaborator) through their constructor instead
+of constructing their own, so Reqnroll's container creates and shares exactly one instance per scenario. Only one
+binding class disposes a given process or resource it did not itself create an independent copy of.
+
+Named concurrent projects and replacement launches remain explicit children of that same scenario-scoped owner
+(for example, requesting a replacement backend process from the existing facade rather than constructing a second
+one from scratch); binding classes must not construct independent default facades. Keep the facade and all
+fake-provider plumbing - fixture selection, control-pipe wiring, and provider factories - in test support rather
+than exposing them in Gherkin or adding production test APIs. Keep fixture selection in test setup when it is not
+part of the behavior under specification: a scenario proving operator-facing lifecycle behavior must not name
+"the fake provider" or "the echo provider" in its steps merely because a binding needs one internally.
+
+Remove a phrase's binding as soon as no feature uses it any longer. A migration must not retain both the old and
+the new wording for the same behavior.
+
+### Examples
+
+Prefer scenarios that cross a meaningful boundary, written from the chosen user's vocabulary:
 
 ```gherkin
+Given `blaxquad/squad.json` configures:
+  | role     |
+  | coder    |
+  | reviewer |
+
+When the operator launches Headquarters
+Then Headquarters starts an agent session for role "coder"
+
 When the user sends "Review the change" to the architect
 Then the architect agent receives "Review the change"
 

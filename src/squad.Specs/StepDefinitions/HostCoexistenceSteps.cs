@@ -1,35 +1,45 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
+using squad.Specs.Support.Agents;
 
 namespace squad.Specs.StepDefinitions;
 
 /// <summary>
 /// Launches two independent squad-hq stdio processes, each against its own <see cref="ScenarioWorkspace"/> and
 /// <see cref="BackendScenario"/> pair, to prove that stopping or terminating one instance never disturbs the
-/// other. Drives every process exclusively through the shared <see cref="BackendScenario"/> process driver and the
-/// shared <see cref="FakeAgentProviderFactory"/> fixture - never touching workspace paths, process handles,
-/// protocol DTOs, or raw JSON directly; each project's "coder" role answers its own prompts automatically
+/// other. Each independent project is created through the scenario's single shared <see cref="BackendScenario"/>
+/// composition root (see <see cref="BackendScenario.CreateIndependentProject"/>), which tracks and disposes both
+/// child scenarios and their own workspaces; this binding never constructs a <see cref="ScenarioWorkspace"/> or
+/// <see cref="BackendScenario"/> directly and owns no teardown of its own. Drives every process exclusively
+/// through the shared <see cref="BackendScenario"/> process driver and the shared
+/// <see cref="FakeAgentProviderFactory"/> fixture - never touching workspace paths, process handles, protocol
+/// DTOs, or raw JSON directly; each project's "coder" role answers its own prompts automatically
 /// ("echo: {prompt}") across the shared fake-provider control pipe instead of a second, narrower provider fixture.
 /// </summary>
 [Binding]
 public sealed class HostCoexistenceSteps
 {
-    private readonly Dictionary<string, ScenarioWorkspace> myWorkspacesByLabel = new(StringComparer.Ordinal);
+    private readonly BackendScenario myScenario;
     private readonly Dictionary<string, BackendScenario> myScenariosByLabel = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> myExitCodesByLabel = new(StringComparer.Ordinal);
 
-    [Given("independent squad projects {string} and {string} using the fake provider fixture")]
-    public void GivenIndependentSquadProjectsUsingTheFakeProviderFixture(string firstLabel, string secondLabel)
+    public HostCoexistenceSteps(BackendScenario scenario)
+    {
+        myScenario = scenario;
+    }
+
+    [Given("the operator configures independent squad projects {string} and {string}")]
+    public void GivenTheOperatorConfiguresIndependentSquadProjects(string firstLabel, string secondLabel)
     {
         CreateProject(firstLabel);
         CreateProject(secondLabel);
     }
 
-    [When("squad-hq is launched with \"--ui stdio\" for project {string}")]
-    public void WhenSquadHqIsLaunchedWithUiStdioForProject(string label) =>
+    [When("the operator launches Headquarters with the \"stdio\" UI transport for project {string}")]
+    public void WhenTheOperatorLaunchesHeadquartersWithTheStdioUiTransportForProject(string label) =>
         myScenariosByLabel[label].LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
 
-    [When("the ui sends \"ui.ready\" to project {string}")]
-    public void WhenTheUiSendsUiReadyToProject(string label)
+    [When("a UI-protocol client sends \"ui.ready\" to project {string}")]
+    public void WhenAUiProtocolClientSendsUiReadyToProject(string label)
     {
         var scenario = myScenariosByLabel[label];
         Await(scenario.CompleteReadyHandshakeAsync());
@@ -41,8 +51,8 @@ public sealed class HostCoexistenceSteps
         Await(scenario.Agent("coder").EnableAutoEchoAsync());
     }
 
-    [When("the ui sends a {string} command for role {string} with prompt {string} to project {string}")]
-    public void WhenTheUiSendsACommandForRoleWithPromptToProject(string type, string role, string prompt, string label)
+    [When("a UI-protocol client sends a {string} command for role {string} with prompt {string} to project {string}")]
+    public void WhenAUiProtocolClientSendsACommandForRoleWithPromptToProject(string type, string role, string prompt, string label)
     {
         if (type != "prompt.send")
         {
@@ -55,44 +65,24 @@ public sealed class HostCoexistenceSteps
     public void ThenATranscriptUpdateMessageForRoleWithContentIsWrittenToStdoutForProject(string role, string content, string label) =>
         Await(myScenariosByLabel[label].WaitForTranscriptAsync(role, content));
 
-    [When("squad-hq requests shutdown for project {string}")]
-    public void WhenSquadHqRequestsShutdownForProject(string label) =>
+    [When("the operator shuts down Headquarters for project {string}")]
+    public void WhenTheOperatorShutsDownHeadquartersForProject(string label) =>
         myExitCodesByLabel[label] = Await(myScenariosByLabel[label].ShutdownAsync());
 
-    [Then("the shutdown request succeeds for project {string}")]
-    public void ThenTheShutdownRequestSucceedsForProject(string label) =>
-        Assert.That(myExitCodesByLabel[label], Is.Zero);
+    [Then("Headquarters exits with code {int} for project {string}")]
+    public void ThenHeadquartersExitsWithCodeForProject(int expectedExitCode, string label) =>
+        Assert.That(myExitCodesByLabel[label], Is.EqualTo(expectedExitCode));
 
-    [Then("the squad-hq process for project {string} exits with code {string}")]
-    public void ThenTheSquadHqProcessForProjectExitsWithCode(string label, string expectedExitCode) =>
-        Assert.That(myExitCodesByLabel[label], Is.EqualTo(int.Parse(expectedExitCode)));
-
-    [Then("the squad-hq process for project {string} is still running")]
-    public void ThenTheSquadHqProcessForProjectIsStillRunning(string label)
+    [Then("Headquarters for project {string} is still running")]
+    public void ThenHeadquartersForProjectIsStillRunning(string label)
     {
         Thread.Sleep(200);
         Assert.That(myScenariosByLabel[label].IsRunning, Is.True, $"Project '{label}' should still be running.");
     }
 
-    [AfterScenario]
-    public void CleanUp()
-    {
-        foreach (var scenario in myScenariosByLabel.Values)
-        {
-            scenario.Dispose();
-        }
-        foreach (var workspace in myWorkspacesByLabel.Values)
-        {
-            workspace.Dispose();
-        }
-    }
-
     private void CreateProject(string label)
     {
-        var workspace = new ScenarioWorkspace();
-        myWorkspacesByLabel[label] = workspace;
-
-        var scenario = new BackendScenario(workspace);
+        var scenario = myScenario.CreateIndependentProject();
         scenario.ConfigureRole("coder");
         scenario.EnableFakeProviderControl();
         myScenariosByLabel[label] = scenario;

@@ -3,66 +3,78 @@ Feature: Prompt isolation, serialization, and readiness
   Manual prompts sent through the real UI protocol reach only their addressed role, two prompts for the same role
   are delivered in order with no overlap, a second role's prompt is observed and can complete independently while
   a first role's prompt is still outstanding, and role readiness follows real provider idle and busy transitions -
-  observed only through "prompt.send", the fake-agent control pipe, and "squad-hq wait-for-agent", never through
-  SquadViewModel, its role dictionaries, or its operation coordinator.
+  observed only through the dashboard's prompt-send and transcript surfaces and the public
+  `squad-hq wait-for-agent` command, never through SquadViewModel, its role dictionaries, or its operation
+  coordinator.
 
   Background:
-    Given a role-interaction scenario configured with roles "coder,reviewer"
+    Given `blaxquad/squad.json` configures:
+      | role     |
+      | coder    |
+      | reviewer |
 
   Scenario: Only the addressed role observes a sent prompt
-    When the role-interaction scenario starts with both roles established
-    And the role-interaction scenario sends the prompt "Design the schema" to role "coder"
-    Then the "coder" agent has received the prompt "Design the schema"
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters starts an agent session for role "reviewer"
+    When the user sends "Design the schema" to role "coder"
+    Then the "coder" agent observes the prompt "Design the schema"
     And the "reviewer" agent has observed no prompt
-    When the "coder" agent answers with "Schema drafted"
-    Then the role-interaction scenario observes the transcript for role "coder" containing "Schema drafted"
+    When the "coder" agent replies with "Schema drafted"
+    Then the transcript for role "coder" contains "Schema drafted"
     And the "reviewer" agent has observed no prompt
 
   Scenario: A second prompt for a role waits for the first to go idle
-    When the role-interaction scenario starts with both roles established
-    And the role-interaction scenario sends the prompt "first" to role "coder"
-    Then the "coder" agent has received the prompt "first"
-    When the role-interaction scenario sends the prompt "second" to role "coder"
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters starts an agent session for role "reviewer"
+    When the user sends "first" to role "coder"
+    Then the "coder" agent observes the prompt "first"
+    When the user sends "second" to role "coder"
     Then the "coder" agent has only observed the prompt "first"
-    When the "coder" agent answers with "first done"
-    Then the role-interaction scenario observes the transcript for role "coder" containing "first done"
-    And the "coder" agent has eventually received the prompt "second"
-    When the "coder" agent answers with "second done"
-    Then the role-interaction scenario observes the transcript for role "coder" containing "second done"
+    When the "coder" agent replies with "first done"
+    Then the transcript for role "coder" contains "first done"
+    And the "coder" agent observes the prompt "second"
+    When the "coder" agent replies with "second done"
+    Then the transcript for role "coder" contains "second done"
 
   Scenario: A prompt for another role is observed and answered while a first role's prompt is still outstanding
-    When the role-interaction scenario starts with both roles established
-    And the role-interaction scenario sends the prompt "first" to role "coder"
-    Then the "coder" agent has received the prompt "first"
-    When the role-interaction scenario sends the prompt "for reviewer" to role "reviewer"
-    Then the "reviewer" agent has received the prompt "for reviewer"
-    When the "reviewer" agent answers with "reviewer done"
-    Then the role-interaction scenario observes the transcript for role "reviewer" containing "reviewer done"
-    When the "coder" agent answers with "first done"
-    Then the role-interaction scenario observes the transcript for role "coder" containing "first done"
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters starts an agent session for role "reviewer"
+    When the user sends "first" to role "coder"
+    Then the "coder" agent observes the prompt "first"
+    When the user sends "for reviewer" to role "reviewer"
+    Then the "reviewer" agent observes the prompt "for reviewer"
+    When the "reviewer" agent replies with "reviewer done"
+    Then the transcript for role "reviewer" contains "reviewer done"
+    When the "coder" agent replies with "first done"
+    Then the transcript for role "coder" contains "first done"
 
   Scenario: Readiness follows a role's idle and busy transitions through prompt dispatch
-    When the role-interaction scenario starts with both roles established
-    And the role-interaction scenario begins waiting for the "coder" agent to become ready
-    Then the "coder" readiness wait remains pending
-    When the "coder" agent reports idle
-    Then the "coder" readiness wait succeeds
-    When the role-interaction scenario sends the prompt "Investigate the bug" to role "coder"
-    And the role-interaction scenario begins waiting for the "coder" agent to become ready
-    Then the "coder" agent has received the prompt "Investigate the bug"
-    And the "coder" readiness wait remains pending
-    When the "coder" agent answers with "Found it"
-    Then the "coder" readiness wait succeeds
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters starts an agent session for role "reviewer"
+    When the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
+    Then role "coder"'s readiness wait remains pending
+    When the "coder" agent emits idle
+    Then role "coder"'s readiness wait succeeds
+    When the user sends "Investigate the bug" to role "coder"
+    And the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
+    Then the "coder" agent observes the prompt "Investigate the bug"
+    And role "coder"'s readiness wait remains pending
+    When the "coder" agent replies with "Found it"
+    Then role "coder"'s readiness wait succeeds
 
   Scenario: Readiness waits remain role-specific while sessions establish independently
-    When the role-interaction scenario starts without waiting for either role to establish
-    And the role-interaction scenario begins waiting for the "reviewer" agent to become ready
-    Then the "reviewer" readiness wait remains pending
-    When the "coder" agent session establishes
-    And the "coder" agent reports idle
-    And the role-interaction scenario begins waiting for the "coder" agent to become ready
-    Then the "coder" readiness wait succeeds
-    And the "reviewer" readiness wait remains pending
-    When the "reviewer" agent session establishes
-    And the "reviewer" agent reports idle
-    Then the "reviewer" readiness wait succeeds
+    When the operator launches Headquarters
+    And the operator begins waiting for role "reviewer" to become ready with `squad-hq wait-for-agent`
+    Then role "reviewer"'s readiness wait remains pending
+    And Headquarters starts an agent session for role "coder"
+    When the "coder" agent emits idle
+    And the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
+    Then role "coder"'s readiness wait succeeds
+    And role "reviewer"'s readiness wait remains pending
+    And Headquarters starts an agent session for role "reviewer"
+    When the "reviewer" agent emits idle
+    Then role "reviewer"'s readiness wait succeeds

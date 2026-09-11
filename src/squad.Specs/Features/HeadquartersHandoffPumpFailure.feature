@@ -10,20 +10,21 @@ Feature: Surfacing a real handoff-pump failure after readiness
   command, and a real filesystem fault, never through SquadApplication directly.
 
   Scenario: A real handoff-pump failure after readiness stops the host with its own diagnostic
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario has enabled the fake-provider control transport
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario seeds ".blaxquad/handoffs/inbox/new/queued.handoff" into role "coder"'s worktree with content "Do not lose this queued handoff."
-    When the backend scenario poisons role "coder"'s handoff outbox directory
-    And the backend scenario waits for the process to exit on its own
-    Then the backend scenario observes a non-zero exit code
-    And the backend scenario observes standard error containing "Handoff delivery failed"
-    And the backend scenario observes standard error does not contain "Unhandled exception"
-    And the backend scenario observes standard error does not contain "Provider startup failed"
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded ".blaxquad/handoffs/inbox/new/queued.handoff" still contains "Do not lose this queued handoff."
-    When the backend scenario repairs role "coder"'s handoff outbox directory
-    And a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    When role "coder" has a durable file ".blaxquad/handoffs/inbox/new/queued.handoff" containing "Do not lose this queued handoff."
+    And role "coder"'s handoff outbox directory is poisoned
+    And Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "Handoff delivery failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And Headquarters' standard error does not contain "Provider startup failed"
+    And Headquarters disposes the agent session for role "coder"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file ".blaxquad/handoffs/inbox/new/queued.handoff" still contains "Do not lose this queued handoff."
+    When role "coder"'s handoff outbox directory is repaired
+    And the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready

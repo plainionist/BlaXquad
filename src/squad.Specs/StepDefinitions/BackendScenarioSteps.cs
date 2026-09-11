@@ -1,5 +1,7 @@
 using System.Text.Json;
-using squad.Specs.Support;
+using squad.Specs.Support.Agents;
+using squad.Specs.Support.Scenarios;
+using squad.Specs.Support.Ui;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -11,12 +13,8 @@ namespace squad.Specs.StepDefinitions;
 public sealed class BackendScenarioSteps
 {
     private readonly BackendScenario myScenario;
-    private BackendScenario? myReplacementScenario;
-    private int myExitCode;
-    private Exception? myLastWaitException;
     private string? myObservedHarnessMessage;
     private int myProtocolErrorsObserved;
-    private readonly List<TranscriptUpdateObservation> myObservedTranscriptUpdates = [];
     private readonly Dictionary<string, int> myTranscriptPageFrontier = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> myTranscriptPagesObserved = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TranscriptPageObservation> myLatestTranscriptPage = new(StringComparer.Ordinal);
@@ -24,29 +22,23 @@ public sealed class BackendScenarioSteps
     private readonly Dictionary<string, int> myAssistantDeltaCounts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> myLatestSynchronizedSequence = new(StringComparer.Ordinal);
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
-    private TranscriptSynchronizationObservation? myAwaitedTranscriptSynchronization;
-    private readonly Dictionary<string, BackendScenarioCommand> myReadinessWatches = new(StringComparer.Ordinal);
     private string? myLastInvalidMessageCase;
-    private string? myExpectedInvalidMessageProtocolError;
 
-    public BackendScenarioSteps(ScenarioWorkspace workspace)
+    public BackendScenarioSteps(BackendScenario scenario)
     {
-        myScenario = new BackendScenario(workspace);
+        myScenario = scenario;
     }
 
     /// <summary>
-    /// Disposes the scenario's <see cref="BackendScenario"/> after every scenario - not just the ones that reach a
-    /// normal host-control shutdown. This is the teardown path that actually runs for every process-driver
-    /// scenario (Reqnroll disposes the injected <see cref="ScenarioWorkspace"/> automatically, but never this
-    /// manually constructed composition root), so it is the only place a leaked, never-disposed session can be
-    /// reported.
+    /// Disposes the scenario's shared <see cref="BackendScenario"/> after every scenario - not just the ones that
+    /// reach a normal host-control shutdown. This explicit call must run before <see cref="ScenarioWorkspace"/>'s
+    /// own disposal (which Reqnroll's container also triggers automatically, and which forcibly disposes every
+    /// process it tracked, including this one's), so <see cref="BackendScenario.Dispose"/> can still request a
+    /// clean shutdown and inspect real process state. Reqnroll's container disposes this same constructor-injected
+    /// instance a second time as its resolved owner; that second call is a safe no-op.
     /// </summary>
     [AfterScenario]
-    public void CleanUp()
-    {
-        myScenario.Dispose();
-        myReplacementScenario?.Dispose();
-    }
+    public void CleanUp() => myScenario.Dispose();
 
     [Given("a backend scenario configured with a {string} role")]
     public void GivenABackendScenarioConfiguredWithARole(string role) => myScenario.ConfigureRole(role);
@@ -95,54 +87,25 @@ public sealed class BackendScenarioSteps
     public void GivenTheBackendScenarioIsolatesItsTemporaryTranscriptDirectory() =>
         myScenario.IsolateTemporaryDirectory();
 
-    [Then("the backend scenario's temporary transcript history exists")]
-    public void ThenTheBackendScenariosTemporaryTranscriptHistoryExists() =>
+    [Given("Headquarters' temporary transcript directory is isolated")]
+    public void GivenHeadquartersTemporaryTranscriptDirectoryIsIsolated() =>
+        myScenario.IsolateTemporaryDirectory();
+
+    [Then("Headquarters' temporary transcript history exists")]
+    public void ThenHeadquartersTemporaryTranscriptHistoryExists() =>
         Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.True);
 
-    [Then("the backend scenario's temporary transcript history no longer exists")]
-    public void ThenTheBackendScenariosTemporaryTranscriptHistoryNoLongerExists() =>
+    [Then("Headquarters' temporary transcript history no longer exists")]
+    public void ThenHeadquartersTemporaryTranscriptHistoryNoLongerExists() =>
         Assert.That(myScenario.HasTemporaryTranscriptHistory(), Is.False);
 
     [When("the backend scenario starts squad-hq with the fake provider fixture")]
     public void WhenTheBackendScenarioStartsSquadHqWithTheFakeProviderFixture() =>
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());
 
-    [When("the backend scenario starts a cancellable squad-hq with the fake provider fixture")]
-    public void WhenTheBackendScenarioStartsACancellableSquadHqWithTheFakeProviderFixture() =>
-        Await(myScenario.StartCancellableAsync<FakeAgentProviderFactory>());
-
-    [When("the backend scenario launches squad-hq without completing the ready handshake")]
-    public void WhenTheBackendScenarioLaunchesSquadHqWithoutCompletingTheReadyHandshake() =>
-        myScenario.LaunchWithoutReadyHandshake<EchoAgentProviderFactory>();
-
     [When("the backend scenario launches squad-hq with the fake provider fixture without completing the ready handshake")]
     public void WhenTheBackendScenarioLaunchesSquadHqWithTheFakeProviderFixtureWithoutCompletingTheReadyHandshake() =>
         myScenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
-
-    [When("the backend scenario requests a host-control shutdown as soon as it is reachable")]
-    public void WhenTheBackendScenarioRequestsAHostControlShutdownAsSoonAsItIsReachable() =>
-        myExitCode = Await(myScenario.RequestShutdownAsSoonAsReachableAsync());
-
-    [When("the backend scenario requests a host-control shutdown as soon as it is reachable while sending the prompt {string} to role {string}")]
-    public void WhenTheBackendScenarioRequestsAHostControlShutdownAsSoonAsItIsReachableWhileSendingThePromptToRole(string prompt, string role) =>
-        myExitCode = Await(myScenario.RequestShutdownAsSoonAsReachableAsync(sendPromptToRole: role, promptContent: prompt));
-
-    [When("the backend scenario requests a host-control shutdown while sending the prompt {string} to role {string}")]
-    public void WhenTheBackendScenarioRequestsAHostControlShutdownWhileSendingThePromptToRole(string prompt, string role) =>
-        myExitCode = Await(myScenario.ShutdownWhileSendingPromptAsync(role, prompt));
-
-    [When("the backend scenario starts watching for role {string} to become ready")]
-    public void WhenTheBackendScenarioStartsWatchingForRoleToBecomeReady(string role) =>
-        myReadinessWatches[role] = myScenario.StartWatchingForReadiness(role);
-
-    [Then("the backend scenario observes role {string} was never reported ready")]
-    public void ThenTheBackendScenarioObservesRoleWasNeverReportedReady(string role)
-    {
-        // The watch's own "wait-for-agent --timeout" bound is 15s (see StartWatchingForReadiness); the extra
-        // margin here only bounds how long a genuinely broken watch is allowed to hang.
-        var result = Await(myReadinessWatches[role].WaitForCompletionAsync(TimeSpan.FromSeconds(20)));
-        Assert.That(result.StdOut, Does.Not.Contain("is ready"), () => result.StdErr);
-    }
 
     [Then("the backend scenario observes no session was ever started for role {string}")]
     public void ThenTheBackendScenarioObservesNoSessionWasEverStartedForRole(string role) =>
@@ -152,31 +115,9 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesRoleReceivedNoPrompt(string role) =>
         Assert.That(myScenario.Agent(role).LatestPrompt(), Is.Null);
 
-    [When("the backend scenario closes its standard input")]
-    public void WhenTheBackendScenarioClosesItsStandardInput()
-    {
-        myScenario.CloseStandardInput();
-        myExitCode = Await(myScenario.WaitForProcessExitAsync());
-    }
-
-    [When("the backend scenario delivers the platform's cancellation signal")]
-    public void WhenTheBackendScenarioDeliversThePlatformSCancellationSignal()
-    {
-        myScenario.RequestCallerCancellation();
-        myExitCode = Await(myScenario.WaitForProcessExitAsync());
-    }
-
-    [Then("the backend scenario reports the process as ready")]
-    public void ThenTheBackendScenarioReportsTheProcessAsReady() =>
-        Assert.That(myScenario.IsReady, Is.True);
-
     [Then("the backend scenario observes role {string} at status {string}")]
     public void ThenTheBackendScenarioObservesRoleAtStatus(string role, string status) =>
         Await(myScenario.WaitForRoleStatusAsync(role, status));
-
-    [Then("the backend scenario observes role {string}'s latest published status as {string}")]
-    public void ThenTheBackendScenarioObservesRoleSLatestPublishedStatusAs(string role, string status) =>
-        Await(myScenario.WaitForLatestRoleStatusAsync(role, status));
 
     [Then("the backend scenario observes state.snapshot roles reported in order {string}")]
     public void ThenTheBackendScenarioObservesStateSnapshotRolesReportedInOrder(string commaSeparatedRoles)
@@ -212,16 +153,9 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentRepliesWith(string role, string content) =>
         Await(myScenario.Agent(role).ReplyAsync(content));
 
-    [Then("the backend scenario observes the transcript for role {string} containing {string}")]
-    public void ThenTheBackendScenarioObservesTheTranscriptForRoleContaining(string role, string content) =>
-        Await(myScenario.WaitForTranscriptAsync(role, content));
-
     [Then("the {string} agent observes a harness message")]
     public void ThenTheAgentObservesAHarnessMessage(string role) =>
         myObservedHarnessMessage = Await(myScenario.Agent(role).WaitForHarnessMessageAsync());
-
-    [When("the backend scenario requests an abort for role {string}")]
-    public void WhenTheBackendScenarioRequestsAnAbortForRole(string role) => myScenario.RequestAbort(role);
 
     [Then("the {string} agent observes an abort")]
     public void ThenTheAgentObservesAnAbort(string role) => Await(myScenario.Agent(role).WaitForAbortAsync());
@@ -237,41 +171,45 @@ public sealed class BackendScenarioSteps
         Assert.CatchAsync<TimeoutException>(
             () => myScenario.Agent(role).WaitForPromptAsync(observed => observed == prompt, TimeSpan.FromSeconds(seconds)));
 
-    [When("the backend scenario arms role {string} to hold its next abort pending")]
-    public void WhenTheBackendScenarioArmsRoleToHoldItsNextAbortPending(string role) =>
+    [Then("the {string} agent has received no prompt")]
+    public void ThenTheAgentHasReceivedNoPrompt(string role) =>
+        Assert.That(myScenario.Agent(role).LatestPrompt(), Is.Null);
+
+    [When("the {string} agent holds its next abort pending")]
+    public void WhenTheAgentHoldsItsNextAbortPending(string role) =>
         Await(myScenario.Agent(role).ArmPendingAbortAsync());
 
-    [When("the backend scenario completes the pending abort for role {string}")]
-    public void WhenTheBackendScenarioCompletesThePendingAbortForRole(string role) =>
+    [When("the {string} agent releases its pending abort")]
+    public void WhenTheAgentReleasesItsPendingAbort(string role) =>
         Await(myScenario.Agent(role).CompletePendingAbortAsync());
 
-    [When("the backend scenario arms role {string} to fail its next abort with message {string}")]
-    public void WhenTheBackendScenarioArmsRoleToFailItsNextAbortWithMessage(string role, string message) =>
+    [When("the {string} agent fails its next abort with message {string}")]
+    public void WhenTheAgentFailsItsNextAbortWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailNextAbortAsync(message));
 
-    [When("the backend scenario arms role {string} to hold its next session disposal pending")]
-    public void WhenTheBackendScenarioArmsRoleToHoldItsNextSessionDisposalPending(string role) =>
+    [When("the {string} agent holds its next session disposal pending")]
+    public void WhenTheAgentHoldsItsNextSessionDisposalPending(string role) =>
         Await(myScenario.Agent(role).ArmPendingDisposalAsync());
 
-    [When("the backend scenario completes the pending session disposal for role {string}")]
-    public void WhenTheBackendScenarioCompletesThePendingSessionDisposalForRole(string role) =>
+    [When("the {string} agent releases its pending session disposal")]
+    public void WhenTheAgentReleasesItsPendingSessionDisposal(string role) =>
         Await(myScenario.Agent(role).CompletePendingDisposalAsync());
 
-    [Then("the backend scenario observes role {string}'s session disposal held after its admitted send was already canceled")]
-    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeldAfterItsAdmittedSendWasAlreadyCanceled(string role) =>
+    [Then("the {string} agent's session disposal is held after its admitted send is already canceled")]
+    public void ThenTheAgentSSessionDisposalIsHeldAfterItsAdmittedSendIsAlreadyCanceled(string role) =>
         Assert.That(
             Await(myScenario.Agent(role).WaitForDisposalHeldAsync()),
             Is.True,
             $"Role '{role}''s session disposal was held, but its admitted send had not yet reached its own " +
             "canceled outcome by that moment - drain-before-dispose ordering was not observed.");
 
-    [Then("the backend scenario observes role {string}'s session disposal held")]
-    public void ThenTheBackendScenarioObservesRoleSSessionDisposalHeld(string role) =>
+    // Merely awaiting (without asserting on) the returned flag is deliberate: WaitForDisposalHeldAsync returns
+    // whether an admitted send had already reached its own canceled outcome before disposal began - a detail
+    // this simpler phrasing does not claim - not whether disposal is held; that itself is proven by this call
+    // returning at all rather than timing out.
+    [Then("the {string} agent's session disposal is held")]
+    public void ThenTheAgentSSessionDisposalIsHeld(string role) =>
         Await(myScenario.Agent(role).WaitForDisposalHeldAsync());
-
-    [When("the backend scenario requests a host-control shutdown without waiting for the process to exit")]
-    public void WhenTheBackendScenarioRequestsAHostControlShutdownWithoutWaitingForTheProcessToExit() =>
-        Await(myScenario.RequestShutdownWithoutWaitingForExit());
 
     [Then("role {string} is not ready for a prompt")]
     public void ThenRoleIsNotReadyForAPrompt(string role)
@@ -285,15 +223,6 @@ public sealed class BackendScenarioSteps
         Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);
     }
 
-    [Then("the backend scenario observes no pending permission {string} for role {string}")]
-    public void ThenTheBackendScenarioObservesNoPendingPermissionForRole(string requestId, string role) =>
-        Await(myScenario.WaitForNoPendingPermissionAsync(role, requestId));
-
-    [Then("the backend scenario does not observe the transcript for role {string} containing {string} within {int} seconds")]
-    public void ThenTheBackendScenarioDoesNotObserveTheTranscriptForRoleContainingWithinSeconds(string role, string content, int seconds) =>
-        Assert.CatchAsync<TimeoutException>(
-            () => myScenario.WaitForTranscriptAsync(role, content, TimeSpan.FromSeconds(seconds)));
-
     [Then("the {string} agent observes its pending interactions were cancelled")]
     public void ThenTheAgentObservesItsPendingInteractionsWereCancelled(string role) =>
         Await(myScenario.Agent(role).WaitForPendingInteractionsCancelledAsync());
@@ -301,10 +230,6 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent requests permission {string} with description {string}")]
     public void WhenTheAgentRequestsPermissionWithDescription(string role, string requestId, string description) =>
         Await(myScenario.Agent(role).RequestPermissionAsync(requestId, description));
-
-    [When("the backend scenario responds to permission {string} for role {string} with approved {string}")]
-    public void WhenTheBackendScenarioRespondsToPermissionForRoleWithApproved(string requestId, string role, string approved) =>
-        myScenario.RespondToPermission(role, requestId, bool.Parse(approved));
 
     [Then("the {string} agent observes a permission response for {string} approved {string}")]
     public void ThenTheAgentObservesAPermissionResponseForApproved(string role, string requestId, string approved)
@@ -317,18 +242,9 @@ public sealed class BackendScenarioSteps
         });
     }
 
-    [When("the {string} agent requests input {string} with prompt {string}")]
-    public void WhenTheAgentRequestsInputWithPrompt(string role, string requestId, string prompt) =>
-        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt));
-
-    [When("the {string} agent requests input {string} with prompt {string} and choices {string} and freeform {string}")]
-    public void WhenTheAgentRequestsInputWithPromptAndChoicesAndFreeform(
-        string role, string requestId, string prompt, string commaSeparatedChoices, string allowFreeform) =>
-        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt, ParseChoices(commaSeparatedChoices), bool.Parse(allowFreeform)));
-
-    [When("the backend scenario responds to input {string} for role {string} with answer {string}")]
-    public void WhenTheBackendScenarioRespondsToInputForRoleWithAnswer(string requestId, string role, string answer) =>
-        myScenario.RespondToInput(role, requestId, answer);
+    [When("the {string} agent requests input {string} with prompt {string} and freeform {string}:")]
+    public void WhenTheAgentRequestsInputWithPromptAndFreeform(string role, string requestId, string prompt, string allowFreeform, Table table) =>
+        Await(myScenario.Agent(role).RequestInputAsync(requestId, prompt, ChoicesFromRows(table), bool.Parse(allowFreeform)));
 
     [Then("the {string} agent observes an input response for {string} with answer {string}")]
     public void ThenTheAgentObservesAnInputResponseForWithAnswer(string role, string requestId, string answer)
@@ -341,44 +257,28 @@ public sealed class BackendScenarioSteps
         });
     }
 
-    [When("the {string} agent requests elicitation {string} with prompt {string} and mode {string}")]
-    public void WhenTheAgentRequestsElicitationWithPromptAndMode(string role, string requestId, string prompt, string mode) =>
-        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, mode));
-
-    [When("the {string} agent requests URL elicitation {string} with prompt {string} and url {string}")]
-    public void WhenTheAgentRequestsUrlElicitationWithPromptAndUrl(string role, string requestId, string prompt, string url) =>
-        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, "url", url));
-
-    [When("the backend scenario responds to elicitation {string} for role {string} with action {string}")]
-    public void WhenTheBackendScenarioRespondsToElicitationForRoleWithAction(string requestId, string role, string action) =>
-        myScenario.RespondToElicitation(role, requestId, action);
-
-    [When("the backend scenario responds to elicitation {string} for role {string} with action {string} and form value {string}")]
-    public void WhenTheBackendScenarioRespondsToElicitationForRoleWithActionAndFormValue(
-        string requestId, string role, string action, string formValue) =>
-        myScenario.RespondToElicitation(role, requestId, action, new { answer = formValue });
-
-    [Then("the {string} agent observes an elicitation response for {string} with action {string}")]
-    public void ThenTheAgentObservesAnElicitationResponseForWithAction(string role, string requestId, string action)
+    [When("the {string} agent requests elicitation {string} with prompt {string}:")]
+    public void WhenTheAgentRequestsElicitationWithPromptAndFields(string role, string requestId, string prompt, Table table)
     {
-        var response = Await(myScenario.Agent(role).WaitForElicitationResponseAsync());
-        Assert.Multiple(() =>
-        {
-            Assert.That(response.RequestId, Is.EqualTo(requestId));
-            Assert.That(response.Action, Is.EqualTo(action));
-        });
+        var row = SingleRow(table, ElicitationRequestColumns, "elicitation request");
+        var url = row["url"];
+        Await(myScenario.Agent(role).RequestElicitationAsync(requestId, prompt, row["mode"], url.Length == 0 ? null : url));
     }
 
-    [Then("the {string} agent observes an elicitation response for {string} with action {string} and form value {string}")]
-    public void ThenTheAgentObservesAnElicitationResponseForWithActionAndFormValue(
-        string role, string requestId, string action, string formValue)
+    [Then("the {string} agent observes an elicitation response for {string} with action {string}:")]
+    public void ThenTheAgentObservesAnElicitationResponseForWithActionAndFields(string role, string requestId, string action, Table table)
     {
+        var row = SingleRow(table, ElicitationResponseColumns, "elicitation response");
+        var formValue = row["form value"];
         var response = Await(myScenario.Agent(role).WaitForElicitationResponseAsync());
         Assert.Multiple(() =>
         {
             Assert.That(response.RequestId, Is.EqualTo(requestId));
             Assert.That(response.Action, Is.EqualTo(action));
-            Assert.That(response.Content?.GetProperty("answer").GetString(), Is.EqualTo(formValue));
+            if (formValue.Length > 0)
+            {
+                Assert.That(response.Content?.GetProperty("answer").GetString(), Is.EqualTo(formValue));
+            }
         });
     }
 
@@ -394,59 +294,33 @@ public sealed class BackendScenarioSteps
     public void ThenTheAgentHasNotObservedAnElicitationResponse(string role) =>
         Assert.That(myScenario.Agent(role).HasReceivedElicitationResponse(), Is.False);
 
-    [Then("the backend scenario observes a pending permission {string} for role {string} with description {string}")]
-    public void ThenTheBackendScenarioObservesAPendingPermissionForRoleWithDescription(string requestId, string role, string description) =>
-        Await(myScenario.WaitForPendingPermissionAsync(role, requestId, description));
-
-    [Then("the backend scenario observes a pending input {string} for role {string} with prompt {string} and choices {string} and freeform {string}")]
-    public void ThenTheBackendScenarioObservesAPendingInputForRoleWithPromptAndChoicesAndFreeform(
-        string requestId, string role, string prompt, string commaSeparatedChoices, string allowFreeform) =>
-        Await(myScenario.WaitForPendingInputAsync(role, requestId, prompt, ParseChoices(commaSeparatedChoices), bool.Parse(allowFreeform)));
-
-    [Then("the backend scenario observes a pending elicitation {string} for role {string} with prompt {string} and mode {string}")]
-    public void ThenTheBackendScenarioObservesAPendingElicitationForRoleWithPromptAndMode(
-        string requestId, string role, string prompt, string mode) =>
-        Await(myScenario.WaitForPendingElicitationAsync(role, requestId, prompt, mode));
-
-    [Then("the backend scenario observes a pending elicitation {string} for role {string} with prompt {string} and mode {string} and url {string}")]
-    public void ThenTheBackendScenarioObservesAPendingElicitationForRoleWithPromptAndModeAndUrl(
-        string requestId, string role, string prompt, string mode, string url) =>
-        Await(myScenario.WaitForPendingElicitationAsync(role, requestId, prompt, mode, url));
-
-    [Then("the backend scenario observes a protocol error mentioning {string}")]
-    public void ThenTheBackendScenarioObservesAProtocolErrorMentioning(string text)
+    // The envelope shape and its exact error text live in the scenario outline's own examples table - this
+    // binding only frames a UI-protocol client's wire send, never reinterprets the contract in C#, so a
+    // regression in the real UiMessageReader/UiCommandHandler validation pipeline (squad.Ui.Protocol) changes
+    // the assertion's outcome rather than silently passing.
+    [When("a UI-protocol client sends the invalid {string} envelope:")]
+    public void WhenAUiProtocolClientSendsTheInvalidEnvelope(string messageCase, string envelope)
     {
-        var message = Await(myScenario.WaitForProtocolErrorAsync(skip: myProtocolErrorsObserved));
-        myProtocolErrorsObserved++;
-        Assert.That(message, Does.Contain(text));
-    }
-
-    [When("the backend scenario sends the invalid {string} ui message")]
-    public void WhenTheBackendScenarioSendsTheInvalidUiMessage(string messageCase)
-    {
-        var (envelope, expectedError) = InvalidUiMessage(messageCase);
         myLastInvalidMessageCase = messageCase;
-        myExpectedInvalidMessageProtocolError = expectedError;
         myScenario.SendRawEnvelope(envelope);
     }
 
-    [Then("the backend scenario observes its exact protocol error for the rejected message")]
-    public void ThenTheBackendScenarioObservesItsExactProtocolErrorForTheRejectedMessage()
+    [Then("a UI-protocol client observes the protocol error {string}")]
+    public void ThenAUiProtocolClientObservesTheProtocolError(string expectedError)
     {
         var message = Await(myScenario.WaitForProtocolErrorAsync(skip: myProtocolErrorsObserved));
         myProtocolErrorsObserved++;
-        Assert.That(message, Is.EqualTo(myExpectedInvalidMessageProtocolError));
+        Assert.That(message, Is.EqualTo(expectedError));
     }
 
     // Unlike the structurally invalid envelopes above, this message is well-formed and passes envelope validation;
     // it is rejected only once command dispatch discovers the role has no configured session, so it shares the
-    // same exact-error, no-provider-invocation, and remains-usable assertions as the invalid-envelope matrix
+    // same exact-error, no-provider-invocation, and still-succeeds assertions as the invalid-envelope matrix
     // without being one of its structural cases.
-    [When("the backend scenario sends a prompt to the unknown role {string}")]
-    public void WhenTheBackendScenarioSendsAPromptToTheUnknownRole(string role)
+    [When("a UI-protocol client sends a prompt to the unknown role {string}")]
+    public void WhenAUiProtocolClientSendsAPromptToTheUnknownRole(string role)
     {
         myLastInvalidMessageCase = "unknown role";
-        myExpectedInvalidMessageProtocolError = $"Unknown role: {role}";
         myScenario.SendPrompt(role, "hello");
     }
 
@@ -472,63 +346,14 @@ public sealed class BackendScenarioSteps
         }
     }
 
-    [Then("the backend scenario remains usable after the rejected message")]
-    public void ThenTheBackendScenarioRemainsUsableAfterTheRejectedMessage()
+    [Then("a UI-protocol client's later command still succeeds")]
+    public void ThenAUiProtocolClientsLaterCommandStillSucceeds()
     {
         Assert.That(myScenario.IsRunning, Is.True);
         const string prompt = "still usable after the rejected message";
         myScenario.SendPrompt("coder", prompt);
         Assert.That(Await(myScenario.Agent("coder").WaitForPromptAsync(observed => observed == prompt)), Is.EqualTo(prompt));
     }
-
-    // Mirrors the exact envelope shapes and error text the real UiMessageReader/UiCommandHandler validation
-    // pipeline produces (squad.Ui.Protocol) - not this test's own interpretation of the contract - so a
-    // regression in that validation logic changes this assertion's outcome rather than silently passing.
-    private static (string Envelope, string ExpectedError) InvalidUiMessage(string messageCase) =>
-        messageCase switch
-        {
-            "unsupported version" => (
-                """{"version":2,"type":"role.abort","role":"coder"}""",
-                "The UI protocol version is not supported."),
-            "missing type" => (
-                """{"version":5}""",
-                "The UI message is missing a type."),
-            "unknown type" => (
-                """{"version":5,"type":"unknown"}""",
-                "Unknown UI message type 'unknown'."),
-            // Every envelope below must be a single line: the real stdio transport frames one protocol message
-            // per newline-delimited line, unlike the in-memory ReceiveMessageAsync call the old direct
-            // construction used, which never had to respect that framing.
-            "missing role" => (
-                """{"version":5,"type":"prompt.send","payload":{"prompt":"hello"}}""",
-                "The UI message is missing role."),
-            "missing request ID" => (
-                """{"version":5,"type":"permission.respond","role":"coder","payload":{"approved":true}}""",
-                "The UI message is missing requestId."),
-            "invalid string payload" => (
-                """{"version":5,"type":"prompt.send","role":"coder","payload":{"prompt":42}}""",
-                "The UI message is missing payload.prompt."),
-            "invalid boolean payload" => (
-                """{"version":5,"type":"permission.respond","role":"coder","requestId":"permission-1","payload":{"approved":"yes"}}""",
-                "The UI message is missing payload.approved."),
-            "invalid integer payload" => (
-                """{"version":5,"type":"transcript.page","role":"coder","payload":{"beforeIndex":"five"}}""",
-                "The requested operation requires an element of type "
-                + "'Number', but the target element has type 'String'."),
-            "invalid synchronization payload" => (
-                """{"version":5,"type":"transcript.synchronize","payload":{"roles":"coder"}}""",
-                "The UI message contains invalid transcript positions."),
-            "malformed JSON" => (
-                "{",
-                "Expected depth to be zero at the end of the JSON payload. "
-                + "There is an open JSON object or array that should be closed. "
-                + "LineNumber: 0 | BytePositionInLine: 1."),
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(messageCase),
-                messageCase,
-                "Unknown invalid message case."),
-        };
-
 
     [When("the {string} agent emits the reasoning {string}")]
     public void WhenTheAgentEmitsTheReasoning(string role, string content) =>
@@ -642,49 +467,12 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentInvokesSkill(string role, string name) =>
         Await(myScenario.Agent(role).EmitSkillInvokedAsync(name));
 
-    [When("the {string} agent concurrently emits these system messages while a transcript synchronization races them:")]
-    public void WhenTheAgentConcurrentlyEmitsTheseSystemMessagesWhileATranscriptSynchronizationRacesThem(string role, Table contents)
-    {
-        // Firing the synchronize request without awaiting an acknowledgement (it has none) before starting every
-        // emit concurrently creates a genuine race between this UI-protocol request and the fake provider's
-        // control-pipe emits, proving reconciliation stays correct regardless of how much of the burst the
-        // synchronization response actually captured.
-        myScenario.RequestTranscriptSynchronization();
+    [When("the {string} agent concurrently emits these system messages:")]
+    public void WhenTheAgentConcurrentlyEmitsTheseSystemMessages(string role, Table contents) =>
+        // Awaiting every row's emit together (rather than sequentially) genuinely races each one against whatever
+        // synchronization request a preceding independently-started step already fired, without this step itself
+        // waiting on that request's acknowledgement (the protocol has none) or its eventual response.
         Await(Task.WhenAll(contents.Rows.Select(row => myScenario.Agent(role).EmitSystemMessageAsync(row["content"]))));
-    }
-
-    [Then("the backend scenario observes a transcript update for role {string} with source {string}")]
-    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSource(string role, string source) =>
-        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source)));
-
-    [Then("the backend scenario observes a transcript update for role {string} with source {string} and content {string}")]
-    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithSourceAndContent(string role, string source, string content) =>
-        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateAsync(role, source, DecodeEscapes(content))));
-
-    [Then("the backend scenario observes a transcript update for role {string} with operation {string} and content {string}")]
-    public void ThenTheBackendScenarioObservesATranscriptUpdateForRoleWithOperationAndContent(string role, string operation, string content) =>
-        myObservedTranscriptUpdates.Add(Await(myScenario.WaitForTranscriptUpdateByOperationAsync(role, operation, content)));
-
-    [Then("the most recently observed transcript updates for role {string} report the same entry index")]
-    public void ThenTheMostRecentlyObservedTranscriptUpdatesForRoleReportTheSameEntryIndex(string role)
-    {
-        var (previous, current) = TwoMostRecentlyObservedTranscriptUpdates(role);
-        Assert.That(current.EntryIndex, Is.EqualTo(previous.EntryIndex));
-    }
-
-    [Then("the most recently observed transcript updates for role {string} report different entry indices")]
-    public void ThenTheMostRecentlyObservedTranscriptUpdatesForRoleReportDifferentEntryIndices(string role)
-    {
-        var (previous, current) = TwoMostRecentlyObservedTranscriptUpdates(role);
-        Assert.That(current.EntryIndex, Is.Not.EqualTo(previous.EntryIndex));
-    }
-
-    private (TranscriptUpdateObservation Previous, TranscriptUpdateObservation Current) TwoMostRecentlyObservedTranscriptUpdates(string role)
-    {
-        var updatesForRole = myObservedTranscriptUpdates.Where(update => update.Role == role).ToList();
-        Assert.That(updatesForRole, Has.Count.GreaterThanOrEqualTo(2));
-        return (updatesForRole[^2], updatesForRole[^1]);
-    }
 
     private void RecordPagedEntries(string role, IReadOnlyList<TranscriptEntryObservation> entries)
     {
@@ -694,28 +482,6 @@ public sealed class BackendScenarioSteps
         }
         recorded.AddRange(entries);
     }
-
-    [Then("every observed transcript update for role {string} reports a strictly increasing sequence and entry index")]
-    public void ThenEveryObservedTranscriptUpdateForRoleReportsAStrictlyIncreasingSequenceAndEntryIndex(string role)
-    {
-        var updatesForRole = myObservedTranscriptUpdates.Where(update => update.Role == role).ToList();
-        Assert.That(updatesForRole, Has.Count.GreaterThan(1));
-        for (var index = 1; index < updatesForRole.Count; index++)
-        {
-            var previous = updatesForRole[index - 1];
-            var current = updatesForRole[index];
-            Assert.Multiple(() =>
-            {
-                Assert.That(current.Sequence, Is.GreaterThan(previous.Sequence));
-                Assert.That(current.EntryIndex, Is.GreaterThan(previous.EntryIndex));
-                Assert.That(current.Operation, Is.EqualTo("append"));
-            });
-        }
-    }
-
-    [When("the backend scenario requests a fresh transcript synchronization")]
-    public void WhenTheBackendScenarioRequestsAFreshTranscriptSynchronization() =>
-        myScenario.RequestTranscriptSynchronization();
 
     [Then("the transcript synchronization for role {string} reports every supported entry source with dashboard protocol fields:")]
     public void ThenTheTranscriptSynchronizationForRoleReportsEverySupportedEntrySourceWithDashboardProtocolFields(string role, Table expected)
@@ -800,8 +566,8 @@ public sealed class BackendScenarioSteps
         myLatestSynchronizedSequence[role] = synchronization.Sequence;
     }
 
-    [When("the backend scenario requests the previous transcript page for role {string}")]
-    public void WhenTheBackendScenarioRequestsThePreviousTranscriptPageForRole(string role)
+    [When("the UI-protocol client requests the previous transcript page for role {string}")]
+    public void WhenTheUiProtocolClientRequestsThePreviousTranscriptPageForRole(string role)
     {
         if (!myTranscriptPageFrontier.TryGetValue(role, out var beforeIndex))
         {
@@ -832,8 +598,8 @@ public sealed class BackendScenarioSteps
     public void ThenThePreviousTranscriptPageForRoleReportsNoMoreHistory(string role) =>
         Assert.That(myLatestTranscriptPage[role].HasMore, Is.False);
 
-    [When("the backend scenario requests the archived transcript entry {int} for role {string}")]
-    public void WhenTheBackendScenarioRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role)
+    [When("the UI-protocol client requests the archived transcript entry {int} for role {string}")]
+    public void WhenTheUiProtocolClientRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role)
     {
         myScenario.RequestArchivedEntry(role, entryIndex);
         myLatestArchivedEntry = Await(myScenario.WaitForArchivedEntryAsync(role, entryIndex));
@@ -958,30 +724,6 @@ public sealed class BackendScenarioSteps
         Assert.That(observedContents, Is.EquivalentTo(expectedContents));
     }
 
-    [When("the backend scenario requests a fresh transcript synchronization and awaits role {string}'s response")]
-    public void WhenTheBackendScenarioRequestsAFreshTranscriptSynchronizationAndAwaitsRoleSResponse(string role)
-    {
-        // Snapshotting the count of synchronizations already captured for this role - before issuing the request -
-        // and then waiting for that count-plus-first one to appear identifies exactly the response this specific
-        // request produced (never an earlier one, such as the initial "ui.ready" handshake, that happened to
-        // already satisfy some later content assertion).
-        var skip = myScenario.CountTranscriptSynchronizations(role);
-        myScenario.RequestTranscriptSynchronization();
-        myAwaitedTranscriptSynchronization = Await(myScenario.WaitForNextTranscriptSynchronizationAsync(role, skip));
-    }
-
-    [Then("the freshly synchronized transcript for role {string} does not contain {string}")]
-    public void ThenTheFreshlySynchronizedTranscriptForRoleDoesNotContain(string role, string content)
-    {
-        Assert.That(myAwaitedTranscriptSynchronization, Is.Not.Null);
-        Assert.That(myAwaitedTranscriptSynchronization!.Role, Is.EqualTo(role));
-
-        var decodedContent = DecodeEscapes(content);
-        Assert.That(
-            myAwaitedTranscriptSynchronization.Entries.Any(entry => entry.Content.Contains(decodedContent, StringComparison.Ordinal)),
-            Is.False);
-    }
-
     [Then("the reconciled transcript for role {string} contains exactly these entries in order:")]
     public void ThenTheReconciledTranscriptForRoleContainsExactlyTheseEntriesInOrder(string role, Table expected)
     {
@@ -1071,16 +813,16 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentReportsProgressForToolCall(string role, string progress, string toolCallId) =>
         Await(myScenario.Agent(role).EmitToolProgressAsync(toolCallId, progress));
 
-    [Then("the backend scenario observes role {string} with active tool {string}")]
-    public void ThenTheBackendScenarioObservesRoleWithActiveTool(string role, string tool) =>
-        Await(myScenario.WaitForRoleActiveToolAsync(role, tool));
-
-    [Then("the backend scenario observes role {string} with no active tool")]
-    public void ThenTheBackendScenarioObservesRoleWithNoActiveTool(string role) =>
-        Await(myScenario.WaitForNoActiveToolAsync(role));
-
     [When("the {string} agent emits idle")]
     public void WhenTheAgentEmitsIdle(string role) => Await(myScenario.Agent(role).EmitIdleAsync());
+
+    [When("the {string} agent reports context usage {int} of {int} and AIC usage {decimal}")]
+    public void WhenTheAgentReportsContextUsageAndAicUsage(string role, int contextUsed, int contextLimit, decimal aicUsed) =>
+        Await(myScenario.Agent(role).ReportUsageAsync(contextUsed, contextLimit, aicUsed));
+
+    [When("the {string} agent goes idle with context usage {int} of {int} and AIC usage {decimal}")]
+    public void WhenTheAgentGoesIdleWithContextUsageAndAicUsage(string role, int contextUsed, int contextLimit, decimal aicUsed) =>
+        Await(myScenario.Agent(role).CompleteWithIdleUsageAsync(contextUsed, contextLimit, aicUsed));
 
     [When("the {string} agent emits readiness {string}")]
     public void WhenTheAgentEmitsReadiness(string role, string state) => Await(myScenario.Agent(role).EmitReadinessAsync(state));
@@ -1092,125 +834,6 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentFailsItsSessionWithMessage(string role, string message) =>
         Await(myScenario.Agent(role).FailSessionAsync(message));
 
-    [When("the backend scenario fails the fake provider's backend with message {string}")]
-    public void WhenTheBackendScenarioFailsTheFakeProvidersBackendWithMessage(string message) =>
-        Await(myScenario.FailProviderBackendAsync(message));
-
-    [When("the backend scenario requests a host-control shutdown")]
-    public void WhenTheBackendScenarioRequestsAHostControlShutdown() =>
-        myExitCode = Await(myScenario.ShutdownAsync());
-
-    [Then("the backend scenario observes an exit code of zero")]
-    public void ThenTheBackendScenarioObservesAnExitCodeOfZero() =>
-        Assert.That(myExitCode, Is.Zero);
-
-    [When("the backend scenario waits for the process to exit on its own")]
-    public void WhenTheBackendScenarioWaitsForTheProcessToExitOnItsOwn() =>
-        myExitCode = Await(myScenario.WaitForProcessExitAsync());
-
-    [Then("the backend scenario observes a non-zero exit code")]
-    public void ThenTheBackendScenarioObservesANonZeroExitCode() =>
-        Assert.That(myExitCode, Is.Not.Zero);
-
-    [Then("the backend scenario observes standard error containing {string}")]
-    public void ThenTheBackendScenarioObservesStandardErrorContaining(string text) =>
-        Await(myScenario.WaitForStandardErrorContainingAsync(text));
-
-    [Then("the backend scenario observes standard error does not contain {string}")]
-    public void ThenTheBackendScenarioObservesStandardErrorDoesNotContain(string text) =>
-        Assert.That(myScenario.CapturedStandardError(), Does.Not.Contain(text));
-
-    [Given("the backend scenario seeds {string} into role {string}'s worktree with content {string}")]
-    [Then("the backend scenario seeds {string} into role {string}'s worktree with content {string}")]
-    public void GivenTheBackendScenarioSeedsIntoRoleSWorktreeWithContent(string relativePath, string role, string content) =>
-        myScenario.SeedDurableRoleFile(role, relativePath, content);
-
-    [Then("the backend scenario observes role {string}'s seeded {string} still contains {string}")]
-    public void ThenTheBackendScenarioObservesRoleSSeededStillContains(string role, string relativePath, string content) =>
-        Assert.That(myScenario.DurableRoleFileIsPreserved(role, relativePath, content), Is.True);
-
-    [When("the backend scenario poisons role {string}'s handoff outbox directory")]
-    public void WhenTheBackendScenarioPoisonsRoleSHandoffOutboxDirectory(string role) =>
-        myScenario.PoisonHandoffOutbox(role);
-
-    [When("the backend scenario repairs role {string}'s handoff outbox directory")]
-    public void WhenTheBackendScenarioRepairsRoleSHandoffOutboxDirectory(string role) =>
-        myScenario.RepairHandoffOutbox(role);
-
-    [Then("the backend scenario confirms role {string} is ready through squad-hq wait-for-agent")]
-    public void ThenTheBackendScenarioConfirmsRoleIsReadyThroughSquadHqWaitForAgent(string role)
-    {
-        var result = Await(myScenario.WaitForAgentReadyThroughCliAsync(role));
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
-            Assert.That(result.StdOut, Does.Contain("is ready"));
-        });
-    }
-
-    // While cleanup is genuinely held, admission is already closed (a role never reports ready during it - the
-    // same closed-admission outcome ShutdownCommandAdmission.feature proves for an ordinary protocol command), so
-    // "squad-hq wait-for-agent" cannot itself report success here. Proving the host is still owned and genuinely
-    // reachable - not merely that the released-host diagnostic is absent - requires observing the same live-host
-    // diagnostic "Then role {string} is not ready for a prompt" already uses as proof of contact: "agent not
-    // ready" only appears once the command has actually reached the live host and polled it for its own full
-    // timeout, whereas an unreachable endpoint (host.json gone, or present but not answering) never produces it.
-    [Then("the backend scenario confirms host control is still available for role {string}")]
-    public void ThenTheBackendScenarioConfirmsHostControlIsStillAvailableForRole(string role)
-    {
-        var result = myScenario.ConfirmHostControlUnavailable(role);
-        Assert.That(result.StdErr, Does.Contain("agent not ready"), () => result.StdErr);
-    }
-
-    [Then("the backend scenario confirms host control is unavailable for role {string}")]
-    public void ThenTheBackendScenarioConfirmsHostControlIsUnavailableForRole(string role)
-    {
-        var result = myScenario.ConfirmHostControlUnavailable(role);
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.ExitCode, Is.Not.Zero);
-            Assert.That(result.StdErr, Does.Contain("squad host unavailable"));
-        });
-    }
-
-    [When("a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture")]
-    public void WhenAFreshBackendScenarioStartsSquadHqAgainstTheSameWorkspaceWithTheEchoProviderFixture() =>
-        myReplacementScenario = Await(myScenario.StartReplacementAsync<EchoAgentProviderFactory>());
-
-    [Then("the fresh backend scenario reports the process as ready")]
-    public void ThenTheFreshBackendScenarioReportsTheProcessAsReady() =>
-        Assert.That(myReplacementScenario!.IsReady, Is.True);
-
-    [When("the backend scenario waits {int} seconds for role {string} at status {string}")]
-    public void WhenTheBackendScenarioWaitsSecondsForRoleAtStatus(int seconds, string role, string status) =>
-        Await(WaitAndCaptureAsync(role, status, TimeSpan.FromSeconds(seconds)));
-
-    [Then("the wait fails with a diagnostics block naming the process, the UI protocol state, and the provider observations")]
-    public void ThenTheWaitFailsWithCombinedDiagnostics()
-    {
-        Assert.That(myLastWaitException, Is.Not.Null);
-        var message = myLastWaitException!.Message;
-        Assert.Multiple(() =>
-        {
-            Assert.That(message, Does.Contain("Process:"));
-            Assert.That(message, Does.Contain("Last known UI state:"));
-            Assert.That(message, Does.Contain("Observations:"));
-        });
-    }
-
-    private async Task WaitAndCaptureAsync(string role, string status, TimeSpan timeout)
-    {
-        myLastWaitException = null;
-        try
-        {
-            await myScenario.WaitForRoleStatusAsync(role, status, timeout);
-        }
-        catch (Exception exception)
-        {
-            myLastWaitException = exception;
-        }
-    }
-
     private static void Await(Task task) => task.GetAwaiter().GetResult();
 
     private static T Await<T>(Task<T> task) => task.GetAwaiter().GetResult();
@@ -1221,13 +844,51 @@ public sealed class BackendScenarioSteps
         value.Replace("\\r", "\r", StringComparison.Ordinal)
             .Replace("\\n", "\n", StringComparison.Ordinal);
 
-    /// <summary>Splits a comma-separated choices column into a list, or null for an empty column - representing
-    /// an input request published or observed without any choices at all, rather than an empty choices list.</summary>
-    private static IReadOnlyList<string>? ParseChoices(string commaSeparatedChoices) =>
-        commaSeparatedChoices.Length == 0 ? null : commaSeparatedChoices.Split(',', StringSplitOptions.RemoveEmptyEntries);
-
     /// <summary>Treats an empty step-table cell as an absent (null) value - used for the subagent metadata
     /// columns, where an empty column represents a real production fallback (no agent name, display name, or
     /// model reported), not the literal empty string.</summary>
     private static string? NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
+
+    /// <summary>Reads a variable-length "choice" table as a list of individual choice values, or null when the
+    /// table has no data rows - representing an input request published or observed without any choices at all,
+    /// rather than an empty choices list or a comma-encoded value.</summary>
+    private static IReadOnlyList<string>? ChoicesFromRows(Table table)
+    {
+        if (table.Header.Count != 1 || table.Header.Single() != "choice")
+        {
+            throw new ArgumentException("choices table must declare exactly one \"choice\" column.");
+        }
+
+        return table.RowCount == 0 ? null : table.Rows.Select(row => row["choice"]).ToList();
+    }
+
+    private static readonly IReadOnlySet<string> ElicitationRequestColumns = new HashSet<string>(StringComparer.Ordinal) { "mode", "url" };
+    private static readonly IReadOnlySet<string> ElicitationResponseColumns = new HashSet<string>(StringComparer.Ordinal) { "form value" };
+
+    /// <summary>Returns the single data row of a record-shaped step table, after validating it declares only its
+    /// supported column(s) and exactly one row - one field per column, an empty cell meaning that field is absent,
+    /// rather than a comma-encoded value or a second step text variant per combination of present/absent fields.</summary>
+    private static DataTableRow SingleRow(Table table, IReadOnlySet<string> supportedColumns, string tableName)
+    {
+        var unknownColumns = table.Header.Where(column => !supportedColumns.Contains(column)).ToList();
+        if (unknownColumns.Count > 0)
+        {
+            throw new ArgumentException(
+                $"{tableName} table declares unsupported column(s): {string.Join(", ", unknownColumns)}. " +
+                $"Supported column(s): {string.Join(", ", supportedColumns)}.");
+        }
+
+        var missingColumns = supportedColumns.Where(column => !table.Header.Contains(column)).ToList();
+        if (missingColumns.Count > 0)
+        {
+            throw new ArgumentException($"{tableName} table must declare column(s): {string.Join(", ", missingColumns)}.");
+        }
+
+        if (table.RowCount != 1)
+        {
+            throw new ArgumentException($"{tableName} table must declare exactly one row.");
+        }
+
+        return table.Rows[0];
+    }
 }

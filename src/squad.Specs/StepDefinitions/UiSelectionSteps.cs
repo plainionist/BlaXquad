@@ -1,4 +1,4 @@
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -12,16 +12,16 @@ public sealed class UiSelectionSteps
         myWorkspace = workspace;
     }
 
-    [When("the executable launches with the ui option specified twice")]
-    public void WhenTheExecutableLaunchesWithTheUiOptionSpecifiedTwice() =>
+    [When("the operator launches Headquarters with the ui option specified twice")]
+    public void WhenTheOperatorLaunchesHeadquartersWithTheUiOptionSpecifiedTwice() =>
         myWorkspace.RunTool("squad-hq", ["launch", "--ui", "stdio", "--ui", "stdio", myWorkspace.Root]);
 
-    [When("the executable launches with the ui option missing its value")]
-    public void WhenTheExecutableLaunchesWithTheUiOptionMissingItsValue() =>
+    [When("the operator launches Headquarters with the ui option missing its value")]
+    public void WhenTheOperatorLaunchesHeadquartersWithTheUiOptionMissingItsValue() =>
         myWorkspace.RunTool("squad-hq", ["launch", "--ui"]);
 
-    [When("the executable launches with an unknown ui value")]
-    public void WhenTheExecutableLaunchesWithAnUnknownUiValue() =>
+    [When("the operator launches Headquarters with an unknown ui value")]
+    public void WhenTheOperatorLaunchesHeadquartersWithAnUnknownUiValue() =>
         myWorkspace.RunTool("squad-hq", ["launch", "--ui", "windows", myWorkspace.Root]);
 
     [Then("the launch fails with a UI diagnostic containing {string}")]

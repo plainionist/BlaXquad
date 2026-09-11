@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using squad.Specs.Support;
+using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.StepDefinitions;
 

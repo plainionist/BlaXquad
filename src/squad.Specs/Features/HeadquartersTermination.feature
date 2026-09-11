@@ -8,38 +8,44 @@ Feature: Headquarters termination on UI closure and caller cancellation
   SquadApplication, a recording window test double, or an injected caller cancellation token.
 
   Scenario: Closing standard input after readiness terminates the process cleanly
-    Given a backend scenario configured with roles "coder,reviewer"
-    And the backend scenario has enabled the fake-provider control transport
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario observes a session started for role "reviewer" across the control pipe
-    When the backend scenario closes its standard input
-    Then the backend scenario observes an exit code of zero
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario observes a session disposed for role "reviewer" across the control pipe
-    And the backend scenario confirms host control is unavailable for role "coder"
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role     |
+      | coder    |
+      | reviewer |
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters starts an agent session for role "reviewer"
+    When the operator closes Headquarters' standard input
+    Then Headquarters exits with code 0
+    And Headquarters disposes the agent session for role "coder"
+    And Headquarters disposes the agent session for role "reviewer"
+    And the operator finds Headquarters unavailable for role "coder"
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
 
   Scenario: Closing standard input before the ready handshake still terminates the process cleanly
-    Given a backend scenario configured with a "coder" role
-    When the backend scenario launches squad-hq without completing the ready handshake
-    And the backend scenario closes its standard input
-    Then the backend scenario observes an exit code of zero
-    And the backend scenario confirms host control is unavailable for role "coder"
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    When the operator launches Headquarters without completing the ready handshake
+    And the operator closes Headquarters' standard input
+    Then Headquarters exits with code 0
+    And the operator finds Headquarters unavailable for role "coder"
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
 
   Scenario: The platform's cancellation signal after readiness terminates the process cleanly
-    Given a backend scenario configured with roles "coder,reviewer"
-    And the backend scenario has enabled the fake-provider control transport
-    When the backend scenario starts a cancellable squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario observes a session started for role "reviewer" across the control pipe
-    When the backend scenario delivers the platform's cancellation signal
-    Then the backend scenario observes an exit code of zero
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario observes a session disposed for role "reviewer" across the control pipe
-    And the backend scenario confirms host control is unavailable for role "coder"
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role     |
+      | coder    |
+      | reviewer |
+    When the operator launches a cancellable Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters starts an agent session for role "reviewer"
+    When the platform delivers its cancellation signal to Headquarters
+    Then Headquarters exits with code 0
+    And Headquarters disposes the agent session for role "coder"
+    And Headquarters disposes the agent session for role "reviewer"
+    And the operator finds Headquarters unavailable for role "coder"
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready

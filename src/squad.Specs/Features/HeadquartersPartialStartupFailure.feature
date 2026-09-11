@@ -9,33 +9,37 @@ Feature: Retiring failed and partial provider startup
   never through SquadApplication directly.
 
   Scenario: Provider failure before its runtime becomes available reports a clean diagnostic and leaves no live host
-    Given a backend scenario configured with roles "coder"
-    And the backend scenario configures the fake provider to fail before its runtime becomes available
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    And the backend scenario waits for the process to exit on its own
-    Then the backend scenario observes a non-zero exit code
-    And the backend scenario observes standard error containing "Provider startup failed"
-    And the backend scenario observes standard error does not contain "Unhandled exception"
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role  |
+      | coder |
+    And Headquarters' provider fails before its runtime becomes available
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    And Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "Provider startup failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
 
   Scenario: Provider failure partway through session startup disposes started sessions and never starts the rest
-    Given a backend scenario configured with roles "coder,reviewer"
-    And the backend scenario has enabled the fake-provider control transport
-    And the backend scenario configures the fake provider to fail after 1 session has started
-    And the backend scenario seeds "notes.md" into role "coder"'s worktree with content "Keep this note."
-    When the backend scenario starts squad-hq with the fake provider fixture
-    Then the backend scenario observes a session started for role "coder" across the control pipe
-    And the backend scenario observes a session disposed for role "coder" across the control pipe
-    And the backend scenario observes no session was ever started for role "reviewer"
-    When the backend scenario waits for the process to exit on its own
-    Then the backend scenario observes a non-zero exit code
-    And the backend scenario observes standard error containing "Provider startup failed"
-    And the backend scenario observes standard error does not contain "Unhandled exception"
-    And the backend scenario confirms host control is unavailable for role "coder"
-    And the backend scenario observes role "coder"'s seeded "notes.md" still contains "Keep this note."
-    When a fresh backend scenario starts squad-hq against the same workspace with the echo provider fixture
-    Then the fresh backend scenario reports the process as ready
+    Given `blaxquad/squad.json` configures:
+      | role     |
+      | coder    |
+      | reviewer |
+    And Headquarters' provider fails after 1 session has started
+    And role "coder" has a durable file "notes.md" containing "Keep this note."
+    When the operator launches Headquarters
+    Then Headquarters starts an agent session for role "coder"
+    And Headquarters disposes the agent session for role "coder"
+    And Headquarters never starts an agent session for role "reviewer"
+    When Headquarters' process exits on its own
+    Then Headquarters exits with a non-zero code
+    And Headquarters' standard error contains "Provider startup failed"
+    And Headquarters' standard error does not contain "Unhandled exception"
+    And the operator finds Headquarters unavailable for role "coder"
+    And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    When the operator launches a new Headquarters against the same project
+    Then the new Headquarters process reports ready
