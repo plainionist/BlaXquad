@@ -434,7 +434,7 @@ only slice allowed to adapt or add tests, and only for the configuration contrac
 existing suites unchanged: they must not edit a feature, step definition, fake-provider/headless-client contract,
 Playwright spec, or expected observable result.
 
-### Slice 1 - Configure and launch reusable roles with distinct members [in progress]
+### Slice 1 - Configure and launch reusable roles with distinct members [done]
 
 **Outcome:** A configuration author can launch `coder-a` and `coder-b` as separate members that use the same `coder`
 role prompt while retaining independent worktrees, settings, provider sessions, leader addressing, and startup
@@ -464,6 +464,12 @@ start concurrently with different session IDs and worktrees, both receive the in
 starts no member session and reports the specific configuration diagnostic. Existing one-member-per-role lifecycle,
 prompt, handoff, control, protocol, and UI scenarios remain byte-for-byte unchanged and green against the new test
 workspace configuration.
+
+**Status: complete (a0440689ef).** Schema version 2 separates role names from member configurations; `coder-a` and
+`coder-b` share `coder.prompt` with distinct sessions and worktrees. Invalid documents (duplicate member, unknown
+role, missing prompt, role-named leader, legacy v1) fail before any member session. Provider SPI and non-configuration
+Gherkin stay role-shaped with member names mapped at the boundary. Slice 2 remains pending until the architect
+activates it.
 
 ### Slice 2 - Make one aggregate own each member's mutable state
 
