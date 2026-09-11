@@ -53,7 +53,7 @@ branching/history.
 
 ### Slice 1 - Launch configured Git history
 
-**Status:** in progress
+**Status:** changes requested (1e019ca477)
 
 Deliver the complete functional path with the existing text-based Issues control and a text-based Git history
 button beside it. Visual toolbar framing and icon conversion belong only to Slice 2.
@@ -90,6 +90,45 @@ button beside it. Visual toolbar framing and icon conversion belong only to Slic
 - Backend command failures are observable protocol errors, and all existing issue-explorer behavior remains
   supported.
 - The relevant Gherkin acceptance scenarios and focused Playwright specifications pass.
+
+**Status: changes requested (1e019ca477)**
+
+#### Review findings on 1e019ca477
+
+**Finding 1 — high**
+
+- **Location:** `src/squad.Tools/History/GitHistoryTool.cs`, `src/squad-hq/Commands/Launch.cs`,
+  `src/squad.Workspaces/PreparedLaunch.cs`, `src/squad.Workspaces/Ctx.cs`.
+- **Violated behavior:** Slice 1 item 1 requires carrying `gitHistoryCommand` through the validated configuration
+  model, workspace preparation context, and immutable prepared-launch result, preserving a single configuration read.
+- **Root cause:** `GitHistoryTool.Resolve` re-parses `blaxquad/squad.json` on its own (catch-all, drops blank and
+  non-string items) because the tool is constructed in `Launch.RunMain` before `PrepareAsync`. `Ctx` and
+  `PreparedLaunch` were not extended. `SquadConfiguration.GitHistoryCommand` is never read after validation.
+- **Required outcome:** After preparation, construct the workspace tool from the validated prepared-launch command
+  (omitted or unresolvable remains unavailable). Do not re-read or re-parse `squad.json` for Git history.
+
+**Finding 2 — high**
+
+- **Location:** `src/squad.Process/ExecutableLocator.cs`, `src/squad.Tools/History/GitHistoryTool.cs`.
+- **Violated behavior:** Slice 1 item 2 requires extending executable discovery so the launch path retains the
+  resolved executable, not merely a Boolean, and then launching that same path.
+- **Root cause:** `ExecutableLocator.Exists` still returns only a Boolean. Availability stores and
+  `ProcessRunner.Start` uses the original configured name. `Exists` searches `PATH`/`PATHEXT` only;
+  `Process.Start` with `UseShellExecute = false` searches the workspace working directory first, so probe and
+  launch can disagree.
+- **Required outcome:** Discovery returns the resolved full path (qualified path or `PATH`/`PATHEXT`). Availability
+  and `OpenGitHistory` use that same path. No executable name or argument is hard-coded in product code.
+
+**Finding 3 — high**
+
+- **Location:** `src/squad-ui/tests` (no Git history specification).
+- **Violated behavior:** Slice 1 item 6 and the Playwright acceptance criterion require focused coverage that the
+  button starts disabled, follows host-published availability, emits exactly one `git-history.open` only when
+  enabled, and leaves Issues behavior intact.
+- **Root cause:** No Playwright spec exercises the Git history control or `workspace-tools.snapshot`. Existing
+  dashboard tests never publish that snapshot, so the new command path is unproven on the client.
+- **Required outcome:** Add focused Playwright coverage for those four observations. Keep Issues catalog loading,
+  selection, copy, and play behavior intact.
 
 ### Slice 2 - Present the workspace icon toolbar
 
