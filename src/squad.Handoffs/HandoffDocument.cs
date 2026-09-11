@@ -1,21 +1,18 @@
 namespace squad.Handoffs;
 
 /// <summary>
-/// The one durable, versioned JSON representation of a handoff, shared by the role CLI, Headquarters delivery, and
-/// role queue commands. <see cref="Kind"/> selects exactly one of <see cref="GitHandoff"/> or <see cref="Note"/>;
-/// the other must be absent. Recipients and priority use native JSON types rather than encoded delimiter-separated
-/// strings. <see cref="Validate"/> must be called after deserialization and before serialization so no producer or
-/// consumer can persist or act on an incomplete or self-contradictory document.
+/// The one durable JSON representation of a handoff, shared by the role CLI, Headquarters delivery, and role queue
+/// commands. <see cref="Kind"/> selects exactly one of <see cref="GitHandoff"/> or <see cref="Note"/>; the other
+/// must be absent. Recipients and priority use native JSON types rather than encoded delimiter-separated strings.
+/// A process launch is the format boundary, so no persisted handoff needs to cross executable versions and the
+/// document carries no schema-version field. <see cref="Validate"/> must be called after deserialization and before
+/// serialization so no producer or consumer can persist or act on an incomplete or self-contradictory document.
 /// </summary>
 public sealed record HandoffDocument
 {
-    /// <summary>The only schema version this release produces or accepts.</summary>
-    public const int CurrentSchemaVersion = 1;
-
     /// <summary>The suffix identifying a durable handoff artifact as JSON, distinct from a legacy ".handoff" file.</summary>
     public const string FileSuffix = ".handoff.json";
 
-    public required int SchemaVersion { get; init; }
     public required string Id { get; init; }
     public required string From { get; init; }
     public required IReadOnlyList<string> To { get; init; }
@@ -38,16 +35,12 @@ public sealed record HandoffDocument
         _ => throw new HandoffFormatException($"unknown handoff kind {Kind}"),
     };
 
-    /// <summary>Rejects an unsupported schema version, a missing or empty recipient list, and any kind/variant
-    /// pairing other than exactly the variant matching <see cref="Kind"/>.</summary>
+    /// <summary>Rejects a missing or empty recipient list and any kind/variant pairing other than exactly the
+    /// variant matching <see cref="Kind"/>.</summary>
     public void Validate()
     {
         var errors = new List<string>();
 
-        if (SchemaVersion != CurrentSchemaVersion)
-        {
-            errors.Add($"unsupported schema version {SchemaVersion}; expected {CurrentSchemaVersion}");
-        }
         if (string.IsNullOrWhiteSpace(Id))
         {
             errors.Add("missing id");

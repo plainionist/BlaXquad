@@ -17,8 +17,8 @@ public static class HandoffJson
         Converters = { new JsonStringEnumConverter() },
     };
 
-    /// <summary>Deserializes and validates one handoff document, wrapping any malformed JSON, unsupported schema
-    /// version, or invalid kind/variant pairing in a <see cref="HandoffFormatException"/> naming the source file.</summary>
+    /// <summary>Deserializes and validates one handoff document, wrapping any malformed JSON or invalid kind/variant
+    /// pairing in a <see cref="HandoffFormatException"/> naming the source file.</summary>
     public static HandoffDocument Read(string path)
     {
         try

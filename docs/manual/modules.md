@@ -55,14 +55,14 @@ associated with the current worktree.
 
 ## `squad.Handoffs`
 
-Provides shared file-backed handoff primitives: the versioned typed JSON
-document model, centralized serializer options and validation, priority
-formatting, sequence and timestamp generation, queue entry listing and
-rendering, and the shared legacy-queue preflight the role CLI still enforces
-against a legacy or mixed `.handoff`/`.handoff.json` queue. Launch itself
-never reaches this preflight: every Headquarters launch discards each
-configured worktree's complete handoff-state directory - legacy artifacts
-included - before role commands can run against it.
+Provides shared file-backed handoff primitives: the typed JSON document
+model, centralized serializer options and validation, priority formatting,
+sequence and timestamp generation, queue entry listing and rendering, and the
+shared legacy-queue preflight the role CLI still enforces against a legacy or
+mixed `.handoff`/`.handoff.json` queue. Launch itself never reaches this
+preflight: every Headquarters launch discards each configured worktree's
+complete handoff-state directory - legacy artifacts included - before role
+commands can run against it.
 
 ## `squad.Handoffs.Delivery`
 

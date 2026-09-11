@@ -315,7 +315,6 @@ static class Handoff
 
         var document = new HandoffDocument
         {
-            SchemaVersion = HandoffDocument.CurrentSchemaVersion,
             Id = id,
             From = sender,
             To = recipients,
