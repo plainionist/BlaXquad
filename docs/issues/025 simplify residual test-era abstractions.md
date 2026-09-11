@@ -288,7 +288,7 @@ backend, and disposes the poller only when it was created. Delivery logs to `Han
 `Launch.Create`, `SquadStartupPlanFactory`, and `SquadStartupPlan` are gone. Architecture records the lifecycle to
 workspace-manager dependency.
 
-### Slice 3 - Production lifecycle events are the only readiness source
+### Slice 3 - Production lifecycle events are the only readiness source [in progress]
 
 **Outcome:** `wait-for-agent` derives readiness from the same session, prompt, idle, stopped, and failed events that
 real providers publish, with no fake-only product capability.
