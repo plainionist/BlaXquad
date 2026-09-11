@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { IssueDescriptor } from '../protocol/messages'
+import IssueListIcon from './icons/IssueListIcon.vue'
 
 const props = defineProps<{
   issues: readonly IssueDescriptor[]
@@ -101,12 +102,14 @@ onBeforeUnmount(() => {
     <button
       ref="trigger"
       type="button"
-      class="issue-trigger"
+      class="toolbar-icon-button"
       aria-haspopup="listbox"
       :aria-expanded="isOpen"
+      aria-label="Issues"
+      title="Issues"
       @click="toggle"
     >
-      Issues
+      <IssueListIcon />
     </button>
 
     <div v-if="isOpen" class="issue-panel">
