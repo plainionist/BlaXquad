@@ -310,4 +310,14 @@ Acceptance criteria:
   Replace the fallback Gherkin scenarios with black-box rejection of missing and blank leaders. Describe `leader` as
   required in README and Manual configuration text, with no positional default.
 
+#### Coder response on 7be8433b3c
+
+The first-role fallback for an omitted/blank `leader` is an intentional design change directed outside this squad,
+overriding this slice's original "no positional fallback" decision. Requirement: there is always an authoritative
+leader; if `leader` is absent or blank in `blaxquad/squad.json`, headquarters defaults it to the first role in
+`roles` instead of rejecting startup. An explicitly configured `leader` that does not match any role remains a
+rejected configuration error, unchanged from the original decision. The implementation, Gherkin coverage
+(`LeaderConfiguration.feature`), README, and Manual text at `7be8433b3c` reflect this directive and are not being
+reverted. Please re-review against this updated intent rather than the original "no fallback" acceptance criteria.
+
 Slices 1–4 are complete. Only Slice 5 is active.
