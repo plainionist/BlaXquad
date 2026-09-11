@@ -9,6 +9,7 @@ import type {
 import { useFocusedRoleAbort } from './useFocusedRoleAbort'
 import { useInteractionDrafts } from './useInteractionDrafts'
 import { useIssueCatalog } from './useIssueCatalog'
+import { usePromptHistory } from './usePromptHistory'
 import { useRoleInteractions } from './useRoleInteractions'
 import { useTranscriptFeed } from './useTranscriptFeed'
 
@@ -35,6 +36,13 @@ export function useDashboardSession() {
     updateElicitationValue,
     submittedContentFor,
   } = useInteractionDrafts()
+  const {
+    recordSubmission: recordPromptSubmission,
+    isNavigating: isHistoryNavigating,
+    exitNavigation: exitHistoryNavigation,
+    recallOlder: recallOlderPromptHistory,
+    recallNewer: recallNewerPromptHistory,
+  } = usePromptHistory()
   const {
     roles,
     rolesWithOlderTranscript,
@@ -130,7 +138,22 @@ export function useDashboardSession() {
     const prompt = promptFor(role).trim()
     if (!prompt) return
     bridge.send('prompt.send', { role, payload: { prompt } })
+    recordPromptSubmission(role, prompt)
     clearPrompt(role)
+  }
+
+  function recallOlderPrompt(role: string): boolean {
+    const recalled = recallOlderPromptHistory(role, promptFor(role))
+    if (recalled === null) return false
+    updatePrompt(role, recalled)
+    return true
+  }
+
+  function recallNewerPrompt(role: string): boolean {
+    const recalled = recallNewerPromptHistory(role)
+    if (recalled === null) return false
+    updatePrompt(role, recalled)
+    return true
   }
 
   function cancelRole(role: string) {
@@ -166,6 +189,10 @@ export function useDashboardSession() {
     promptFor,
     inputDraftFor,
     elicitationValuesFor,
+    isHistoryNavigating,
+    recallOlderPrompt,
+    recallNewerPrompt,
+    exitHistoryNavigation,
     focusRole,
     requestTranscriptPage,
     requestArchivedTranscriptEntry,

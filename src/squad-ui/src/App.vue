@@ -23,6 +23,10 @@ const {
   promptFor,
   inputDraftFor,
   elicitationValuesFor,
+  isHistoryNavigating,
+  recallOlderPrompt,
+  recallNewerPrompt,
+  exitHistoryNavigation,
   focusRole,
   requestTranscriptPage,
   requestArchivedTranscriptEntry,
@@ -86,6 +90,10 @@ function playIssue(path: string) {
         :inputs="inputsFor(role.role)"
         :elicitations="elicitationsFor(role.role)"
         :prompt="promptFor(role.role)"
+        :history-navigating="isHistoryNavigating(role.role)"
+        :recall-older-prompt="recallOlderPrompt"
+        :recall-newer-prompt="recallNewerPrompt"
+        :exit-history-navigation="exitHistoryNavigation"
         :input-draft-for="inputDraftFor"
         :elicitation-values-for="elicitationValuesFor"
         :has-older="rolesWithOlderTranscript.has(role.role)"
