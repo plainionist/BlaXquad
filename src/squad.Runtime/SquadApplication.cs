@@ -3,15 +3,15 @@ using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Application;
 using squad.Handoffs.Delivery;
-using squad.Host.Control;
+using squad.Runtime.Control;
 using squad.Workspaces;
 using System.Runtime.ExceptionServices;
 
-namespace squad.Host.Runtime;
+namespace squad.Runtime;
 
 /// <summary>
 /// Owns the process-wide startup, running, and cleanup lifecycle, including the window, backend generation,
-/// handoff pump, sleep inhibitor, and host lease.
+/// handoff pump, sleep inhibitor, and Headquarters lease.
 /// </summary>
 public sealed class SquadApplication : IAsyncDisposable
 {
@@ -22,7 +22,7 @@ public sealed class SquadApplication : IAsyncDisposable
     private readonly IWindowHost myWindowHost;
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
-    private readonly HostLease myHostLease;
+    private readonly HeadquartersLease myHeadquartersLease;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
     private IAgentBackend? myAgentBackend;
@@ -40,10 +40,10 @@ public sealed class SquadApplication : IAsyncDisposable
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
-        HostLease hostLease)
+        HeadquartersLease headquartersLease)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
-        ArgumentNullException.ThrowIfNull(hostLease);
+        ArgumentNullException.ThrowIfNull(headquartersLease);
 
         var notifier = new SessionRoleNotifier(viewModel);
         return new SquadApplication(
@@ -53,7 +53,7 @@ public sealed class SquadApplication : IAsyncDisposable
             windowHost,
             sleepInhibitor,
             viewModel,
-            hostLease);
+            headquartersLease);
     }
 
     private SquadApplication(
@@ -63,7 +63,7 @@ public sealed class SquadApplication : IAsyncDisposable
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
-        HostLease hostLease)
+        HeadquartersLease headquartersLease)
     {
         myLaunchPreparer = launchPreparer;
         myAgentProviderFactory = agentProviderFactory;
@@ -71,7 +71,7 @@ public sealed class SquadApplication : IAsyncDisposable
         myWindowHost = windowHost;
         mySleepInhibitor = sleepInhibitor;
         myViewModel = viewModel;
-        myHostLease = hostLease;
+        myHeadquartersLease = headquartersLease;
     }
 
     /// <summary>
@@ -82,8 +82,8 @@ public sealed class SquadApplication : IAsyncDisposable
     {
         ExceptionDispatchInfo? primary = null;
         using var startupCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var shutdown = myHostLease.ShutdownRequested;
-        var serverFailure = myHostLease.ServerFailure;
+        var shutdown = myHeadquartersLease.ShutdownRequested;
+        var serverFailure = myHeadquartersLease.ServerFailure;
         // The handoff pump does not exist until startup reaches its construction after preparation, so no fatal
         // handoff signal can fire before then; it is recomputed from the now-owned pump once the startup task has
         // fully completed, in the same race-safe manner as the late-created backend failure below.
@@ -183,7 +183,7 @@ public sealed class SquadApplication : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
         myViewModel.InitializeRoles(prepared.MemberNames);
         myViewModel.SetLeader(prepared.Leader);
-        myHostLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
+        myHeadquartersLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
         cancellationToken.ThrowIfCancellationRequested();
         await myWindowHost.StartAsync(cancellationToken);
         myWindowStarted = true;
@@ -224,7 +224,7 @@ public sealed class SquadApplication : IAsyncDisposable
         }
         await AttemptCleanupAsync("sleep inhibitor", () => mySleepInhibitor.DisposeAsync().AsTask(), failures);
         await AttemptCleanupAsync("view model", () => myViewModel.DisposeAsync().AsTask(), failures);
-        await AttemptCleanupAsync("host lease", () => myHostLease.DisposeAsync().AsTask(), failures);
+        await AttemptCleanupAsync("Headquarters lease", () => myHeadquartersLease.DisposeAsync().AsTask(), failures);
         myStopping.Dispose();
         return failures;
     }

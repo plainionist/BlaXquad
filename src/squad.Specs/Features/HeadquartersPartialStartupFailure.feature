@@ -3,12 +3,12 @@ Feature: Retiring failed and partial provider startup
   A real squad-hq process whose provider fails during startup - whether before its runtime ever becomes available,
   or partway through establishing role sessions - reports a clear provider diagnostic on standard error (never a
   raw ".NET Unhandled exception" dump), exits with a non-zero code, disposes every session already started,
-  never starts a role it had not yet reached, never leaves a live host behind, preserves durable workspace state
-  it does not own, and permits a fresh, healthy launch against the same project afterward - proven only through
-  the real process, the real "squad-hq wait-for-agent" host-control command, and the fake-provider control pipe,
-  never through SquadApplication directly.
+  never starts a role it had not yet reached, never leaves a live Headquarters instance behind, preserves durable
+  workspace state it does not own, and permits a fresh, healthy launch against the same project afterward - proven
+  only through the real process, the real "squad-hq wait-for-agent" Headquarters-control command, and the
+  fake-provider control pipe, never through SquadApplication directly.
 
-  Scenario: Provider failure before its runtime becomes available reports a clean diagnostic and leaves no live host
+  Scenario: Provider failure before its runtime becomes available reports a clean diagnostic and leaves no live Headquarters instance
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |

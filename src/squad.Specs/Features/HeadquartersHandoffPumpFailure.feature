@@ -4,12 +4,12 @@ Feature: Surfacing a real handoff-pump failure after readiness
   through the real, filesystem-polling delivery pump, never an injected IHandoffPump.Failure or a directly
   constructed SquadApplication - terminates headquarters visibly: it reports the pump's own diagnostic on
   standard error (never a raw ".NET Unhandled exception" dump, and never mislabeled as a startup failure), exits
-  with a non-zero code, disposes every session already started, releases the host completely, preserves a
+  with a non-zero code, disposes every session already started, releases Headquarters completely, preserves a
   durable, already-queued handoff artifact it does not own, and still permits a fresh, healthy launch against the
-  same project afterward - proven only through the real process, the real "squad-hq wait-for-agent" host-control
-  command, and a real filesystem fault, never through SquadApplication directly.
+  same project afterward - proven only through the real process, the real "squad-hq wait-for-agent"
+  Headquarters-control command, and a real filesystem fault, never through SquadApplication directly.
 
-  Scenario: A real handoff-pump failure after readiness stops the host with its own diagnostic
+  Scenario: A real handoff-pump failure after readiness stops Headquarters with its own diagnostic
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |

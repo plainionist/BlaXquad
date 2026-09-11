@@ -1,4 +1,4 @@
-namespace squad.Host.Runtime;
+namespace squad.Runtime;
 
 /// <summary>
 /// Wraps a fatal <see cref="squad.Handoffs.Delivery.InProcessHandoffPoller.Failure"/> so callers can report it as the

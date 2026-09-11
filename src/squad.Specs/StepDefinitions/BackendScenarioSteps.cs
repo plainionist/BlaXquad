@@ -32,7 +32,7 @@ public sealed class BackendScenarioSteps
 
     /// <summary>
     /// Disposes the scenario's shared <see cref="BackendScenario"/> after every scenario - not just the ones that
-    /// reach a normal host-control shutdown. This explicit call must run before <see cref="ScenarioWorkspace"/>'s
+    /// reach a normal Headquarters-control shutdown. This explicit call must run before <see cref="ScenarioWorkspace"/>'s
     /// own disposal (which Reqnroll's container also triggers automatically, and which forcibly disposes every
     /// process it tracked, including this one's), so <see cref="BackendScenario.Dispose"/> can still request a
     /// clean shutdown and inspect real process state. Reqnroll's container disposes this same constructor-injected
@@ -279,10 +279,10 @@ public sealed class BackendScenarioSteps
     [Then("role {string} is not ready for a prompt")]
     public void ThenRoleIsNotReadyForAPrompt(string role)
     {
-        // A short, independently bounded probe against the same live host proves the role is genuinely not ready
-        // yet: it polls the host for its own full timeout before concluding "not ready", so its completion is
-        // evidence of a live, contacted host currently reporting this role as not ready - not a guess about how
-        // long a fixed sleep should be.
+        // A short, independently bounded probe against the same live Headquarters instance proves the role is
+        // genuinely not ready yet: it polls Headquarters for its own full timeout before concluding "not ready", so
+        // its completion is evidence of a live, contacted Headquarters instance currently reporting this role as
+        // not ready - not a guess about how long a fixed sleep should be.
         var probe = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(1));
         var probeResult = Await(probe.WaitForCompletionAsync(TimeSpan.FromSeconds(5)));
         Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);

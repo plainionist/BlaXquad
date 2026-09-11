@@ -31,7 +31,7 @@ internal sealed class BackendScenarioAgent(FakeProviderControlServer control, st
     /// block combining process, UI protocol, and provider/control observations.</summary>
     public Task ReplyAsync(string content, TimeSpan? timeout = null) => control.ReplyAsync(role, content, timeout, uiDiagnostics);
 
-    /// <summary>Waits until this role's session has reported the host sending it its initial harness instruction,
+    /// <summary>Waits until this role's session has reported Headquarters sending it its initial harness instruction,
     /// and returns its content.</summary>
     public Task<string> WaitForHarnessMessageAsync(TimeSpan? timeout = null) =>
         control.WaitForHarnessMessageAsync(role, timeout, uiDiagnostics);
@@ -43,7 +43,7 @@ internal sealed class BackendScenarioAgent(FakeProviderControlServer control, st
         control.WaitForHarnessMessageAsync(role, matches, timeout, uiDiagnostics);
 
     /// <summary>Waits until this role's session has reported rejecting a harness send (armed by
-    /// <see cref="RejectNextHarnessAsync"/>), and returns its content - proving the host has observably attempted
+    /// <see cref="RejectNextHarnessAsync"/>), and returns its content - proving Headquarters has observably attempted
     /// and failed that send.</summary>
     public Task<string> WaitForHarnessRejectedAsync(TimeSpan? timeout = null) =>
         control.WaitForHarnessRejectedAsync(role, timeout, uiDiagnostics);
@@ -52,7 +52,7 @@ internal sealed class BackendScenarioAgent(FakeProviderControlServer control, st
     /// if none has been reported yet - a snapshot read used to prove the absence of a later harness message.</summary>
     public string? LatestHarnessMessage() => control.LatestHarnessMessage(role);
 
-    /// <summary>Waits until this role's session has reported the host aborting its current operation.</summary>
+    /// <summary>Waits until this role's session has reported Headquarters aborting its current operation.</summary>
     public Task WaitForAbortAsync(TimeSpan? timeout = null) => control.WaitForAbortAsync(role, timeout, uiDiagnostics);
 
     /// <summary>Waits until this role's session has reported at least the given number of distinct aborts -
@@ -102,7 +102,7 @@ internal sealed class BackendScenarioAgent(FakeProviderControlServer control, st
         control.WaitForDisposalHeldAsync(role, timeout, uiDiagnostics);
 
 
-    /// <summary>Waits until this role's session has reported the host cancelling its pending interactions (for
+    /// <summary>Waits until this role's session has reported Headquarters cancelling its pending interactions (for
     /// example while stopping with a request still outstanding).</summary>
     public Task WaitForPendingInteractionsCancelledAsync(TimeSpan? timeout = null) =>
         control.WaitForPendingInteractionsCancelledAsync(role, timeout, uiDiagnostics);
@@ -222,7 +222,7 @@ internal sealed class BackendScenarioAgent(FakeProviderControlServer control, st
     /// <summary>Emits an explicit idle transition for this role's session.</summary>
     public Task EmitIdleAsync(TimeSpan? timeout = null) => control.EmitIdleAsync(role, timeout, uiDiagnostics);
 
-    /// <summary>Arms this role's session to reject its very next host-authored harness send with an exception
+    /// <summary>Arms this role's session to reject its very next Headquarters-authored harness send with an exception
     /// instead of publishing or reporting it.</summary>
     public Task RejectNextHarnessAsync(TimeSpan? timeout = null) => control.RejectNextHarnessAsync(role, timeout, uiDiagnostics);
 

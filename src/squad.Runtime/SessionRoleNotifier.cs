@@ -1,7 +1,7 @@
 using squad.Application;
 using squad.Handoffs.Delivery;
 
-namespace squad.Host.Runtime;
+namespace squad.Runtime;
 
 /// <summary>
 /// Routes handoff wake-ups through the application's active-session admission, the same authority interactive

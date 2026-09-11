@@ -7,7 +7,8 @@ namespace squad.Specs.StepDefinitions;
 /// <summary>
 /// Drives the real, separately launched, stdio-hosted squad-hq process through the shared <see cref="BackendScenario"/>
 /// process driver and the shared <see cref="FakeAgentProviderFactory"/> fixture - proving the real UI protocol's raw
-/// wire framing (the ready-handshake gate, transcript synchronization and paging, host-controlled shutdown, and
+/// wire framing (the ready-handshake gate, transcript synchronization and paging, Headquarters-controlled shutdown,
+/// and
 /// stdout/stderr separation) that no semantic wait already covers. No step here parses protocol envelopes, touches
 /// raw JSON, reads a stream, or otherwise manages the child process directly; every role's automatic "echo: {prompt}"
 /// reply crosses the shared fake-provider control pipe instead of a second, narrower provider fixture.

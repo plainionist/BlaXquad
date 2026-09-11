@@ -298,7 +298,7 @@ public sealed class BackendScenario : IDisposable
     /// <summary>
     /// Launches the published, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
     /// returns immediately once the process starts without ever completing the "ui.ready" handshake - for the
-    /// specification proving standard input closed (or a host-control shutdown requested) before readiness still
+    /// specification proving standard input closed (or a Headquarters-control shutdown requested) before readiness still
     /// terminates the process cleanly, rather than the ordinary ready-then-close sequence, and for a provider
     /// startup failure configured through <see cref="FailProviderBeforeRuntime"/> or
     /// <see cref="FailProviderAfterSessions"/> - either of which prevents readiness from ever being reached.
@@ -385,7 +385,7 @@ public sealed class BackendScenario : IDisposable
 
     /// <summary>
     /// Waits for the launched process to exit on its own - without first requesting shutdown through any
-    /// host-control command - and returns the exit code it observed, for specifications proving that closing
+    /// Headquarters-control command - and returns the exit code it observed, for specifications proving that closing
     /// standard input or delivering the platform's cancellation signal alone terminates the process cleanly.
     /// </summary>
     public Task<int> WaitForProcessExitAsync(TimeSpan? timeout = null)
@@ -851,7 +851,7 @@ public sealed class BackendScenario : IDisposable
     private Func<string>? DescribeUiDiagnostics() => myUi is null ? null : myUi.DescribeDiagnostics;
 
     /// <summary>
-    /// Requests shutdown through the real "squad-hq shutdown" host-control command and awaits the launched
+    /// Requests shutdown through the real "squad-hq shutdown" Headquarters-control command and awaits the launched
     /// process's own clean exit, returning the exit code it observed - never the process itself.
     /// </summary>
     public Task<int> ShutdownAsync(TimeSpan? timeout = null)
@@ -874,14 +874,14 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Issues the real "squad-hq shutdown" host-control command as its own background process and returns as soon
-    /// as it has been started, without waiting for the host to release ownership or for either the shutdown
+    /// Issues the real "squad-hq shutdown" Headquarters-control command as its own background process and returns as soon
+    /// as it has been started, without waiting for Headquarters to release ownership or for either the shutdown
     /// command or the launched process itself to exit, so a scenario can observe backend cleanup unfold - for
     /// example holding at the real provider boundary through
     /// <see cref="BackendScenarioAgent.ArmPendingDisposalAsync"/> - before later waiting for the process's own
     /// bounded exit through <see cref="WaitForProcessExitAsync"/>. Awaiting the full "squad-hq shutdown" CLI
     /// command's own completion (as <see cref="ShutdownAsync"/> does) cannot be used here because it always blocks
-    /// up to its own timeout waiting for host release, which would deadlock against a still-held disposal.
+    /// up to its own timeout waiting for Headquarters release, which would deadlock against a still-held disposal.
     /// </summary>
     public Task RequestShutdownWithoutWaitingForExit()
     {
@@ -896,7 +896,7 @@ public sealed class BackendScenario : IDisposable
 
     /// <summary>
     /// Starts "squad-hq wait-for-agent" for the given role as a separate real child process addressing this
-    /// scenario's project, using the same published, provider-free executable as the launched host, and returns a
+    /// scenario's project, using the same published, provider-free executable as the launched Headquarters instance, and returns a
     /// semantic handle so a specification can observe whether the command remains blocked or await its bounded
     /// completion and captured output - never the raw process itself.
     /// </summary>
@@ -915,7 +915,7 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Runs the real "squad-hq wait-for-agent" host-control command for the given role against this scenario's own
+    /// Runs the real "squad-hq wait-for-agent" Headquarters-control command for the given role against this scenario's own
     /// workspace and awaits its bounded completion, proving agent readiness through the same public command a real
     /// caller uses - never the UI protocol's own "state.snapshot" projection.
     /// </summary>
@@ -929,13 +929,13 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Confirms this scenario's host-control endpoint is no longer reachable - for example after a normal
-    /// host-controlled shutdown - by invoking the real "squad-hq wait-for-agent" command against this scenario's
-    /// own workspace and returning its captured result. A live host would answer promptly; an unavailable one
-    /// makes this command fail fast with the same "squad host unavailable" diagnostic any other caller would
+    /// Confirms this scenario's Headquarters-control endpoint is no longer reachable - for example after a normal
+    /// Headquarters-controlled shutdown - by invoking the real "squad-hq wait-for-agent" command against this scenario's
+    /// own workspace and returning its captured result. A live Headquarters instance would answer promptly; an unavailable one
+    /// makes this command fail fast with the same "Headquarters unavailable" diagnostic any other caller would
     /// observe, never a fabricated in-process check.
     /// </summary>
-    public CommandResult ConfirmHostControlUnavailable(string role, TimeSpan? timeout = null) =>
+    public CommandResult ConfirmHeadquartersControlUnavailable(string role, TimeSpan? timeout = null) =>
         myWorkspace.RunBackendSpecSquadHq(
             [
                 "wait-for-agent",
@@ -1030,7 +1030,7 @@ public sealed class BackendScenario : IDisposable
     /// Configures the next <see cref="StartAsync{TProviderFactory}"/> launch's fake provider to pause
     /// immediately before creating the given number of sessions - for example 0 pauses before the very first
     /// role's session, 1 pauses after the first role's session has started and been notified across the control
-    /// pipe, but before the next role's - so a specification can prove a host-control shutdown requested while
+    /// pipe, but before the next role's - so a specification can prove a Headquarters-control shutdown requested while
     /// provider startup is genuinely paused there still disposes every session already registered and terminates
     /// cleanly. Requires <see cref="EnableFakeProviderControl"/> to have also been called, so the paused position
     /// is independently observable across the control pipe rather than merely inferred from timing.
@@ -1073,11 +1073,11 @@ public sealed class BackendScenario : IDisposable
     internal void UseHostingDescriptor(string descriptor) => myHostingDescriptorOverride = descriptor;
 
     /// <summary>
-    /// Requests shutdown through the real "squad-hq shutdown" host-control command as soon as it is reachable at
-    /// all, retrying the request until it lands - since the launched process's host-control endpoint may not yet
+    /// Requests shutdown through the real "squad-hq shutdown" Headquarters-control command as soon as it is reachable at
+    /// all, retrying the request until it lands - since the launched process's Headquarters-control endpoint may not yet
     /// be listening in the very first instant after the process starts - and awaits the same clean exit
     /// <see cref="ShutdownAsync"/> does, returning the exit code observed. Proves shutdown wins even when
-    /// requested at the earliest possible moment, racing host-lease acquisition and the wait for "ui.ready"
+    /// requested at the earliest possible moment, racing Headquarters-lease acquisition and the wait for "ui.ready"
     /// itself rather than deliberately waiting for any later, more convenient point. Only one attempt is ever in
     /// flight at a time - each retry waits for its own attempt process to finish before deciding whether another
     /// is needed - so a slow first attempt never causes a pile-up of overlapping "squad-hq shutdown" child
@@ -1111,7 +1111,7 @@ public sealed class BackendScenario : IDisposable
                 throw new TimeoutException(
                     $"Timed out waiting for the backend process to exit after repeatedly requesting shutdown.\n{myUi.DescribeDiagnostics(DescribeControlDiagnostics())}");
             }
-            // This attempt's own process has already finished (most likely because the host-control endpoint
+            // This attempt's own process has already finished (most likely because the Headquarters-control endpoint
             // was not reachable yet) but the launched process is still running - retry with a fresh attempt.
         }
 
@@ -1141,7 +1141,7 @@ public sealed class BackendScenario : IDisposable
     /// <summary>
     /// Starts the real "squad-hq wait-for-agent" command for the given role as a concurrent background probe
     /// racing this scenario's own subsequent shutdown request, so a specification can later prove the role never
-    /// reported ready to a live, independently polling caller - not merely that the host became unavailable after
+    /// reported ready to a live, independently polling caller - not merely that Headquarters became unavailable after
     /// the fact.
     /// </summary>
     public BackendScenarioCommand StartWatchingForReadiness(string role, TimeSpan? timeout = null) =>
@@ -1178,7 +1178,7 @@ public sealed class BackendScenario : IDisposable
     /// <summary>
     /// Starts a brand-new <see cref="BackendScenario"/> against this exact same workspace, proving a healthy
     /// replacement process can acquire the same project and reach readiness after this scenario's own process
-    /// released it - for example after a normal host-controlled shutdown. <paramref name="continueLaunch"/>
+    /// released it - for example after a normal Headquarters-controlled shutdown. <paramref name="continueLaunch"/>
     /// passes the real "--continue" flag through to <see cref="StartAsync{TProviderFactory}"/> for a replacement
     /// that must resume from durable state a prior launch already left on disk. Tracked and disposed by this
     /// scenario (see <see cref="CreateReplacement"/> and <see cref="Dispose"/>); callers address the returned
@@ -1193,7 +1193,7 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Abruptly terminates the exact squad-hq process this scenario launched - simulating a real host crash
+    /// Abruptly terminates the exact squad-hq process this scenario launched - simulating a real Headquarters-process crash
     /// instead of a normal "squad-hq shutdown" - and waits until it has actually exited, so a specification can
     /// prove stale-ownership recovery starts from a genuinely terminated process rather than fabricated metadata.
     /// </summary>
@@ -1214,7 +1214,7 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Emergency cleanup for a scenario that never reached, or never completed, a normal host-control shutdown.
+    /// Emergency cleanup for a scenario that never reached, or never completed, a normal Headquarters-control shutdown.
     /// Disposes every child scenario this instance created (see <see cref="CreateReplacement"/> and
     /// <see cref="CreateIndependentProject"/>) first - so a replacement or independent-project process is never
     /// left running, or racing this scenario's own workspace teardown - then requests shutdown one more time on a

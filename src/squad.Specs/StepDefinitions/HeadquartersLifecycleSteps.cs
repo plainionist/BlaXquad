@@ -122,10 +122,11 @@ public sealed class HeadquartersLifecycleSteps
     [Then("role {string}'s readiness wait remains pending")]
     public async Task ThenRoleSReadinessWaitRemainsPending(string role)
     {
-        // A short, independently bounded probe against the same live host proves the role is genuinely not ready
-        // yet: it polls the host for its own full timeout before concluding "not ready", so its completion is
-        // evidence of a live, contacted host currently reporting this role as not ready - not a guess about how
-        // long a fixed sleep should be. This mirrors the equivalent proof in HostOwnershipSteps.
+        // A short, independently bounded probe against the same live Headquarters instance proves the role is
+        // genuinely not ready yet: it polls Headquarters for its own full timeout before concluding "not ready", so
+        // its completion is evidence of a live, contacted Headquarters instance currently reporting this role as
+        // not ready - not a guess about how long a fixed sleep should be. This mirrors the equivalent proof in
+        // HeadquartersOwnershipSteps.
         var probe = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(1));
         var probeResult = await probe.WaitForCompletionAsync(TimeSpan.FromSeconds(5));
         Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);
@@ -184,7 +185,7 @@ public sealed class HeadquartersLifecycleSteps
     // A composable alternative to "the operator shuts down Headquarters" for scenarios that must observe
     // in-flight cleanup (for example a held session disposal) before the process is allowed to exit: awaiting the
     // shutdown command's own completion, as the plain shutdown above does, would block up to its own timeout
-    // waiting for host release and deadlock against that still-held state.
+    // waiting for Headquarters release and deadlock against that still-held state.
     [When("the operator begins shutting down Headquarters without waiting for it to exit")]
     public void WhenTheOperatorBeginsShuttingDownHeadquartersWithoutWaitingForItToExit() =>
         Await(myScenario.RequestShutdownWithoutWaitingForExit());
@@ -216,22 +217,23 @@ public sealed class HeadquartersLifecycleSteps
     [Then("the operator finds Headquarters unavailable for role {string}")]
     public void ThenTheOperatorFindsHeadquartersUnavailableForRole(string role)
     {
-        var result = myScenario.ConfirmHostControlUnavailable(role);
+        var result = myScenario.ConfirmHeadquartersControlUnavailable(role);
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.Not.Zero);
-            Assert.That(result.StdErr, Does.Contain("squad host unavailable"));
+            Assert.That(result.StdErr, Does.Contain("Headquarters unavailable"));
         });
     }
 
-    // "Still available" reuses the same live probe as "unavailable": a genuinely dead host never answers at all
-    // (its own exit code and "squad host unavailable" diagnostic), whereas a host that is merely still starting
-    // its own role up (or, symmetrically, already shutting down but not yet released) answers reachably with its
-    // own "agent not ready" diagnostic - proving the host itself is still owned and listening.
+    // "Still available" reuses the same live probe as "unavailable": a genuinely dead Headquarters instance never
+    // answers at all (its own exit code and "Headquarters unavailable" diagnostic), whereas a Headquarters instance
+    // that is merely still starting its own role up (or, symmetrically, already shutting down but not yet released)
+    // answers reachably with its own "agent not ready" diagnostic - proving Headquarters itself is still owned and
+    // listening.
     [Then("the operator finds Headquarters still available for role {string}")]
     public void ThenTheOperatorFindsHeadquartersStillAvailableForRole(string role)
     {
-        var result = myScenario.ConfirmHostControlUnavailable(role);
+        var result = myScenario.ConfirmHeadquartersControlUnavailable(role);
         Assert.That(result.StdErr, Does.Contain("agent not ready"), () => result.StdErr);
     }
 
