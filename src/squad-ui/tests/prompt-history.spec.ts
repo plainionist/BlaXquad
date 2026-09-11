@@ -115,7 +115,6 @@ test('recalling and resubmitting a prompt sends the existing envelope and clears
 
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages.at(-1)!))).toEqual({
-    version: 6,
     type: 'prompt.send',
     role: 'coder',
     payload: {

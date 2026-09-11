@@ -15,7 +15,6 @@ test('keeps transcript DOM rows bounded for large history', async ({ page }) => 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -44,7 +43,6 @@ test('renders an off-window empty entry after it receives content', async ({ pag
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -62,7 +60,6 @@ test('renders an off-window empty entry after it receives content', async ({ pag
   await expect(transcript.locator('[data-entry-index="250"]')).toHaveCount(0)
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -124,7 +121,6 @@ test('uses renderable-row coordinates across long hidden runs', async ({ page })
   ]
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -196,7 +192,6 @@ test('rebuilds the virtual index when multiple row mutations are batched', async
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -209,7 +204,6 @@ test('rebuilds the virtual index when multiple row mutations are batched', async
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -220,7 +214,6 @@ test('rebuilds the virtual index when multiple row mutations are batched', async
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -249,7 +242,6 @@ test('rebuilds the virtual index for authoritative synchronization', async ({ pa
   await loadSnapshot(page)
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         recovery: false,
@@ -266,7 +258,6 @@ test('rebuilds the virtual index for authoritative synchronization', async ({ pa
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -307,7 +298,6 @@ test('uses role-local targeted mutations for alternating large histories', async
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: ['coder', 'reviewer'].map(role => ({
@@ -331,7 +321,6 @@ test('uses role-local targeted mutations for alternating large histories', async
     await page.evaluate(async ({ sequence }) => {
       for (const role of ['coder', 'reviewer']) {
         window.__blaxquadHarness?.receive({
-          version: 6,
           type: 'transcript.update',
           payload: {
             role,
@@ -358,7 +347,6 @@ test('uses role-local targeted mutations for alternating large histories', async
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -375,7 +363,6 @@ test('uses role-local targeted mutations for alternating large histories', async
   })
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -405,7 +392,6 @@ test('releases and invalidates row measurements on authoritative reset', async (
     }))
     await page.evaluate(({ sequence, entries }) => {
       window.__blaxquadHarness?.receive({
-        version: 6,
         type: 'transcript.synchronize',
         payload: {
           roles: [{
@@ -454,7 +440,6 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -496,7 +481,6 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
   await page.evaluate(() => {
     for (const [sequence, entryIndex] of [[2, 100], [3, 300]]) {
       window.__blaxquadHarness?.receive({
-        version: 6,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -535,7 +519,6 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -548,7 +531,6 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -580,7 +562,6 @@ test('clamps the renderable window when tail rows become empty', async ({ page }
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -599,7 +580,6 @@ test('clamps the renderable window when tail rows become empty', async ({ page }
   await expect(transcript.locator('[data-entry-index="99"]')).toBeVisible()
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -627,7 +607,6 @@ test('clamps the renderable window when tail rows become empty', async ({ page }
   }]
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -640,7 +619,6 @@ test('clamps the renderable window when tail rows become empty', async ({ page }
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -670,7 +648,6 @@ test('preserves the viewport when an older page is prepended', async ({ page }) 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -702,7 +679,6 @@ test('preserves the viewport when an older page is prepended', async ({ page }) 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.page',
       payload: {
         role: 'coder',
@@ -732,7 +708,6 @@ test('transitions atomically from a large tail to a small tail reset', async ({ 
   }))
   await page.evaluate((entries) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -761,7 +736,6 @@ test('transitions atomically from a large tail to a small tail reset', async ({ 
   })
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -795,7 +769,6 @@ test('preserves a short transcript viewport when an older page is prepended', as
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -823,7 +796,6 @@ test('preserves a short transcript viewport when an older page is prepended', as
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.page',
       payload: {
         role: 'coder',
@@ -844,7 +816,6 @@ test('preserves the viewport when an older page fills a sparse gap', async ({ pa
   await loadSnapshot(page)
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -874,7 +845,6 @@ test('preserves the viewport when an older page fills a sparse gap', async ({ pa
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.page',
       payload: {
         role: 'coder',
@@ -902,7 +872,6 @@ test('updates virtual row geometry when wrapped content changes width', async ({
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -952,7 +921,6 @@ test('preserves the reading anchor when widening wrapped content reduces the scr
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -990,7 +958,6 @@ test('preserves the reading anchor when widening wrapped content reduces the scr
   await page.evaluate(() => {
     for (let offset = 0; offset < 12; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 6,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -1030,7 +997,6 @@ test('keeps lower-grid panels at the transcript tail', async ({ page }) => {
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1061,7 +1027,6 @@ test('continues following the tail when the transcript viewport becomes shorter'
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1089,7 +1054,6 @@ test('corrects thinking row geometry while following and reading', async ({ page
   const updateWorkingState = async (isWorking: boolean) => {
     await page.evaluate(({ state, isWorking }) => {
       window.__blaxquadHarness?.receive({
-        version: 6,
         type: 'state.snapshot',
         payload: {
           ...state,
@@ -1114,7 +1078,6 @@ test('corrects thinking row geometry while following and reading', async ({ page
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{

@@ -2,7 +2,7 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
-/// <summary>Maps the authoritative issue catalog to the versioned wire payload shape consumed by the UI.</summary>
+/// <summary>Maps the authoritative issue catalog to the wire payload shape consumed by the UI.</summary>
 internal static class IssueProtocol
 {
     public static object CreateListPayload(IReadOnlyList<IssueDescriptor> issues) => new

@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace squad.Specs.Support.Ui;
 
 /// <summary>
-/// Semantic client for one launched, stdio-hosted squad-hq process. It privately frames the newline-delimited,
-/// versioned UI protocol envelopes on top of a <see cref="HeadlessUiTransport"/> that owns the process's standard
+/// Semantic client for one launched, stdio-hosted squad-hq process. It privately frames the newline-delimited UI
+/// protocol envelopes on top of a <see cref="HeadlessUiTransport"/> that owns the process's standard
 /// input/output/error, and reconciles transcript envelopes through <see cref="TranscriptProtocol"/>. Step
 /// definitions see only readiness, prompt sending, abort/interaction-response sending, role-status/usage waiting,
 /// transcript waiting, and protocol-error reporting - never raw JSON, envelopes, streams, or the child process
@@ -12,7 +12,6 @@ namespace squad.Specs.Support.Ui;
 /// </summary>
 public sealed class HeadlessUiClient
 {
-    private const int ProtocolVersion = 6;
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
@@ -483,9 +482,8 @@ public sealed class HeadlessUiClient
     /// <summary>
     /// Sends one already-serialized line verbatim, exactly as written - never through <see cref="SendEnvelope"/>'s
     /// semantic envelope construction. Exists solely for protocol-validation specifications proving the exact
-    /// "protocol.error" contract for an envelope shape no semantic command method could produce: an unsupported
-    /// version, a missing or unknown type, a missing role or request id, a mistyped payload field, or JSON that
-    /// does not parse at all.
+    /// "protocol.error" contract for an envelope shape no semantic command method could produce: a missing or
+    /// unknown type, a missing role or request id, a mistyped payload field, or JSON that does not parse at all.
     /// </summary>
     public void SendRawEnvelope(string rawJsonLine) => myTransport.WriteLine(rawJsonLine);
 
@@ -518,10 +516,10 @@ public sealed class HeadlessUiClient
 
     /// <summary>
     /// True only if every line captured on standard output so far is one complete, well-formed protocol envelope -
-    /// a JSON object carrying the protocol's "version" and "type" fields - proving concurrent multi-role activity
-    /// never tears or interleaves a line's framing, and that standard output carries nothing but the versioned
-    /// protocol. False (never an exception) if no line has been captured yet, so a caller waits for genuine
-    /// output before asserting on it instead of vacuously passing against an empty buffer.
+    /// a JSON object carrying the protocol's "type" field - proving concurrent multi-role activity never tears or
+    /// interleaves a line's framing, and that standard output carries nothing but the protocol. False (never an
+    /// exception) if no line has been captured yet, so a caller waits for genuine output before asserting on it
+    /// instead of vacuously passing against an empty buffer.
     /// </summary>
     public bool EveryCapturedStandardOutputLineIsAWellFormedEnvelope() =>
         myTransport.CopyStdOutLines() is { Count: > 0 } lines && lines.All(IsWellFormedEnvelope);
@@ -538,7 +536,6 @@ public sealed class HeadlessUiClient
         {
             using var document = JsonDocument.Parse(line);
             return document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("version", out _)
                 && document.RootElement.TryGetProperty("type", out _);
         }
         catch (JsonException)
@@ -549,7 +546,7 @@ public sealed class HeadlessUiClient
 
     private void SendEnvelope(string type, string? role = null, object? payload = null, string? requestId = null)
     {
-        var envelope = new Dictionary<string, object?> { ["version"] = ProtocolVersion, ["type"] = type };
+        var envelope = new Dictionary<string, object?> { ["type"] = type };
         if (role is not null)
         {
             envelope["role"] = role;

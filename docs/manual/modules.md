@@ -139,7 +139,7 @@ availability and perform its own launch.
 
 ## `squad.Ui.Protocol`
 
-Owns the versioned JSON protocol between Headquarters and dashboard: envelope
+Owns the internal JSON protocol between Headquarters and dashboard: envelope
 validation, command routing, snapshot publication, transcript sequencing and
 journaling, synchronization, recovery, and protocol errors.
 

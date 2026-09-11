@@ -247,9 +247,9 @@ application model as it starts.
 
 ## UI protocol
 
-The versioned JSON message boundary between Headquarters and the Vue dashboard. Message
-envelope parsing, serialization, command routing, snapshot scheduling,
-transcript delivery, journaling, and recovery are owned by `squad.Ui.Protocol`.
+The internal JSON message boundary between Headquarters and the Vue dashboard, shared by both as one packaged
+product. Message envelope parsing, serialization, command routing, snapshot scheduling, transcript delivery,
+journaling, and recovery are owned by `squad.Ui.Protocol`.
 `squad.Hosting.Photino` is only the native window and sleep-inhibition adapter that
 carries this protocol over the OS window; it has no envelope, delivery, or
 recovery logic of its own. Headquarters never references it at compile time - it

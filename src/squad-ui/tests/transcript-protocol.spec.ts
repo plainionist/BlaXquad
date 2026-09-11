@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
   deliverHostMessages,
+  deliverRawHostMessage,
   loadSnapshot,
   protocolMessage,
   roleTranscript,
@@ -233,7 +234,6 @@ test('loads archived content for a truncated entry without accepting stale data'
     page.evaluate(() => window.__blaxquadHarness?.messages.length)).toBe(1)
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages[0]))).toEqual({
-    version: 6,
     type: 'transcript.entry',
     role: 'coder',
     payload: { entryIndex: 7 },
@@ -708,19 +708,15 @@ test('clears a pending archive request when the entry was evicted before the res
     page.evaluate(() => window.__blaxquadHarness?.messages.length)).toBe(1)
   expect(await page.evaluate(() =>
     JSON.parse(window.__blaxquadHarness!.messages[0]))).toEqual({
-    version: 6,
     type: 'transcript.entry',
     role: 'coder',
     payload: { entryIndex: 7 },
   })
 })
 
-test('rejects version 2 host messages', async ({ page }) => {
+test('reports malformed host data as a visible protocol error', async ({ page }) => {
   await loadSnapshot(page)
 
-  await deliverHostMessages(page, [{
-    ...protocolMessage('state.snapshot', { payload: stateSnapshot }),
-    version: 2,
-  }])
-  await expect(page.locator('.protocol-error')).toContainText('unsupported protocol version')
+  await deliverRawHostMessage(page, '{ not valid json')
+  await expect(page.locator('.protocol-error')).toContainText('The host sent malformed protocol data.')
 })

@@ -1,5 +1,3 @@
-export const PROTOCOL_VERSION = 6
-
 export interface TranscriptEntry { occurredAt: string; source: string; content: string; hasArchivedContent?: boolean; contentStart?: number }
 export interface IndexedTranscriptEntry extends TranscriptEntry { entryIndex: number }
 export interface TranscriptAnnouncement {
@@ -121,4 +119,4 @@ export interface IssueListPayload { issues: IssueDescriptor[] }
 
 export interface WorkspaceToolsSnapshot { gitHistoryAvailable: boolean }
 
-export interface Envelope { version: number; type: string; requestId?: string; role?: string; payload?: unknown }
+export interface Envelope { type: string; requestId?: string; role?: string; payload?: unknown }

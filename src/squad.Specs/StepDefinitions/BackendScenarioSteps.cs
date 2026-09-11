@@ -324,18 +324,15 @@ public sealed class BackendScenarioSteps
         myScenario.SendPrompt(role, "hello");
     }
 
-    // Every invalid envelope in the matrix is validated (version, type, role, request id, or payload shape)
-    // before command routing ever happens, so the correct proof is that whichever provider-observable effect its
-    // command type would otherwise have produced never happened - never a broader "nothing at all happened"
-    // sweep the fake session has no API to express.
+    // Every invalid envelope in the matrix is validated (type, role, request id, or payload shape) before command
+    // routing ever happens, so the correct proof is that whichever provider-observable effect its command type
+    // would otherwise have produced never happened - never a broader "nothing at all happened" sweep the fake
+    // session has no API to express.
     [Then("no provider-side command was invoked for the rejected message")]
     public void ThenNoProviderSideCommandWasInvokedForTheRejectedMessage()
     {
         switch (myLastInvalidMessageCase)
         {
-            case "unsupported version":
-                Assert.That(myScenario.Agent("coder").HasObservedAbort(), Is.False);
-                break;
             case "missing request ID":
             case "invalid boolean payload":
                 Assert.That(myScenario.Agent("coder").HasReceivedPermissionResponse(), Is.False);

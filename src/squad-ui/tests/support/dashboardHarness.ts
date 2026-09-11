@@ -1,10 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { IssueDescriptor, RoleSnapshot } from '../../src/protocol/messages'
 
-export const PROTOCOL_VERSION = 6
-
 export interface ProtocolMessage {
-  version: number
   type: string
   requestId?: string
   role?: string
@@ -17,9 +14,9 @@ interface HostDeliveryOptions {
 
 export function protocolMessage(
   type: string,
-  options: Omit<ProtocolMessage, 'version' | 'type'> = {},
+  options: Omit<ProtocolMessage, 'type'> = {},
 ): ProtocolMessage {
-  return { version: PROTOCOL_VERSION, type, ...options }
+  return { type, ...options }
 }
 
 export async function deliverHostMessages(
@@ -36,6 +33,10 @@ export async function deliverHostMessages(
     hostMessages: messages,
     clearClientMessagesAfter: options.clearClientMessagesAfter ?? false,
   })
+}
+
+export async function deliverRawHostMessage(page: Page, raw: string) {
+  await page.evaluate((rawMessage) => window.__blaxquadHarness?.receiveRaw(rawMessage), raw)
 }
 
 export async function lastClientMessage(page: Page): Promise<ProtocolMessage> {

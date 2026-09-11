@@ -21,7 +21,7 @@ contracts and browser host APIs; it does not depend on components.
 
 ## Protocol boundary
 
-The UI exchanges versioned envelopes defined in `src/protocol/messages.ts`.
+The UI exchanges envelopes defined in `src/protocol/messages.ts`.
 C# owns command validation, authoritative session state, archive persistence,
 truncation, and delivery ordering. Vue owns presentation and transient client
 state. Archived transcript responses are reconciled by

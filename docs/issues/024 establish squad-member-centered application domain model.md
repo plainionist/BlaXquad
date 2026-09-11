@@ -387,8 +387,11 @@ component that renders one participant should become a member component.
 
 1. Rename C# application, configuration, workspace, handoff, transcript, and protocol concepts according to their
    domain meaning. Do not rename genuine role-definition or role-prompt concepts.
-2. Version or migrate persisted and wire contracts where renaming an operational `role` field to a member field is
-   externally observable. Do not silently reinterpret ambiguous data.
+2. Version or migrate durable persisted contracts (for example filesystem handoff schemas) where renaming an
+   operational `role` field to a member field is externally observable. Do not silently reinterpret ambiguous data.
+   The packaged UI JSON contract between Headquarters and the dashboard is not independently deployed or versioned;
+   rename its `role` field atomically alongside its single-release C# and Vue peers instead of introducing
+   versioning or migration machinery for it.
 3. Rename Vue state and participant components such as role panels and headers to member terminology, while keeping
    role labels available as member metadata.
 4. Remove compatibility aliases after all callers use the explicit model; no API named `role` may continue to carry
