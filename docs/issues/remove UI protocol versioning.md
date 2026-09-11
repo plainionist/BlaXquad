@@ -34,26 +34,60 @@ version bump and another round of fixture churn.
 - The stdio hosting adapter remains a transport for the same internal contract and is built from the same source; it
   does not define a separately versioned public API.
 
-## Implementation plan
+## Slice plan
 
-1. Characterize the observable validation behavior that remains supported through the existing black-box Gherkin
-   UI-protocol scenarios.
-2. Remove the protocol-version argument and check from C# envelope parsing, remove the C# version constant, and stop
-   serializing `version` on host messages.
-3. Remove the TypeScript version constant and envelope field, stop checking host versions, and stop adding a version
-   to client messages.
-4. Update the browser harness, stdio protocol support, acceptance data, and Playwright fixtures to use unversioned
-   envelopes. Remove the unsupported-version scenario rather than replacing it with a test whose only purpose is
-   proving that removed behavior is unavailable.
-5. Retain or extend high-value black-box coverage for malformed envelopes, missing types, unknown message types,
-   invalid payloads, correlated failures, and valid bidirectional messages.
-6. Update `docs/manual/architecture.md` and `docs/manual/modules.md` to describe the internal JSON UI protocol without
-   claiming it is versioned. Remove version-increment instructions from pending issues that extend this protocol.
+This is one slice: **remove UI envelope versioning end to end**. The C# host, Vue dashboard, stdio acceptance client,
+browser harness, fixtures, and documentation describe one contract shipped from one repository. Splitting those
+changes would leave an intermediate commit whose packaged peers disagree or whose tests and architecture describe a
+contract that no longer exists.
+
+### Slice 1: Remove UI envelope versioning end to end
+
+1. Change the production contract atomically:
+   - Make `UiMessageReader.Read` parse an envelope without a protocol-version argument or exact-version branch while
+     preserving type validation before command dispatch.
+   - Remove the UI protocol constant from `UiProtocolSession` and serialize host envelopes as
+     `{ type, payload[, requestId] }`.
+   - Remove `PROTOCOL_VERSION` and `Envelope.version` from the Vue protocol model, stop checking host versions, and
+     serialize client envelopes as `{ type, ...options }`.
+   - Do not reject or otherwise special-case an obsolete extra `version` property; ordinary unknown envelope
+     properties remain outside the contract. Do not add a replacement compatibility identifier.
+2. Update both black-box protocol clients and their behavioral coverage:
+   - Remove the UI version constant and envelope field from `HeadlessUiClient`. Classify stdio protocol output by a
+     complete JSON object with a message type rather than by the removed field.
+   - In `UiProtocolValidation.feature`, remove only the unsupported-version example and remove `version` from every
+     retained raw envelope. Keep the missing/unknown type, missing identifier, invalid payload, malformed JSON,
+     no-provider-invocation, recovery, and correlated-error proofs, simplifying step support that existed only for
+     the removed case.
+   - Remove versioning terminology from the stdio client, scenario facade, feature text, and protocol mapping
+     comments.
+3. Update the Vue browser boundary and fixtures:
+   - Make the shared dashboard harness `ProtocolMessage` and `protocolMessage` helper unversioned.
+   - Remove `version` from direct host-message fixtures and expected client messages in the dashboard interaction,
+     layout, prompt-history, transcript accessibility, transcript protocol, transcript scrolling, and transcript
+     virtualization specifications.
+   - Delete the Playwright case that rejects a version-2 host message. Retain the unknown-host-message proof and add
+     or retain focused malformed-host-data coverage through the real bridge so removing the version branch does not
+     weaken visible diagnostics.
+4. Align every directly affected description of the contract:
+   - Update `docs/Manual/architecture.md`, `glossary.md`, `modules.md`, and `test-strategy.md`, plus
+     `src/squad-ui/README.md`, to call this an internal JSON contract shared by the packaged dashboard and the
+     test-only stdio adapter, not a versioned public API for independently deployed clients.
+   - Update pending issue `024 establish squad-member-centered application domain model.md` so its migration guidance
+     does not prescribe versioning this packaged UI contract; retain migration/versioning requirements only where a
+     durable or independently deployed contract actually needs them.
+   - Leave the fake-provider control pipe's separate `ControlPipeDuplex.ProtocolVersion`, package metadata versions,
+     and unrelated frontend generation/layout version counters unchanged.
+5. Validate the complete slice with the affected `UiProtocolValidation` and stdio Gherkin scenarios, the Vue
+   type/build check, and the browser suite. Search tracked source, test support, fixtures, and stable documentation
+   for leftover UI-envelope constants, `version` fields, unsupported-version branches, and versioned-UI wording.
 
 ## Acceptance criteria
 
-- Neither client-to-host nor host-to-client JSON envelopes contain a `version` property.
-- No production or test-support protocol-version constant remains.
+- Neither client-to-host nor host-to-client JSON envelopes produced by the application or its test clients contain a
+  `version` property.
+- No UI-protocol version constant or exact-version rejection branch remains in production code or test support;
+  unrelated protocols and non-protocol version counters are unchanged.
 - Adding a UI message or payload field no longer requires coordinated version-number changes or unrelated fixture
   edits.
 - Headquarters accepts a valid typed command without a version field and rejects malformed envelopes, unknown
@@ -64,7 +98,9 @@ version bump and another round of fixture churn.
   unchanged.
 - The packaged Photino dashboard and the stdio-hosted acceptance client both use the same unversioned contract.
 - The affected black-box Gherkin scenarios and focused Playwright specifications pass.
-- Stable architecture and module documentation no longer describe the UI protocol as versioned.
+- Stable architecture, glossary, module, testing, and dashboard documentation no longer describe the UI protocol as
+  versioned or imply independently deployed presentation peers.
+- No pending issue instructs a future change to bump or negotiate a version for this packaged UI contract.
 
 ## Non-goals
 
