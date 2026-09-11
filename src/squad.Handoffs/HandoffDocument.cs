@@ -32,7 +32,7 @@ public sealed record HandoffDocument
     {
         HandoffKind.GitHandoff => $"merge_and_process {From} {GitHandoff!.Commit}",
         HandoffKind.Note => Note!.Message,
-        _ => throw new HandoffFormatException($"unknown handoff kind {Kind}"),
+        _ => throw new InvalidDataException($"unknown handoff kind {Kind}"),
     };
 
     /// <summary>Rejects a missing or empty recipient list and any kind/variant pairing other than exactly the
@@ -88,7 +88,7 @@ public sealed record HandoffDocument
 
         if (errors.Count > 0)
         {
-            throw new HandoffFormatException(string.Join("; ", errors));
+            throw new InvalidDataException(string.Join("; ", errors));
         }
     }
 

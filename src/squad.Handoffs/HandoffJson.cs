@@ -18,24 +18,24 @@ public static class HandoffJson
     };
 
     /// <summary>Deserializes and validates one handoff document, wrapping any malformed JSON or invalid kind/variant
-    /// pairing in a <see cref="HandoffFormatException"/> naming the source file.</summary>
+    /// pairing in an <see cref="InvalidDataException"/> naming the source file.</summary>
     public static HandoffDocument Read(string path)
     {
         try
         {
             var text = File.ReadAllText(path);
             var document = JsonSerializer.Deserialize<HandoffDocument>(text, Options)
-                ?? throw new HandoffFormatException("document is empty or null");
+                ?? throw new InvalidDataException("document is empty or null");
             document.Validate();
             return document;
         }
         catch (JsonException exception)
         {
-            throw new HandoffFormatException($"malformed handoff JSON in {path}: {exception.Message}", exception);
+            throw new InvalidDataException($"malformed handoff JSON in {path}: {exception.Message}", exception);
         }
-        catch (HandoffFormatException exception)
+        catch (InvalidDataException exception)
         {
-            throw new HandoffFormatException($"invalid handoff document in {path}: {exception.Message}", exception);
+            throw new InvalidDataException($"invalid handoff document in {path}: {exception.Message}", exception);
         }
     }
 
