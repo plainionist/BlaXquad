@@ -219,7 +219,7 @@ Do not remove these merely because an implementation count is currently small:
 Exactly one slice is active at a time. Each slice includes its production changes, black-box acceptance coverage,
 obsolete test-support cleanup, and directly affected manual updates.
 
-### Slice 1 - Workspace failures terminate at the command boundary (in progress)
+### Slice 1 - Workspace failures terminate at the command boundary [done]
 
 **Outcome:** Every invalid workspace or configuration stops launch with the existing operator-facing diagnostic,
 without relying on a callback whose caller must throw.
@@ -242,6 +242,13 @@ without relying on a callback whose caller must throw.
 launch exits non-zero with its specific diagnostic, no duplicate `Error:` prefix, no provider-startup
 misclassification, and no raw unhandled-exception output. The healthy headquarters lifecycle still reaches
 readiness.
+
+**Status: complete (413d3eb049).** `WorkspacePreparer` is parameterless and throws one `WorkspacePreparationException`
+with an unformatted diagnostic (preserving `SquadConfigurationException` message and inner exception). Launch uses
+one preparer, translates only this exception at the `squad-hq launch` boundary with a single ANSI `Error:` prefix,
+and keeps other failures off the workspace path. `HeadquartersWorkspaceFailures.feature` covers missing/malformed
+configuration, missing constitution, missing helper, and non-empty shared-path collision through the published
+process.
 
 ### Slice 2 - One immutable preparation result composes the runtime and delivery
 
