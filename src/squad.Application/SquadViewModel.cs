@@ -5,7 +5,6 @@ using squad.Application.Interactions;
 using squad.Application.RoleOperations;
 using squad.Transcripts;
 using squad.Ui.Abstractions;
-using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Threading.Channels;
 
@@ -19,7 +18,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 {
     private readonly Channel<Func<Task>> myCommands = Channel.CreateUnbounded<Func<Task>>();
     private readonly CancellationTokenSource myShutdown = new();
-    private readonly ConcurrentDictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AgentRoleState> myRoles = new(StringComparer.Ordinal);
     private readonly List<string> myRoleOrder = [];
     private string myLeader = "";
@@ -29,18 +28,18 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private readonly PendingInteractionRegistry myInteractions = new();
     private readonly AgentEventProjector myEventProjector;
     private readonly Task myEventLoop;
+    // The one synchronization boundary for command admission and active-session selection: myAccepting and
+    // mySessions are read and written only while holding this lock, so a stopping transition and a session
+    // capture can never interleave.
     private readonly object myAdmissionLock = new();
     private readonly HashSet<Task> myAcceptedCommands = [];
-    private readonly StandaloneSessionAdmission myStandaloneAdmission;
-    private ISessionAdmission myAdmission;
+    private bool myAccepting = true;
 
     public SquadViewModel()
     {
         myTranscriptRetentionOptions = new TranscriptRetentionOptions();
         myTranscriptArchive = new TranscriptArchive(myTranscriptRetentionOptions);
         myEventProjector = new AgentEventProjector(myInteractions);
-        myStandaloneAdmission = new StandaloneSessionAdmission(this);
-        myAdmission = myStandaloneAdmission;
         myEventLoop = RunEventLoopAsync();
     }
 
@@ -158,7 +157,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         {
             return null;
         }
-        if (!myAdmission.IsAccepting)
+        if (!IsAccepting)
         {
             return false;
         }
@@ -179,16 +178,11 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         CancellationToken cancellationToken = default) =>
         Task.FromResult(GetRoleReadiness(role));
 
-    public void RegisterSession(IAgentSession session) => mySessions[session.Role] = session;
-
-    /// <summary>
-    /// Replaces standalone admission with the application's lifecycle authority so phase checks and session
-    /// selection are atomic. Repeated calls replace the previous authority.
-    /// </summary>
-    public void UseAdmission(ISessionAdmission admission)
+    /// <summary>Registers a role's active provider session under the same lock guarding admission and selection.</summary>
+    public void RegisterSession(IAgentSession session)
     {
-        ArgumentNullException.ThrowIfNull(admission);
-        myAdmission = admission;
+        lock (myAdmissionLock)
+            mySessions[session.Role] = session;
     }
 
     public Task MarkRoleFailedAsync(string role, Exception exception)
@@ -216,7 +210,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private void BeginStopping()
     {
-        myStandaloneAdmission.BeginStopping();
+        lock (myAdmissionLock)
+            myAccepting = false;
         myCommands.Writer.TryComplete();
         myShutdown.Cancel();
     }
@@ -315,7 +310,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (myAdmissionLock)
         {
-            if (!myAdmission.IsAccepting)
+            if (!myAccepting)
             {
                 return Task.FromException(new InvalidOperationException("Squad is shutting down"));
             }
@@ -415,7 +410,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     {
         EnsureAccepting();
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdown.Token);
-        if (!myAdmission.TryLeaseSession(role, out var lease))
+        if (!TryCaptureSession(role, out var session))
         {
             throw new InvalidOperationException($"Unknown role: {role}");
         }
@@ -423,7 +418,28 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         EnsureAccepting();
         EnsureRoleAvailable(role);
         operationLease.Register(lifetimeCancellation);
-        await operation(lease.Session, lifetimeCancellation.Token);
+        await operation(session, lifetimeCancellation.Token);
+    }
+
+    /// <summary>
+    /// Atomically checks admission and captures the role's current non-terminal session under
+    /// <see cref="myAdmissionLock"/> - the same synchronization boundary <see cref="TrackCommand"/> and
+    /// <see cref="RegisterSession"/> use, so a stopping transition can never interleave with session selection.
+    /// </summary>
+    private bool TryCaptureSession(string role, out IAgentSession session)
+    {
+        lock (myAdmissionLock)
+        {
+            if (myAccepting
+                && mySessions.TryGetValue(role, out var candidate)
+                && !candidate.Completion.IsCompleted)
+            {
+                session = candidate;
+                return true;
+            }
+        }
+        session = null!;
+        return false;
     }
 
     private void EnsureRoleAvailable(string role)
@@ -574,7 +590,9 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
 
     private async Task CancelAllPendingInteractionsAsync()
     {
-        var sessions = mySessions.Values.ToArray();
+        IAgentSession[] sessions;
+        lock (myAdmissionLock)
+            sessions = mySessions.Values.ToArray();
         foreach (var session in sessions)
         {
             if (!session.Completion.IsCompleted)
@@ -612,9 +630,14 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         }
     }
 
+    private bool IsAccepting
+    {
+        get { lock (myAdmissionLock) return myAccepting; }
+    }
+
     private void EnsureAccepting()
     {
-        if (!myAdmission.IsAccepting)
+        if (!IsAccepting)
         {
             throw new InvalidOperationException("Squad is shutting down");
         }
@@ -637,40 +660,4 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private static bool IsImmediateUiEvent(AgentEvent agentEvent) =>
         agentEvent is AgentErrorEvent or AgentIdleEvent or AgentStoppedEvent
             or AgentPermissionRequest or AgentInputRequest or AgentElicitationRequest;
-
-    /// <summary>
-    /// Provides lifecycle admission when the view model is used without an external application authority.
-    /// </summary>
-    private sealed class StandaloneSessionAdmission(SquadViewModel owner) : ISessionAdmission
-    {
-        private readonly object myLock = new();
-        private bool myAccepting = true;
-
-        public bool IsAccepting
-        {
-            get { lock (myLock) return myAccepting; }
-        }
-
-        public void BeginStopping()
-        {
-            lock (myLock)
-                myAccepting = false;
-        }
-
-        public bool TryLeaseSession(string role, out SessionLease lease)
-        {
-            lock (myLock)
-            {
-                if (myAccepting
-                    && owner.mySessions.TryGetValue(role, out var session)
-                    && !session.Completion.IsCompleted)
-                {
-                    lease = new SessionLease(0, session);
-                    return true;
-                }
-            }
-            lease = default;
-            return false;
-        }
-    }
 }

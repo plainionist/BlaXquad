@@ -23,7 +23,6 @@ public sealed class SquadApplication : IAsyncDisposable
     private readonly ISleepInhibitor mySleepInhibitor;
     private readonly SquadViewModel myViewModel;
     private readonly HostLease myHostLease;
-    private readonly SessionRegistry mySessionRegistry;
     private readonly CancellationTokenSource myStopping = new();
     private readonly object myCleanupLock = new();
     private IAgentBackend? myAgentBackend;
@@ -33,8 +32,7 @@ public sealed class SquadApplication : IAsyncDisposable
     private bool myWindowStarted;
 
     /// <summary>
-    /// Creates an application whose handoff notifier and command dispatch share one session registry, keeping
-    /// notification routing atomic with lifecycle admission. This is the single production composition path.
+    /// Creates an application for production use. This is the single production composition path.
     /// </summary>
     public static SquadApplication Create(
         LaunchPreparer launchPreparer,
@@ -47,29 +45,23 @@ public sealed class SquadApplication : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(hostLease);
 
-        var sessionRegistry = new SessionRegistry();
-        var notifier = new SessionRoleNotifier(sessionRegistry, viewModel);
+        var notifier = new SessionRoleNotifier(viewModel);
         return new SquadApplication(
             launchPreparer,
             agentProviderFactory,
             notifier,
             windowHost,
             sleepInhibitor,
-            sessionRegistry,
             viewModel,
             hostLease);
     }
 
-    // Private composition seam used exclusively by Create above: lets the production creation path share one
-    // SessionRegistry instance between SquadApplication and SessionRoleNotifier without exposing the
-    // registry-sharing constructor as public API.
     private SquadApplication(
         LaunchPreparer launchPreparer,
         IAgentProviderFactory agentProviderFactory,
         SessionRoleNotifier handoffNotifier,
         IWindowHost windowHost,
         ISleepInhibitor sleepInhibitor,
-        SessionRegistry sessionRegistry,
         SquadViewModel viewModel,
         HostLease hostLease)
     {
@@ -80,8 +72,6 @@ public sealed class SquadApplication : IAsyncDisposable
         mySleepInhibitor = sleepInhibitor;
         myViewModel = viewModel;
         myHostLease = hostLease;
-        mySessionRegistry = sessionRegistry;
-        myViewModel.UseAdmission(sessionRegistry);
     }
 
     /// <summary>
@@ -187,7 +177,7 @@ public sealed class SquadApplication : IAsyncDisposable
         myHandoffPump = new InProcessHandoffPoller(
             prepared.HandoffRoles, myHandoffNotifier, new HandoffDeliveryLog(prepared.HandoffLogPath));
         myRuntimeController = new SquadRuntimeController(
-            mySessionRegistry, myAgentBackend, myViewModel, myHandoffPump, myStopping.Token);
+            myWindowHost, myAgentBackend, myViewModel, myHandoffPump, myStopping.Token);
         cancellationToken.ThrowIfCancellationRequested();
         await mySleepInhibitor.StartAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -198,7 +188,7 @@ public sealed class SquadApplication : IAsyncDisposable
         await myWindowHost.StartAsync(cancellationToken);
         myWindowStarted = true;
         cancellationToken.ThrowIfCancellationRequested();
-        await myRuntimeController.StartAsync(myWindowHost.SessionsStartedAsync, cancellationToken);
+        await myRuntimeController.StartAsync(cancellationToken);
     }
 
     private async Task<IReadOnlyList<Exception>> CleanupAsync()

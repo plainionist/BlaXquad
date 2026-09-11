@@ -22,14 +22,15 @@ state through `ready-for-next` and `done-with-current`.
 ## `squad.AgentProvider.Abstractions`
 
 Defines the provider-neutral agent boundary: backend, runtime, and session
-lifecycle contracts; role context; typed agent events; interaction responses;
-and session admission.
+lifecycle contracts; role context; typed agent events; and interaction
+responses.
 
 ## `squad.Application`
 
-Owns authoritative live role state and user operations. It projects agent
-events, coordinates prompts, aborts, and pending interactions, integrates
-transcript state, and supplies UI snapshots.
+Owns authoritative live role state and user operations, including the active
+role-session catalog and command admission. It projects agent events,
+coordinates prompts, aborts, and pending interactions, integrates transcript
+state, and supplies UI snapshots.
 
 ## `squad.Configuration`
 
@@ -64,8 +65,9 @@ requests, client access, and stale-state cleanup.
 ## `squad.Host.Runtime`
 
 Coordinates the headquarters lifecycle after composition. It sequences startup
-and cleanup, owns session generations and admission, observes session events
-and failures, and starts and stops handoff, window, and sleep resources.
+and cleanup, owns the provider-runtime generation, registers started sessions
+into the application model, observes session events and failures, and starts
+and stops handoff, window, and sleep resources.
 
 ## `squad.Hosting.Abstractions`
 

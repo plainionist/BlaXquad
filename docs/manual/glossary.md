@@ -219,11 +219,12 @@ generation becomes active only after all of its sessions are registered, the UI
 has been notified, pending handoff notifications have been recovered, and the
 handoff poller has started.
 
-`SessionRegistry` is the process lifecycle and command-admission authority. It
-owns the Created, Starting, Running, Stopping, and Stopped phases, a generation
-number, and the current session catalog. `SessionGeneration` separately owns
-the provider runtime handle and the event/completion observers for that
-generation.
+`SquadViewModel` is the application's command-admission authority and the sole
+owner of the active-session catalog: one synchronization boundary admits a
+command and captures its role's current session together. `SessionGeneration`
+separately owns the provider runtime handle and the event/completion observers
+for one generation, registering each started session directly into the
+application model as it starts.
 
 ## UI protocol
 
