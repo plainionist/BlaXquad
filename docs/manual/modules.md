@@ -60,13 +60,10 @@ model, centralized serializer options and validation, priority formatting,
 sequence and timestamp generation, and queue entry listing and rendering.
 Every Headquarters launch discards each configured worktree's complete
 handoff-state directory - legacy `.handoff` artifacts included - before role
-commands can run against it, so no legacy-queue guard is needed.
-
-## `squad.Handoffs.Delivery`
-
-Runs Headquarters-side handoff delivery. It polls role outboxes, durably writes
-recipient inbox copies, archives sent or failed items, and wakes recipient
-sessions.
+commands can run against it, so no legacy-queue guard is needed. Its
+`Delivery` submodule runs Headquarters-side handoff delivery: it polls role
+outboxes, durably writes recipient inbox copies, archives sent or failed
+items, and wakes recipient sessions.
 
 ## `squad.Hosting.Abstractions`
 
