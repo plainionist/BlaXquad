@@ -35,6 +35,14 @@ public sealed class HostingSelectionSteps
     public void WhenTheOperatorLaunchesHeadquartersWithAMissingHostingAssembly() =>
         Launch($"{myWorkspace.PathInWorkspace("does-not-exist.dll")};Whatever.Type");
 
+    [When("the operator launches Headquarters with a hosting assembly that exists but cannot be loaded")]
+    public void WhenTheOperatorLaunchesHeadquartersWithAnUnloadableHostingAssembly()
+    {
+        var path = myWorkspace.PathInWorkspace("not-a-managed-assembly.dll");
+        File.WriteAllText(path, "This file exists but is not a managed assembly, so loading it must fail.");
+        Launch($"{path};Whatever.Type");
+    }
+
     [When("the operator launches Headquarters with an incompatible hosting type")]
     public void WhenTheOperatorLaunchesHeadquartersWithAnIncompatibleHostingType() =>
         Launch(Descriptor(typeof(IncompatibleHostingFixture)));
@@ -65,7 +73,7 @@ public sealed class HostingSelectionSteps
     [When("the operator launches Headquarters with a hosting plug-in deployed alongside duplicate contract assemblies")]
     public void WhenTheOperatorLaunchesHeadquartersWithAHostingPluginDeployedAlongsideDuplicateContractAssemblies()
     {
-        var pluginPath = myWorkspace.CreateHostingFixtureDeploymentWithDuplicateContracts();
+        var pluginPath = myWorkspace.HostingFixtureDeploymentWithDuplicateContractsPath;
         myScenario.UseHostingDescriptor($"{pluginPath};{typeof(StdioHostingFactory).FullName}");
         myScenario.ConfigureRole("coder");
         Await(myScenario.StartAsync<FakeAgentProviderFactory>());

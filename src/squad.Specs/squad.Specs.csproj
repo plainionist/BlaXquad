@@ -10,6 +10,7 @@
     <ReqnrollUseIntermediateOutputPathForCodeBehind>true</ReqnrollUseIntermediateOutputPathForCodeBehind>
     <SquadProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad\squad.csproj'))</SquadProject>
     <squadHQProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad-hq\squad-hq.csproj'))</squadHQProject>
+    <HostingStdioProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\squad.Hosting.Stdio\squad.Hosting.Stdio.csproj'))</HostingStdioProject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -54,6 +55,19 @@
     <RemoveDir Directories="$(BackendSpecToolsDir)" />
     <Exec Command="dotnet publish &quot;$(SquadProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(BackendSpecToolsDir)&quot; --nologo --verbosity quiet" />
     <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(BackendSpecToolsDir)&quot; --property:IncludeCopilotSdkProvider=false --nologo --verbosity quiet" />
+  </Target>
+  <!-- Publishes squad.Hosting.Stdio as its own standalone, framework-dependent artifact - complete with a real
+       "squad.Hosting.Stdio.deps.json" and its own copies of every contract assembly it references
+       (squad.Hosting.Abstractions, squad.Ui.Abstractions, squad.AgentProvider.Abstractions, squad.Ui.Protocol) -
+       so the hosting-selection duplicate-contract-assembly scenario deploys a layout AssemblyDependencyResolver
+       genuinely resolves. Without this real deps.json, PluginLoadContext could never actually resolve the local
+       duplicate contract copies beside the plug-in, so a passing scenario would prove nothing about unification. -->
+  <Target Name="PublishHostingStdioFixture" BeforeTargets="VSTest">
+    <PropertyGroup>
+      <HostingStdioFixtureDir>$(TargetDir)hosting-fixture-duplicate-contracts</HostingStdioFixtureDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(HostingStdioFixtureDir)" />
+    <Exec Command="dotnet publish &quot;$(HostingStdioProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --self-contained false --property:PublishDir=&quot;$(HostingStdioFixtureDir)&quot; --nologo --verbosity quiet" />
   </Target>
 
 </Project>

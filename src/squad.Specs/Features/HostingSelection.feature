@@ -21,6 +21,10 @@ Feature: Hosting adapter selection
     When the operator launches Headquarters with a hosting assembly that does not exist
     Then the launch fails with a hosting diagnostic containing "not found"
 
+  Scenario: An unloadable hosting assembly fails clearly
+    When the operator launches Headquarters with a hosting assembly that exists but cannot be loaded
+    Then the launch fails with a hosting diagnostic containing "could not be loaded"
+
   Scenario: An incompatible hosting type fails clearly
     When the operator launches Headquarters with an incompatible hosting type
     Then the launch fails with a hosting diagnostic containing "does not publicly implement"

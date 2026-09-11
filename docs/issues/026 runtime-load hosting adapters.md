@@ -260,6 +260,29 @@ searches show no `--ui`, `UiMode`, `UiOption`, or `squad.Hosting.Stdio` referenc
 - **Required outcome:** Launch the published process with `--hosting` pointing at an existing non-assembly file
   and prove a non-zero exit, stderr containing the unloadable diagnostic, and no unhandled exception.
 
+**Status: changes applied, ready for re-review**
+
+#### Response to review findings
+
+**Finding 1 — resolved.** Added a `PublishHostingStdioFixture` MSBuild target (`squad.Specs.csproj`) that
+`dotnet publish`es `squad.Hosting.Stdio` standalone (framework-dependent, matching the existing
+`squad.AgentProvider.CopilotSdk` packaging target's pattern) into its own directory before every test run,
+producing a real `squad.Hosting.Stdio.deps.json` alongside its own copies of `squad.Hosting.Abstractions`,
+`squad.Ui.Abstractions`, `squad.AgentProvider.Abstractions`, and `squad.Ui.Protocol`. `ScenarioWorkspace` now
+points the duplicate-contract-assembly scenario at that published output instead of an ad hoc copy of select DLLs.
+Manually verified causality: with `HostingLoader.SharedAssemblyNames` temporarily emptied, the scenario fails with
+`Hosting type 'squad.Hosting.Stdio.StdioHostingFactory' was not found in '...', or does not publicly implement
+IHostingFactory.` (a real type-incompatible diagnostic, since `AssemblyDependencyResolver` now genuinely resolves
+the local duplicate copies via the deps.json); restoring the shared-name set makes it complete the ready handshake
+again, exactly as required.
+
+**Finding 2 — resolved.** Added scenario "An unloadable hosting assembly fails clearly" to
+`HostingSelection.feature` plus its step, which points `--hosting` at a real, existing, non-assembly file
+(triggering `BadImageFormatException`) and asserts a non-zero exit, `"could not be loaded"` in stderr, and no
+unhandled exception - reusing the existing "the launch fails with a hosting diagnostic containing" assertion step.
+
+All 169 `squad.Specs` tests pass, including both new/changed scenarios.
+
 ### Slice 2: Runtime-load and package Photino as the default
 
 **Outcome:** Omitting `--hosting` loads a complete Photino hosting bundle from the packaged sibling plug-in, with no

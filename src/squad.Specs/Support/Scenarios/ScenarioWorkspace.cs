@@ -106,30 +106,18 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
-    /// Copies the stdio hosting plug-in assembly into its own isolated deployment directory together with a
-    /// duplicate copy of every contract assembly whose types cross the hosting boundary
-    /// (<c>squad.Hosting.Abstractions</c>, <c>squad.Ui.Abstractions</c>) plus its remaining private dependencies,
-    /// for the specification proving the hosting loader still unifies those contract assemblies with
-    /// headquarters' own copies rather than loading the local duplicates sitting right beside the plug-in.
-    /// Returns the deployed plug-in assembly's path.
+    /// The stdio hosting plug-in assembly published standalone into its own directory (see the
+    /// "PublishHostingStdioFixture" MSBuild target), complete with a real "squad.Hosting.Stdio.deps.json" and its
+    /// own copies of every contract assembly whose types cross the hosting boundary
+    /// (<c>squad.Hosting.Abstractions</c>, <c>squad.Ui.Abstractions</c>, <c>squad.AgentProvider.Abstractions</c>)
+    /// plus its remaining private dependencies (<c>squad.Ui.Protocol</c>) - a layout
+    /// <see cref="System.Runtime.Loader.AssemblyDependencyResolver"/> genuinely resolves, unlike an ad hoc copy of
+    /// select DLLs with no dependency manifest. Proves the hosting loader still unifies those duplicated contract
+    /// assemblies with headquarters' own copies rather than loading the local copies sitting right beside the
+    /// plug-in. Returns the deployed plug-in assembly's path.
     /// </summary>
-    public string CreateHostingFixtureDeploymentWithDuplicateContracts()
-    {
-        var destination = PathInWorkspace("hosting-fixture-duplicate-contracts");
-        Directory.CreateDirectory(destination);
-        foreach (var fileName in new[]
-                 {
-                     "squad.Hosting.Stdio.dll",
-                     "squad.Ui.Protocol.dll",
-                     "squad.Hosting.Abstractions.dll",
-                     "squad.Ui.Abstractions.dll",
-                     "squad.AgentProvider.Abstractions.dll",
-                 })
-        {
-            File.Copy(Path.Combine(AppContext.BaseDirectory, fileName), Path.Combine(destination, fileName), overwrite: true);
-        }
-        return Path.Combine(destination, "squad.Hosting.Stdio.dll");
-    }
+    public string HostingFixtureDeploymentWithDuplicateContractsPath =>
+        Path.Combine(AppContext.BaseDirectory, "hosting-fixture-duplicate-contracts", "squad.Hosting.Stdio.dll");
 
     private static void CopyDirectoryRecursive(string source, string destination)
     {
