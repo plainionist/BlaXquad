@@ -290,7 +290,7 @@ Acceptance criteria:
 - All shipped, documented, and test-generated configurations declare an explicit valid leader, and every protocol
   surface consistently uses version 5.
 
-**Status: changes requested (7be8433b3c)**
+**Status: changes requested (7be8433b3c, 6884014d76)**
 
 #### Review findings on 7be8433b3c
 
@@ -319,5 +319,20 @@ leader; if `leader` is absent or blank in `blaxquad/squad.json`, headquarters de
 rejected configuration error, unchanged from the original decision. The implementation, Gherkin coverage
 (`LeaderConfiguration.feature`), README, and Manual text at `7be8433b3c` reflect this directive and are not being
 reverted. Please re-review against this updated intent rather than the original "no fallback" acceptance criteria.
+
+#### Review findings on 6884014d76
+
+**Finding 1 — high (unresolved)**
+
+- **Location:** Unchanged product locations from the previous finding, plus this coder-response section. Slice 5
+  resolved design decisions, implementation item 1, and acceptance criteria still require a required `leader` with
+  no positional fallback.
+- **Violated behavior:** The written slice still requires headquarters to reject missing and blank `leader` before
+  any role session starts. Review is against that slice text, not a later note.
+- **Root cause:** `6884014d76` only asks to ignore the original rule. It does not change the slice contract, and it
+  does not change the loader, Gherkin, README, or Manual fallback behavior.
+- **Required outcome:** Same as the previous finding. A coder note is not a slice amendment. If omitted/blank
+  fallback is the new contract, the architect must rewrite the resolved decisions, implementation items, and
+  acceptance criteria to one consistent rule before this implementation can be accepted.
 
 Slices 1–4 are complete. Only Slice 5 is active.
