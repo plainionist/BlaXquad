@@ -17,9 +17,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .protocol-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 8px 10px; border: 1px solid #f14c4c; background: #5a1d1d; color: #f8d7da; }
 .dismiss { min-width: 30px; min-height: 30px; border: 0; background: transparent; color: inherit; font-family: 'Courier New', monospace; }
 .issue-toolbar { position: relative; z-index: 30; display: flex; align-items: center; flex: 0 0 auto; }
-.issue-trigger { height: 30px; padding: 0 14px; border: 1px solid #3c3c3c; border-radius: 3px; background: #2d2d2d; color: #cccccc; }
-.issue-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
-.toolbar-row { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.workspace-toolbar { display: flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid #3c3c3c; border-radius: 4px; background: #252526; flex: 1 1 auto; width: 100%; }
+.toolbar-icon-button { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #cccccc; }
+.toolbar-icon-button svg { width: 16px; height: 16px; }
+.toolbar-icon-button:hover, .toolbar-icon-button:focus-visible { background: #04395e; outline: none; }
+.toolbar-icon-button:disabled { opacity: 0.4; cursor: not-allowed; }
+.toolbar-icon-button:disabled:hover { background: transparent; }
+.toolbar-row { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; width: 100%; }
 .issue-panel { position: absolute; top: calc(100% + 4px); left: 0; display: flex; gap: 8px; max-width: calc(100vw - 20px); }
 .issue-menu-column { display: flex; flex-direction: column; gap: 6px; min-width: 330px; max-width: 480px; }
 .issue-menu { max-height: 480px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid #3c3c3c; border-radius: 3px; background: #252526; box-shadow: 0 2px 8px rgb(0 0 0 / 28%); }

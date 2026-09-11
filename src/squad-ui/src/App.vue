@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ProtocolErrorBanner from './components/ProtocolErrorBanner.vue'
-import IssueExplorer from './components/IssueExplorer.vue'
+import WorkspaceToolbar from './components/WorkspaceToolbar.vue'
 import RolePanel from './components/RolePanel.vue'
 import { useDashboardSession } from './composables/useDashboardSession'
 
@@ -74,23 +74,16 @@ function playIssue(path: string) {
     />
 
     <div class="toolbar-row">
-      <IssueExplorer
+      <WorkspaceToolbar
         :issues="issues"
-        :is-loading="issuesLoading"
-        :error="catalogError"
+        :issues-loading="issuesLoading"
+        :catalog-error="catalogError"
         :has-target-role="targetRoleName !== null"
-        @open="requestCatalog"
-        @play="playIssue"
+        :git-history-available="gitHistoryAvailable"
+        @open-issues="requestCatalog"
+        @play-issue="playIssue"
+        @open-git-history="openGitHistory"
       />
-
-      <button
-        type="button"
-        class="issue-trigger"
-        :disabled="!gitHistoryAvailable"
-        @click="openGitHistory"
-      >
-        Git history
-      </button>
     </div>
 
     <section v-if="hasRoles" class="role-grid" aria-label="Agent roles">

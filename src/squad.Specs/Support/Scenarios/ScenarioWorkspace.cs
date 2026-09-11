@@ -71,11 +71,17 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void ConfigureToolCommand(string fieldName, string commandJson)
     {
+        var leader = myRoleWorktrees.Keys.First();
         var members = myRoleWorktrees.Keys
             .Select(role => (Name: role, Role: role, Worktree: role, ReceiveMode: (string?)null))
             .ToList();
-        var leader = myRoleWorktrees.Keys.First();
-        WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(leader, members, extraFieldJson: (fieldName, commandJson)));
+        WriteFile(
+            "blaxquad/squad.json",
+            BuildSquadConfigurationJson(
+                leader,
+                members,
+                additionalPropertyName: fieldName,
+                additionalPropertyJson: commandJson));
     }
 
     /// <summary>
@@ -333,7 +339,8 @@ public sealed class ScenarioWorkspace : IDisposable
         string? leader,
         IReadOnlyList<(string Name, string Role, string Worktree, string? ReceiveMode)> members,
         IReadOnlyList<string>? sharedWorktreePaths = null,
-        (string FieldName, string Json)? extraFieldJson = null)
+        string? additionalPropertyName = null,
+        string? additionalPropertyJson = null)
     {
         var rolesJson = string.Join(", ", members
             .Select(member => member.Role)
@@ -345,13 +352,13 @@ public sealed class ScenarioWorkspace : IDisposable
         var sharedWorktreePathsLine = sharedWorktreePaths is null || sharedWorktreePaths.Count == 0
             ? ""
             : $$"""  "sharedWorktreePaths": [{{string.Join(", ", sharedWorktreePaths.Select(path => $"\"{path}\""))}}],{{"\n"}}""";
-        var extraFieldLine = extraFieldJson is null
+        var additionalPropertyLine = additionalPropertyName is null
             ? ""
-            : $$"""  "{{extraFieldJson.Value.FieldName}}": {{extraFieldJson.Value.Json}},{{"\n"}}""";
+            : $$"""  "{{additionalPropertyName}}": {{additionalPropertyJson}},{{"\n"}}""";
         return $$"""
             {
               "schemaVersion": 2,
-            {{leaderLine}}{{sharedWorktreePathsLine}}{{extraFieldLine}}  "roles": [{{rolesJson}}],
+            {{leaderLine}}{{sharedWorktreePathsLine}}{{additionalPropertyLine}}  "roles": [{{rolesJson}}],
               "members": [
             {{membersJson}}
               ]
@@ -630,6 +637,5 @@ public sealed class ScenarioWorkspace : IDisposable
 
     private static void AssertSuccessful(CommandResult result) => result.EnsureSuccess();
 }
-
 
 

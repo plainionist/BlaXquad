@@ -538,9 +538,9 @@ No test source changes in this slice, and every existing observable ordering rem
 **Status: complete (1d4dde5924).** Each member has a bounded single-reader processor that is the sole writer of its
 aggregate. Typed prompt, harness, abort, interaction, event, terminal, starting, outcome, and retirement messages
 replace the shared command channel. Completions carry generation, member, and operation identity and are dropped
-when stale. Slice 4 remains pending until the architect activates it.
+when stale. Slice 4 is active.
 
-### Slice 4 - Separate Headquarters from the replaceable Squad generation
+### Slice 4 - Separate Headquarters from the replaceable Squad generation [in progress]
 
 **Outcome:** Headquarters owns a process shell and one serialized active-squad slot, while one `Squad` owns and
 retires every resource whose lifetime follows a generation through a single contract.
