@@ -38,6 +38,12 @@ public sealed class Headquarters : IAsyncDisposable
     private Squad? mySquad;
     private Task<IReadOnlyList<Exception>>? myCleanup;
     private bool myWindowStarted;
+    // Set once, only while collecting the process's own cleanup failures. While Headquarters keeps running (a
+    // replacement, or a failed installation's own retry-on-catch), a conclusive retirement that empties the slot
+    // also uninstalls that generation from the process-lifetime UI port, so it answers as an empty squad instead of
+    // still publishing a generation nothing owns anymore. During process-wide stop the retired generation stays
+    // installed instead, so a query in flight still sees a known, not-ready role rather than an unknown one.
+    private bool myStopping;
 
     /// <summary>
     /// Creates Headquarters for production use. This is the single production composition path.
@@ -266,8 +272,11 @@ public sealed class Headquarters : IAsyncDisposable
 
     /// <summary>
     /// Retires the installed generation, if any, and empties the slot when that retirement is conclusive. A
-    /// non-conclusive retirement keeps the generation owned, so no replacement can be installed over it. The
-    /// collected failures are reported exactly once, by whichever caller first retires the generation.
+    /// non-conclusive retirement keeps the generation owned, so no replacement can be installed over it. While
+    /// Headquarters keeps running, a conclusive retirement also uninstalls that generation from the process-
+    /// lifetime UI port, keeping it in lockstep with the now-empty slot; during process-wide stop it stays
+    /// installed instead, matching the existing shutdown-admission behavior. The collected failures are reported
+    /// exactly once, by whichever caller first retires the generation.
     /// </summary>
     private async Task<IReadOnlyList<Exception>> RetireSquadUnlockedAsync()
     {
@@ -275,10 +284,15 @@ public sealed class Headquarters : IAsyncDisposable
         {
             return [];
         }
+        var generation = mySquad.Generation;
         var retirement = await mySquad.RetireAsync();
         if (retirement.IsConclusive)
         {
             mySquad = null;
+            if (!myStopping)
+            {
+                myViewModel.Uninstall(generation);
+            }
         }
         return retirement.Failures;
     }
@@ -305,8 +319,11 @@ public sealed class Headquarters : IAsyncDisposable
     {
         var failures = new List<Exception>();
         // Close process-level command admission first, so a command is rejected even when no generation was ever
-        // installed to reject it.
+        // installed to reject it. Marking the process as stopping before retiring keeps a retired generation
+        // installed for the rest of process-wide cleanup, matching existing shutdown-admission behavior, instead
+        // of uninstalling it as a mid-run replacement would.
         myViewModel.BeginStopping();
+        myStopping = true;
         await mySlotGate.WaitAsync();
         try
         {
