@@ -15,7 +15,6 @@ internal sealed class SessionGeneration
     private readonly IAgentBackend myAgentBackend;
     private readonly SquadViewModel myViewModel;
     private readonly CancellationToken myStoppingToken;
-    private readonly Dictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
     private readonly List<Task> myEventTasks = [];
     private readonly List<CancellationTokenSource> mySessionCancellations = [];
     private readonly CancellationTokenSource myEventCancellation = new();
@@ -33,20 +32,20 @@ internal sealed class SessionGeneration
         myStoppingToken = stoppingToken;
     }
 
-    public async Task StartAsync(Func<IAgentSession, Task> onSessionRegistered, CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         myRuntime = await myAgentBackend.CreateRuntimeAsync(cancellationToken);
-        await myRuntime.StartAsync(session => RegisterSessionAsync(session, onSessionRegistered), cancellationToken);
+        await myRuntime.StartAsync(RegisterSessionAsync, cancellationToken);
     }
 
-    private async Task RegisterSessionAsync(IAgentSession session, Func<IAgentSession, Task> onSessionRegistered)
+    private Task RegisterSessionAsync(IAgentSession session)
     {
-        await onSessionRegistered(session);
-        mySessions.Add(session.Role, session);
+        myViewModel.RegisterSession(session);
         var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(myEventCancellation.Token);
         mySessionCancellations.Add(sessionCancellation);
         var eventTask = ObserveEventsAsync(session, sessionCancellation.Token);
         myEventTasks.Add(ObserveSessionAsync(session, sessionCancellation, eventTask));
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -109,7 +108,6 @@ internal sealed class SessionGeneration
         }
         mySessionCancellations.Clear();
         myEventTasks.Clear();
-        mySessions.Clear();
         myEventCancellation.Dispose();
         return failures;
     }

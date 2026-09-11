@@ -169,10 +169,13 @@ flowchart LR
 
 ### Responsibility boundaries
 
-- **Lifecycle coordination** owns the process phase, command admission, the current provider-runtime generation,
-  session registration, event observation, startup completion, and ordered teardown.
-- **Application model** owns the authoritative projection for every role. It serializes state changes, coordinates
-  concurrent operations per role, records pending interactions, and derives transcripts from provider events.
+- **Lifecycle coordination** owns the process phase, the current provider-runtime generation, session-started
+  registration into the application model, event observation, startup completion, and ordered teardown. Command
+  admission and active-session selection belong to the application model.
+- **Application model** owns the authoritative projection for every role and is the sole owner of the active
+  role-session catalog and command admission. Under one synchronization boundary it serializes state changes,
+  admits or rejects commands, selects the current session for a role, coordinates concurrent operations per role,
+  records pending interactions, and derives transcripts from provider events.
 - **Provider adapter** translates the provider-neutral session model into the selected provider. Provider-specific
   event types and callbacks do not cross into the application model.
 - **UI protocol** translates between JSON messages and application operations. It controls snapshot publication,
