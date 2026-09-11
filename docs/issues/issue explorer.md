@@ -84,8 +84,8 @@ This is a protocol extension, so increment the protocol version in C# and TypeSc
 ## Resolved design decisions
 
 - Play replaces the configured leader's current draft immediately. It does not append or ask for confirmation.
-- `blaxquad/squad.json` has a required top-level `leader` field whose value must exactly match one configured role
-  name. There is no positional or first-role fallback.
+- `blaxquad/squad.json` may name a top-level `leader`. A missing or blank value resolves to the first configured role;
+  an explicit non-blank value must exactly match one configured role name.
 - The catalog is an independent, read-only filesystem concern. Put its transport-neutral descriptor and narrow
   catalog contract in `squad.Ui.Abstractions`, implement it in a cohesive `squad.Issues` module, and inject it from
   the `squad-hq` composition root. `SquadViewModel` remains unchanged by issue discovery.
@@ -105,7 +105,8 @@ This is a protocol extension, so increment the protocol version in C# and TypeSc
   `docs/issues`, enumeration failures, and file-read failures are protocol errors. YAML content errors are descriptor
   fallbacks, not protocol errors.
 - Use the order in the configured `roles` array as the authoritative role order. Preserve it explicitly in snapshots
-  rather than relying on `Dictionary` enumeration, but use `leader`, never array position, to choose the issue target.
+  rather than relying on `Dictionary` enumeration. Headquarters resolves `leader` once from configuration, including
+  the first-role default; Vue uses that resolved name and never applies its own positional fallback.
 
 ## Delivery plan
 
@@ -246,7 +247,8 @@ disabled-state, and no-auto-send behavior remain.
 
 ### Slice 5 - Target the configured leader (in progress)
 
-**Outcome:** Play targets the explicitly configured squad leader regardless of role ordering.
+**Outcome:** Play targets the leader resolved by headquarters: the named role when configured, otherwise the first
+configured role.
 
 Configuration shape:
 
@@ -260,34 +262,40 @@ Configuration shape:
 }
 ```
 
+Omitting `leader`, or setting it to an empty or whitespace-only string, is valid and resolves to the first entry in
+`roles`. An explicit non-blank value remains strict and must name a configured role.
+
 Implementation:
 
-1. Add required `leader` data to `SquadConfigurationDocument` and `SquadConfiguration`. Validate it as a non-empty
-   exact, ordinal match for one validated role name. Missing, blank, and unknown leaders are configuration errors;
-   do not retain a first-role fallback.
-2. Carry the validated leader with the ordered roles through `Ctx` and the startup plan into `SquadViewModel` as one
-   coherent roster. Do not re-read configuration in the application or UI protocol layers.
+1. Add optional `leader` input to `SquadConfigurationDocument`. Resolve a missing, empty, or whitespace-only value to
+   the first validated role; require an explicit non-blank value to match one role name exactly and ordinally.
+   `SquadConfiguration` exposes the resulting non-empty role name, not the nullable raw input.
+2. Carry the resolved leader with the ordered roles through `Ctx` and the startup plan into `SquadViewModel` as one
+   coherent roster. Do not re-read or re-resolve configuration in the application or UI protocol layers.
 3. Publish `leader` as top-level authoritative session metadata in `state.snapshot`. Update the C# and TypeScript
    protocol versions from 4 to 5 together, including backend and Playwright protocol fixtures. Do not attach leader
    data to `issues.list`.
 4. Change Play to find the role whose name equals `snapshot.leader`. Preserve Slice 4's exact prompt replacement,
    focus, other-draft isolation, and no-auto-send behavior. If the current UI projection has no matching role, disable
    Play rather than falling back to the first role; Copy remains available.
-5. Update the repository's `blaxquad/squad.json`, README configuration example, relevant Manual configuration
-   descriptions, and every test workspace/configuration builder with an explicit valid leader.
-6. Add black-box Gherkin coverage through the published headquarters process for accepted leader publication and
-   rejected missing, blank, and unknown leaders. Add focused Playwright coverage with a leader that is not the first
-   role to prove name-based targeting through the existing Play boundary.
+5. Update the repository's `blaxquad/squad.json`, README configuration example, and relevant Manual configuration
+   descriptions. Test workspace/configuration builders may supply an explicit leader by default, but must also support
+   omission and blank values for fallback scenarios.
+6. Add black-box Gherkin coverage through the published headquarters process for explicit, omitted, and blank leader
+   resolution plus rejection of an explicit unknown leader. Add focused Playwright coverage with a leader that is not
+   the first role to prove name-based targeting through the existing Play boundary.
 
 Acceptance criteria:
 
-- Headquarters rejects startup before creating role sessions when `leader` is missing, blank, or not present in
-  `roles`, with a specific configuration error.
-- A valid `state.snapshot` reports the configured leader and retains configured role order independently.
+- Missing and blank `leader` values start successfully and publish the first configured role as leader. An explicit
+  unknown leader is rejected before role sessions start with a specific configuration error.
+- Every valid `state.snapshot` reports the non-empty leader resolved by headquarters and retains configured role order
+  independently.
 - With roles ordered as `coder, architect` and `leader: architect`, Play replaces and focuses only the architect
   draft, preserves the coder draft, and emits no protocol message until explicit submission.
-- Play has no positional fallback when its current snapshot lacks the configured leader, while Copy remains enabled.
-- All shipped, documented, and test-generated configurations declare an explicit valid leader, and every protocol
-  surface consistently uses version 5.
+- If the current UI projection lacks the resolved snapshot leader, Play is disabled while Copy remains enabled; Vue
+  does not perform another first-role fallback.
+- Shipped configuration declares an explicit leader, documentation explains both explicit and default resolution,
+  test-generated configurations cover both forms, and every protocol surface consistently uses version 5.
 
 Slices 1–4 are complete. Only Slice 5 is active.
