@@ -16,3 +16,8 @@ Feature: Hosting adapter packaging
   Scenario: An opt-out publish omits the Photino hosting plug-in entirely
     When squad-hq is published with the Photino hosting plug-in opted out
     Then the opt-out publish output contains no Photino hosting assembly, runtime assets, or UI
+
+  Scenario: The backend-spec publication is a hosting-neutral squad-hq
+    Then the published backend-spec output contains the squad-hq executable
+    And the published backend-spec output contains no Photino hosting assembly, dependency, runtime asset, Vue distribution, or window asset
+    And the published backend-spec output contains no stdio hosting plug-in

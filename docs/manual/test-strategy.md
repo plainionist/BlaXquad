@@ -18,7 +18,8 @@ The target test system runs:
 - a fake provider implementing the provider-neutral agent SPI; and
 - real Git, filesystem, workspace, host-control, and handoff behavior.
 
-The main backend suite must not reference or load `squad.AgentProvider.CopilotSdk`.
+The main backend suite must not reference or load `squad.AgentProvider.CopilotSdk` or `squad.Hosting.Photino`; the
+backend-spec publication of `squad-hq` carries neither.
 
 ## Test boundary
 
@@ -205,8 +206,7 @@ The existing provider-neutral runtime contracts remain the authoritative SPI:
 - `IAgentSession`; and
 - typed `AgentEvent` values.
 
-Headquarters additionally needs one process-time provider factory. The current `IRuntimeModeFactory` should be reduced
-to a cohesive contract conceptually equivalent to:
+Headquarters loads one process-time provider factory:
 
 ```csharp
 public interface IAgentProviderFactory
@@ -219,21 +219,19 @@ public interface IAgentProviderFactory
 }
 ```
 
-The exact name is not important. The contract is:
-
 - context is a prepared value, not a deferred `Func<AgentBackendContext>`;
 - provider preparation and backend creation form one cohesive operation;
-- the returned backend retains ownership of provider-runtime generations as today; and
+- the returned backend retains ownership of provider-runtime generations; and
 - the factory contains no test-specific members.
 
 ### Explicit provider loading
 
-`squad-hq` currently references and constructs `CopilotSdkRuntimeModeFactory` directly. To run the actual executable
-without `squad.AgentProvider.CopilotSdk`, provider selection must happen at process composition.
+`squad-hq` never references or constructs a concrete provider factory at compile time. Provider selection happens at
+process composition: `Launch` loads a provider factory at runtime from an explicit `--provider <assemblyPath>;<typeName>`
+descriptor.
 
-Headquarters loads a provider factory selected explicitly by a trusted command-line option or installation manifest:
-
-- the production package selects the Copilot SDK provider by default;
+- the production package selects the Copilot SDK provider by default, through a data-only descriptor pointing at the
+  packaged sibling assembly - never a project reference;
 - backend specs explicitly select the fake provider from `squad.AgentProvider.Fake.dll`; and
 - no provider assembly is discovered or loaded from the target workspace.
 
@@ -273,7 +271,8 @@ composing it directly.
 
 Publishing with `-p:IncludePhotinoHosting=false` omits the Photino assembly, its dependency manifest, its managed
 and native dependencies, and the built Vue distribution from the publish output entirely, the same way
-`-p:IncludeCopilotSdkProvider=false` omits the default provider.
+`-p:IncludeCopilotSdkProvider=false` omits the default provider. The backend-spec publication passes both properties
+so the executable the backend suite actually runs carries neither default plug-in.
 
 ## Fake-provider control channel
 
@@ -433,10 +432,12 @@ assemblies.
 
 ## Architectural proof
 
-Before migrating the full suite, prove one complete vertical path:
+The complete vertical path the black-box suite is built on:
 
-1. Publish `squad-hq` without `squad.AgentProvider.CopilotSdk`.
-2. Start the actual executable with the stdio UI and the fake provider from `squad.AgentProvider.Fake.dll`.
+1. Publish `squad-hq` with both default plug-ins opted out (`IncludeCopilotSdkProvider=false`,
+   `IncludePhotinoHosting=false`).
+2. Start the actual executable with the stdio hosting adapter selected through an explicit `--hosting` descriptor
+   and the fake provider from `squad.AgentProvider.Fake.dll` selected through an explicit `--provider` descriptor.
 3. Complete the real UI-ready handshake.
 4. Let headquarters create a fake session for a configured role.
 5. Send a prompt through the real versioned UI JSON protocol.
@@ -446,5 +447,5 @@ Before migrating the full suite, prove one complete vertical path:
 9. Request shutdown through the real `squad-hq shutdown` command.
 10. Confirm clean process exit and resource cleanup.
 
-This vertical proof establishes the complete test architecture. Only after it works should existing white-box scenarios
-be migrated and their test-driven product APIs removed.
+Every backend scenario in `squad.Specs` drives this same vertical path through `BackendScenario`, never a
+test-specific product API or in-process shortcut.

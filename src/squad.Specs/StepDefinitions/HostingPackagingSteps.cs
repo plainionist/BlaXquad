@@ -88,6 +88,29 @@ public sealed class HostingPackagingSteps
         Assert.That(Directory.Exists(Path.Combine(myOptOutPublishDirectory!, "ui")), Is.False);
     }
 
+    [Then("the published backend-spec output contains no Photino hosting assembly, dependency, runtime asset, Vue distribution, or window asset")]
+    public void ThenPublishedBackendSpecOutputContainsNoPhotinoAssets()
+    {
+        var backendSpecDir = Path.Combine(AppContext.BaseDirectory, "squad-tools-backend-spec");
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, "squad.Hosting.Photino.dll")), Is.False);
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, "squad.Hosting.Photino.deps.json")), Is.False);
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, "Photino.NET.dll")), Is.False);
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, PhotinoNativeLibraryFileName)), Is.False);
+        Assert.That(Directory.Exists(Path.Combine(backendSpecDir, "ui")), Is.False);
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, "Assets", "BlaXquad.ico")), Is.False);
+
+        var depsJsonPath = Path.Combine(backendSpecDir, "squad-hq.deps.json");
+        Assert.That(File.Exists(depsJsonPath), Is.True, $"Expected published dependency manifest at '{depsJsonPath}'.");
+        Assert.That(File.ReadAllText(depsJsonPath), Does.Not.Contain("Photino"));
+    }
+
+    [Then("the published backend-spec output contains no stdio hosting plug-in")]
+    public void ThenPublishedBackendSpecOutputContainsNoStdioHostingPlugin()
+    {
+        var backendSpecDir = Path.Combine(AppContext.BaseDirectory, "squad-tools-backend-spec");
+        Assert.That(File.Exists(Path.Combine(backendSpecDir, "squad.Hosting.Stdio.dll")), Is.False);
+    }
+
     // Photino's own publish flattens its native library directly into the output root under a platform-specific
     // file name rather than nesting it under "runtimes/<rid>/native/" the way the Copilot provider's native assets
     // are nested, so assertions must name the file this way to remain correct on a linux-x64 or osx publish.
