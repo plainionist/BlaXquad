@@ -4,7 +4,7 @@ Feature: Headquarters termination on UI closure and caller cancellation
   permitting a fresh, healthy launch against the same project afterward - both when its headless UI's standard
   input closes (whether after or before the "ui.ready" handshake) and when the platform's own normal cancellation
   signal reaches the launched process, proven only through the real process, the real UI protocol, the real
-  "squad-hq wait-for-agent" host-control command, and the fake-provider control pipe - never through
+  "squad-hq wait-for-agent" Headquarters-control command, and the fake-provider control pipe - never through
   SquadApplication, a recording window test double, or an injected caller cancellation token.
 
   Scenario: Closing standard input after readiness terminates the process cleanly

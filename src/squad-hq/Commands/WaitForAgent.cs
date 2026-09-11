@@ -1,5 +1,5 @@
 using System.Text.Json;
-using squad.Host.Control;
+using squad.Runtime.Control;
 
 namespace squadHQ.Commands;
 
@@ -15,7 +15,7 @@ internal static class WaitForAgent
         }
         try
         {
-            HostControlClient.WaitForAgentAsync(projectRoot, role, timeout).GetAwaiter().GetResult();
+            HeadquartersControlClient.WaitForAgentAsync(projectRoot, role, timeout).GetAwaiter().GetResult();
             Console.WriteLine($"Agent '{role}' is ready.");
             return 0;
         }
@@ -97,7 +97,7 @@ internal static class WaitForAgent
         }
         projectRoot = projectRootSpecified
             ? Path.GetFullPath(projectRoot)
-            : HostProjectRoot.ResolveViaGit();
+            : ProjectRootResolver.ResolveViaGit();
         return true;
     }
 

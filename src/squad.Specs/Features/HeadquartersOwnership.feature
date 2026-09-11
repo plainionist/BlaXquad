@@ -1,8 +1,8 @@
-Feature: Squad host ownership
-  A project has one authoritative host owner.
+Feature: Headquarters ownership
+  A project has one authoritative Headquarters owner.
 
   Scenario: A duplicate launch fails clearly
-    Given a squad host is running with an auto-echoing "architect" agent
+    Given Headquarters is running with an auto-echoing "architect" agent
     When the operator attempts a duplicate launch
     Then the duplicate launch fails without an exception trace
     When the user sends "still there?" to role "architect"
@@ -11,47 +11,47 @@ Feature: Squad host ownership
     Then Headquarters exits with code 0
 
   Scenario: Shutdown accepts an equivalent project path
-    Given a squad host is running
+    Given Headquarters is running
     When the operator requests shutdown for an equivalent project path
     And Headquarters' process exits on its own
     Then Headquarters exits with code 0
 
-  Scenario: A replacement host recovers after an abrupt termination
-    Given a squad host is running
-    When the host process is abruptly terminated
+  Scenario: A replacement Headquarters instance recovers after an abrupt termination
+    Given Headquarters is running
+    When the Headquarters process is abruptly terminated
     And the operator launches a new Headquarters against the same project
     Then the new Headquarters process reports ready
 
-  Scenario: Waiting for an agent blocks until the live host reports it ready
-    Given a Git project host with a busy "architect" agent
+  Scenario: Waiting for an agent blocks until the live Headquarters instance reports it ready
+    Given Headquarters is running in a Git project with a busy "architect" agent
     When the operator begins waiting for role "architect" to become ready with `squad-hq wait-for-agent`
     Then role "architect"'s readiness wait remains pending
     When the "architect" agent emits idle
     Then role "architect"'s readiness wait succeeds
 
   Scenario: Waiting for a busy agent times out clearly
-    Given a Git project host with a busy "architect" agent
+    Given Headquarters is running in a Git project with a busy "architect" agent
     When the operator waits 3.0 seconds for role "architect" to become ready with `squad-hq wait-for-agent`
     Then the agent readiness wait times out
 
   Scenario: Waiting for an unknown agent fails clearly
-    Given a Git project host with a ready "architect" agent
+    Given Headquarters is running in a Git project with a ready "architect" agent
     When the operator waits 1 seconds for role "reviewer" to become ready with `squad-hq wait-for-agent`
     Then the agent readiness wait reports an unknown role
 
-  Scenario: Waiting from the main checkout discovers its host
-    Given a Git project host with a ready "architect" agent
+  Scenario: Waiting from the main checkout discovers Headquarters
+    Given Headquarters is running in a Git project with a ready "architect" agent
     When the operator waits for role "architect" to become ready with `squad-hq wait-for-agent` without an explicit project root
     Then the agent readiness command succeeds
 
-  Scenario: Waiting from a linked worktree discovers the main host
-    Given a Git project host with a ready "architect" agent
+  Scenario: Waiting from a linked worktree discovers the main Headquarters instance
+    Given Headquarters is running in a Git project with a ready "architect" agent
     And an "architect" linked worktree
     When the operator waits for role "architect" to become ready with `squad-hq wait-for-agent` from the linked worktree
     Then the agent readiness command succeeds
 
-  Scenario: Waiting with an equivalent explicit project path reaches the host
-    Given a Git project host with a ready "architect" agent
+  Scenario: Waiting with an equivalent explicit project path reaches Headquarters
+    Given Headquarters is running in a Git project with a ready "architect" agent
     When the operator waits for role "architect" to become ready with `squad-hq wait-for-agent` using an equivalent project path
     Then the agent readiness command succeeds
 
@@ -65,11 +65,11 @@ Feature: Squad host ownership
     When the operator waits for role "architect" to become ready with `squad-hq wait-for-agent` with a zero timeout
     Then the zero readiness timeout is rejected
 
-  Scenario: Waiting after the host has terminated respects the readiness deadline
-    Given a squad host is running
-    When the host process is abruptly terminated
+  Scenario: Waiting after Headquarters has terminated respects the readiness deadline
+    Given Headquarters is running
+    When the Headquarters process is abruptly terminated
     And the operator waits 1 seconds for role "architect" to become ready with `squad-hq wait-for-agent`
-    Then the readiness wait reports the host as unavailable
+    Then the readiness wait reports Headquarters as unavailable
 
   Scenario: Shutdown is idempotent for an empty project
     Given an empty project

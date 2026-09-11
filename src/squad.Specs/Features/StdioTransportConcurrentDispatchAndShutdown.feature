@@ -5,7 +5,7 @@ Feature: Stdio transport concurrent command dispatch and shutdown draining
   dispatched command before disposing the protocol session on shutdown - even one still in flight when shutdown
   is requested.
 
-  Scenario: A host-control shutdown drains a still in-flight prompt dispatch instead of hanging or crashing
+  Scenario: A Headquarters-control shutdown drains a still in-flight prompt dispatch instead of hanging or crashing
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |

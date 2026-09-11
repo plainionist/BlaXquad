@@ -16,7 +16,7 @@ The target test system runs:
 - the real published `squad-hq.exe`;
 - the real C# UI JSON protocol without Photino or Vue;
 - a fake provider implementing the provider-neutral agent SPI; and
-- real Git, filesystem, workspace, host-control, and handoff behavior.
+- real Git, filesystem, workspace, Headquarters-control, and handoff behavior.
 
 The main backend suite must not reference or load `squad.AgentProvider.CopilotSdk` or `squad.Hosting.Photino`; the
 backend-spec publication of `squad-hq` carries neither.
@@ -31,9 +31,9 @@ squad.Specs
   |
   |-- runs squad-hq.exe --hosting <stdio-hosting-assembly>;<type> --provider <fake-provider>
   |     |-- real workspace preparation
-  |     |-- real host lease and control endpoint
+  |     |-- real Headquarters lease and control endpoint
   |     |-- real handoff delivery
-  |     |-- real application and host runtime
+  |     |-- real application and Headquarters runtime
   |     |-- UiProtocolSession over stdin/stdout
   |     `-- fake provider loaded from squad.AgentProvider.Fake.dll
   |
@@ -102,12 +102,12 @@ Use real:
 - Git repositories and worktrees;
 - filesystem-backed configuration and handoff queues;
 - `squad` command execution;
-- headquarters host ownership and control;
+- headquarters ownership and control;
 - handoff polling and delivery;
 - application lifecycle and state projection; and
 - UI protocol framing, commands, snapshots, and transcript messages.
 
-Do not introduce filesystem, Git, clock, process, host-lease, or handoff test abstractions preemptively. Add a seam only
+Do not introduce filesystem, Git, clock, process, Headquarters-lease, or handoff test abstractions preemptively. Add a seam only
 when production has a genuine alternative implementation or an external dependency cannot be exercised reliably.
 
 ### Fake only the external agent provider
@@ -191,7 +191,7 @@ provider event records.
 
 - Start headquarters and wait for readiness.
 - Observe early startup failure and process diagnostics.
-- Request shutdown through the real host-control command.
+- Request shutdown through the real Headquarters-control command.
 - Wait for clean process exit.
 - Collect diagnostics and perform bounded emergency cleanup when a failed scenario cannot shut down normally.
 
@@ -250,7 +250,7 @@ The existing `IWindowHost` is sufficient. A headless implementation owns a `UiPr
 - reserves standard error for process diagnostics;
 - waits for the regular UI-ready command during startup;
 - forwards session-start notification to the protocol session; and
-- remains open until host-control shutdown, cancellation, or input closure.
+- remains open until Headquarters-control shutdown, cancellation, or input closure.
 
 `squad-hq` never references this implementation directly and never exposes a built-in choice for it. Instead it
 loads any `IHostingFactory` at runtime from an explicit `--hosting <assemblyPath>;<typeName>` descriptor, exactly
@@ -300,11 +300,11 @@ Both ends and all DTOs live in `squad.Specs`. This is not product API.
 
 ## Process synchronization
 
-- Use protocol messages, provider acknowledgements, host readiness, process completion, and durable-state predicates
-  for synchronization.
+- Use protocol messages, provider acknowledgements, Headquarters readiness, process completion, and durable-state
+  predicates for synchronization.
 - Every wait has a diagnostic timeout.
 - Do not use arbitrary sleeps to coordinate scenarios.
-- Give every scenario a unique workspace, host-control endpoint, and fake-provider endpoint so fixtures remain
+- Give every scenario a unique workspace, Headquarters-control endpoint, and fake-provider endpoint so fixtures remain
   parallelizable.
 - On teardown, request normal shutdown first. Force process termination only after a bounded timeout and report the
   captured protocol/provider/process state.
@@ -321,7 +321,7 @@ The target architecture does not require:
 - configurable capacities or timeouts used only to force test branches;
 - `InternalsVisibleTo`;
 - reflection over product internals;
-- host-control commands for injecting UI or provider events; or
+- Headquarters-control commands for injecting UI or provider events; or
 - a separately compiled test variant of either executable.
 
 Once scenarios use the process boundary, these surfaces can be removed based on production call sites.

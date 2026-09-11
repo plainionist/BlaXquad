@@ -1,13 +1,13 @@
-namespace squad.Host.Control;
+namespace squad.Runtime.Control;
 
-/// <summary>Holds exclusive cleanup access to host metadata after proving that no live host owns the project.</summary>
-internal sealed class CleanupLease : IDisposable
+/// <summary>Holds exclusive cleanup access to Headquarters metadata after proving that no live Headquarters instance owns the project.</summary>
+internal sealed class HeadquartersCleanupLease : IDisposable
 {
     private readonly string myStateDir;
     private readonly FileStream myLockFile;
     private bool myDisposed;
 
-    internal CleanupLease(string stateDir, FileStream lockFile)
+    internal HeadquartersCleanupLease(string stateDir, FileStream lockFile)
     {
         myStateDir = stateDir;
         myLockFile = lockFile;
@@ -29,7 +29,7 @@ internal sealed class CleanupLease : IDisposable
             return;
         }
         myDisposed = true;
-        try { HostLease.UnlockFile(myLockFile); } catch (Exception) { }
+        try { HeadquartersLease.UnlockFile(myLockFile); } catch (Exception) { }
         myLockFile.Dispose();
     }
 }

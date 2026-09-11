@@ -13,7 +13,7 @@ executables do not communicate directly. They coordinate through Git and per-wor
 There are three independent coordination protocols:
 
 1. A versioned UI protocol between headquarters and presentation clients.
-2. A local host-control protocol for readiness and shutdown.
+2. A local Headquarters-control protocol for readiness and shutdown.
 3. A filesystem handoff protocol for durable work exchange between roles.
 
 There is no application database or network server. Git and handoff files are durable; provider sessions,
@@ -51,7 +51,7 @@ flowchart TB
     subgraph system["BlaXquad system boundary"]
     headquarters["Headquarters (squad-hq)<br/>[Process]<br/>Orchestration"]
     dashboard["Dashboard (squad-ui)<br/>[Vue application]<br/>Presentation"]
-    management["Management (squad-hq)<br/>[CLI]<br/>Host control"]
+    management["Management (squad-hq)<br/>[CLI]<br/>Headquarters control"]
     roleTool["Role tool (squad)<br/>[CLI]<br/>Handoffs"]
     end
 
@@ -77,11 +77,11 @@ flowchart TB
 ### Headquarters
 
 `squad-hq launch` is the composition root and the only long-running BlaXquad backend process. It enforces one active
-host per project, prepares the workspace, selects UI and provider adapters, starts role sessions, maintains
-authoritative state, delivers handoffs, and coordinates cleanup.
+Headquarters instance per project, prepares the workspace, selects UI and provider adapters, starts role sessions,
+maintains authoritative state, delivers handoffs, and coordinates cleanup.
 
 The same executable also provides short-lived `shutdown` and `wait-for-agent` commands. Those commands are clients
-of the running headquarters process rather than alternate host modes.
+of the running headquarters process rather than alternate Headquarters modes.
 
 ### Dashboard
 
@@ -117,7 +117,7 @@ One runtime generation owns the shared provider connection and every role sessio
   client. Photino web messages are the packaged default transport for this protocol; the backend acceptance harness
   loads a test-distributed, line-delimited-stdio transport for the same protocol through an explicit descriptor,
   never as a supported product presentation mode.
-- **Host-control contract.** A project-specific local named pipe accepts readiness and shutdown requests. A file
+- **Headquarters-control contract.** A project-specific local named pipe accepts readiness and shutdown requests. A file
   lock establishes one headquarters owner for the project, while local metadata supports process discovery and
   stale-state cleanup.
 - **Provider contract.** A provider-neutral factory, backend, runtime, and session model separates headquarters from
@@ -146,7 +146,7 @@ flowchart LR
     composition["Composition<br/>[Component]"]
     lifecycle["Lifecycle<br/>[Component]"]
     workspaceManager["Workspace<br/>[Component]"]
-    control["Host control<br/>[Component]"]
+    control["Headquarters control<br/>[Component]"]
     application["Application state<br/>[Component]"]
     delivery["Handoff delivery<br/>[Component]"]
     uiProtocol["UI protocol<br/>[Component]"]
@@ -202,7 +202,7 @@ flowchart LR
 sequenceDiagram
   actor Operator
   participant HQ as Headquarters
-  participant Control as Host control
+  participant Control as Headquarters control
   participant Workspace
   participant UI as UI host
   participant Lifecycle
@@ -302,7 +302,7 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
   A continued launch preserves an already-JSON queue only: it refuses to start against any worktree still holding
   a legacy, pre-JSON `.handoff` artifact, so upgrading requires draining such a queue with the previous release or
   discarding it with a normal (non-continued) launch first.
-- **Host ownership** is local runtime state backed by a project lock, process metadata, and a named-pipe endpoint.
+- **Headquarters ownership** is local runtime state backed by a project lock, process metadata, and a named-pipe endpoint.
 - **Role and interaction state** is authoritative in the headquarters application model and exists only for the
   current process.
 - **Transcript state** is bounded. Recent content is held in memory and older content is paged from a private
@@ -334,7 +334,7 @@ These observations describe current consequences of the design; they are not red
   availability is therefore part of backend startup, including in stdio mode.
 7. **Asymmetric durability.** Git state and preserved handoffs survive process replacement; live sessions,
   interactions, role projections, and transcripts do not.
-8. **Concentrated composition.** Workspace, lifecycle, provider, UI, handoff, and host-control implementations are
+8. **Concentrated composition.** Workspace, lifecycle, provider, UI, handoff, and Headquarters-control implementations are
   selected together by the headquarters composition root, so cross-cutting startup changes converge there.
 
 ## Confidence and external unknowns

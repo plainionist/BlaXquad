@@ -3,20 +3,20 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 
-namespace squad.Host.Control;
+namespace squad.Runtime.Control;
 
-/// <summary>Communicates with the live host identified by a project root and cleans up stale host metadata.</summary>
-public static class HostControlClient
+/// <summary>Communicates with the live Headquarters instance identified by a project root and cleans up stale Headquarters metadata.</summary>
+public static class HeadquartersControlClient
 {
     /// <summary>
-    /// Polls until a known role is provider-ready, distinguishing unknown roles and unavailable hosts in failures.
+    /// Polls until a known role is provider-ready, distinguishing unknown roles and unavailable Headquarters instances in failures.
     /// </summary>
     public static async Task WaitForAgentAsync(string projectRoot, string role, TimeSpan timeout)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
         projectRoot = Path.GetFullPath(projectRoot);
         var elapsed = Stopwatch.StartNew();
-        var lastStatus = "squad host unavailable";
+        var lastStatus = "Headquarters unavailable";
         while (elapsed.Elapsed < timeout)
         {
             var remaining = timeout - elapsed.Elapsed;
@@ -33,7 +33,7 @@ public static class HostControlClient
             {
                 lastStatus = "agent not ready";
             }
-            else if (lastStatus == "squad host unavailable")
+            else if (lastStatus == "Headquarters unavailable")
             {
                 lastStatus = status;
             }
@@ -52,7 +52,7 @@ public static class HostControlClient
             $"Agent '{role}' did not become ready within {timeout.TotalSeconds:0.###} seconds ({lastStatus}).");
     }
 
-    /// <summary>Requests shutdown and waits until the host releases project ownership.</summary>
+    /// <summary>Requests shutdown and waits until Headquarters releases project ownership.</summary>
     public static async Task<bool> ShutdownAsync(string projectRoot, TimeSpan timeout)
     {
         if (!await RequestShutdownAsync(projectRoot))
@@ -62,18 +62,18 @@ public static class HostControlClient
 
         projectRoot = Path.GetFullPath(projectRoot);
         var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline && !HostLease.TryAcquireProbe(projectRoot))
+        while (DateTime.UtcNow < deadline && !HeadquartersLease.TryAcquireProbe(projectRoot))
         {
             await Task.Delay(100);
         }
-        if (!HostLease.TryAcquireProbe(projectRoot))
+        if (!HeadquartersLease.TryAcquireProbe(projectRoot))
         {
-            throw new TimeoutException("The squad host did not shut down within 15 seconds.");
+            throw new TimeoutException("Headquarters did not shut down within 15 seconds.");
         }
         return true;
     }
 
-    /// <summary>Returns <see langword="false"/> when no live host exists; otherwise sends but does not await shutdown.</summary>
+    /// <summary>Returns <see langword="false"/> when no live Headquarters instance exists; otherwise sends but does not await shutdown.</summary>
     private static async Task<bool> RequestShutdownAsync(string projectRoot)
     {
         projectRoot = Path.GetFullPath(projectRoot);
@@ -82,11 +82,11 @@ public static class HostControlClient
         {
             return false;
         }
-        if (HostLease.RemoveStaleMetadata(projectRoot))
+        if (HeadquartersLease.RemoveStaleMetadata(projectRoot))
         {
             return false;
         }
-        var pipeName = HostLease.PipeNameFor(projectRoot);
+        var pipeName = HeadquartersLease.PipeNameFor(projectRoot);
 
         using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         using var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -96,11 +96,11 @@ public static class HostControlClient
         }
         catch (Exception exception) when (exception is IOException or TimeoutException or OperationCanceledException)
         {
-            if (HostLease.RemoveStaleMetadata(projectRoot))
+            if (HeadquartersLease.RemoveStaleMetadata(projectRoot))
             {
                 return false;
             }
-            throw new IOException("The squad host metadata exists, but its control pipe is unavailable while the host lock is held.", exception);
+            throw new IOException("Headquarters metadata exists, but its control pipe is unavailable while the Headquarters lock is held.", exception);
         }
         using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
         using var reader = new StreamReader(pipe, new UTF8Encoding(false), leaveOpen: true);
@@ -112,12 +112,12 @@ public static class HostControlClient
     private static async Task<string> QueryAgentStatusAsync(string projectRoot, string role, TimeSpan remaining)
     {
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
-        if (!Directory.Exists(stateDir) || HostLease.RemoveStaleMetadata(projectRoot))
+        if (!Directory.Exists(stateDir) || HeadquartersLease.RemoveStaleMetadata(projectRoot))
         {
-            return "squad host unavailable";
+            return "Headquarters unavailable";
         }
 
-        var pipeName = HostLease.PipeNameFor(projectRoot);
+        var pipeName = HeadquartersLease.PipeNameFor(projectRoot);
         using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         var queryElapsed = Stopwatch.StartNew();
         var connectDuration = remaining < TimeSpan.FromSeconds(1) ? remaining : TimeSpan.FromSeconds(1);
@@ -129,11 +129,11 @@ public static class HostControlClient
         catch (Exception exception) when (
             exception is IOException or TimeoutException)
         {
-            if (HostLease.RemoveStaleMetadata(projectRoot))
+            if (HeadquartersLease.RemoveStaleMetadata(projectRoot))
             {
-                return "squad host unavailable";
+                return "Headquarters unavailable";
             }
-            return "squad control endpoint unavailable";
+            return "Headquarters control endpoint unavailable";
         }
 
         using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
@@ -141,7 +141,7 @@ public static class HostControlClient
         var ioRemaining = remaining - queryElapsed.Elapsed;
         if (ioRemaining <= TimeSpan.Zero)
         {
-            return "squad control endpoint unavailable";
+            return "Headquarters control endpoint unavailable";
         }
         var ioDuration = ioRemaining < TimeSpan.FromSeconds(1)
             ? ioRemaining
@@ -161,13 +161,13 @@ public static class HostControlClient
         }
         catch (Exception exception) when (exception is IOException or OperationCanceledException or ObjectDisposedException)
         {
-            return HostLease.RemoveStaleMetadata(projectRoot)
-                ? "squad host unavailable"
-                : "squad control endpoint unavailable";
+            return HeadquartersLease.RemoveStaleMetadata(projectRoot)
+                ? "Headquarters unavailable"
+                : "Headquarters control endpoint unavailable";
         }
         if (string.IsNullOrWhiteSpace(response))
         {
-            throw new InvalidDataException("The squad host returned an empty readiness response.");
+            throw new InvalidDataException("Headquarters returned an empty readiness response.");
         }
         using var document = JsonDocument.Parse(response);
         var root = document.RootElement;
@@ -181,7 +181,7 @@ public static class HostControlClient
             || !root.TryGetProperty("message", out var message)
             || message.ValueKind != JsonValueKind.String)
         {
-            throw new InvalidDataException("The squad host returned an invalid readiness response.");
+            throw new InvalidDataException("Headquarters returned an invalid readiness response.");
         }
         return message.GetString()!;
     }

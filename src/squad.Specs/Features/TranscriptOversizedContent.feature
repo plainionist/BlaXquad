@@ -1,7 +1,8 @@
 Feature: Transcript oversized content
 
-  Production per-entry and per-announcement limits bound transcript memory and host-control notification content
-  even when a single message or a continuous stream vastly exceeds them, and the archive independently preserves
+  Production per-entry and per-announcement limits bound transcript memory and Headquarters-control notification
+  content even when a single message or a continuous stream vastly exceeds them, and the archive independently
+  preserves
   as much of that same content as its own, much larger per-entry storage bound allows - reporting truncation
   explicitly rather than silently presenting partial content as complete. These scenarios drive the published
   squad-hq process with the fake provider and observe only the real protocol, never production transcript

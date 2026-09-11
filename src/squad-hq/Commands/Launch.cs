@@ -4,8 +4,8 @@ using squad.Application;
 using squad.Hosting.Abstractions;
 using squad.Issues;
 using squad.Workspaces;
-using squad.Host.Control;
-using squad.Host.Runtime;
+using squad.Runtime;
+using squad.Runtime.Control;
 
 namespace squadHQ.Commands;
 
@@ -45,7 +45,11 @@ static class Launch
         {
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var layout = ProjectLayout.Create(root);
-            HostLease? hostLease = HostLease.Acquire(layout.WorkingDir);
+            if (!HeadquartersLease.TryAcquire(layout.WorkingDir, out var headquartersLease))
+            {
+                Fail($"A Headquarters instance is already running for {layout.WorkingDir}.");
+                return;
+            }
             SquadApplication? application = null;
             using var consoleCancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler? cancelHandler = (_, eventArgs) =>
@@ -72,8 +76,8 @@ static class Launch
                     hostingRuntime.WindowHost,
                     hostingRuntime.SleepInhibitor,
                     viewModel,
-                    hostLease: hostLease!);
-                hostLease = null;
+                    headquartersLease: headquartersLease!);
+                headquartersLease = null;
                 try
                 {
                     application.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
@@ -101,9 +105,9 @@ static class Launch
             finally
             {
                 Console.CancelKeyPress -= cancelHandler;
-                if (application is null && hostLease is not null)
+                if (application is null && headquartersLease is not null)
                 {
-                    hostLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                    headquartersLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 }
             }
         }

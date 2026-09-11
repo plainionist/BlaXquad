@@ -1,15 +1,15 @@
 Feature: Surfacing terminal provider failures after readiness
 
   A real squad-hq process distinguishes a per-session provider failure, which affects only its own role and never
-  stops the host, from a fatal, backend-wide provider failure, which reports a clear diagnostic on standard error
-  (never a raw ".NET Unhandled exception" dump), exits with a non-zero code, disposes every session already
-  started, never leaves a live host behind, preserves durable workspace state it does not own, remains the
-  reported outcome even when a normal shutdown is requested around the same time, and permits a fresh, healthy
-  launch against the same project afterward - proven only through the real process, the real "squad-hq shutdown"
-  and "squad-hq wait-for-agent" host-control commands, and the fake-provider control pipe, never through
-  SquadApplication directly.
+  stops Headquarters, from a fatal, backend-wide provider failure, which reports a clear diagnostic on standard
+  error (never a raw ".NET Unhandled exception" dump), exits with a non-zero code, disposes every session already
+  started, never leaves a live Headquarters instance behind, preserves durable workspace state it does not own,
+  remains the reported outcome even when a normal shutdown is requested around the same time, and permits a
+  fresh, healthy launch against the same project afterward - proven only through the real process, the real
+  "squad-hq shutdown" and "squad-hq wait-for-agent" Headquarters-control commands, and the fake-provider control
+  pipe, never through SquadApplication directly.
 
-  Scenario: A per-session failure after readiness marks only that role's terminal state and never stops the host
+  Scenario: A per-session failure after readiness marks only that role's terminal state and never stops Headquarters
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
@@ -26,7 +26,7 @@ Feature: Surfacing terminal provider failures after readiness
     And Headquarters disposes the agent session for role "coder"
     And Headquarters disposes the agent session for role "reviewer"
 
-  Scenario: A backend-wide terminal failure after readiness stops the host with the original diagnostic
+  Scenario: A backend-wide terminal failure after readiness stops Headquarters with the original diagnostic
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |

@@ -3,11 +3,11 @@ using squad.Application;
 using squad.Handoffs.Delivery;
 using squad.Hosting.Abstractions;
 
-namespace squad.Host.Runtime;
+namespace squad.Runtime;
 
 /// <summary>
 /// Owns the current backend generation and coordinates session registration, handoff recovery, handoff polling,
-/// and failure-collecting teardown. Process resources such as the window, host lease, workspace, and sleep
+/// and failure-collecting teardown. Process resources such as the window, Headquarters lease, workspace, and sleep
 /// inhibitor remain owned by <see cref="SquadApplication"/>.
 /// </summary>
 internal sealed class SquadRuntimeController

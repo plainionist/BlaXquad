@@ -1,12 +1,12 @@
 Feature: Draining accepted commands and rejecting new commands during shutdown
 
-  A real host-control shutdown lets an already-admitted prompt reach its own safe, canceled outcome before the
-  owning session is disposed, while any further protocol command arriving after admission closes is observably
+  A real Headquarters-control shutdown lets an already-admitted prompt reach its own safe, canceled outcome before
+  the owning session is disposed, while any further protocol command arriving after admission closes is observably
   rejected - with no prompt, transcript entry, or other durable side effect - and backend cleanup, once genuinely
   held at the real provider boundary, still completes cleanly afterward with a bounded zero exit and fully
-  released host, provider, and endpoint ownership - proven only through the real process, the real "squad-hq
-  shutdown" host-control command, and the fake-provider control pipe, never through SquadViewModel or
-  SquadApplication directly.
+  released Headquarters, provider, and endpoint ownership - proven only through the real process, the real
+  "squad-hq shutdown" Headquarters-control command, and the fake-provider control pipe, never through
+  SquadViewModel or SquadApplication directly.
 
   Background:
     Given `blaxquad/squad.json` configures:

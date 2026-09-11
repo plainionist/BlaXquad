@@ -25,6 +25,7 @@
 - Keep authoritative session/domain state, command validation, persistence, and protocol delivery in C#;
   keep presentation, browser behavior, transient UI state, and client-side cache/protocol reconciliation in Vue.
   Never duplicate an authoritative rule across both sides; cross the boundary through explicit typed messages.
+- Do not introduce custom exceptions unless there is a clear benefit.
 
 ## Testing
 

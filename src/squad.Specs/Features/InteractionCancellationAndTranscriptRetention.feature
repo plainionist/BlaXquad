@@ -1,10 +1,10 @@
 Feature: Interaction cancellation and transcript retention
 
-  Aborting a role, that role's session failing, or a host-control shutdown cancels the role's pending interaction,
-  and a response sent afterward is rejected with a protocol error without disturbing the interaction owner's
-  session state. A pending permission also keeps its transcript context visible to a reconnecting dashboard even
-  after enough later activity would otherwise evict it as the oldest unprotected entry, and the interaction remains
-  answerable afterward.
+  Aborting a role, that role's session failing, or a Headquarters-control shutdown cancels the role's pending
+  interaction, and a response sent afterward is rejected with a protocol error without disturbing the interaction
+  owner's session state. A pending permission also keeps its transcript context visible to a reconnecting
+  dashboard even after enough later activity would otherwise evict it as the oldest unprotected entry, and the
+  interaction remains answerable afterward.
 
   Background:
     Given `blaxquad/squad.json` configures:
@@ -31,7 +31,7 @@ Feature: Interaction cancellation and transcript retention
     When the user responds to permission "permission-1" for role "coder" with approved "true"
     Then the user observes a protocol error mentioning "permission-1"
 
-  Scenario: A host-control shutdown completes while an interaction remains pending
+  Scenario: A Headquarters-control shutdown completes while an interaction remains pending
     When the "reviewer" agent requests input "input-1" with prompt "Which branch should I use?" and freeform "true":
       | choice |
     Then the dashboard shows a pending input "input-1" for role "reviewer" with prompt "Which branch should I use?" and freeform "true":

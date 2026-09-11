@@ -222,14 +222,14 @@ directory under `inbox/in_process`.
 Completing the batch archives all its items and immediately checks for the next
 batch.
 
-## Host lease
+## Headquarters lease
 
 The exclusive ownership record for one running headquarters instance per
 project. It uses `.blaxquad/host.lock`, publishes connection metadata in
 `.blaxquad/host.json`, and exposes a local control channel for status, readiness,
 and shutdown requests.
 
-The lease prevents two hosts from managing the same project concurrently.
+The lease prevents two Headquarters instances from managing the same project concurrently.
 
 ## Session generation
 
@@ -247,14 +247,14 @@ application model as it starts.
 
 ## UI protocol
 
-The versioned JSON message boundary between the host and Vue dashboard. Message
+The versioned JSON message boundary between Headquarters and the Vue dashboard. Message
 envelope parsing, serialization, command routing, snapshot scheduling,
 transcript delivery, journaling, and recovery are owned by `squad.Ui.Protocol`.
 `squad.Hosting.Photino` is only the native window and sleep-inhibition adapter that
 carries this protocol over the OS window; it has no envelope, delivery, or
 recovery logic of its own. Headquarters never references it at compile time - it
 is the packaged default hosting plug-in, runtime-loaded through the same
-`--hosting` mechanism as any other adapter when the option is omitted. The host publishes snapshots, transcript
+`--hosting` mechanism as any other adapter when the option is omitted. Headquarters publishes snapshots, transcript
 synchronization, updates, pages, archived entries, and protocol errors. The
 dashboard sends readiness, prompt, abort, interaction response, and
 transcript retrieval commands.
@@ -262,6 +262,6 @@ transcript retrieval commands.
 ## Snapshot
 
 A point-in-time representation of all role summaries and pending interactions
-sent from the C# host to the dashboard. Snapshots establish state; sequenced
+sent from Headquarters to the dashboard. Snapshots establish state; sequenced
 transcript synchronization and incremental updates preserve event ordering
 between snapshots.
