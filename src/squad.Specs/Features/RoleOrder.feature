@@ -1,8 +1,8 @@
 Feature: State snapshot role order
 
-  The dashboard must target the first configured role deterministically (for example, the issue explorer's Play
-  action). "state.snapshot.roles" must therefore report roles in the exact order configured in "blaxquad/squad.json",
-  not an incidental dictionary-enumeration order.
+  "state.snapshot.roles" must report roles in the exact order configured in "blaxquad/squad.json", not an incidental
+  dictionary-enumeration order - independent of which role is the configured leader (see "Configured squad leader"
+  for how the dashboard's Play action targets that leader by name rather than by position).
 
   Scenario: state.snapshot roles are reported in configured order, not alphabetical or insertion order
     Given a backend scenario configured with roles "reviewer,coder,writer"

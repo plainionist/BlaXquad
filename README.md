@@ -52,10 +52,11 @@ squad-hq shutdown
 
 ## Configuration
 
-`blaxquad/squad.json` defines the roles, their worktrees, and agent settings:
+`blaxquad/squad.json` defines the roles, their worktrees, agent settings, and the squad leader:
 
 ```json
 {
+  "leader": "coordinator",
   "roles": [
     {
       "name": "coordinator",
@@ -72,6 +73,10 @@ squad-hq shutdown
   ]
 }
 ```
+
+`leader` identifies the role the dashboard's issue explorer targets when preparing a prompt to process an
+issue. It is optional: if omitted or blank, the first role listed in `roles` is used as the leader, so there
+is always an authoritative leader. If given explicitly, it must exactly match one configured role's `name`.
 
 Use `master` as the worktree name to run a role in the main repository;
 any other name creates a dedicated worktree.

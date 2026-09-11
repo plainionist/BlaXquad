@@ -187,6 +187,7 @@ public sealed class SquadApplication : IAsyncDisposable
         await mySleepInhibitor.StartAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         myViewModel.InitializeRoles(myStartupPlan.DiscoverRoles());
+        myViewModel.SetLeader(myStartupPlan.DiscoverLeader());
         myHostLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
         myStartupPlan.PrepareWorkspace();
         cancellationToken.ThrowIfCancellationRequested();

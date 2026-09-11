@@ -16,6 +16,7 @@ static class SquadStartupPlanFactory
         Func<CancellationToken, Task<AgentBackendContext>> prepareContextAsync) =>
         new(
             discoverRoles: () => context.Roles.Select(role => role.Role),
+            discoverLeader: () => context.Leader,
             prepareWorkspace: () => workspacePreparer.PrepareWorkspace(context),
             prepareConfiguredWorktreesForLaunchAsync: (continueLaunch, cancellationToken) =>
                 workspacePreparer.PrepareConfiguredWorktreesForLaunchAsync(context, continueLaunch, cancellationToken),

@@ -16,7 +16,7 @@ test('follows streaming output while positioned at the transcript tail', async (
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -34,7 +34,7 @@ test('follows streaming output while positioned at the transcript tail', async (
   await expect(transcript.getByText('history-499')).toBeVisible()
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -65,7 +65,7 @@ test('stops following after an unattributed browser scroll', async ({ page }) =>
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -94,7 +94,7 @@ test('stops following after an unattributed browser scroll', async ({ page }) =>
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -132,7 +132,7 @@ test('resumes following after the user scrolls back to the transcript tail', asy
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -157,7 +157,7 @@ test('resumes following after the user scrolls back to the transcript tail', asy
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -183,7 +183,7 @@ test('resumes following after the user scrolls back to the transcript tail', asy
   await page.evaluate(() => {
     for (let offset = 0; offset < 4; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -206,7 +206,7 @@ test('resumes following after the user scrolls back to the transcript tail', asy
   await page.evaluate(() => {
     for (let offset = 0; offset < 4; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -237,7 +237,7 @@ test('resumes against the updated tail when output arrives during scroll classif
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -268,7 +268,7 @@ test('resumes against the updated tail when output arrives during scroll classif
         return
       element.dataset.appendedDuringClassification = 'true'
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -317,7 +317,7 @@ test('consumes each expected internal scroll position once', async ({ page }) =>
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -344,7 +344,7 @@ test('consumes each expected internal scroll position once', async ({ page }) =>
       '.role-panel .transcript')
     for (let offset = 0; offset < 3; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -390,7 +390,7 @@ test('keeps a newer anchor correction authoritative over deferred classification
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -424,7 +424,7 @@ test('keeps a newer anchor correction authoritative over deferred classification
         return
       element.dataset.updatedDuringClassification = 'true'
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.page',
         payload: {
           role: 'coder',
@@ -434,7 +434,7 @@ test('keeps a newer anchor correction authoritative over deferred classification
         },
       })
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -471,7 +471,7 @@ test('restores the reading anchor after confirming a concurrent scroll away', as
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -510,7 +510,7 @@ test('restores the reading anchor after confirming a concurrent scroll away', as
       element.dataset.concurrentAnchorOffset = String(
         anchor.getBoundingClientRect().top - viewportTop)
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.page',
         payload: {
           role: 'coder',
@@ -564,7 +564,7 @@ test('keeps following when a tail row grows before a programmatic scroll event i
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -598,7 +598,7 @@ test('keeps following when a tail row grows before a programmatic scroll event i
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -625,7 +625,7 @@ test('keeps following when a tail row grows before a programmatic scroll event i
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -656,7 +656,7 @@ test('keeps a queued internal tail scroll causal when input starts before delive
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -684,7 +684,7 @@ test('keeps a queued internal tail scroll causal when input starts before delive
   })
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -723,7 +723,7 @@ test('preserves the reading anchor when a tall tail replacement clamps the scrol
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -762,7 +762,7 @@ test('preserves the reading anchor when a tall tail replacement clamps the scrol
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -787,7 +787,7 @@ test('preserves the reading anchor when a tall tail replacement clamps the scrol
   await page.evaluate(async () => {
     for (let offset = 0; offset < 12; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -849,7 +849,7 @@ test('preserves the reading anchor when a measured tail row shrinks', async ({ p
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -901,7 +901,7 @@ test('preserves the reading anchor when a measured tail row shrinks', async ({ p
   await page.evaluate(() => {
     for (let offset = 0; offset < 12; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -944,7 +944,7 @@ test('keeps a superseded layout clamp internal during anchor correction', async 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -992,7 +992,7 @@ test('keeps a superseded layout clamp internal during anchor correction', async 
   })
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -1100,7 +1100,7 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1256,7 +1256,7 @@ for (const scenario of [
     }))
     await page.evaluate((history) => {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.synchronize',
         payload: {
           roles: [{
@@ -1374,7 +1374,7 @@ test('preserves the reading anchor when the transcript viewport grows during scr
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1397,7 +1397,7 @@ test('preserves the reading anchor when the transcript viewport grows during scr
   const anchor = await firstVisibleTranscriptRow(transcript)
   await page.evaluate((state) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'state.snapshot',
       payload: state,
     })
@@ -1414,7 +1414,7 @@ test('preserves the reading anchor when the transcript viewport grows during scr
   await page.evaluate(() => {
     for (let offset = 0; offset < 8; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -1454,7 +1454,7 @@ test('stops following after a nested transcript button scrolls with the keyboard
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1480,7 +1480,7 @@ test('stops following after a nested transcript button scrolls with the keyboard
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -1518,7 +1518,7 @@ test('stops following when focus navigation scrolls to an off-screen transcript 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1546,7 +1546,7 @@ test('stops following when focus navigation scrolls to an off-screen transcript 
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -1585,7 +1585,7 @@ test('resumes following when focus navigation enters the transcript at its tail'
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1620,7 +1620,7 @@ test('resumes following when focus navigation enters the transcript at its tail'
   await page.evaluate(() => {
     for (let offset = 0; offset < 4; offset++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -1652,7 +1652,7 @@ test('stops following when text selection autoscrolls the transcript', async ({ 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1688,7 +1688,7 @@ test('stops following when text selection autoscrolls the transcript', async ({ 
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -1725,7 +1725,7 @@ test('active selection movement cancels concurrent history anchor restoration', 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1760,7 +1760,7 @@ test('active selection movement cancels concurrent history anchor restoration', 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.page',
       payload: {
         role: 'coder',
@@ -1797,7 +1797,7 @@ test('preserves the viewport while updates arrive in older history', async ({ pa
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1821,7 +1821,7 @@ test('preserves the viewport while updates arrive in older history', async ({ pa
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -1856,7 +1856,7 @@ test('resumes viewport windowing after preserving a reading position', async ({ 
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1880,7 +1880,7 @@ test('resumes viewport windowing after preserving a reading position', async ({ 
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -1918,7 +1918,7 @@ test('keeps viewport windowing active during rapid tail streaming', async ({ pag
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -1943,7 +1943,7 @@ test('keeps viewport windowing active during rapid tail streaming', async ({ pag
   await page.evaluate(async () => {
     for (let sequence = 2; sequence <= 21; sequence++) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -1980,7 +1980,7 @@ test('does not restore an anchor after the user starts scrolling', async ({ page
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -2003,7 +2003,7 @@ test('does not restore an anchor after the user starts scrolling', async ({ page
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -2039,7 +2039,7 @@ test('keeps paged history and its reading anchor across recovery synchronization
   }))
   await page.evaluate((entries) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -2080,7 +2080,7 @@ test('keeps a paged reading anchor when recovery is batched with a live update',
   }))
   await page.evaluate((entries) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -2097,7 +2097,7 @@ test('keeps a paged reading anchor when recovery is batched with a live update',
     })
 
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -2131,7 +2131,7 @@ test('resolves an omitted reading anchor during batched recovery', async ({ page
   }))
   await page.evaluate((entries) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -2160,7 +2160,7 @@ test('resolves an omitted reading anchor during batched recovery', async ({ page
   }))
   await page.evaluate((entries) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -2176,7 +2176,7 @@ test('resolves an omitted reading anchor during batched recovery', async ({ page
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',

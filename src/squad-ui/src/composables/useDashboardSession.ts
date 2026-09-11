@@ -17,6 +17,7 @@ export function useDashboardSession() {
   const permissions = ref<Permission[]>([])
   const inputs = ref<InputRequest[]>([])
   const elicitations = ref<Elicitation[]>([])
+  const leader = ref<string | null>(null)
   const {
     permissionsFor,
     inputsFor,
@@ -62,6 +63,7 @@ export function useDashboardSession() {
     permissions.value = snapshot.permissions
     inputs.value = snapshot.inputs
     elicitations.value = snapshot.elicitations
+    leader.value = snapshot.leader
     initializeElicitations(snapshot.elicitations)
   })
   bridge.onTranscriptSynchronization(applyTranscriptSynchronization)
@@ -149,6 +151,7 @@ export function useDashboardSession() {
   return {
     roles,
     hasRoles,
+    leader: readonly(leader),
     protocolError: readonly(protocolError),
     rolesWithOlderTranscript,
     rolesWithTruncatedTranscript,

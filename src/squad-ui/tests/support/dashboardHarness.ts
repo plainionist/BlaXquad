@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { IssueDescriptor, RoleSnapshot } from '../../src/protocol/messages'
 
-export const PROTOCOL_VERSION = 4
+export const PROTOCOL_VERSION = 5
 
 export interface ProtocolMessage {
   version: number
@@ -79,6 +79,7 @@ export function roleSnapshot(
 }
 
 export const snapshot = {
+  leader: 'coder',
   roles: [
     { role: 'coder', status: 'running', lastEventAt: '2026-03-01T12:00:00Z', transcriptEntries: [{ occurredAt: '2026-03-01T12:00:00Z', source: 'assistant', content: 'Reading the workspace.' }], activeTool: 'read_file', isWorking: true, eventCount: 42 },
     { role: 'reviewer', status: 'idle', lastEventAt: '2026-03-01T12:01:00Z', transcriptEntries: [{ occurredAt: '2026-03-01T12:01:00Z', source: 'assistant', content: 'Ready for review.' }], isWorking: false, eventCount: 7 },
@@ -135,13 +136,14 @@ export async function loadSnapshot(page: Page) {
   ])
 }
 
-export async function loadRoleSnapshots(page: Page, roles: RoleSnapshot[]) {
+export async function loadRoleSnapshots(page: Page, roles: RoleSnapshot[], leader: string = stateSnapshot.leader) {
   await page.goto('/')
   await expect.poll(() => page.evaluate(() => window.__blaxquadHarness?.messages.length ?? 0)).toBe(1)
   await deliverHostMessages(page, [
     protocolMessage('state.snapshot', {
       payload: {
         ...stateSnapshot,
+        leader,
         roles,
         permissions: [],
         inputs: [],

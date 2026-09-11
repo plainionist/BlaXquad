@@ -13,7 +13,7 @@ namespace squad.Specs.Support;
 /// </summary>
 public sealed class HeadlessUiClient
 {
-    private const int ProtocolVersion = 4;
+    private const int ProtocolVersion = 5;
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
@@ -172,6 +172,16 @@ public sealed class HeadlessUiClient
         var snapshot = await WaitForLatestStateSnapshotAsync(
             _ => true, "a state.snapshot message", timeout, additionalDiagnostics);
         return RoleNamesInOrder(snapshot);
+    }
+
+    /// <summary>Returns the top-level "leader" reported by the most recently published "state.snapshot" message -
+    /// proving the configured leader is published as authoritative session metadata independent of role order.</summary>
+    public async Task<string> LatestSnapshotLeaderAsync(
+        TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
+    {
+        var snapshot = await WaitForLatestStateSnapshotAsync(
+            _ => true, "a state.snapshot message", timeout, additionalDiagnostics);
+        return GetPayload(snapshot).GetProperty("leader").GetString()!;
     }
 
     /// <summary>Waits until a "transcript.update" message reports the given content for the given role.</summary>

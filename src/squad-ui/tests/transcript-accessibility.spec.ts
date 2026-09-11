@@ -11,7 +11,7 @@ test('announces live transcript updates without announcing virtualized history',
   }))
   await page.evaluate((history) => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -41,7 +41,7 @@ test('announces live transcript updates without announcing virtualized history',
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -65,7 +65,7 @@ test('announces live transcript updates without announcing virtualized history',
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -85,7 +85,7 @@ test('announces live transcript updates without announcing virtualized history',
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -109,7 +109,7 @@ test('announces live transcript updates without announcing virtualized history',
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -129,7 +129,7 @@ test('announces live transcript updates without announcing virtualized history',
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -155,7 +155,7 @@ test('announces live transcript updates without announcing virtualized history',
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -181,7 +181,7 @@ test('announces live transcript updates without announcing virtualized history',
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -203,7 +203,7 @@ test('announces live transcript updates without announcing virtualized history',
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -236,7 +236,7 @@ test('announces recovered live output after transcript resynchronization', async
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -255,7 +255,7 @@ test('announces recovered live output after transcript resynchronization', async
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -287,7 +287,7 @@ test('announces recovered live output after transcript resynchronization', async
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -324,7 +324,7 @@ test('announces live output after archived content changes the display entry', a
   await loadSnapshot(page)
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -350,7 +350,7 @@ test('announces live output after archived content changes the display entry', a
   await panel.getByRole('button', { name: 'Load full entry' }).click()
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.entry',
       payload: {
         role: 'coder',
@@ -372,7 +372,7 @@ test('announces live output after archived content changes the display entry', a
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -401,7 +401,7 @@ test('bounds live announcement bursts and reports omitted output', async ({ page
   await loadSnapshot(page)
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -438,7 +438,7 @@ test('preserves announcement whitespace and represents empty replacements', asyn
   await page.evaluate(() => {
     const receive = (sequence: number, content: string, operation: 'append' | 'append-content' | 'replace') =>
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -463,7 +463,7 @@ test('preserves announcement whitespace and represents empty replacements', asyn
   await page.evaluate(() => {
     for (const [sequence, content] of [[5, '\n'], [6, 'next']] as const) {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -485,7 +485,7 @@ test('preserves announcement whitespace and represents empty replacements', asyn
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -510,7 +510,7 @@ test('preserves announcement whitespace and represents empty replacements', asyn
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -543,7 +543,7 @@ test('preserves announcement whitespace and represents empty replacements', asyn
 
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: true,
@@ -582,7 +582,7 @@ test('retains sustained announcement batches in publication order', async ({ pag
   for (const [sequence, content] of [[2, 'one'], [3, ' two'], [4, ' three']] as const) {
     await page.evaluate(({ sequence, content }) => {
       window.__blaxquadHarness?.receive({
-        version: 4,
+        version: 5,
         type: 'transcript.update',
         payload: {
           role: 'coder',
@@ -616,7 +616,7 @@ test('announces a late update already present in synchronized visual state once'
     .locator('[data-transcript-announcer]')
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -636,7 +636,7 @@ test('announces a late update already present in synchronized visual state once'
       },
     })
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -665,7 +665,7 @@ test('treats the initial announcement baseline as historical', async ({ page }) 
     .locator('[data-transcript-announcer]')
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.synchronize',
       payload: {
         recovery: false,
@@ -709,7 +709,7 @@ test('keeps replacement boundaries correct after pending announcement truncation
       entryIndex: number,
       content: string,
     ) => window.__blaxquadHarness?.receive({
-      version: 4,
+      version: 5,
       type: 'transcript.update',
       payload: {
         role: 'coder',

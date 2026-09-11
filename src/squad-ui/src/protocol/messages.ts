@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 4
+export const PROTOCOL_VERSION = 5
 
 export interface TranscriptEntry { occurredAt: string; source: string; content: string; hasArchivedContent?: boolean; contentStart?: number }
 export interface IndexedTranscriptEntry extends TranscriptEntry { entryIndex: number }
@@ -108,7 +108,7 @@ export interface ElicitationSchema {
   required?: string[]
 }
 export interface Elicitation { requestId: string; role: string; prompt: string; mode: string; requestedSchema?: ElicitationSchema; url?: string }
-export interface Snapshot { roles: RoleSnapshot[]; permissions: Permission[]; inputs: InputRequest[]; elicitations: Elicitation[] }
+export interface Snapshot { leader: string; roles: RoleSnapshot[]; permissions: Permission[]; inputs: InputRequest[]; elicitations: Elicitation[] }
 
 export interface IssueDescriptor {
   path: string

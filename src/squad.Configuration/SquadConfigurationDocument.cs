@@ -4,6 +4,9 @@ namespace squad.Configuration;
 
 internal sealed class SquadConfigurationDocument
 {
+    [JsonPropertyName("leader")]
+    public string? Leader { get; init; }
+
     [JsonPropertyName("roles")]
     public List<SquadConfigurationRoleDocument>? Roles { get; init; }
 

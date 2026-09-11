@@ -44,6 +44,7 @@ public sealed class BackendScenario : IDisposable
             "blaxquad/squad.json",
             $$"""
             {
+              "leader": "{{role}}",
               "roles": [
                 { "name": "{{role}}", "worktree": "master", "agent": {} }
               ]
@@ -59,6 +60,20 @@ public sealed class BackendScenario : IDisposable
     /// invocation and a recipient role whose fake session observes the resulting wake-up.
     /// </summary>
     public IReadOnlyDictionary<string, string> ConfigureRoles(params string[] roles) => myWorkspace.ConfigureProject(roles);
+
+    /// <summary>
+    /// Like <see cref="ConfigureRoles"/>, but configures an explicit leader instead of defaulting to the first
+    /// role, for scenarios that prove leader-based targeting is independent of configured role order.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureRolesWithLeader(string leader, params string[] roles) =>
+        myWorkspace.ConfigureProjectWithLeader(leader, roles);
+
+    /// <summary>
+    /// Rewrites the "leader" field of a project already configured by <see cref="ConfigureRoles(string[])"/>,
+    /// including a missing (null) or blank value, while keeping the same roles and worktree mappings, for
+    /// scenarios that arrange invalid leader configuration as a semantic workspace operation.
+    /// </summary>
+    public void SetLeader(string? leader, params string[] roles) => myWorkspace.SetLeader(leader, roles);
 
     /// <summary>
     /// Enables the private fake-provider control transport for the next <see cref="StartAsync{TProviderFactory}"/>
@@ -365,6 +380,11 @@ public sealed class BackendScenario : IDisposable
     /// rather than relying on unordered dictionary enumeration.</summary>
     public Task<IReadOnlyList<string>> LatestSnapshotRoleOrderAsync(TimeSpan? timeout = null) =>
         RequireUi().LatestSnapshotRoleOrderAsync(timeout, DescribeControlDiagnostics());
+
+    /// <summary>Returns the top-level "leader" reported by the most recently published "state.snapshot" message -
+    /// proving the configured leader flows end to end from configuration through the real UI protocol.</summary>
+    public Task<string> LatestSnapshotLeaderAsync(TimeSpan? timeout = null) =>
+        RequireUi().LatestSnapshotLeaderAsync(timeout, DescribeControlDiagnostics());
 
     /// <summary>Sends a prompt to the given role through the real UI protocol - the same path a real user
     /// interface uses, never a shortcut into the provider.</summary>

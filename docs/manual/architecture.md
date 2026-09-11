@@ -118,8 +118,9 @@ One runtime generation owns the shared provider connection and every role sessio
 - **Handoff contract.** Validated files and atomic filesystem moves define queue state. The role tool produces and
   consumes queue entries; headquarters fans them out to recipient worktrees, archives delivery outcomes, and wakes
   active recipients.
-- **Workspace contract.** Configuration defines roles, worktrees, receive modes, provider settings, and prompts.
-  Git supplies role isolation, role-context discovery, and the commits referenced by code handoffs.
+- **Workspace contract.** Configuration defines a squad leader role (explicit, or the first configured role by
+  default), roles, worktrees, receive modes, provider settings, and prompts. Git supplies role isolation,
+  role-context discovery, and the commits referenced by code handoffs.
 
 ## C4 level 3: Headquarters components
 
@@ -277,8 +278,8 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
 
 ## State ownership and durability
 
-- **Squad configuration** is checked-in project state. It defines roles and their execution settings and is read at
-  startup; it is not dynamically watched.
+- **Squad configuration** is checked-in project state. It defines a leader role (explicit, or the first configured
+  role by default), the roles, and their execution settings and is read at startup; it is not dynamically watched.
 - **Source and commits** remain owned by Git. Roles work in the main checkout or dedicated worktrees. A normal launch
   resets dedicated worktrees and queues; a continued launch preserves them.
 - **Handoff queues** are durable per-worktree state. Filesystem moves are the authoritative task, batch, delivery,

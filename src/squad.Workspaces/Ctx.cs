@@ -17,6 +17,7 @@ public class Ctx
     public string HandoffLog { get; set; } = "";
     public bool ContinueLaunch { get; set; }
     public List<RoleConfigRow> Roles { get; set; } = [];
+    public string Leader { get; set; } = "";
     public IReadOnlyList<string> SharedWorktreePaths { get; set; } = [];
 }
 

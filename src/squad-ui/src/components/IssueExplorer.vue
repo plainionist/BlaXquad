@@ -147,7 +147,7 @@ onBeforeUnmount(() => {
               <button
                 type="button"
                 class="issue-action issue-action-play"
-                :aria-label="`Prepare the first role's prompt for ${issue.title}`"
+                :aria-label="`Prepare the leader's prompt for ${issue.title}`"
                 :disabled="!hasTargetRole"
                 @click.stop="play(issue)"
               >

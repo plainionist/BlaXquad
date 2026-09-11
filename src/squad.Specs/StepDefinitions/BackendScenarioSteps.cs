@@ -55,6 +55,22 @@ public sealed class BackendScenarioSteps
     public void GivenABackendScenarioConfiguredWithRoles(string commaSeparatedRoles) =>
         myScenario.ConfigureRoles(commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
+    [Given("a backend scenario configured with roles {string} and no leader")]
+    public void GivenABackendScenarioConfiguredWithRolesAndNoLeader(string commaSeparatedRoles)
+    {
+        var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        myScenario.ConfigureRoles(roles);
+        myScenario.SetLeader(null, roles);
+    }
+
+    [Given("a backend scenario configured with roles {string} and leader {string}")]
+    public void GivenABackendScenarioConfiguredWithRolesAndLeader(string commaSeparatedRoles, string leader)
+    {
+        var roles = commaSeparatedRoles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        myScenario.ConfigureRoles(roles);
+        myScenario.SetLeader(leader, roles);
+    }
+
     [Given("the backend scenario has enabled the fake-provider control transport")]
     public void GivenTheBackendScenarioHasEnabledTheFakeProviderControlTransport() =>
         myScenario.EnableFakeProviderControl();
@@ -169,6 +185,10 @@ public sealed class BackendScenarioSteps
         var actual = Await(myScenario.LatestSnapshotRoleOrderAsync());
         Assert.That(actual, Is.EqualTo(expected));
     }
+
+    [Then("the backend scenario observes state.snapshot leader as {string}")]
+    public void ThenTheBackendScenarioObservesStateSnapshotLeaderAs(string leader) =>
+        Assert.That(Await(myScenario.LatestSnapshotLeaderAsync()), Is.EqualTo(leader));
 
     [Then("the backend scenario observes a session started for role {string} across the control pipe")]
     public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
@@ -471,32 +491,32 @@ public sealed class BackendScenarioSteps
                 """{"version":2,"type":"role.abort","role":"coder"}""",
                 "The UI protocol version is not supported."),
             "missing type" => (
-                """{"version":4}""",
+                """{"version":5}""",
                 "The UI message is missing a type."),
             "unknown type" => (
-                """{"version":4,"type":"unknown"}""",
+                """{"version":5,"type":"unknown"}""",
                 "Unknown UI message type 'unknown'."),
             // Every envelope below must be a single line: the real stdio transport frames one protocol message
             // per newline-delimited line, unlike the in-memory ReceiveMessageAsync call the old direct
             // construction used, which never had to respect that framing.
             "missing role" => (
-                """{"version":4,"type":"prompt.send","payload":{"prompt":"hello"}}""",
+                """{"version":5,"type":"prompt.send","payload":{"prompt":"hello"}}""",
                 "The UI message is missing role."),
             "missing request ID" => (
-                """{"version":4,"type":"permission.respond","role":"coder","payload":{"approved":true}}""",
+                """{"version":5,"type":"permission.respond","role":"coder","payload":{"approved":true}}""",
                 "The UI message is missing requestId."),
             "invalid string payload" => (
-                """{"version":4,"type":"prompt.send","role":"coder","payload":{"prompt":42}}""",
+                """{"version":5,"type":"prompt.send","role":"coder","payload":{"prompt":42}}""",
                 "The UI message is missing payload.prompt."),
             "invalid boolean payload" => (
-                """{"version":4,"type":"permission.respond","role":"coder","requestId":"permission-1","payload":{"approved":"yes"}}""",
+                """{"version":5,"type":"permission.respond","role":"coder","requestId":"permission-1","payload":{"approved":"yes"}}""",
                 "The UI message is missing payload.approved."),
             "invalid integer payload" => (
-                """{"version":4,"type":"transcript.page","role":"coder","payload":{"beforeIndex":"five"}}""",
+                """{"version":5,"type":"transcript.page","role":"coder","payload":{"beforeIndex":"five"}}""",
                 "The requested operation requires an element of type "
                 + "'Number', but the target element has type 'String'."),
             "invalid synchronization payload" => (
-                """{"version":4,"type":"transcript.synchronize","payload":{"roles":"coder"}}""",
+                """{"version":5,"type":"transcript.synchronize","payload":{"roles":"coder"}}""",
                 "The UI message contains invalid transcript positions."),
             "malformed JSON" => (
                 "{",

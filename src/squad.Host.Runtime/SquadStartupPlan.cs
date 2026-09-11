@@ -9,6 +9,7 @@ public sealed class SquadStartupPlan
 {
     private readonly Func<CancellationToken, Task<AgentBackendContext>> myPrepareContextAsync;
     private readonly Func<IEnumerable<string>> myDiscoverRoles;
+    private readonly Func<string> myDiscoverLeader;
     private readonly Action myPrepareWorkspace;
     private readonly Func<bool, CancellationToken, Task> myPrepareConfiguredWorktreesForLaunchAsync;
     private readonly Action myPrepareHandoffDirs;
@@ -16,6 +17,7 @@ public sealed class SquadStartupPlan
 
     public SquadStartupPlan(
         Func<IEnumerable<string>> discoverRoles,
+        Func<string> discoverLeader,
         Action prepareWorkspace,
         Func<bool, CancellationToken, Task> prepareConfiguredWorktreesForLaunchAsync,
         Action prepareHandoffDirs,
@@ -23,6 +25,7 @@ public sealed class SquadStartupPlan
         Func<CancellationToken, Task<AgentBackendContext>> prepareContextAsync)
     {
         myDiscoverRoles = discoverRoles;
+        myDiscoverLeader = discoverLeader;
         myPrepareWorkspace = prepareWorkspace;
         myPrepareConfiguredWorktreesForLaunchAsync = prepareConfiguredWorktreesForLaunchAsync;
         myPrepareHandoffDirs = prepareHandoffDirs;
@@ -39,6 +42,9 @@ public sealed class SquadStartupPlan
 
     /// <summary>Discovers the configured roles. Must only be called after <see cref="PrepareContextAsync"/> completes.</summary>
     public IEnumerable<string> DiscoverRoles() => myDiscoverRoles();
+
+    /// <summary>Discovers the configured leader role name. Must only be called after <see cref="PrepareContextAsync"/> completes.</summary>
+    public string DiscoverLeader() => myDiscoverLeader();
 
     public void PrepareWorkspace() => myPrepareWorkspace();
 

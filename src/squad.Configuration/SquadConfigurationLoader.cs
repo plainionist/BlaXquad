@@ -113,7 +113,16 @@ public static class SquadConfigurationLoader
                 new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
         }
 
-        return new SquadConfiguration(roles, sharedWorktreePaths);
+        // "leader" is optional: an omitted or blank value defaults to the first configured role, so there is
+        // always an authoritative leader. An explicitly configured value that does not match any role is still a
+        // configuration error - a plausible typo, not "no leader configured".
+        var leader = string.IsNullOrWhiteSpace(document.Leader) ? roles[0].Name : document.Leader;
+        if (!names.Contains(leader))
+        {
+            throw Error($"leader '{leader}' in {configFile} must match a configured role name");
+        }
+
+        return new SquadConfiguration(roles, leader, sharedWorktreePaths);
     }
 
     private static IReadOnlyList<string> ValidateSharedWorktreePaths(

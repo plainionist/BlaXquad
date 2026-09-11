@@ -8,6 +8,7 @@ import { useDashboardSession } from './composables/useDashboardSession'
 const {
   roles,
   hasRoles,
+  leader,
   protocolError,
   rolesWithOlderTranscript,
   rolesWithTruncatedTranscript,
@@ -44,10 +45,14 @@ function setRolePanelRef(roleName: string, instance: unknown) {
   else rolePanels.delete(roleName)
 }
 
-const firstRoleName = computed(() => roles.value[0]?.role ?? null)
+const targetRoleName = computed(() => {
+  const configuredLeader = leader.value
+  if (!configuredLeader) return null
+  return roles.value.some(role => role.role === configuredLeader) ? configuredLeader : null
+})
 
 function playIssue(path: string) {
-  const target = firstRoleName.value
+  const target = targetRoleName.value
   if (!target) return
   updatePrompt(target, `process this issue: '${path}'`)
   rolePanels.get(target)?.focusPrompt()
@@ -66,7 +71,7 @@ function playIssue(path: string) {
       :issues="issues"
       :is-loading="issuesLoading"
       :error="catalogError"
-      :has-target-role="firstRoleName !== null"
+      :has-target-role="targetRoleName !== null"
       @open="requestCatalog"
       @play="playIssue"
     />

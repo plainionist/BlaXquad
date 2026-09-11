@@ -22,6 +22,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
     private readonly ConcurrentDictionary<string, IAgentSession> mySessions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AgentRoleState> myRoles = new(StringComparer.Ordinal);
     private readonly List<string> myRoleOrder = [];
+    private string myLeader = "";
     private readonly TranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myTranscriptRetentionOptions;
     private readonly RoleOperationCoordinator myRoleOperations = new();
@@ -58,6 +59,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         NotifyStateChanged();
     }
 
+    /// <summary>Records the configured leader role name for publication as authoritative session metadata.</summary>
+    public void SetLeader(string leader)
+    {
+        myLeader = leader;
+        NotifyStateChanged();
+    }
+
     public JsonElement CreateSnapshot()
     {
         // Enumerate in configured role order (myRoleOrder), not myRoles.Values, so state.snapshot.roles matches
@@ -65,6 +73,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, IAsyncDisposable
         var roles = myRoleOrder.Select(role => myRoles[role].CreateSnapshot()).ToArray();
         return JsonSerializer.SerializeToElement(new
         {
+            leader = myLeader,
             roles = roles.Select(role => new
             {
                 role = role.Role,

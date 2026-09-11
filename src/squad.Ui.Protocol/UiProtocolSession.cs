@@ -9,7 +9,7 @@ namespace squad.Ui.Protocol;
 /// </summary>
 public sealed class UiProtocolSession : IAsyncDisposable
 {
-    private const int myProtocolVersion = 4;
+    private const int myProtocolVersion = 5;
     private readonly ISquadUi myUi;
     private readonly ITranscriptUi myTranscriptUi;
     private readonly Action<string> mySendSerializedMessage;

@@ -84,6 +84,7 @@ public sealed class WorkspacePreparer
                 role.Agent.Model,
                 role.Agent.Effort);
         }).ToList();
+        ctx.Leader = configuration.Leader;
         ctx.SharedWorktreePaths = configuration.SharedWorktreePaths;
     }
 

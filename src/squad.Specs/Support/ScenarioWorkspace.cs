@@ -140,7 +140,17 @@ public sealed class ScenarioWorkspace : IDisposable
     /// records each role's worktree path behind this workspace (see <see cref="RunRoleTool"/>),
     /// and also returns those paths so specifications do not duplicate project bootstrap.
     /// </summary>
-    public IReadOnlyDictionary<string, string> ConfigureProject(params string[] roles)
+    public IReadOnlyDictionary<string, string> ConfigureProject(params string[] roles) =>
+        ConfigureProjectWithLeader(roles.Length == 0 ? "" : roles[0], roles);
+
+    /// <summary>
+    /// Like <see cref="ConfigureProject(string[])"/>, but lets scenarios specify an explicit leader instead of
+    /// defaulting to the first role, for scenarios that prove leader-based targeting is independent of role order.
+    /// Named distinctly (rather than overloaded on parameter count) because a same-named two-parameter overload
+    /// would ambiguously win single-role <see cref="ConfigureProject(string[])"/> calls under C# params
+    /// resolution, silently leaving the roles array empty.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ConfigureProjectWithLeader(string leader, params string[] roles)
     {
         if (roles.Length == 0)
         {
@@ -158,28 +168,43 @@ public sealed class ScenarioWorkspace : IDisposable
             myRoleWorktrees[role] = worktreePath;
         }
 
-        var rolesJson = string.Join(",\n", roles.Select(role =>
-            $$"""    { "name": "{{role}}", "worktree": "{{role}}", "agent": {} }"""));
-        WriteFile("blaxquad/squad.json", $$"""
-            {
-              "roles": [
-            {{rolesJson}}
-              ]
-            }
-            """ + "\n");
+        WriteSquadConfiguration(leader, roles);
 
         return myRoleWorktrees;
     }
 
     /// <summary>
-    /// Rewrites a single role already configured by <see cref="ConfigureProject"/> to the given receive mode,
-    /// including an empty string, while keeping its existing worktree mapping. Lets scenarios that arrange an
+    /// Rewrites the "leader" field of a project already configured by <see cref="ConfigureProject(string[])"/>,
+    /// including a missing (null) or blank value, while keeping the same roles and worktree mappings. Lets
+    /// scenarios that arrange invalid leader configuration do so as a semantic workspace operation instead of
+    /// serializing configuration in step definitions.
+    /// </summary>
+    public void SetLeader(string? leader, params string[] roles) => WriteSquadConfiguration(leader, roles);
+
+    private void WriteSquadConfiguration(string? leader, IReadOnlyList<string> roles)
+    {
+        var rolesJson = string.Join(",\n", roles.Select(role =>
+            $$"""    { "name": "{{role}}", "worktree": "{{role}}", "agent": {} }"""));
+        var leaderLine = leader is null ? "" : $$"""  "leader": "{{leader}}",{{"\n"}}""";
+        WriteFile("blaxquad/squad.json", $$"""
+            {
+            {{leaderLine}}  "roles": [
+            {{rolesJson}}
+              ]
+            }
+            """ + "\n");
+    }
+
+    /// <summary>
+    /// Rewrites a single role already configured by <see cref="ConfigureProject(string[])"/> to the given receive
+    /// mode, including an empty string, while keeping its existing worktree mapping. Lets scenarios that arrange an
     /// unsupported or missing receive mode do so as a semantic workspace operation instead of serializing
     /// configuration in step definitions.
     /// </summary>
     public void SetRoleReceiveMode(string role, string receiveMode) =>
         WriteFile("blaxquad/squad.json", $$"""
             {
+              "leader": "{{role}}",
               "roles": [
                 { "name": "{{role}}", "worktree": "{{role}}", "receiveMode": "{{receiveMode}}", "agent": {} }
               ]
@@ -188,8 +213,8 @@ public sealed class ScenarioWorkspace : IDisposable
 
     /// <summary>
     /// Creates a Git project where every named role maps onto the same repository root (a "master" worktree)
-    /// instead of <see cref="ConfigureProject"/>'s one-worktree-per-role layout, for scenarios that arrange an
-    /// ambiguous current-worktree identity as a semantic workspace operation.
+    /// instead of <see cref="ConfigureProject(string[])"/>'s one-worktree-per-role layout, for scenarios that
+    /// arrange an ambiguous current-worktree identity as a semantic workspace operation.
     /// </summary>
     public void ConfigureProjectWithRolesSharingWorktree(params string[] roles)
     {
@@ -198,6 +223,7 @@ public sealed class ScenarioWorkspace : IDisposable
             $$"""    { "name": "{{role}}", "worktree": "master", "agent": {} }"""));
         WriteFile("blaxquad/squad.json", $$"""
             {
+              "leader": "{{roles[0]}}",
               "roles": [
             {{rolesJson}}
               ]

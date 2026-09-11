@@ -6,10 +6,11 @@ import {
   loadRoleSnapshots,
   loadSnapshot,
   protocolMessage,
+  roleSnapshot,
 } from './support/dashboardHarness'
 
 function playButton(page: import('@playwright/test').Page, title: string) {
-  return page.getByRole('button', { name: `Prepare the first role's prompt for ${title}` })
+  return page.getByRole('button', { name: `Prepare the leader's prompt for ${title}` })
 }
 
 function issueTrigger(page: import('@playwright/test').Page) {
@@ -212,7 +213,7 @@ test('copy remains enabled with no configured roles and never sends a UI protoco
   expect(messageCountAfter).toBe(messageCountBefore)
 })
 
-test('play replaces and focuses the first configured role\'s draft with the exact issue path, leaving other roles\' drafts untouched', async ({ page }) => {
+test('play replaces and focuses the configured leader\'s draft with the exact issue path, leaving other roles\' drafts untouched', async ({ page }) => {
   await loadSnapshot(page)
   const coderPrompt = page.getByLabel('Message coder')
   const reviewerPrompt = page.getByLabel('Message reviewer')
@@ -234,11 +235,11 @@ test('play replaces and focuses the first configured role\'s draft with the exac
   await expect(writerPrompt).toHaveValue('existing writer draft')
 })
 
-test('play targets the first configured role even when a different role reports runtime activity first, and does not send prompt.send', async ({ page }) => {
+test('play targets the configured leader even when a different role reports runtime activity first, and does not send prompt.send', async ({ page }) => {
   await loadSnapshot(page)
 
-  // Runtime activity for a non-first role arrives before Play is used; targeting must still follow
-  // squad.json's configured order, not "most recently active."
+  // Runtime activity for a non-leader role arrives before Play is used; targeting must still follow
+  // squad.json's configured leader, not "most recently active."
   await deliverHostMessages(page, [
     protocolMessage('transcript.update', {
       payload: {
@@ -274,6 +275,41 @@ test('play targets the first configured role even when a different role reports 
 
 test('play is disabled with no configured roles, while copy remains enabled', async ({ page }) => {
   await loadRoleSnapshots(page, [])
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+
+  await expect(playButton(page, issueCatalog[0].title)).toBeDisabled()
+  await expect(page.getByRole('button', { name: `Copy path for ${issueCatalog[0].title}` })).toBeEnabled()
+})
+
+test('play targets the configured leader by name even when the leader is not the first configured role', async ({ page }) => {
+  // Roles are configured in the order "reviewer,architect,coder", but squad.json's leader is "architect" - Play
+  // must follow the published leader, never fall back to the first role in this order.
+  await loadRoleSnapshots(page, [
+    roleSnapshot('reviewer'),
+    roleSnapshot('architect'),
+    roleSnapshot('coder'),
+  ], 'architect')
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+
+  await playButton(page, issueCatalog[0].title).click()
+
+  await expect(page.getByLabel('Message architect')).toHaveValue(`process this issue: '${issueCatalog[0].path}'`)
+  await expect(page.getByLabel('Message reviewer')).toHaveValue('')
+  await expect(page.getByLabel('Message coder')).toHaveValue('')
+})
+
+test('play is disabled when the configured leader is not among the current roles, while copy remains enabled', async ({ page }) => {
+  // The published leader "coder" (the harness default) is absent from this snapshot's roles - Play must not
+  // silently fall back to targeting a different, present role.
+  await loadRoleSnapshots(page, [roleSnapshot('reviewer'), roleSnapshot('writer')])
   await issueTrigger(page).click()
   const { requestId } = await lastClientMessage(page)
   await deliverHostMessages(page, [
