@@ -31,16 +31,22 @@
 
   <!-- Copies the plug-in assembly, its dependency manifest, private managed dependencies, and native runtime
        assets - the minimum HostingLoader needs to resolve the packaged default - into ordinary build output,
-       so "dotnet build" and "dotnet run" resolve it exactly like a real publish does. -->
+       so "dotnet build" and "dotnet run" resolve it exactly like a real publish does. Photino's own publish
+       flattens its native library (win-x64: "Photino.Native.dll", linux-x64: "Photino.Native.so", osx-*:
+       "Photino.Native.dylib") directly into that output rather than nesting it under "runtimes/<rid>/native/",
+       so the glob below matches every platform's extension instead of assuming ".dll". -->
   <Target Name="IncludePhotinoHostingInBuildOutput"
           AfterTargets="Build"
           Condition="'$(RuntimeIdentifier)' != '' and '$(IncludePhotinoHosting)' == 'true'">
     <ItemGroup>
-      <PhotinoHostingBuildFile Include="$(_PhotinoHostingPublishOutputDirectory)*.dll;$(_PhotinoHostingPublishOutputDirectory)squad.Hosting.Photino.deps.json"
+      <PhotinoHostingBuildFile Include="$(_PhotinoHostingPublishOutputDirectory)*.dll;$(_PhotinoHostingPublishOutputDirectory)*.so;$(_PhotinoHostingPublishOutputDirectory)*.dylib;$(_PhotinoHostingPublishOutputDirectory)squad.Hosting.Photino.deps.json"
                                 Exclude="@(_PhotinoHostingSharedAssembly->'$(_PhotinoHostingPublishOutputDirectory)%(Identity)')" />
+      <PhotinoHostingBuildNativeFile Include="$(_PhotinoHostingPublishOutputDirectory)Photino.Native.*" />
     </ItemGroup>
     <Error Condition="'@(PhotinoHostingBuildFile)' == ''"
            Text="Photino hosting plug-in files were not found at $(_PhotinoHostingPublishOutputDirectory)." />
+    <Error Condition="'@(PhotinoHostingBuildNativeFile)' == ''"
+           Text="Photino's native runtime asset (Photino.Native.*) was not found at $(_PhotinoHostingPublishOutputDirectory) for RuntimeIdentifier '$(RuntimeIdentifier)'." />
     <Copy SourceFiles="@(PhotinoHostingBuildFile)"
           DestinationFiles="@(PhotinoHostingBuildFile->'$(TargetDir)%(Filename)%(Extension)')" />
   </Target>
@@ -51,13 +57,16 @@
           AfterTargets="Publish"
           Condition="'$(IncludePhotinoHosting)' == 'true'">
     <ItemGroup>
-      <PhotinoHostingPublishFile Include="$(_PhotinoHostingPublishOutputDirectory)*.dll;$(_PhotinoHostingPublishOutputDirectory)squad.Hosting.Photino.deps.json"
+      <PhotinoHostingPublishFile Include="$(_PhotinoHostingPublishOutputDirectory)*.dll;$(_PhotinoHostingPublishOutputDirectory)*.so;$(_PhotinoHostingPublishOutputDirectory)*.dylib;$(_PhotinoHostingPublishOutputDirectory)squad.Hosting.Photino.deps.json"
                                   Exclude="@(_PhotinoHostingSharedAssembly->'$(_PhotinoHostingPublishOutputDirectory)%(Identity)')" />
+      <PhotinoHostingPublishNativeFile Include="$(_PhotinoHostingPublishOutputDirectory)Photino.Native.*" />
       <PhotinoIcon Include="$(MSBuildThisFileDirectory)Assets\BlaXquad.ico" />
       <PhotinoUiFile Include="$(_PhotinoUiDirectory)\**\*" Condition="Exists('$(_PhotinoUiDirectory)\index.html')" />
     </ItemGroup>
     <Error Condition="'@(PhotinoHostingPublishFile)' == ''"
            Text="Photino hosting plug-in files were not found at $(_PhotinoHostingPublishOutputDirectory)." />
+    <Error Condition="'@(PhotinoHostingPublishNativeFile)' == ''"
+           Text="Photino's native runtime asset (Photino.Native.*) was not found at $(_PhotinoHostingPublishOutputDirectory) for RuntimeIdentifier '$(RuntimeIdentifier)'." />
     <Copy SourceFiles="@(PhotinoHostingPublishFile)"
           DestinationFiles="@(PhotinoHostingPublishFile->'$(PublishDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(PhotinoIcon)"

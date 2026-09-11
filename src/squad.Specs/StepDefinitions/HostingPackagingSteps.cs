@@ -41,7 +41,7 @@ public sealed class HostingPackagingSteps
     public void ThenPublishedOutputContainsThePhotinoNativeRuntimeAssets()
     {
         var toolsDir = Path.Combine(AppContext.BaseDirectory, "squad-tools");
-        Assert.That(File.Exists(Path.Combine(toolsDir, "Photino.Native.dll")), Is.True);
+        Assert.That(File.Exists(Path.Combine(toolsDir, PhotinoNativeLibraryFileName)), Is.True);
         Assert.That(File.Exists(Path.Combine(toolsDir, "Photino.NET.dll")), Is.True);
     }
 
@@ -84,7 +84,15 @@ public sealed class HostingPackagingSteps
     public void ThenTheOptOutPublishOutputContainsNoPhotinoAssets()
     {
         Assert.That(File.Exists(Path.Combine(myOptOutPublishDirectory!, "squad.Hosting.Photino.dll")), Is.False);
-        Assert.That(File.Exists(Path.Combine(myOptOutPublishDirectory!, "Photino.Native.dll")), Is.False);
+        Assert.That(File.Exists(Path.Combine(myOptOutPublishDirectory!, PhotinoNativeLibraryFileName)), Is.False);
         Assert.That(Directory.Exists(Path.Combine(myOptOutPublishDirectory!, "ui")), Is.False);
     }
+
+    // Photino's own publish flattens its native library directly into the output root under a platform-specific
+    // file name rather than nesting it under "runtimes/<rid>/native/" the way the Copilot provider's native assets
+    // are nested, so assertions must name the file this way to remain correct on a linux-x64 or osx publish.
+    private static string PhotinoNativeLibraryFileName =>
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "Photino.Native.dll"
+        : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "Photino.Native.dylib"
+        : "Photino.Native.so";
 }

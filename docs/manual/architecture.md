@@ -89,9 +89,6 @@ of the running headquarters process rather than alternate host modes.
 status, transcripts, usage, prompts, and pending interactions. It owns presentation concerns such as drafts, focus,
 scrolling, virtualization, and client-side transcript reconciliation. It does not own agent or workflow state.
 
-Headquarters can instead expose the same UI protocol over standard input and output. This supports non-visual clients
-without introducing a separate server.
-
 ### Role tool
 
 `squad` runs within a role worktree. It resolves the current role from Git context, creates outbound handoffs, and
@@ -117,7 +114,9 @@ One runtime generation owns the shared provider connection and every role sessio
 
 - **UI contract.** A versioned JSON protocol carries commands toward authoritative application state and carries
   snapshots, transcript synchronization, incremental transcript updates, history pages, and errors back to the
-  client. Photino web messages and line-delimited stdio are transport adapters for the same protocol.
+  client. Photino web messages are the packaged default transport for this protocol; the backend acceptance harness
+  loads a test-distributed, line-delimited-stdio transport for the same protocol through an explicit descriptor,
+  never as a supported product presentation mode.
 - **Host-control contract.** A project-specific local named pipe accepts readiness and shutdown requests. A file
   lock establishes one headquarters owner for the project, while local metadata supports process discovery and
   stale-state cleanup.
