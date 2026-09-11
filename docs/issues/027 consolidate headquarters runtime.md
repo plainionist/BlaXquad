@@ -212,7 +212,7 @@ correctness.
 **Status: complete (15cebf1edb).** Lifecycle ships as `squad.Runtime`; `squad.Host.Control` remains a separate
 assembly and dependency. Slice 2 remains pending until the architect activates it.
 
-### Slice 2: Remove CLI presentation from `squad.Host.Control` [pending]
+### Slice 2: Remove CLI presentation from `squad.Host.Control` [in progress]
 
 **Outcome:** The still-separate control module owns only process-control mechanics and no longer depends on
 `squad.Process` for command presentation or Git-based CLI project discovery.
