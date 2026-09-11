@@ -684,3 +684,57 @@ CLI remain unchanged, and no test source changes in this slice.
   transcript, pending interactions, and operation/abort/failure, and facade-only routing plus immutable snapshot
   composition. Keep public CLI/UI/control vocabulary unchanged. Do not claim slice 3 processor isolation or slice 4
   Headquarters/`Squad` replacement.
+
+## Slice 3 review (cc2c93a618) — changes requested
+
+### Finding 1 — Medium
+
+- **Location:** `src/squad.Application/SquadViewModel.cs` (`myProcessors`, `InitializeRoles` closures,
+  `DispatchPromptAsync`, `AbortRoleAndWaitAsync`/`AbortRoleAsync`, `CompleteInteractionCoreAsync`,
+  `ApplyProjectedEvent`, `MarkRoleFailedCore`, `RegisterSession`, `CancelAllPendingInteractionsAsync`);
+  `src/squad.Application/Members/MemberProcessor.cs`.
+- **Violated behavior:** Slice 3 requires one processor as the aggregate's sole mutable accessor and one mutation
+  path per member. Acceptance still requires the ordered member directory to be the only application-domain
+  collection keyed by member identity. `MemberProcessor` never holds or writes the aggregate. All domain mutations
+  remain in `SquadViewModel` methods invoked from constructor closures, including from detached tasks concurrent
+  with the read loop (`MarkWaitingForResponse`, interaction remove/restore, abort idle/clear) and from the public
+  caller (`TryBeginAbort`, `RegisterSession`, shutdown `ClearInteractions`). `myProcessors` is a second
+  member-keyed map. `OperationOutcomeMessage` only resolves a `TaskCompletionSource`; it does not apply member
+  state.
+- **Root cause:** The shared `Channel<Func<Task>>` was replaced with a per-member mailbox that forwards back into
+  the same ViewModel mutation methods, and the processor was stored beside the directory instead of with the member.
+- **Required outcome:** Give each member one processor as the only writer of its aggregate. Start provider I/O
+  without awaiting it on the read loop, but apply start and completion mutations on that loop. After routing, do
+  not index another member-keyed collection. The facade may only admit, route, and compose immutable snapshots.
+
+### Finding 2 — Medium
+
+- **Location:** `src/squad.Application/Members/MemberMessage.cs` (`OperationOutcomeMessage`);
+  `MemberProcessor.RunDetachedAsync` / `PostOutcomeAsync`.
+- **Violated behavior:** Slice 3 requires typed completion messages that carry squad generation, member, and
+  operation identity, and requires rejecting completions that no longer match the active operation. Acceptance:
+  stale completions/events cannot reopen canceled or terminal work. `OperationOutcomeMessage` is an opaque `Action`
+  with no identity. Completions are never matched or rejected. After retirement, `ChannelClosedException` applies
+  that action off-loop. The commit message treats existing leases as a substitute for this contract.
+- **Root cause:** Detached I/O reports only caller-task settlement. No generation/member/operation identity exists
+  on the completion path, so there is nothing to reject.
+- **Required outcome:** Return success, failure, and cancellation as typed completion messages carrying generation,
+  member, and operation identity. Drop completions that no longer match the active operation (including after abort,
+  terminal failure, or retirement). Do not apply opaque leftover actions off-loop. Generation may be a token for
+  the current application lifetime until slice 4 introduces `Squad`; do not implement Headquarters/`Squad`
+  replacement here.
+
+### Finding 3 — Medium
+
+- **Location:** `src/squad.Application/Members/MemberMessage.cs` (`SendPromptMessage.Operation`);
+  `MemberProcessor` constructor `Func<...>` fields; `SquadViewModel.SendAsync` / `SendHarnessAsync`.
+- **Violated behavior:** Slice 3 requires routing typed prompt, harness, abort, interaction-response,
+  provider-event, session-terminal, operation-completion, and retirement messages, and removing opaque command
+  delegates. `SendPromptMessage` still carries `Func<IAgentSession, CancellationToken, Task>`. The processor is
+  constructed from seven ViewModel delegates that close over the compatibility `role` string. Prompt and harness
+  remain one message distinguished only by that func.
+- **Root cause:** The mailbox types wrap the previous command delegates instead of naming the member operations
+  the processor applies to its aggregate.
+- **Required outcome:** Make each routed operation a typed message the processor interprets against its member.
+  Distinguish prompt and harness without an opaque operation delegate. Keep public CLI/UI/control contracts and
+  tests unchanged.
