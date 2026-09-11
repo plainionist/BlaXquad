@@ -30,6 +30,10 @@ export function usePromptHistory() {
     return (navigationIndexByRole.value[role] ?? null) !== null
   }
 
+  function exitNavigation(role: string) {
+    resetNavigation(role)
+  }
+
   function recallOlder(role: string, currentDraft: string): string | null {
     const history = historyByRole.value[role] ?? []
     if (history.length === 0) return null
@@ -61,6 +65,7 @@ export function usePromptHistory() {
   return {
     recordSubmission,
     isNavigating,
+    exitNavigation,
     recallOlder,
     recallNewer,
   }

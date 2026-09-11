@@ -39,6 +39,7 @@ export function useDashboardSession() {
   const {
     recordSubmission: recordPromptSubmission,
     isNavigating: isHistoryNavigating,
+    exitNavigation: exitHistoryNavigation,
     recallOlder: recallOlderPromptHistory,
     recallNewer: recallNewerPromptHistory,
   } = usePromptHistory()
@@ -191,6 +192,7 @@ export function useDashboardSession() {
     isHistoryNavigating,
     recallOlderPrompt,
     recallNewerPrompt,
+    exitHistoryNavigation,
     focusRole,
     requestTranscriptPage,
     requestArchivedTranscriptEntry,

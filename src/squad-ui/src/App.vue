@@ -26,6 +26,7 @@ const {
   isHistoryNavigating,
   recallOlderPrompt,
   recallNewerPrompt,
+  exitHistoryNavigation,
   focusRole,
   requestTranscriptPage,
   requestArchivedTranscriptEntry,
@@ -92,6 +93,7 @@ function playIssue(path: string) {
         :history-navigating="isHistoryNavigating(role.role)"
         :recall-older-prompt="recallOlderPrompt"
         :recall-newer-prompt="recallNewerPrompt"
+        :exit-history-navigation="exitHistoryNavigation"
         :input-draft-for="inputDraftFor"
         :elicitation-values-for="elicitationValuesFor"
         :has-older="rolesWithOlderTranscript.has(role.role)"

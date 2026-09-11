@@ -8,6 +8,7 @@ const props = defineProps<{
   historyNavigating: boolean
   recallOlderPrompt: (role: string) => boolean
   recallNewerPrompt: (role: string) => boolean
+  exitHistoryNavigation: (role: string) => void
 }>()
 
 const emit = defineEmits<{
@@ -28,9 +29,15 @@ function focusPrompt() {
   textarea.value?.focus()
 }
 
+function caretCollapsedAtStart() {
+  const element = textarea.value
+  return !!element && element.selectionStart === 0 && element.selectionEnd === 0
+}
+
 function onArrowUp(event: KeyboardEvent) {
   if (event.isComposing) return
-  if (promptModel.value !== '' && !props.historyNavigating) return
+  if (!props.historyNavigating && promptModel.value !== '' && !caretCollapsedAtStart())
+    return
   if (props.recallOlderPrompt(props.role)) event.preventDefault()
 }
 
@@ -38,6 +45,10 @@ function onArrowDown(event: KeyboardEvent) {
   if (event.isComposing) return
   if (!props.historyNavigating) return
   if (props.recallNewerPrompt(props.role)) event.preventDefault()
+}
+
+function onInput() {
+  if (props.historyNavigating) props.exitHistoryNavigation(props.role)
 }
 
 defineExpose({ focusPrompt })
@@ -55,6 +66,7 @@ defineExpose({ focusPrompt })
       @keydown.enter.exact.prevent="emit('send')"
       @keydown.up.exact="onArrowUp"
       @keydown.down.exact="onArrowDown"
+      @input="onInput"
     />
     <div class="composer-actions">
       <button class="primary" type="submit" :disabled="!prompt.trim()">Send</button>
