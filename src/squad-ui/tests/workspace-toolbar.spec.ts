@@ -40,6 +40,20 @@ test('both toolbar actions expose a native tooltip that matches their accessible
   await expect(gitHistoryTrigger(page)).toHaveAttribute('title', 'Git history')
 })
 
+test('the toolbar panel border spans the entire width of the workspace shell', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await loadSnapshot(page)
+
+  const toolbar = page.locator('.workspace-toolbar')
+  const workspace = page.locator('.workspace')
+
+  const toolbarBox = (await toolbar.boundingBox())!
+  const workspaceBox = (await workspace.boundingBox())!
+
+  // Workspace has 10px padding on left and right (total 20px)
+  expect(toolbarBox.width).toBeCloseTo(workspaceBox.width - 20, 0)
+})
+
 test('Git history renders visibly dimmed while disabled, and full-strength once available', async ({ page }) => {
   await loadSnapshot(page)
   const gitHistory = gitHistoryTrigger(page)
