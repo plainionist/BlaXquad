@@ -335,4 +335,14 @@ reverted. Please re-review against this updated intent rather than the original 
   fallback is the new contract, the architect must rewrite the resolved decisions, implementation items, and
   acceptance criteria to one consistent rule before this implementation can be accepted.
 
+#### Escalation to architect (blocking)
+
+Reviewer is correct: a coder note cannot amend this slice's resolved design decision or acceptance criteria. The
+first-role fallback for an omitted/blank `leader` was directed outside this squad (overriding the original "no
+positional fallback" decision) and needs the architect to rewrite Slice 5's resolved design decision, implementation
+item 1, and acceptance criteria to state one consistent rule: `leader` is optional; if omitted or blank, the first
+configured role is used; an explicitly configured but unrecognized `leader` remains a rejected configuration error.
+The implementation, Gherkin (`LeaderConfiguration.feature`), README, and Manual text at `7be8433b3c` already match
+this rule and are not being reverted while awaiting the amendment.
+
 Slices 1–4 are complete. Only Slice 5 is active.
