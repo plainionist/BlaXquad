@@ -10,12 +10,6 @@ namespace squad.Workspaces;
 /// </summary>
 public sealed class WorkspacePreparer
 {
-    private readonly Action<string> myFail;
-    public WorkspacePreparer(Action<string> fail)
-    {
-        myFail = fail;
-    }
-
     public async Task InitializeGitRepoAsync(Ctx ctx, CancellationToken cancellationToken)
     {
         if (Directory.Exists(Path.Combine(ctx.WorkingDir, ".git")) || File.Exists(Path.Combine(ctx.WorkingDir, ".git")))
@@ -53,11 +47,11 @@ public sealed class WorkspacePreparer
     {
         if (!File.Exists(ctx.ConfigFile))
         {
-            myFail($"{myRed}Error:{myReset} Config not found at {ctx.ConfigFile}");
+            throw new WorkspacePreparationException($"Config not found at {ctx.ConfigFile}");
         }
         if (!File.Exists(ctx.ConstitutionFile))
         {
-            myFail($"{myRed}Error:{myReset} Constitution prompt not found at {ctx.ConstitutionFile}");
+            throw new WorkspacePreparationException($"Constitution prompt not found at {ctx.ConstitutionFile}");
         }
 
         SquadConfiguration configuration;
@@ -67,8 +61,7 @@ public sealed class WorkspacePreparer
         }
         catch (SquadConfigurationException exception)
         {
-            myFail($"{myRed}Error:{myReset} {exception.Message}");
-            return;
+            throw new WorkspacePreparationException(exception.Message, exception);
         }
 
         ctx.Roles = configuration.Roles.Select(role =>
@@ -176,8 +169,8 @@ public sealed class WorkspacePreparer
             }
             else
             {
-                myFail($"{myRed}Error:{myReset} Cannot replace non-empty shared worktree path {target}; move its contents to {source} before launching");
-                return;
+                throw new WorkspacePreparationException(
+                    $"Cannot replace non-empty shared worktree path {target}; move its contents to {source} before launching");
             }
         }
 
@@ -249,7 +242,7 @@ public sealed class WorkspacePreparer
             var path = SiblingTool.Resolve(ctx.ScriptDir, helper);
             if (!IsExecutable(path))
             {
-                myFail($"{myRed}Error:{myReset} Required helper script not found or not executable: {path}");
+                throw new WorkspacePreparationException($"Required helper script not found or not executable: {path}");
             }
         }
     }
@@ -323,8 +316,5 @@ public sealed class WorkspacePreparer
         string.Join(" ", Regex.Split(Regex.Replace(role, "[-_]", " "), @"\s+")
             .Where(s => s.Length > 0)
             .Select(value => value.Length == 1 ? value.ToUpperInvariant() : char.ToUpperInvariant(value[0]) + value[1..].ToLowerInvariant()));
-
-    private const string myRed = "\u001b[0;31m";
-    private const string myReset = "\u001b[0m";
 }
 

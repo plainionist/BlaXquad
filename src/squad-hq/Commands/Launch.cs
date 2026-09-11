@@ -62,12 +62,6 @@ static class Launch
             };
         }
 
-        Ctx PrepareContext(Ctx context)
-        {
-            new WorkspacePreparer(Fail).Parse(context);
-            return context;
-        }
-
         AgentBackendContext BuildBackendContext(Ctx context)
         {
             var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -131,7 +125,7 @@ static class Launch
 
             try
             {
-                var preparer = new WorkspacePreparer(Fail);
+                var preparer = new WorkspacePreparer();
                 var viewModel = new SquadViewModel();
                 var issueCatalog = new WorkspaceIssueCatalog(context.WorkingDir);
                 var runtime = Create(context.WorkingDir, viewModel, issueCatalog, agentProviderFactory, uiMode);
@@ -148,7 +142,7 @@ static class Launch
                         await preparer.InitializeGitRepoAsync(context, cancellationToken);
                         await preparer.EnsureRuntimeGitExcludesAsync(context, cancellationToken);
                         cancellationToken.ThrowIfCancellationRequested();
-                        PrepareContext(context);
+                        preparer.Parse(context);
                         return BuildBackendContext(context);
                     });
 
@@ -178,6 +172,10 @@ static class Launch
                 catch (HandoffPumpTerminalFailureException exception)
                 {
                     Fail($"{Red}Error:{Reset} Handoff delivery failed: {DescribeFailure(exception)}");
+                }
+                catch (WorkspacePreparationException exception)
+                {
+                    Fail($"{Red}Error:{Reset} {exception.Message}");
                 }
                 catch (Exception exception) when (exception is not CliExitException)
                 {
