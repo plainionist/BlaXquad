@@ -138,9 +138,9 @@ that behavior into the command/composition side, with a name such as `ProjectRoo
 one-caller CLI helper into `squad.Runtime.Control`.
 
 After that move, do not make `squad.Runtime` depend on `squad.Process` solely to throw `CliExitException` from lease
-acquisition. Lease acquisition should report a typed runtime/control failure or another presentation-neutral
-failure, and `squad-hq` should translate it into the existing exit code and diagnostic at the command boundary.
-Reuse one cohesive exception rather than adding one type per lock or metadata failure.
+acquisition. Expected ownership contention should use an explicit acquisition result, and `squad-hq` should
+translate that result into the existing exit code and diagnostic at the command boundary. Do not add a custom
+exception when the caller only needs to distinguish acquired from already owned.
 
 ### Preserve persisted and wire compatibility
 
@@ -217,9 +217,9 @@ correctness.
 1. Delete `HostProjectRoot`. At the `WaitForAgent` command boundary, compose
    `squad.Configuration.ProjectRoot.ResolveViaGit` and `ResolveProjectRoot` so main-checkout, linked-worktree, explicit
    root, validation-order, and missing-project behavior remain unchanged.
-2. Replace the lease's `CliExitException` with one presentation-neutral `HostControlException` that preserves its
-   cause. Translate only that exception to the existing exit code and duplicate-launch diagnostic in `Launch`; do not
-   broaden the catch to unrelated runtime failures.
+2. Replace the lease's `CliExitException` with an explicit `TryAcquire` result for expected lock contention.
+   Translate only an unsuccessful acquisition to the existing exit code and duplicate-launch diagnostic in `Launch`;
+   let unexpected acquisition failures remain exceptions rather than mapping them to "already running".
 3. Remove the `squad.Process` project reference from `squad.Host.Control`. Keep all module, namespace, and existing
    Host terminology unchanged so this slice contains only the dependency and presentation-boundary correction.
 4. Run the focused duplicate-launch, main-checkout discovery, linked-worktree discovery, missing-project, equivalent
@@ -236,8 +236,8 @@ control component remaining structurally separate.
 2. Remove `squad.Host.Control.csproj`, its solution entry, the runtime-to-control project edge, and the second
    `squad-hq` reference. Keep request parsing, pipe serving, lock/metadata ownership, stale cleanup, and client access
    in dedicated control types rather than folding them into `SquadApplication`.
-3. Internalize only helpers whose cross-assembly visibility became unnecessary; keep the lease, client, and
-   presentation-neutral exception public because `squad-hq` consumes them.
+3. Internalize only helpers whose cross-assembly visibility became unnecessary; keep the lease and client public
+   because `squad-hq` consumes them.
 4. Update `docs/Manual/modules.md` and architecture descriptions to show one runtime module with distinct lifecycle
    and control components. Add or extend an architecture-fitness acceptance scenario that proves a clean published
    `squad-hq` contains `squad.Runtime.dll` and no `squad.Host.Control.dll`.
@@ -249,9 +249,9 @@ control component remaining structurally separate.
 **Outcome:** Source, diagnostics, specifications, and manuals consistently call the running process
 Headquarters while persisted and wire compatibility remains unchanged.
 
-1. Rename `HostLease`, `HostControlClient`, `HostControlRequest`, `CleanupLease`, and `HostControlException` to their
-   cohesive `Headquarters*` names. Rename corresponding source fields, locals, test-support identifiers, feature
-   names, bindings, comments, and XML documentation that refer to the running process.
+1. Rename `HostLease`, `HostControlClient`, `HostControlRequest`, and `CleanupLease` to their cohesive
+   `Headquarters*` names. Rename corresponding source fields, locals, test-support identifiers, feature names,
+   bindings, comments, and XML documentation that refer to the running process.
 2. Update operator diagnostics and Gherkin/manual prose from "squad host" and "host-control" to Headquarters terms.
    Update `docs/Manual/architecture.md`, `modules.md`, and `test-strategy.md` in the same commit.
 3. Do not rename `.blaxquad/host.lock`, `.blaxquad/host.json` or its schema, the `blaxquad-*` pipe identity, protocol
