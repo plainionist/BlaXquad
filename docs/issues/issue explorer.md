@@ -8,7 +8,7 @@ priority: 9999
 ## Goal
 
 Add a compact issue explorer above the agent panels so an operator can inspect repository issues, copy an issue path,
-or prepare the first configured role to process an issue without sending the prompt automatically.
+or prepare the configured leader role to process an issue without sending the prompt automatically.
 
 ## User experience
 
@@ -27,10 +27,10 @@ Each issue entry has two icon actions:
 
 - **Copy** copies the issue path relative to the workspace root, using `/` separators, to the clipboard. For example:
   `docs/issues/issue explorer.md`.
-- **Play** puts `process this issue: '<relative path>'` into the prompt draft of the first configured role and focuses
-  that role's prompt composer. It must not emit `prompt.send`; the user still submits the prompt with Enter or Send.
+- **Play** puts `process this issue: '<relative path>'` into the configured leader's prompt draft and focuses that
+  role's prompt composer. It must not emit `prompt.send`; the user still submits the prompt with Enter or Send.
 
-If no role is available, keep Play disabled while leaving Copy available.
+If the configured leader is not available in the current UI state, keep Play disabled while leaving Copy available.
 
 ## Architectural analysis
 
@@ -83,7 +83,9 @@ This is a protocol extension, so increment the protocol version in C# and TypeSc
 
 ## Resolved design decisions
 
-- Play replaces the first configured role's current draft immediately. It does not append or ask for confirmation.
+- Play replaces the configured leader's current draft immediately. It does not append or ask for confirmation.
+- `blaxquad/squad.json` has a required top-level `leader` field whose value must exactly match one configured role
+  name. There is no positional or first-role fallback.
 - The catalog is an independent, read-only filesystem concern. Put its transport-neutral descriptor and narrow
   catalog contract in `squad.Ui.Abstractions`, implement it in a cohesive `squad.Issues` module, and inject it from
   the `squad-hq` composition root. `SquadViewModel` remains unchanged by issue discovery.
@@ -103,7 +105,7 @@ This is a protocol extension, so increment the protocol version in C# and TypeSc
   `docs/issues`, enumeration failures, and file-read failures are protocol errors. YAML content errors are descriptor
   fallbacks, not protocol errors.
 - Use the order in the configured `roles` array as the authoritative role order. Preserve it explicitly in snapshots
-  rather than relying on `Dictionary` enumeration.
+  rather than relying on `Dictionary` enumeration, but use `leader`, never array position, to choose the issue target.
 
 ## Delivery plan
 
@@ -232,5 +234,54 @@ Acceptance criteria:
 - A non-empty target draft is replaced exactly; every non-target draft is unchanged.
 - The target textarea has focus and no protocol envelope is emitted by Play.
 - Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
+
+**Transition:** Slice 4 remains unchanged because it is already in progress. Slice 5 replaces its positional target
+after Slice 4 is accepted; the overwrite, focus, draft-isolation, disabled-state, and no-auto-send behavior remain.
+
+### Slice 5 - Target the configured leader (pending)
+
+**Outcome:** Play targets the explicitly configured squad leader regardless of role ordering.
+
+Configuration shape:
+
+```json
+{
+  "leader": "architect",
+  "roles": [
+    { "name": "architect", "worktree": "master", "agent": {} },
+    { "name": "coder", "worktree": "coder", "agent": {} }
+  ]
+}
+```
+
+Implementation:
+
+1. Add required `leader` data to `SquadConfigurationDocument` and `SquadConfiguration`. Validate it as a non-empty
+   exact, ordinal match for one validated role name. Missing, blank, and unknown leaders are configuration errors;
+   do not retain a first-role fallback.
+2. Carry the validated leader with the ordered roles through `Ctx` and the startup plan into `SquadViewModel` as one
+   coherent roster. Do not re-read configuration in the application or UI protocol layers.
+3. Publish `leader` as top-level authoritative session metadata in `state.snapshot`. Update the C# and TypeScript
+   protocol versions from 4 to 5 together, including backend and Playwright protocol fixtures. Do not attach leader
+   data to `issues.list`.
+4. Change Play to find the role whose name equals `snapshot.leader`. Preserve Slice 4's exact prompt replacement,
+   focus, other-draft isolation, and no-auto-send behavior. If the current UI projection has no matching role, disable
+   Play rather than falling back to the first role; Copy remains available.
+5. Update the repository's `blaxquad/squad.json`, README configuration example, relevant Manual configuration
+   descriptions, and every test workspace/configuration builder with an explicit valid leader.
+6. Add black-box Gherkin coverage through the published headquarters process for accepted leader publication and
+   rejected missing, blank, and unknown leaders. Add focused Playwright coverage with a leader that is not the first
+   role to prove name-based targeting through the existing Play boundary.
+
+Acceptance criteria:
+
+- Headquarters rejects startup before creating role sessions when `leader` is missing, blank, or not present in
+  `roles`, with a specific configuration error.
+- A valid `state.snapshot` reports the configured leader and retains configured role order independently.
+- With roles ordered as `coder, architect` and `leader: architect`, Play replaces and focuses only the architect
+  draft, preserves the coder draft, and emits no protocol message until explicit submission.
+- Play has no positional fallback when its current snapshot lacks the configured leader, while Copy remains enabled.
+- All shipped, documented, and test-generated configurations declare an explicit valid leader, and every protocol
+  surface consistently uses version 5.
 
 Slices 1–3 are complete. Only Slice 4 is active.
