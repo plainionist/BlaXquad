@@ -3,13 +3,13 @@ using System.Text;
 using System.Text.Json;
 using squad.Ui.Abstractions;
 
-namespace squad.Transcripts;
+namespace squad.Application.Transcripts;
 
 /// <summary>
 /// Maintains a private, size-bounded on-disk transcript archive that can outlive entries evicted from live role
 /// state. Disposing the archive removes its temporary directory and all retained history.
 /// </summary>
-public sealed class TranscriptArchive : IDisposable
+internal sealed class TranscriptArchive : IDisposable
 {
     private const string myTruncationMarker = "\n[Transcript content truncated at the configured storage limit.]";
     private const UnixFileMode myPrivateDirectoryMode =
