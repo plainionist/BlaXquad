@@ -111,6 +111,11 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
     /// has not yet been observed.</summary>
     public bool HasSessionStarted(string role) => myJournal.HasSessionStarted(role);
 
+    /// <summary>Returns the session id currently active for the given role - the one its most recent
+    /// "session-started" notification reported - or false if none has ever been observed. Lets a specification
+    /// compare session ids across roles/members instead of only observing that each one, individually, started.</summary>
+    public bool TryGetActiveSession(string role, out string sessionId) => myJournal.TryGetActiveSession(role, out sessionId);
+
     /// <summary>Waits until the connected client has reported a prompt sent to the given role, and returns its
     /// content.</summary>
     public Task<string> WaitForPromptAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>

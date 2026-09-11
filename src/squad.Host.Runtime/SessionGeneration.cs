@@ -118,7 +118,7 @@ internal sealed class SessionGeneration
         {
             await foreach (var agentEvent in session.Events(cancellationToken))
             {
-                await myViewModel.EnqueueEventAsync(session.Member, agentEvent);
+                await myViewModel.EnqueueEventAsync(session.Role, agentEvent);
             }
         }
         catch (OperationCanceledException)
@@ -153,7 +153,7 @@ internal sealed class SessionGeneration
         }
         catch (OperationCanceledException)
         {
-            failure = new OperationCanceledException($"Session '{session.Member}' was canceled.");
+            failure = new OperationCanceledException($"Session '{session.Role}' was canceled.");
         }
         catch (Exception exception)
         {
@@ -173,7 +173,7 @@ internal sealed class SessionGeneration
         {
             try
             {
-                await myViewModel.MarkRoleFailedAsync(session.Member, failure);
+                await myViewModel.MarkRoleFailedAsync(session.Role, failure);
             }
             catch (Exception exception) when (
                 myStoppingToken.IsCancellationRequested &&

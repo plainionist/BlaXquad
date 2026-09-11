@@ -150,7 +150,24 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesItsRejectedStartupsStandardErrorDoesNotContain(string text) =>
         Assert.That(myScenario.CapturedStandardError(), Does.Not.Contain(text));
 
-    [Then("the backend scenario observes no session was ever started for role {string}")]
+    [Then("the backend scenario observes members {string} have distinct sessions")]
+    public void ThenTheBackendScenarioObservesMembersHaveDistinctSessions(string commaSeparatedMembers)
+    {
+        var members = commaSeparatedMembers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var sessionIds = members.Select(myScenario.ActiveSessionId).ToArray();
+        Assert.That(sessionIds.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(sessionIds.Length));
+    }
+
+    [Then("the backend scenario observes members {string} have distinct worktrees")]
+    public void ThenTheBackendScenarioObservesMembersHaveDistinctWorktrees(string commaSeparatedMembers)
+    {
+        var members = commaSeparatedMembers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var worktreePaths = members.Select(myScenario.WorktreePathFor).ToArray();
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        Assert.That(worktreePaths.Distinct(comparer).Count(), Is.EqualTo(worktreePaths.Length));
+    }
+
+    [Then("the backend scenario observes no session was ever started for member {string}")]
     public void ThenTheBackendScenarioObservesNoSessionWasEverStartedForRole(string role) =>
         Assert.That(myScenario.RoleSessionNeverStarted(role), Is.True);
 
@@ -174,7 +191,7 @@ public sealed class BackendScenarioSteps
     public void ThenTheBackendScenarioObservesStateSnapshotLeaderAs(string leader) =>
         Assert.That(Await(myScenario.LatestSnapshotLeaderAsync()), Is.EqualTo(leader));
 
-    [Then("the backend scenario observes a session started for role {string} across the control pipe")]
+    [Then("the backend scenario observes a session started for member {string} across the control pipe")]
     public void ThenTheBackendScenarioObservesASessionStartedForRoleAcrossTheControlPipe(string role) =>
         Await(myScenario.WaitForRoleSessionStartedAsync(role));
 

@@ -808,6 +808,26 @@ public sealed class BackendScenario : IDisposable
         RequireControl().WaitForSessionDisposedAsync(role, timeout, DescribeUiDiagnostics());
 
     /// <summary>
+    /// Returns the session id the fake provider most recently reported as started for the given role across the
+    /// private control pipe - the same identity <see cref="WaitForRoleSessionStartedAsync"/> already waits for -
+    /// so a specification can prove two members that share one role were given independent provider sessions
+    /// rather than merely that both eventually started. Requires <see cref="EnableFakeProviderControl"/> to have
+    /// been called before <see cref="StartAsync{TProviderFactory}"/>, and a session already observed started for
+    /// that role.
+    /// </summary>
+    public string ActiveSessionId(string role) =>
+        RequireControl().TryGetActiveSession(role, out var sessionId)
+            ? sessionId
+            : throw new InvalidOperationException($"No active session observed for role '{role}'.");
+
+    /// <summary>
+    /// Returns the worktree path this workspace recorded for the given member (see
+    /// <see cref="ScenarioWorkspace.ConfigureProjectWithSharedRole"/>), so a specification can prove two members
+    /// that share one role were given independent worktrees.
+    /// </summary>
+    public string WorktreePathFor(string role) => myWorkspace.RoleWorktreePath(role);
+
+    /// <summary>
     /// Faults the fake provider's whole backend with the given message across the private control pipe, as
     /// production <see cref="squad.AgentProvider.Abstractions.IAgentBackendFailureSource.Failure"/> faulting - a
     /// fatal, backend-wide failure independent of any individual role's session. Requires

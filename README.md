@@ -25,7 +25,7 @@ The installer prints the published application directory. Add it to `PATH`.
 
 In a target Git repository, create a `blaxquad/` directory containing:
 
-- `squad.json` with the roles to run.
+- `squad.json` with the reusable roles and the members to run.
 - `constitution.prompt` with shared instructions.
 - `roles/<role>.prompt` with instructions for each configured role.
 
@@ -52,21 +52,35 @@ squad-hq shutdown
 
 ## Configuration
 
-`blaxquad/squad.json` defines the roles, their worktrees, agent settings, and the squad leader:
+`blaxquad/squad.json` (schema version 2) separates reusable `roles` - each backed by a
+`blaxquad/roles/<role>.prompt` file - from uniquely named `members`, the participants Headquarters actually
+launches. Each member references exactly one role and owns its own worktree, receive mode, and agent settings; two
+members may deliberately reference the same role to run it with independent worktrees and provider sessions:
 
 ```json
 {
+  "schemaVersion": 2,
   "leader": "coordinator",
-  "roles": [
+  "roles": ["coordinator", "coder"],
+  "members": [
     {
       "name": "coordinator",
+      "role": "coordinator",
       "worktree": "master",
       "receiveMode": "task",
       "agent": { "permissions": "prompt" }
     },
     {
-      "name": "coder",
-      "worktree": "coder",
+      "name": "coder-a",
+      "role": "coder",
+      "worktree": "coder-a",
+      "receiveMode": "task",
+      "agent": { "permissions": "approveAll", "model": "gpt-5", "effort": "high" }
+    },
+    {
+      "name": "coder-b",
+      "role": "coder",
+      "worktree": "coder-b",
       "receiveMode": "task",
       "agent": { "permissions": "approveAll", "model": "gpt-5", "effort": "high" }
     }
@@ -74,11 +88,16 @@ squad-hq shutdown
 }
 ```
 
-`leader` identifies the role the dashboard's issue explorer targets when preparing a prompt to process an
-issue. It is optional: if omitted or blank, the first role listed in `roles` is used as the leader, so there
-is always an authoritative leader. If given explicitly, it must exactly match one configured role's `name`.
+`leader` identifies the member the dashboard's issue explorer targets when preparing a prompt to process an
+issue. It is optional: if omitted or blank, the first member listed in `members` is used as the leader, so there
+is always an authoritative leader. If given explicitly, it must exactly match one configured member's `name` - a
+role name alone is not a valid leader when that role is not also a member name.
 
-Use `master` as the worktree name to run a role in the main repository;
+A legacy (schema version 1) document is rejected with a diagnostic describing the identity-preserving migration:
+keep each old entry's `name` as its member name, add that name to `roles`, set the member's `role` to the same
+value, and leave `leader` unchanged.
+
+Use `master` as the worktree name to run a member in the main repository;
 any other name creates a dedicated worktree.
 
 Permissions are `prompt` by default and can be set to `approveAll`.

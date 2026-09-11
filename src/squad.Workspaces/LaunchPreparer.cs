@@ -94,9 +94,8 @@ public sealed class LaunchPreparer
         return new AgentBackendContext(
             context.WorkingDir,
             context.ScriptDir,
-            context.Members.Select(member => new AgentMemberContext(
+            context.Members.Select(member => new AgentRoleContext(
                 member.Member,
-                member.Role,
                 member.DisplayName,
                 member.WorktreePath,
                 InitialInstruction(member.Role),
