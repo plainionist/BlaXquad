@@ -11,5 +11,5 @@ public sealed class PhotinoHostingFactory : IHostingFactory
     public string Name => "photino";
 
     public HostingRuntime Create(HostingContext context) =>
-        new(new PhotinoWindowHost(context.Ui, context.IssueCatalog, context.WorkingDirectory), new SleepInhibitor());
+        new(new PhotinoWindowHost(context.Ui, context.IssueCatalog, context.WorkspaceTools, context.WorkingDirectory), new SleepInhibitor());
 }

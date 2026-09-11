@@ -1,7 +1,8 @@
 using squad.Process;
 using squad.Application;
 using squad.Hosting.Abstractions;
-using squad.Issues;
+using squad.Tools.Issues;
+using squad.Tools.History;
 using squad.Workspaces;
 using squad.Runtime;
 using squad.Runtime.Control;
@@ -62,11 +63,12 @@ static class Launch
             {
                 var viewModel = new SquadViewModel();
                 var issueCatalog = new WorkspaceIssueCatalog(layout.WorkingDir);
+                var gitHistoryTool = new GitHistoryTool(layout.WorkingDir);
                 // An explicit "--hosting" descriptor and the packaged default (Photino) both load their factory at
                 // process startup through the same HostingLoader, exactly like "--provider" and its default. squad-hq
                 // has no compile-time dependency on either concrete hosting assembly.
                 var hostingRuntime = HostingLoader.Load(hostingDescriptor ?? DefaultHostingDescriptor())
-                    .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog));
+                    .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog, gitHistoryTool));
                 var launchPreparer = new LaunchPreparer(layout, continueLaunch);
 
                 application = SquadApplication.Create(
@@ -75,6 +77,7 @@ static class Launch
                     hostingRuntime.WindowHost,
                     hostingRuntime.SleepInhibitor,
                     viewModel,
+                    gitHistoryTool,
                     headquartersLease: headquartersLease!);
                 headquartersLease = null;
                 try

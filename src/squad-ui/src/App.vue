@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ProtocolErrorBanner from './components/ProtocolErrorBanner.vue'
-import IssueExplorer from './components/IssueExplorer.vue'
+import WorkspaceToolbar from './components/WorkspaceToolbar.vue'
 import RolePanel from './components/RolePanel.vue'
 import { useDashboardSession } from './composables/useDashboardSession'
 
@@ -17,6 +17,8 @@ const {
   issuesLoading,
   catalogError,
   requestCatalog,
+  gitHistoryAvailable,
+  openGitHistory,
   permissionsFor,
   inputsFor,
   elicitationsFor,
@@ -71,14 +73,18 @@ function playIssue(path: string) {
       @dismiss="dismissProtocolError"
     />
 
-    <IssueExplorer
-      :issues="issues"
-      :is-loading="issuesLoading"
-      :error="catalogError"
-      :has-target-role="targetRoleName !== null"
-      @open="requestCatalog"
-      @play="playIssue"
-    />
+    <div class="toolbar-row">
+      <WorkspaceToolbar
+        :issues="issues"
+        :issues-loading="issuesLoading"
+        :catalog-error="catalogError"
+        :has-target-role="targetRoleName !== null"
+        :git-history-available="gitHistoryAvailable"
+        @open-issues="requestCatalog"
+        @play-issue="playIssue"
+        @open-git-history="openGitHistory"
+      />
+    </div>
 
     <section v-if="hasRoles" class="role-grid" aria-label="Agent roles">
       <RolePanel

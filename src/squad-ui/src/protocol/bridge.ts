@@ -7,6 +7,7 @@ import {
   type TranscriptPage,
   type TranscriptSynchronization,
   type TranscriptUpdate,
+  type WorkspaceToolsSnapshot,
 } from './messages'
 
 interface HostExternal { sendMessage(message: string): void; receiveMessage(callback: (message: string) => void): void }
@@ -23,6 +24,7 @@ export function createBridge() {
   let transcriptPageListener: (page: TranscriptPage) => void = () => undefined
   let archivedTranscriptEntryListener: (entry: ArchivedTranscriptEntry) => void = () => undefined
   let issuesListener: (issues: IssueListPayload, requestId?: string) => void = () => undefined
+  let workspaceToolsListener: (snapshot: WorkspaceToolsSnapshot) => void = () => undefined
   let errorListener: (message: string, requestId?: string) => void = () => undefined
   const receive = (raw: string) => {
     try {
@@ -34,6 +36,7 @@ export function createBridge() {
       if (message.type === 'transcript.page') return transcriptPageListener(message.payload as TranscriptPage)
       if (message.type === 'transcript.entry') return archivedTranscriptEntryListener(message.payload as ArchivedTranscriptEntry)
       if (message.type === 'issues.list') return issuesListener(message.payload as IssueListPayload, message.requestId)
+      if (message.type === 'workspace-tools.snapshot') return workspaceToolsListener(message.payload as WorkspaceToolsSnapshot)
       if (message.type === 'protocol.error') return errorListener((message.payload as { message?: string })?.message ?? 'The host rejected a message.', message.requestId)
       errorListener(`Unknown host message '${message.type}'.`)
     } catch {
@@ -51,6 +54,7 @@ export function createBridge() {
     onTranscriptPage(listener: (page: TranscriptPage) => void) { transcriptPageListener = listener },
     onArchivedTranscriptEntry(listener: (entry: ArchivedTranscriptEntry) => void) { archivedTranscriptEntryListener = listener },
     onIssues(listener: (issues: IssueListPayload, requestId?: string) => void) { issuesListener = listener },
+    onWorkspaceTools(listener: (snapshot: WorkspaceToolsSnapshot) => void) { workspaceToolsListener = listener },
     onError(listener: (message: string, requestId?: string) => void) { errorListener = listener },
     send(type: string, options: Omit<Envelope, 'version' | 'type'> = {}) {
       const message: Envelope = { version: PROTOCOL_VERSION, type, ...options }

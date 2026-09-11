@@ -13,6 +13,7 @@ internal sealed class UiCommandHandler
     private readonly ISquadUi myUi;
     private readonly ITranscriptUi myTranscriptUi;
     private readonly IIssueCatalog myIssueCatalog;
+    private readonly IWorkspaceTools myWorkspaceTools;
     private readonly Action<string, object, string?> mySend;
     private readonly Action<
         bool,
@@ -24,6 +25,7 @@ internal sealed class UiCommandHandler
         ISquadUi ui,
         ITranscriptUi transcriptUi,
         IIssueCatalog issueCatalog,
+        IWorkspaceTools workspaceTools,
         Action<string, object, string?> send,
         Action<
             bool,
@@ -34,6 +36,7 @@ internal sealed class UiCommandHandler
         myUi = ui;
         myTranscriptUi = transcriptUi;
         myIssueCatalog = issueCatalog;
+        myWorkspaceTools = workspaceTools;
         mySend = send;
         myRequestTranscriptSynchronization =
             requestTranscriptSynchronization;
@@ -54,6 +57,10 @@ internal sealed class UiCommandHandler
                             role.Sequence),
                         StringComparer.Ordinal);
                 myRequestTranscriptSynchronization(true, initialPositions);
+                mySend(
+                    "workspace-tools.snapshot",
+                    new { gitHistoryAvailable = myWorkspaceTools.GitHistoryAvailable },
+                    null);
                 mySignalUiReady();
                 break;
             case "transcript.synchronize":
@@ -142,6 +149,13 @@ internal sealed class UiCommandHandler
                     "issues.list",
                     IssueProtocol.CreateListPayload(issues),
                     message.RequestId);
+                break;
+            case "git-history.open":
+                if (!myWorkspaceTools.GitHistoryAvailable)
+                {
+                    throw new InvalidOperationException("Git history is not available.");
+                }
+                myWorkspaceTools.OpenGitHistory();
                 break;
             default:
                 mySend(

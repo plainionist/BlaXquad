@@ -1,6 +1,10 @@
 {
   "schemaVersion": 2,
   "leader": "architect",
+  "gitHistoryCommand": [
+    "TortoiseGitProc.exe",
+    "/command:log"
+  ],
   "roles": ["architect", "coder", "reviewer"],
   "members": [
     {

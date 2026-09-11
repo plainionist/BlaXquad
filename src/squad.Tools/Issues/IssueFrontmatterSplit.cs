@@ -1,4 +1,4 @@
-namespace squad.Issues;
+namespace squad.Tools.Issues;
 
 /// <summary>
 /// Represents the result of splitting one issue file's raw text into its frontmatter and body. <see cref="HasBody"/>

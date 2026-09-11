@@ -12,7 +12,7 @@ namespace squad.Specs.Support.Ui;
 /// </summary>
 public sealed class HeadlessUiClient
 {
-    private const int ProtocolVersion = 5;
+    private const int ProtocolVersion = 6;
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
@@ -90,6 +90,11 @@ public sealed class HeadlessUiClient
     /// envelope with the given request ID so a later "issues.list" response or correlated "protocol.error" can be
     /// matched to this specific request rather than an unrelated one.</summary>
     public void RequestIssues(string requestId) => SendEnvelope("issues.list", requestId: requestId);
+
+    /// <summary>Sends an arbitrary, payload-free command by name, tagging it with the given request ID - generic
+    /// to any current or future no-payload command (for example a workspace tool's own "open" command), so a new
+    /// command never needs its own bespoke send method here.</summary>
+    public void SendCommand(string type, string? requestId = null) => SendEnvelope(type, requestId: requestId);
 
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given status.</summary>
     public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
@@ -327,6 +332,19 @@ public sealed class HeadlessUiClient
         return GetPayload(element).TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
             ? message.GetString()!
             : throw new InvalidOperationException("The protocol.error message did not include a message.");
+    }
+
+    /// <summary>Waits for the "workspace-tools.snapshot" message the "ui.ready" handshake publishes exactly once,
+    /// and returns the given boolean field from its payload - generic to any current or future workspace tool's
+    /// own availability flag, so a new tool never needs its own bespoke wait method here.</summary>
+    public async Task<bool> WaitForWorkspaceToolsFlagAsync(string fieldName, TimeSpan? timeout = null)
+    {
+        var element = await WaitForMessageAsync(
+            candidate => IsType(candidate, "workspace-tools.snapshot"),
+            "a workspace-tools.snapshot message",
+            timeout,
+            additionalDiagnostics: null);
+        return GetPayload(element).TryGetProperty(fieldName, out var value) && value.ValueKind == JsonValueKind.True;
     }
 
     private static IssueDescriptorObservation ParseIssueDescriptor(JsonElement issue) => new(
