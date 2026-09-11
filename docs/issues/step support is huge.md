@@ -219,7 +219,7 @@ while stream I/O and transcript interpretation have explicit owners under `Suppo
 Focused acceptance: `StdioUiProtocol.feature`, `StdioUiProtocolMultiRole.feature`, `UiProtocolValidation.feature`,
 all `Transcript*.feature` files, and the dashboard interaction scenarios.
 
-### Slice 4 - Provider fixtures have one lifecycle owner
+### Slice 4 - Provider fixtures have one lifecycle owner [done]
 
 **Outcome:** Provider-selection and fake-session behavior remain unchanged while provider fixtures live under
 `Support/Agents` and the duplicate echo stack is gone.
@@ -333,3 +333,7 @@ Provider fixtures live under `Support/Agents`, echo types are gone, and the Head
 - **Violated behavior:** Slice 4 must replace both `EchoAgentProviderFactory` sites with `FakeAgentProviderFactory` and must not enable a control pipe where those readiness-only scenarios do not need one. Controlled auto-echo already exists for scenarios that actually need a reply.
 - **Root cause:** `Given a squad host is running` is shared. Only `A duplicate launch fails clearly` sends a prompt and asserts `echo: still there?`, so the Given now always calls `EnableFakeProviderControl`, waits for session start, and arms auto-echo.
 - **Required outcome:** The shared Given launches `FakeAgentProviderFactory` without a control pipe. Enable the control pipe and auto-echo only for the duplicate-launch scenario that asserts the echoed transcript. Keep the HeadquartersLifecycle replacement launch readiness-only. Do not add a second provider fixture.
+
+## Slice 4 review (d6d811f077) — accepted
+
+**Status: complete (d6d811f077).** Finding on 24d04f6b59 was addressed: shared `Given a squad host is running` launches `FakeAgentProviderFactory` without a control pipe. Only the duplicate-launch scenario uses a dedicated auto-echo Given. HeadquartersLifecycle replacement launch stays readiness-only. No second provider fixture.
