@@ -749,3 +749,28 @@ CLI remain unchanged, and no test source changes in this slice.
 This commit merges `origin/main` (transcript assembly fold) into the slice 3 branch. It does not change
 `MemberProcessor`, `MemberMessage`, or the ViewModel mutation/routing design. Findings 1-3 from the cc2c93a618
 review remain unresolved and still block acceptance.
+
+## Slice 4 review (6032f74351) — changes requested
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Runtime/Headquarters.cs` (`ReplaceSquadAsync`, `InstallSquadUnlockedAsync` catch,
+  `RetireSquadUnlockedAsync`); `src/squad.Application/SquadViewModel.cs` (`Uninstall`, never called).
+- **Violated behavior:** Slice 4 requires the process-lifetime UI/application port to publish only the currently
+  installed generation, answering as an empty squad when none is installed. Failed new startup must leave the
+  Headquarters slot empty and retryable. The later restart issue must be able to invoke the replacement operation
+  without moving generation resources again. `SquadViewModel.Uninstall` exists for that empty-slot state, but
+  Headquarters never calls it. `ReplaceSquadAsync` conclusively retires the old generation (`mySquad = null`) and
+  then installs a replacement; if that install publishes the new generation and `StartAsync` fails, the catch
+  retires it and empties the Headquarters slot while `SquadViewModel` still holds the retired generation.
+  Commands then fail with "Squad is shutting down" instead of empty-squad behavior, snapshots still show the
+  failed generation, and readiness stays false rather than unknown. Process-wide stop may keep a retired
+  generation installed so queries still see known roles (`Uninstall`'s own comment); replacement while Headquarters
+  keeps running must not.
+- **Root cause:** The active-squad slot and the process-lifetime port are updated separately. Retirement clears
+  `mySquad` on a conclusive result but never uninstalls that generation from `SquadViewModel`. `Install` overwrites
+  on the success path, so the empty-slot path was left unwired.
+- **Required outcome:** Keep the ViewModel's installed generation identical to the Headquarters slot. After a
+  conclusive retirement that empties the slot while Headquarters remains running, `Uninstall` that generation so
+  the port answers as an empty, memberless squad until the next install. Do not change process-stop behavior,
+  where a retired generation stays installed until cleanup finishes. Do not add tests or wire restart UI.
