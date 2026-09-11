@@ -43,15 +43,20 @@ through `InternalsVisibleTo`.
 ## `squad.Application`
 
 Owns authoritative live per-member state and user operations, including the active session catalog and command
-admission. Each configured squad member has one member aggregate that is the sole mutable owner of that member's
-projected agent status, transcript, pending interactions, and operation/abort coordination - keyed only by request
-or operation identity, never by another member - and one member processor: a bounded, single-reader mailbox that is
-the sole path through which that member's prompt, abort, interaction-response, and provider-event commands reach its
-aggregate, so one member's provider I/O can never delay another member's mailbox. It projects agent events onto the
-addressed member's aggregate, coordinates prompts and aborts, integrates transcript state, and supplies UI snapshots
-composed from immutable member snapshots. Its `Transcripts` component owns per-member transcript state, including
-ordered entries, streaming buffers, tool-call correlation, live retention limits, durable archives, paging, and
-archived-entry reconstruction.
+admission. One squad generation holds the ordered member directory, its command admission, and the strong
+generation identity every member and message carries; a process-lifetime facade above it forwards each command and
+query to whichever generation is installed, rejects anything addressed to a retired one, and answers as an empty
+squad while none is installed. Each configured squad member has one member aggregate that is the sole mutable
+owner of that member's projected agent status, transcript, pending interactions, and operation/abort coordination -
+keyed only by request or operation identity, never by another member - and one member processor: a bounded,
+single-reader mailbox that is the sole path through which that member's prompt, abort, interaction-response, and
+provider-event commands reach its aggregate, so one member's provider I/O can never delay another member's mailbox.
+It projects agent events onto the addressed member's aggregate, coordinates prompts and aborts, integrates
+transcript state, and supplies UI snapshots composed from immutable member snapshots. Its `Transcripts` component
+owns per-member transcript state, including ordered entries, streaming buffers, tool-call correlation, live
+retention limits, durable archives, paging, and archived-entry reconstruction; the archive itself, its retention
+policy, and each member's monotonic publication identity live for the process, and a generation reaches them only
+through a bounded handle revoked when it retires.
 
 ## `squad.Configuration`
 
@@ -104,11 +109,15 @@ built Vue distribution, and window icon into both `squad-hq`'s ordinary build
 output and its publish output, so `--hosting` resolves it as the packaged
 default exactly like an explicit descriptor resolves any other adapter.
 
-## `squad.Issues`
+## `squad.Tools`
 
-Discovers and parses the fixed workspace `docs/issues` Markdown catalog. It splits and parses YAML frontmatter,
-resolves title and priority fallbacks independently, extracts a bounded body preview, normalizes workspace-relative
-paths, and orders the catalog by ascending priority and filename.
+Implements the workspace tools squad-hq discovers or launches on the operator's behalf, grouped by folder.
+`Issues/` discovers and parses the fixed workspace `docs/issues` Markdown catalog: it splits and parses YAML
+frontmatter, resolves title and priority fallbacks independently, extracts a bounded body preview, normalizes
+workspace-relative paths, and orders the catalog by ascending priority and filename. `History/` implements
+`IWorkspaceTools` (`squad.Ui.Abstractions`) as the optional Git history launcher: it resolves the configured
+`gitHistoryCommand` executable once at startup through `squad.Process`'s executable discovery, reports whether
+it is available, and launches it detached in the workspace root when invoked.
 
 ## `squad.Process`
 
@@ -118,20 +127,30 @@ cancellation, result values, and exit-code exceptions.
 
 ## `squad.Runtime`
 
-Coordinates the headquarters lifecycle after composition. It sequences startup
-and cleanup, owns the provider-runtime generation, registers started sessions
-into the application model, observes session events and failures, and starts
-and stops handoff, window, and sleep resources. Its `Control` component enforces
-one headquarters process per project and provides local process control: it
-owns the Headquarters lock and metadata, named-pipe shutdown and readiness requests,
-client access, and stale-state cleanup. Control code remains structurally
-separate from lifecycle coordination within the same assembly.
+Separates the headquarters process shell from the replaceable squad generation
+after composition. The shell sequences startup and cleanup, owns the window,
+sleep, transcript-archive, and workspace-tool resources, and holds one
+serialized active-squad slot. One squad generation owns the provider backend,
+the member directory and its processors, command admission, started sessions
+and their event and failure observers, and handoff-pump participation; it is
+started through one start operation and released through one idempotent,
+failure-collecting retirement, and a retirement that cannot conclude keeps its
+generation owned so no replacement can overlap it. Exactly one generation is
+installed today, at startup, and retired once, at shutdown. Its `Control`
+component enforces one headquarters process per project and provides local
+process control: it owns the Headquarters lock and metadata, named-pipe
+shutdown and readiness requests, client access, and stale-state cleanup.
+Control code remains structurally separate from lifecycle coordination within
+the same assembly.
 
 ## `squad.Ui.Abstractions`
 
 Defines transport-neutral contracts and data exchanged between application
 state and presentation: user commands, snapshots, transcript announcements and
-updates, pages, and archived entries.
+updates, pages, and archived entries. Also defines `IWorkspaceTools`, the
+narrow, workspace-scoped contract each configured tool (for example the
+optional Git history launcher in `squad.Tools`) implements to report its own
+availability and perform its own launch.
 
 ## `squad.Ui.Protocol`
 
@@ -141,6 +160,10 @@ journaling, synchronization, recovery, and protocol errors.
 
 ## `squad.Workspaces`
 
-Builds launch context and prepares repository workspaces. It initializes Git
-state, parses role configuration, creates or resets worktrees, links shared
-paths, writes agent instructions, and creates runtime and handoff directories.
+Builds launch context and prepares repository workspaces in two distinct
+lifetimes. Process preparation runs once: it initializes Git state, parses role
+configuration, creates or resets worktrees, links shared paths, writes agent
+instructions, and creates runtime and handoff directories. Generation
+preparation reloads the current configuration and role prompts and builds the
+backend, member, leader, and handoff context one squad generation is created
+from, touching no worktree and no durable handoff queue.

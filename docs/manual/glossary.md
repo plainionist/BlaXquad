@@ -238,12 +238,14 @@ The complete set of role sessions created by one headquarters startup. A
 generation becomes active only after all of its sessions are registered, the UI
 has been notified, and the handoff poller has started.
 
-`SquadViewModel` is the application's command-admission authority and the sole
+`SquadMembers` is one generation's command-admission authority and the sole
 owner of the active-session catalog: one synchronization boundary admits a
 command and captures its role's current session together. `SessionGeneration`
 separately owns the provider runtime handle and the event/completion observers
-for one generation, registering each started session directly into the
-application model as it starts.
+for one generation, registering each started session directly into that
+generation's member directory as it starts. Both belong to the `Squad` that
+owns the generation, and the process-lifetime `SquadViewModel` facade forwards
+commands to whichever `Squad` is currently installed.
 
 ## UI protocol
 
@@ -255,9 +257,11 @@ carries this protocol over the OS window; it has no envelope, delivery, or
 recovery logic of its own. Headquarters never references it at compile time - it
 is the packaged default hosting plug-in, runtime-loaded through the same
 `--hosting` mechanism as any other adapter when the option is omitted. Headquarters publishes snapshots, transcript
-synchronization, updates, pages, archived entries, and protocol errors. The
-dashboard sends readiness, prompt, abort, interaction response, and
-transcript retrieval commands.
+synchronization, updates, pages, archived entries, protocol errors, and - once, during the `ui.ready` handshake - a
+`workspace-tools.snapshot` reporting each configured workspace tool's availability (for example
+`gitHistoryAvailable`). The
+dashboard sends readiness, prompt, abort, interaction response, transcript retrieval, and workspace-tool
+commands (for example `git-history.open`).
 
 ## Snapshot
 

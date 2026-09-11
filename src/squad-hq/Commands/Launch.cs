@@ -1,7 +1,8 @@
 using squad.Process;
 using squad.Application;
 using squad.Hosting.Abstractions;
-using squad.Issues;
+using squad.Tools.Issues;
+using squad.Tools.History;
 using squad.Workspaces;
 using squad.Runtime;
 using squad.Runtime.Control;
@@ -49,7 +50,7 @@ static class Launch
                 Fail($"A Headquarters instance is already running for {layout.WorkingDir}.");
                 return;
             }
-            SquadApplication? application = null;
+            Headquarters? headquarters = null;
             using var consoleCancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler? cancelHandler = (_, eventArgs) =>
             {
@@ -62,24 +63,26 @@ static class Launch
             {
                 var viewModel = new SquadViewModel();
                 var issueCatalog = new WorkspaceIssueCatalog(layout.WorkingDir);
+                var gitHistoryTool = new GitHistoryTool(layout.WorkingDir);
                 // An explicit "--hosting" descriptor and the packaged default (Photino) both load their factory at
                 // process startup through the same HostingLoader, exactly like "--provider" and its default. squad-hq
                 // has no compile-time dependency on either concrete hosting assembly.
                 var hostingRuntime = HostingLoader.Load(hostingDescriptor ?? DefaultHostingDescriptor())
-                    .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog));
+                    .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog, gitHistoryTool));
                 var launchPreparer = new LaunchPreparer(layout, continueLaunch);
 
-                application = SquadApplication.Create(
+                headquarters = Headquarters.Create(
                     launchPreparer,
                     agentProviderFactory,
                     hostingRuntime.WindowHost,
                     hostingRuntime.SleepInhibitor,
                     viewModel,
+                    gitHistoryTool,
                     headquartersLease: headquartersLease!);
                 headquartersLease = null;
                 try
                 {
-                    application.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
+                    headquarters.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
                 }
                 catch (OperationCanceledException) when (consoleCancellation.IsCancellationRequested)
                 {
@@ -104,7 +107,7 @@ static class Launch
             finally
             {
                 Console.CancelKeyPress -= cancelHandler;
-                if (application is null && headquartersLease is not null)
+                if (headquarters is null && headquartersLease is not null)
                 {
                     headquartersLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 }

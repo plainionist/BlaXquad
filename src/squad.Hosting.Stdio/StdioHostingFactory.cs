@@ -11,5 +11,5 @@ public sealed class StdioHostingFactory : IHostingFactory
     public string Name => "stdio";
 
     public HostingRuntime Create(HostingContext context) =>
-        new(new StdioWindowHost(context.Ui, context.IssueCatalog), new NoOpSleepInhibitor());
+        new(new StdioWindowHost(context.Ui, context.IssueCatalog, context.WorkspaceTools), new NoOpSleepInhibitor());
 }

@@ -63,15 +63,15 @@ internal sealed record SessionTerminalMessage(
 /// <summary>
 /// Applies the mutation a prompt, abort, or interaction-response operation performs once its async admission gates
 /// (prompt lease, abort wait, operation lease) have passed but before its provider I/O begins, carrying the
-/// processor's generation - a placeholder for the current application lifetime until a later slice introduces a
-/// replaceable squad generation - the member it belongs to, and the identity of the operation starting. The
+/// squad generation the processor belongs to, the member it belongs to, and the identity of the operation
+/// starting. The
 /// processor's read loop applies <see cref="Apply"/> inline and only after confirming <see cref="OperationId"/>
 /// still names this member's active operation - dropping a start mutation for an operation a later dispatch already
 /// superseded before this one's gates cleared - then always resolves <see cref="Applied"/> so the awaiting detached
 /// operation can proceed (having its mutation applied) or return early (having had it correctly dropped).
 /// </summary>
 internal sealed record OperationStartingMessage(
-    Guid Generation,
+    SquadGenerationId Generation,
     string Member,
     Guid OperationId,
     Action Apply,
@@ -88,7 +88,7 @@ internal sealed record OperationStartingMessage(
 /// abort's provider call was still in flight, has since superseded - sets <see cref="Unconditional"/>.
 /// </summary>
 internal sealed record OperationOutcomeMessage(
-    Guid Generation,
+    SquadGenerationId Generation,
     string Member,
     Guid OperationId,
     Action? ApplyMutation,

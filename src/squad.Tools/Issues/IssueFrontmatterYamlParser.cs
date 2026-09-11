@@ -2,7 +2,7 @@ using System.Globalization;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 
-namespace squad.Issues;
+namespace squad.Tools.Issues;
 
 /// <summary>
 /// Parses frontmatter YAML content into title and priority fields, resolving each independently so an invalid or

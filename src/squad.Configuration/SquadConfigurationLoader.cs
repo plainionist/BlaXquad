@@ -98,6 +98,7 @@ public static class SquadConfigurationLoader
         var roles = ValidateRoles(document.Roles, configFile, rolesDirectory);
         var sharedWorktreePaths = ValidateSharedWorktreePaths(document.SharedWorktreePaths, rootDirectory, configFile);
         var members = ValidateMembers(document.Members, roles, configFile, rolesDirectory);
+        var gitHistoryCommand = ValidateGitHistoryCommand(document.GitHistoryCommand, configFile);
 
         // "leader" is optional: an omitted or blank value defaults to the first configured member, so there is
         // always an authoritative leader. An explicitly configured value that does not match any member is still a
@@ -108,7 +109,7 @@ public static class SquadConfigurationLoader
             throw Error($"leader '{leader}' in {configFile} must match a configured member name");
         }
 
-        return new SquadConfiguration(roles, members, leader, sharedWorktreePaths);
+        return new SquadConfiguration(roles, members, leader, sharedWorktreePaths, gitHistoryCommand);
     }
 
     private static IReadOnlyList<string> ValidateRoles(List<string>? documentRoles, string configFile, string rolesDirectory)
@@ -223,6 +224,30 @@ public static class SquadConfigurationLoader
         }
 
         return members;
+    }
+
+    // An omitted "gitHistoryCommand" is a valid "Git history unavailable" configuration, not an error: the array
+    // only needs validation once it is actually configured. The first item is the executable and every remaining
+    // item is one exact argument; both a missing executable and any blank item are configuration errors, matching
+    // how every other configured array in this file is validated.
+    private static IReadOnlyList<string>? ValidateGitHistoryCommand(List<string>? configured, string configFile)
+    {
+        if (configured is null)
+        {
+            return null;
+        }
+        if (configured.Count == 0 || string.IsNullOrWhiteSpace(configured[0]))
+        {
+            throw Error($"gitHistoryCommand in {configFile} must start with a non-blank executable");
+        }
+        foreach (var item in configured)
+        {
+            if (string.IsNullOrWhiteSpace(item))
+            {
+                throw Error($"gitHistoryCommand in {configFile} cannot contain a blank item");
+            }
+        }
+        return configured;
     }
 
     private static IReadOnlyList<string> ValidateSharedWorktreePaths(

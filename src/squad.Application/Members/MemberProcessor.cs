@@ -34,9 +34,9 @@ internal sealed class MemberProcessor : IDisposable
     // stops and later disposes every member - observes the same task instead of posting a second sentinel.
     private Task? myRetirement;
 
-    // A placeholder identity for the current application lifetime until a later slice introduces a replaceable
-    // squad generation; included on every start/outcome message per that slice's acceptance criteria.
-    private readonly Guid myGeneration = Guid.NewGuid();
+    // The identity of the squad generation this processor belongs to, shared by every member of that generation
+    // and carried on every start/outcome message so a mutation captured before retirement is rejected.
+    private readonly SquadGenerationId myGeneration;
     // Read and written only by the read loop itself - assigned the instant a message dispatches a new operation -
     // so no lock is needed and no start or outcome message can ever race its own staleness check.
     private Guid myActiveOperationId = Guid.Empty;
@@ -57,6 +57,7 @@ internal sealed class MemberProcessor : IDisposable
         Action<TranscriptUpdate> transcriptChanged)
     {
         Aggregate = aggregate;
+        myGeneration = aggregate.Generation;
         myAdmissionLock = admissionLock;
         myIsAcceptingUnlocked = isAcceptingUnlocked;
         myShutdownToken = shutdownToken;

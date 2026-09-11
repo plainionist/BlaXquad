@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj" />
+    <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
   </ItemGroup>
 
   <ItemGroup>

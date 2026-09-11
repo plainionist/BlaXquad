@@ -35,11 +35,12 @@ sealed class StdioWindowHost : IWindowHost
     private Task? myStop;
     private bool myStarted;
 
-    public StdioWindowHost(ISquadUi ui, IIssueCatalog issueCatalog)
+    public StdioWindowHost(ISquadUi ui, IIssueCatalog issueCatalog, IWorkspaceTools workspaceTools)
     {
         mySession = new(
             ui,
             issueCatalog,
+            workspaceTools,
             SendSerializedMessage,
             () => myUiReady.TrySetResult());
     }

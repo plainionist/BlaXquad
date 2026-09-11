@@ -35,8 +35,8 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
         {
             if (gateAfterSessions == sessionIndex)
             {
-                // Blocks on the same cancellation token SquadRuntimeController.StartAsync was given, which
-                // SquadApplication.RunAsync cancels the instant its own shutdown-vs-startup race resolves in
+                // Blocks on the same cancellation token Squad.StartAsync was given, which
+                // Headquarters.RunAsync cancels the instant its own shutdown-vs-startup race resolves in
                 // shutdown's favor - proving a Headquarters-control shutdown requested while provider startup is paused
                 // here still terminates cleanly and disposes every session already registered above, without
                 // ever needing a synthetic pause a production caller could actually observe.
@@ -56,7 +56,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
             {
                 // Mirrors a real provider runtime throwing partway through establishing sessions: every session
                 // already started above (and reported across the control pipe) stays registered with
-                // SquadApplication so its normal teardown still disposes it, while every role not yet reached is
+                // the squad generation so its normal retirement still disposes it, while every role not yet reached is
                 // never started at all.
                 throw new InvalidOperationException($"fake provider failed after starting {sessionIndex} session(s)");
             }

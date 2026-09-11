@@ -90,7 +90,7 @@ test('shows semantic subagent activity with a yellow double-chevron prefix', asy
   await loadSnapshot(page)
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 5,
+      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -118,7 +118,7 @@ test('shows an accepted input answer as a user transcript entry with a green pre
   await loadSnapshot(page)
   await page.evaluate(() => {
     window.__blaxquadHarness?.receive({
-      version: 5,
+      version: 6,
       type: 'transcript.update',
       payload: {
         role: 'coder',
@@ -159,7 +159,7 @@ test('puts send, cancel, and scroll-to-end controls beside the prompt', async ({
   }))
   await page.evaluate(entries => {
     window.__blaxquadHarness?.receive({
-      version: 5,
+      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -195,7 +195,7 @@ test('renders file reads with a green marker and full path', async ({ page }) =>
 
   await page.evaluate((path) => {
     window.__blaxquadHarness?.receive({
-      version: 5,
+      version: 6,
       type: 'transcript.synchronize',
       payload: {
         roles: [{
@@ -223,6 +223,6 @@ test('stacks role panels and reports recoverable host errors on narrow screens',
   const secondPanel = await panels.nth(1).boundingBox()
   expect(secondPanel?.y).toBeGreaterThan((firstPanel?.y ?? 0) + (firstPanel?.height ?? 0) - 1)
 
-  await page.evaluate(() => window.__blaxquadHarness?.receive({ version: 5, type: 'unrecognized.message' }))
+  await page.evaluate(() => window.__blaxquadHarness?.receive({ version: 6, type: 'unrecognized.message' }))
   await expect(page.locator('.protocol-error')).toContainText('Unknown host message')
 })

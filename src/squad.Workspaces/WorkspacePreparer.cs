@@ -79,6 +79,7 @@ internal sealed class WorkspacePreparer
         }).ToList();
         ctx.Leader = configuration.Leader;
         ctx.SharedWorktreePaths = configuration.SharedWorktreePaths;
+        ctx.GitHistoryCommand = configuration.GitHistoryCommand;
     }
 
     public void PrepareWorkspace(Ctx ctx)
