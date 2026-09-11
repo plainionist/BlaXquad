@@ -334,86 +334,293 @@ component that renders one participant should become a member component.
 - Durable handoff state, transcript history, issue files, worktrees, and process UI delivery may outlive a squad, but
   none becomes an alternate mutable owner of live member-domain state.
 
-## Rough implementation plan
+## Resolved implementation contracts
 
-### Slice 1: Specify identities, lifetimes, and compatibility
+### Configuration schema and migration
 
-1. Add black-box Gherkin scenarios for a squad containing `coder-a` and `coder-b`, both using the `coder` role prompt,
-   and prove that commands, sessions, status, transcripts, interactions, handoffs, and failures remain independently
-   addressed.
-2. Characterize the observable boundary between Headquarters and its active squad: process resources survive squad
-  replacement, old-generation work is rejected, durable history/work survives, and a failed replacement leaves
-  Headquarters usable.
-3. Introduce explicit role-definition and squad-member configuration concepts. Decide the concrete JSON shape and a
-   controlled compatibility or migration path for existing one-entry-per-role configurations.
-4. Make leader and recipient references resolve to member identities. Validate unique member names and valid role
-   references while allowing duplicate role references.
-5. Update the configuration model and workspace preparation so worktrees and agent settings belong to members and
-   role prompts are resolved from the referenced roles.
+Use an explicit version-2 configuration. Roles are reusable names whose prompts remain at
+`blaxquad/roles/<role>.prompt`; ordered members carry all participant-specific settings:
 
-### Slice 2: Establish the replaceable squad boundary
+```json
+{
+   "schemaVersion": 2,
+   "leader": "architect",
+   "roles": ["architect", "coder", "reviewer"],
+   "members": [
+     {
+       "name": "architect",
+       "displayName": "Architect",
+       "role": "architect",
+       "worktree": "master",
+       "agent": {
+         "model": "gpt-5.6-sol",
+         "effort": "max",
+         "permissions": "approveAll"
+       }
+     },
+     {
+       "name": "coder-a",
+       "role": "coder",
+       "worktree": "coder-a",
+       "agent": {}
+     },
+     {
+       "name": "coder-b",
+       "role": "coder",
+       "worktree": "coder-b",
+       "agent": {}
+     }
+   ]
+}
+```
 
-1. Introduce a process-lifetime Headquarters owner and one active-squad slot with serialized start, replace, and stop
-  operations.
-2. Make one `Squad` own the backend runtime, session catalog, generation admission, event observers, handoff-pump
-  participation, member processors, and transient state for that generation.
-3. Give `Squad` one cohesive start contract and one idempotent retirement contract that preserves uncertain backend
-  ownership instead of clearing handles after attempted cleanup.
-4. Keep the window, UI transport, Headquarters control endpoint, project lease, issue catalog, durable handoff state,
-  transcript archive, and workspace lifetime outside the active squad.
-5. Prove through the black-box suite that Headquarters can replace a squad, reject stale-generation work, recover
-  durable work, survive replacement failure, retry safely, and later shut down normally.
+- `roles` is a non-empty array of unique role names. A role name identifies exactly one conventional prompt file.
+- `members` is a non-empty ordered array. Member names are unique; each member references one declared role and owns
+   its display name, worktree, receive mode, and agent settings. Repeating a role reference is valid.
+- `leader` contains a member name and defaults to the first member when omitted or blank.
+- Existing worktree uniqueness and safety rules continue to apply to members. Issue 023, not this issue, owns any
+   later relaxation for deliberately shared worktrees.
+- An optional `displayName` defaults from the member name. It is presentation metadata, not an address.
+- A missing version or the legacy object-valued `roles` array is rejected with a migration diagnostic. Do not
+   dual-read it as the new model. The documented migration preserves each old entry's `name` as the member name,
+   adds that name to `roles`, sets the member's `role` to the same value, and leaves `leader` unchanged. This gives
+   existing worktrees, handoffs, and scripts an explicit, identity-preserving path instead of silently changing what
+   `role` means.
 
-### Slice 3: Establish the member aggregate
+### External contract migration
 
-1. Introduce one member aggregate around the existing projected state and transcript behavior.
-2. Move pending interactions and their transcript protection into that aggregate, keyed only by request ID.
-3. Move per-member prompt admission, active cancellation, abort, invalidation, and failure state out of squad-wide
-   role-keyed collections.
-4. Expose immutable member snapshots rather than mutable state objects and preserve existing transcript retention and
-   publication ordering.
+- Bump the Headquarters control protocol from version 1 to version 2 when its `role` request/response field becomes
+   `member`. Keep `.blaxquad/host.lock`, `.blaxquad/host.json`, its metadata version, the pipe identity, and the
+   `agent-status` command name unchanged; none of those carries the conflated identity.
+- Bump the UI protocol once, from version 5 to version 6, after generation ownership exists. Version 6 uses
+   `member`/`members`, carries genuine role metadata separately, and carries the squad generation on every
+   generation-bound command and publication. Do not retain version-5 aliases.
+- Keep handoff schema version 1. Its persisted address fields are already the neutral `from`, `to`, and `recipient`.
+   The version-2 configuration migration preserves old participant names as member names, so existing JSON handoffs
+   remain unambiguous. Rename code, help, diagnostics, and tests that currently describe those values as roles.
+- The fake-provider control pipe is private test infrastructure, not a compatibility contract. Migrate it directly
+   to member vocabulary with its production provider boundary.
 
-### Slice 4: Establish independent member processors
+### Related-issue boundary
 
-1. Route typed commands and provider events from the squad facade to one processor by member identity.
-2. Replace the shared opaque `Func<Task>` command queue with explicit member messages and completion messages for
-   external provider operations.
-3. Preserve same-member ordering while proving that a blocked member does not delay another member, including two
-   members with the same role.
-4. Keep squad-generation checks and genuinely cross-member coordinators at the squad boundary; keep only replacement
-  coordination and process resources at Headquarters.
+Issue 024 supplies the serialized active-squad replacement operation but adds no restart or start-issue command,
+acknowledgement, button, or issue-explorer behavior. The `restart active squad` issue must expose this exact operation
+through supported protocol and presentation boundaries and owns the first black-box scenarios that invoke a second
+generation in one process. Do not add a direct-product-object test or test-only replacement trigger here.
 
-### Slice 5: Complete the semantic rename
+Issue 027 must not run concurrently with this work. It is a later mechanical assembly consolidation and must consume
+the resulting `Headquarters`/`Squad` ownership and version-2 control types without restoring `SquadApplication`,
+role-addressed control fields, or compatibility wrappers. Issue 024 does not perform that project move.
 
-1. Rename C# application, configuration, workspace, handoff, transcript, and protocol concepts according to their
-   domain meaning. Do not rename genuine role-definition or role-prompt concepts.
-2. Version or migrate persisted and wire contracts where renaming an operational `role` field to a member field is
-   externally observable. Do not silently reinterpret ambiguous data.
-3. Rename Vue state and participant components such as role panels and headers to member terminology, while keeping
-   role labels available as member metadata.
-4. Remove compatibility aliases after all callers use the explicit model; no API named `role` may continue to carry
-   a member identity in the target state.
+## Implementation plan
 
-### Slice 6: Document and verify the model
+Exactly one slice is active at a time. Each slice includes its production changes, black-box acceptance coverage,
+obsolete test support, and directly affected manual/README updates. Do not defer a broad documentation or rename pass
+that leaves the completed slice's supported behavior described with the wrong domain term.
 
-1. Update the manual glossary, architecture, module descriptions, example configuration, and role-related CLI help.
-2. Update existing acceptance scenarios to use member terminology where they address participants and role
-   terminology where they select prompts or responsibilities.
-3. Run the complete black-box Gherkin suite and focused Playwright coverage for member panels, routing, interactions,
-   transcript updates, and same-role member independence.
+### Slice 1 - Configure and launch reusable roles with distinct members [in progress]
+
+**Outcome:** A configuration author can launch `coder-a` and `coder-b` as separate members that use the same `coder`
+role prompt while retaining independent worktrees, settings, provider sessions, leader addressing, and startup
+state.
+
+- Implement the version-2 schema above with separate immutable role definitions and member configurations. Validate
+   the schema version, unique role and member names, role-prompt existence, valid member role references, member
+   worktree safety/uniqueness, agent settings, receive modes, and a leader member. Duplicate role references are
+   deliberately valid.
+- Replace role-shaped workspace rows and backend contexts with member-shaped values that include both member and
+   role identity. Workspace creation, initial instructions, provider runtime creation, session registration, and
+   event routing use member identity; only prompt lookup uses role identity. `IAgentSession` exposes its member, not
+   a property named `Role`.
+- Make provider interaction events session-local rather than embedding a second role/member address. The session
+   boundary supplies the member exactly once when routing the event.
+- Migrate `blaxquad/squad.json`, configuration examples, workspace/spec builders, and the production and fake
+   provider adapters. The command-side configuration reader must understand version-2 members so existing CLI and
+   handoff behavior remains functional until its terminology is migrated in Slice 2; do not retain legacy
+   configuration support to achieve that.
+- Add black-box configuration scenarios through the published Headquarters process for two same-role members,
+   duplicate member rejection, duplicate role-reference acceptance, unknown role references, leader-member
+   validation/defaulting, missing prompts, and the explicit legacy-schema diagnostic. Observe separate provider
+   sessions and the shared role prompt through the fake provider boundary, not product objects.
+
+**Acceptance:** The repository and generated test workspaces use only schema version 2. `coder-a` and `coder-b` can
+start concurrently with different session IDs and worktrees, both receive the instruction for
+`blaxquad/roles/coder.prompt`, and neither requires a `coder-a.prompt` or `coder-b.prompt`. Invalid configuration
+starts no member session and reports the specific configuration diagnostic. Existing one-member-per-role lifecycle,
+prompt, handoff, and CLI scenarios remain green against the new schema.
+
+### Slice 2 - Address commands, readiness, and handoffs by member
+
+**Outcome:** An operator or agent addresses one configured member consistently through `squad`, Headquarters
+control, and durable handoff delivery, while `role` reports only the member's reusable responsibility.
+
+- Replace `RoleRow`, `CurrentRoleResolver`, role-keyed command helpers, `IRoleNotifier`, and corresponding delivery
+   vocabulary with member equivalents. Worktree context resolves exactly one member. Shared-worktree ambiguity
+   remains rejected until issue 023.
+- Make `squad context` report both `Member` and `Role`; add `--field member`, make `--field role` return the genuine
+   role, and publish `member`, `role`, and `memberWorktreeRoot` in JSON. Remove `roleWorktreeRoot` and any alias that
+   still means member.
+- Make handoff help, validation, diagnostics, queue support, delivery maps, recovery, and wake-ups member-addressed.
+   Preserve the version-1 `from`/`to`/`recipient` JSON and existing durable queue semantics.
+- Migrate `squad-hq wait-for-agent` to accept a member and move the local control request/response to protocol
+   version 2 with a `member` field and `unknown-member` result. Keep the persisted host metadata format and endpoint
+   discovery stable.
+- Update the constitution's handoff syntax and the role prompts wherever they identify an operational recipient;
+   retain `role` where it means responsibility or role prompt.
+- Recast the Context, Handoffs, Delivery, Recovery, task/batch queue, readiness, and control-protocol Gherkin
+   vocabulary around members. Add a same-role scenario proving `coder-a` can hand off only to `coder-b`, whose
+   mailbox and session receive the delivery independently.
+
+**Acceptance:** No CLI, Headquarters-control, workspace, or delivery API named `role` carries a member identity.
+Context exposes the member and its role separately; readiness and handoffs select members; same-role members have
+independent queues and wake-ups. Version-1 handoff artifacts produced before the configuration migration remain
+readable when the migrated member names are preserved.
+
+### Slice 3 - Make one aggregate own each member's mutable state
+
+**Outcome:** Every state transition for one member updates its status, transcript, pending interactions, operation
+state, and failure state through one cohesive aggregate without consulting another member-keyed state holder.
+
+- Introduce a member aggregate around projected agent state and member transcript state. It owns member metadata,
+   readiness, transcript sequence/retention, pending permissions/inputs/elicitations, interaction-to-protected-entry
+   relationships, prompt/operation admission, cancellation and abort state, invalidation, and terminal failure.
+- Move the current interaction registry and role-operation coordinator behind each aggregate. Their member-local
+   maps are keyed only by request or operation ID; their APIs accept no member or role argument. Remove the
+   squad-wide keyed dictionaries and sets rather than wrapping them.
+- Make provider-event projection operate only on the selected aggregate. Registering or completing an interaction,
+   protecting or releasing its transcript entry, aborting, and terminal failure commit all related local changes
+   under the aggregate's single mutation boundary.
+- Expose immutable member snapshots containing the member identity, display name, genuine role metadata, state,
+   usage, pending interactions, and transcript position. The member's provider-session association is reached through
+   that aggregate rather than a parallel session map. The squad facade keeps only the ordered member directory,
+   routing, and immutable snapshot composition; it exposes no mutable member objects.
+- Rename application/transcript C# types to member terminology now. Until the version-6 cutover, the version-5 UI
+   adapter may explicitly map those member values to its legacy wire fields; do not let that compatibility mapping
+   leak back into the domain.
+- Extend black-box interaction, abort, terminal-session, transcript-retention, and snapshot scenarios with
+   `coder-a`/`coder-b` sharing `coder`: identical request IDs, abort, failure, and transcript eviction/protection for
+   one member must leave the other unchanged.
+
+**Acceptance:** The ordered member directory is the only application-domain collection keyed by member identity.
+After routing, no aggregate, projector, interaction holder, transcript state, operation coordinator, or failure path
+accepts or indexes by member/role. Snapshots are immutable and internally consistent. Existing transcript ordering,
+retention, interaction restoration, abort retry, terminal finality, and sibling-failure behavior remain observable.
+
+### Slice 4 - Give every member an independent typed processor
+
+**Outcome:** Holding provider I/O for one member cannot delay commands, provider events, interactions, snapshots, or
+transcript publication for another member, while same-member ordering and cancellation remain unchanged.
+
+- Add one single-reader, bounded processor per member. Route typed prompt, harness, abort, interaction-response,
+   provider-event, session-terminal, operation-completion, and retirement messages from the squad facade to that
+   processor. Remove the shared `Channel<Func<Task>>` and opaque command delegates.
+- Make the processor the aggregate's sole mutable accessor. A processor may start provider I/O but must not await it
+   inside the message loop. Return success, failure, and cancellation as typed completion messages carrying the
+   squad generation, member, and operation identity; reject completions that no longer match the active operation.
+- Apply backpressure by asynchronously waiting for bounded mailbox capacity. Do not drop provider events, create an
+   unbounded side queue, block a provider callback synchronously, or turn overload into a process-wide failure.
+- Preserve prompt serialization, interaction restoration on failed responses, abort leader/follower coalescing,
+   failed-abort barriers, event invalidation, accepted-command draining, and terminal-session rejection within one
+   member. Retirement closes admission, cancels external operations, drains defined completions, and stops the
+   processor before its session/runtime can be released.
+- Compose squad snapshots from the latest immutable member snapshots. They need not be a globally atomic instant,
+   but each member snapshot and transcript sequence must be self-consistent.
+- Add a black-box scenario that holds a real provider interaction response or abort for `coder-a` while `coder-b`
+   receives and publishes events and a prompt. Retain the existing same-member prompt/abort ordering and shutdown
+   scenarios as focused gates; use provider acknowledgements, never sleeps.
+
+**Acceptance:** There is one processor and one mutation path per member, no shared application command queue, and no
+cross-member ordering dependency. Blocked `coder-a` I/O cannot delay `coder-b`, including when both reference
+`coder`; same-member commands still serialize and stale completions/events cannot reopen canceled or terminal work.
+
+### Slice 5 - Separate Headquarters from the replaceable Squad generation
+
+**Outcome:** Headquarters owns a process shell and one serialized active-squad slot, while one `Squad` owns and
+retires every resource whose lifetime follows a generation through a single contract.
+
+- Rename the process owner from `SquadApplication` to Headquarters terminology. Keep the project lease/control
+   endpoint, window and UI transport, sleep inhibition, issue catalog, durable workspace services, transcript
+   archive, and active-squad replacement authority at process lifetime.
+- Introduce one `Squad` generation containing its immutable configuration snapshot and generation identity, role
+   catalog, ordered member directory/processors, backend/runtime and sessions, command admission, observers,
+   handoff-pump participation, and transient member state. Remove parallel ownership of those resources from
+   Headquarters and the current runtime/view-model objects.
+- Split one-time workspace/process preparation from generation preparation. A replacement reloads current
+   configuration and role prompts and creates a new backend/member context without resetting worktrees or durable
+   handoff queues; initial non-continued launch retains its current reset semantics.
+- Give `Squad` one cohesive start operation and one idempotent, failure-collecting retirement operation. Close
+   admission first, stop handoff participation, cancel and drain processors/observers, then retire the provider
+   runtime. Retain any handle whose termination is uncertain and report an explicit non-conclusive result.
+- Serialize initial installation, replacement, and final stop at Headquarters. Do not start a new generation until
+   old retirement is conclusive; failed new startup leaves the slot empty and retryable, while uncertain old
+   retirement keeps that generation owned and blocks retry. Shutdown uses the same gate.
+- Make the process-lifetime UI/application port publish only the currently installed generation. Every command,
+   provider event, readiness observation, external-operation completion, transcript mutation, and handoff wake-up
+   carries or is captured with a strong generation identity and is rejected if retired. A member processor cannot
+   outlive its `Squad`.
+- Move transcript archive lifetime to Headquarters and give each generation/member a bounded handle that preserves
+   history and monotonic publication identity without allowing a retired member to publish. Durable handoff storage
+   remains workspace-owned; only polling and wake-up participation are generation-owned.
+- Preserve the current supported launch/termination policy until the restart issue exposes replacement: a terminal
+   backend or handoff-pump failure may still be selected as the process's primary failure. Do not add a test-only
+   second-generation trigger. Use the existing Headquarters lifecycle, early-shutdown, partial-startup, terminal
+   failure, cleanup-diagnostic, shutdown-admission, transcript-archive, delivery, and recovery scenarios to protect
+   initial installation and complete retirement.
+
+**Acceptance:** Headquarters has no backend, session, processor, interaction, handoff-pump, or live-member teardown
+steps outside `Squad.RetireAsync` (exact method name may differ). At most one generation is owned; uncertain
+retirement cannot overlap a new one; a failed replacement does not dispose process resources. Process shutdown
+still reports primary and cleanup failures correctly and releases every externally observable resource. No
+`SquadApplication` compatibility type remains. The later restart issue can invoke the replacement operation without
+moving generation resources again.
+
+### Slice 6 - Publish the member model through protocol and dashboard
+
+**Outcome:** UI-protocol clients and dashboard users see ordered squad members, their reusable roles, and their squad
+generation explicitly; every action and transcript update targets one member.
+
+- Cut the UI wire contract directly from version 5 to version 6. Use `member` in command envelopes and
+   interaction/transcript payloads, `members` in state and synchronization collections, and a member-valued `leader`.
+   Include display name and genuine `role` metadata in each member summary. Add the squad generation to state,
+   member-bound commands, transcript synchronization/updates/pages/entries, and any acknowledgement introduced by a
+   later consumer; reject missing, stale, or mismatched generations server-side.
+- Rename `RoleTranscript*`, role-addressed UI abstractions, protocol DTOs, synchronization positions, journals, and
+   headless-client support to member terminology. Do not retain version-5 parsers, `role.abort`, `role` envelope
+   fields, or aliases whose value is a member.
+- Rename Vue `RoleState`, role caches/composables, `RolePanel`, and `RoleHeader` to member concepts. Key transient
+   state by member, render one independently operable panel per same-role member, show the display name as primary
+   identity and role as metadata, and keep authoritative validation/lifecycle rules in C#.
+- Migrate all backend Gherkin phrases and Playwright fixtures to member language where they address a participant.
+   Retain role language only for role definitions, role prompts, and assertions that two members share a role.
+   Remove obsolete bindings immediately.
+- Update the glossary, architecture, module inventory, test strategy, README, CLI help, example configuration, and
+   all source comments touched by the model. Search C#, TypeScript/Vue, JSON, Gherkin, prompts, and stable
+   documentation for every remaining `role`; each occurrence must describe a genuine role.
+- Add focused Playwright coverage for two `coder` members rendering separate panels and preserving independent
+   prompt drafts, focus/abort behavior, interactions, transcript reconciliation, history, status, and failures.
+   Update raw protocol validation/order coverage for version 6 and generation mismatch rejection.
+
+**Acceptance:** Protocol version 6 and the Vue model contain no role-named address. Same-role members render and
+operate independently, while their shared role remains visible metadata. C# rejects stale-generation UI work; Vue
+does not infer authoritative lifecycle state. All obsolete version-5, role-addressed binding, component, and DTO
+surfaces are removed, and the full backend Gherkin and focused Playwright suites cover the final public vocabulary.
 
 ## Acceptance criteria
 
-- The configuration and domain model represent Headquarters, one squad, reusable roles, and uniquely identified squad
+- `blaxquad/squad.json` schema version 2 represents reusable roles and uniquely identified members separately, gives
+  every member one valid role, permits duplicate role references, and addresses the leader by member.
+- Legacy one-entry-per-role configuration is rejected with the documented identity-preserving migration; it is not
+  silently reinterpreted or retained as a compatibility shape.
+- The domain model represents Headquarters, one squad generation, reusable roles, and uniquely identified squad
   members as distinct concepts.
 - Headquarters owns process-lifetime resources and at most one replaceable active `Squad`; the active squad owns all
   generation-scoped runtime and member resources behind one retirement contract.
 - Replacing the squad does not restart the Headquarters process, window, UI connection, control endpoint, project
   lease, or durable workspace services.
-- Explicit restart and starting a selected issue use one serialized squad-replacement operation, and issue work cannot
-  reach the retired generation.
-- A failed or uncertain replacement never permits overlapping squad generations and leaves Headquarters in an
-  observable, retryable state when retirement is confirmed.
+- Headquarters exposes one serialized squad-replacement operation for the restart and start-issue commands owned by
+  the later restart issue; this issue adds no competing replacement path or presentation trigger.
+- A failed or uncertain replacement never permits overlapping squad generations. It returns an explicit retryable
+  or non-conclusive result to the future command boundary without disposing Headquarters resources.
 - A supported configuration can define at least two members that reference the same role and role prompt.
 - Duplicate member identities are rejected; duplicate role references are valid.
 - Worktrees, agent settings, handoff mailboxes, live state, transcripts, interactions, operations, failures, and UI
@@ -432,6 +639,8 @@ component that renders one participant should become a member component.
   interaction routing, abort behavior, failure isolation, readiness, and shutdown remain observable.
 - Existing projects have an explicit compatibility or migration path with no silent reassignment of members,
   prompts, worktrees, handoffs, or transcript history.
+- Headquarters control protocol version 2 and UI protocol version 6 address members explicitly. Handoff schema
+  version 1 remains compatible because its address fields are already neutral.
 - Code, configuration, CLI output, protocol fields, UI components, tests, and stable documentation use `role` and
   `member` according to the naming rules above.
 - Behavior changes are covered through the existing black-box Gherkin acceptance suite, with focused Playwright
