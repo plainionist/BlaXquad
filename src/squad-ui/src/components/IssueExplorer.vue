@@ -24,6 +24,21 @@ const previewText = computed(
   () => selectedIssue.value?.previewLines.join('\n') ?? '',
 )
 
+const copyAnnouncement = ref('')
+const copyFailed = ref(false)
+
+async function copyPath(issue: IssueDescriptor) {
+  try {
+    await navigator.clipboard.writeText(issue.path)
+    copyFailed.value = false
+    copyAnnouncement.value = `Copied ${issue.path}`
+  }
+  catch {
+    copyFailed.value = true
+    copyAnnouncement.value = `Could not copy ${issue.path}. Try again.`
+  }
+}
+
 function toggle() {
   if (isOpen.value) close()
   else open()
@@ -32,6 +47,8 @@ function toggle() {
 function open() {
   isOpen.value = true
   selectedPath.value = null
+  copyAnnouncement.value = ''
+  copyFailed.value = false
   emit('open')
 }
 
@@ -85,32 +102,53 @@ onBeforeUnmount(() => {
     </button>
 
     <div v-if="isOpen" class="issue-panel">
-      <p v-if="isLoading" class="issue-status" aria-live="polite">Loading issues…</p>
-      <p v-else-if="error" class="issue-status issue-status-error" role="alert">{{ error }}</p>
-      <ul v-else class="issue-menu" role="listbox" aria-label="Issues">
-        <li
-          v-if="issues.length === 0"
-          class="issue-menu-empty"
-          role="option"
-          aria-disabled="true"
-          aria-selected="false"
+      <div class="issue-menu-column">
+        <p v-if="isLoading" class="issue-status" aria-live="polite">Loading issues…</p>
+        <p v-else-if="error" class="issue-status issue-status-error" role="alert">{{ error }}</p>
+        <ul v-else class="issue-menu" role="listbox" aria-label="Issues">
+          <li
+            v-if="issues.length === 0"
+            class="issue-menu-empty"
+            role="option"
+            aria-disabled="true"
+            aria-selected="false"
+          >
+            {{ '<no issues>' }}
+          </li>
+          <li
+            v-for="issue in issues"
+            :key="issue.path"
+            class="issue-menu-item"
+            :class="{ 'is-selected': selectedPath === issue.path }"
+            role="option"
+            tabindex="0"
+            :aria-selected="selectedPath === issue.path"
+            @mouseenter="select(issue.path)"
+            @focus="select(issue.path)"
+          >
+            <span class="issue-menu-item-label">{{ issue.title }}</span>
+            <span class="issue-menu-item-actions">
+              <button
+                type="button"
+                class="issue-action issue-action-copy"
+                :aria-label="`Copy path for ${issue.title}`"
+                @click.stop="copyPath(issue)"
+              >
+                ⧉
+              </button>
+            </span>
+          </li>
+        </ul>
+
+        <p
+          class="issue-copy-status"
+          :class="{ 'issue-copy-status-error': copyFailed }"
+          :role="copyFailed ? 'alert' : undefined"
+          aria-live="polite"
         >
-          {{ '<no issues>' }}
-        </li>
-        <li
-          v-for="issue in issues"
-          :key="issue.path"
-          class="issue-menu-item"
-          :class="{ 'is-selected': selectedPath === issue.path }"
-          role="option"
-          tabindex="0"
-          :aria-selected="selectedPath === issue.path"
-          @mouseenter="select(issue.path)"
-          @focus="select(issue.path)"
-        >
-          {{ issue.title }}
-        </li>
-      </ul>
+          {{ copyAnnouncement }}
+        </p>
+      </div>
 
       <div v-if="selectedIssue" class="issue-flyout" role="region" aria-label="Issue preview">
         <pre class="issue-flyout-frontmatter">{{ selectedIssue.frontmatter }}</pre>

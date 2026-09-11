@@ -3,6 +3,7 @@ import {
   deliverHostMessages,
   issueCatalog,
   lastClientMessage,
+  loadRoleSnapshots,
   loadSnapshot,
   protocolMessage,
 } from './support/dashboardHarness'
@@ -126,6 +127,85 @@ test('missing or empty results show a disabled entry, and catalog errors are vis
   ])
   await expect(page.getByRole('option', { name: issueCatalog[0].title })).toBeVisible()
   await expect(page.locator('.issue-status-error')).toHaveCount(0)
+})
+
+async function stubClipboard(page: import('@playwright/test').Page, behavior: 'resolve' | 'reject') {
+  await page.evaluate((mode) => {
+    const win = window as unknown as { __clipboardWrites: string[] }
+    win.__clipboardWrites = []
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: (text: string) => {
+          win.__clipboardWrites.push(text)
+          return mode === 'resolve' ? Promise.resolve() : Promise.reject(new Error('denied'))
+        },
+      },
+    })
+  }, behavior)
+}
+
+function clipboardWrites(page: import('@playwright/test').Page) {
+  return page.evaluate(() => (window as unknown as { __clipboardWrites: string[] }).__clipboardWrites ?? [])
+}
+
+test('copy writes the exact workspace-relative path to the clipboard and announces success', async ({ page }) => {
+  await loadSnapshot(page)
+  await stubClipboard(page, 'resolve')
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+
+  const copyButton = page.getByRole('button', { name: `Copy path for ${issueCatalog[0].title}` })
+  await expect(copyButton).toBeEnabled()
+  await copyButton.click()
+
+  await expect.poll(() => clipboardWrites(page)).toEqual([issueCatalog[0].path])
+  await expect(page.locator('.issue-copy-status')).toContainText(issueCatalog[0].path)
+  await expect(page.locator('.issue-copy-status-error')).toHaveCount(0)
+})
+
+test('a rejected clipboard write surfaces a recoverable error and does not claim success', async ({ page }) => {
+  await loadSnapshot(page)
+  await stubClipboard(page, 'reject')
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+
+  const copyButton = page.getByRole('button', { name: `Copy path for ${issueCatalog[0].title}` })
+  await copyButton.click()
+  await expect(page.locator('.issue-copy-status-error')).toBeVisible()
+  await expect(page.locator('.issue-copy-status-error')).not.toContainText('Copied')
+
+  // Recoverable: a subsequent successful attempt clears the error and reports success.
+  await stubClipboard(page, 'resolve')
+  await copyButton.click()
+  await expect.poll(() => clipboardWrites(page)).toEqual([issueCatalog[0].path])
+  await expect(page.locator('.issue-copy-status')).toContainText(issueCatalog[0].path)
+  await expect(page.locator('.issue-copy-status-error')).toHaveCount(0)
+})
+
+test('copy remains enabled with no configured roles and never sends a UI protocol command', async ({ page }) => {
+  await loadRoleSnapshots(page, [])
+  await stubClipboard(page, 'resolve')
+  await issueTrigger(page).click()
+  const { requestId } = await lastClientMessage(page)
+  await deliverHostMessages(page, [
+    protocolMessage('issues.list', { requestId, payload: { issues: issueCatalog } }),
+  ])
+
+  const copyButton = page.getByRole('button', { name: `Copy path for ${issueCatalog[0].title}` })
+  await expect(copyButton).toBeEnabled()
+  const messageCountBefore = await page.evaluate(() => window.__blaxquadHarness!.messages.length)
+  await copyButton.click()
+
+  await expect.poll(() => clipboardWrites(page)).toEqual([issueCatalog[0].path])
+  const messageCountAfter = await page.evaluate(() => window.__blaxquadHarness!.messages.length)
+  expect(messageCountAfter).toBe(messageCountBefore)
 })
 
 interface Box { x: number, y: number, width: number, height: number }
