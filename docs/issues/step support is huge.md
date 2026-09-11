@@ -162,7 +162,7 @@ Removing the obsolete echo fixture eliminates the first violation; extracting `Q
 Only one slice may be in progress at a time. Each slice includes its moves, namespace/import changes, owner-specific
 cleanup, focused acceptance scenarios, and a complete `squad.Specs` run before review.
 
-### Slice 1 - Mailbox support has one durable-state owner
+### Slice 1 - Mailbox support has one durable-state owner [done]
 
 **Outcome:** Handoff and task setup/observation retain their exact on-disk behavior while all mailbox support is under
 `Support/Mailboxes` with one top-level type per file.
@@ -310,3 +310,7 @@ followed by the complete `squad.Specs` suite.
 - Replacing real Git, filesystem, process, UI protocol, host-control, handoff, or task behavior with mocks.
 - Changing product behavior, supported protocols, scenario semantics, or timing guarantees.
 - Enforcing arbitrary file-size or line-count limits.
+
+## Slice 1 review (2cb3b53c7c) — accepted
+
+**Status: complete (2cb3b53c7c).** Mailbox support is under `Support/Mailboxes` with matching namespace and one type per file (`QueuedHandoff` extracted). Bindings use constructor-injected, scenario-scoped mailbox instances that share `ScenarioWorkspace` instead of calling `new`. Members are internal; types stay public for Reqnroll resolution. Stable file ordering, byte-for-byte recovery snapshots, fan-out headers, archive-collision setup, and role-worktree scoping are unchanged.
