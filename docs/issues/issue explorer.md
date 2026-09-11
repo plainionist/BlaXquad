@@ -184,7 +184,7 @@ test observes full explorer containment plus a 390px role-panel box. Shrinking t
 `updates virtual row geometry when wrapped content changes width` fail deterministically; that brittleness is
 outside this slice.
 
-### Slice 3 - Copy an issue path (in progress)
+### Slice 3 - Copy an issue path [done]
 
 **Outcome:** An operator can copy an issue's exact workspace-relative path even when no role is configured.
 
@@ -202,6 +202,11 @@ Acceptance criteria:
 - Copy writes exactly `docs/issues/issue explorer.md` for the example issue.
 - Copy remains enabled when no role exists and never sends a UI protocol command.
 - Assistive technology receives accurate success or failure feedback.
+
+**Status: complete (ac4845c3f6).** Each issue row has a Copy control that writes the descriptor `path` through
+`navigator.clipboard.writeText` with no Vue path rewriting. Playwright spies the clipboard for the exact path,
+announces success on an `aria-live` status, shows a recoverable error without a success claim when the write is
+rejected, and keeps Copy enabled with an empty roles snapshot without emitting a UI protocol command.
 
 ### Slice 4 - Prepare the first role's prompt (pending)
 
@@ -228,4 +233,4 @@ Acceptance criteria:
 - The target textarea has focus and no protocol envelope is emitted by Play.
 - Enter or Send after Play uses the existing prompt path and emits the normal single `prompt.send`.
 
-Slices 1 and 2 are complete. Only Slice 3 is active; Slice 4 remains pending until its reviewer accepts it.
+Slices 1–3 are complete. Slice 4 remains pending until the architect activates it.
