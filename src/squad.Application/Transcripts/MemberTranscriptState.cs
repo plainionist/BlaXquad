@@ -257,6 +257,9 @@ internal sealed class MemberTranscriptState
 
     public void UnprotectTranscriptEntry(int entryIndex)
     {
+        Contract.Invariant(
+            myProtectedTranscriptEntries.Contains(entryIndex),
+            "Unprotect target must be a currently protected transcript entry.");
         myProtectedTranscriptEntries.Remove(entryIndex);
         EnforceRetentionLimits();
     }
@@ -268,6 +271,9 @@ internal sealed class MemberTranscriptState
         string source,
         string content)
     {
+        Contract.Invariant(
+            (buffer is null) == (entryIndex is null),
+            "A streaming buffer and its entry index must be either both present or both absent.");
         if (buffer is null)
         {
             buffer = new TranscriptEntryBuffer(
@@ -346,6 +352,9 @@ internal sealed class MemberTranscriptState
         ref int? entryIndex,
         TranscriptEntry entry)
     {
+        Contract.Invariant(
+            (buffer is null) == (entryIndex is null),
+            "A streaming buffer and its entry index must be either both present or both absent.");
         if (entryIndex is int index)
         {
             var announcement = buffer?.Matches(entry.Content) == true
@@ -439,6 +448,9 @@ internal sealed class MemberTranscriptState
         ref TranscriptEntryBuffer? buffer,
         ref int? entryIndex)
     {
+        Contract.Invariant(
+            (buffer is null) == (entryIndex is null),
+            "A streaming buffer and its entry index must be either both present or both absent.");
         if (buffer is not null && entryIndex is int index)
         {
             var localIndex = myTranscriptEntries.FindIndex(item => item.EntryIndex == index);
@@ -544,6 +556,7 @@ internal sealed class MemberTranscriptState
 
     private void EnforceRetentionLimits()
     {
+        Contract.Invariant(myRetainedContentCharacters >= 0, "Retained content characters must not become negative.");
         while (myTranscriptEntries.Count > myRetentionOptions.MaxRetainedEntries
             || RetainedContentCharacters() > myRetentionOptions.MaxRetainedContentCharacters)
         {
@@ -562,6 +575,7 @@ internal sealed class MemberTranscriptState
                 return;
             }
             myRetainedContentCharacters -= myTranscriptEntries[removableIndex].Entry.Content.Length;
+            Contract.Invariant(myRetainedContentCharacters >= 0, "Retained content characters must not become negative.");
             myTranscriptEntries.RemoveAt(removableIndex);
         }
     }

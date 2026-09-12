@@ -67,6 +67,8 @@ public sealed class SquadMembers : IDisposable
                 transcriptChanged: PublishTranscriptUpdate));
             myMemberOrder.Add(member.Id);
         }
+        Contract.Invariant(myMemberOrder.Count == myMembers.Count, "Member order must track every configured member exactly once.");
+        Contract.Invariant(myMembers.ContainsKey(myLeader), "The leader must be one of this generation's configured members.");
     }
 
     /// <summary>This generation's strong identity. Every member processor and archive handle is bound to it.</summary>

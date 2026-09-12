@@ -33,6 +33,11 @@ internal sealed class TranscriptAnnouncementJournal
                 myRoles.Add(update.Role, journal);
             }
 
+            Contract.Invariant(
+                update.Sequence > journal.LastSequence,
+                "Transcript announcement sequence must increase monotonically per role.");
+            journal.LastSequence = update.Sequence;
+
             journal.Entries.Enqueue(new JournalEntry(update.Sequence, update.Announcement));
             journal.CharacterCount += update.Announcement?.Content.Length ?? 0;
             while (journal.Entries.Count > myMaxEntriesPerRole
@@ -45,6 +50,9 @@ internal sealed class TranscriptAnnouncementJournal
                     journal.AnnouncementDiscardedThroughSequence = removed.Sequence;
                 }
             }
+            Contract.Invariant(
+                journal.CharacterCount >= 0,
+                "Retained announcement character count must not become negative.");
         }
     }
 
@@ -91,5 +99,6 @@ internal sealed class TranscriptAnnouncementJournal
         internal Queue<JournalEntry> Entries { get; } = new();
         internal int CharacterCount { get; set; }
         internal long AnnouncementDiscardedThroughSequence { get; set; }
+        internal long LastSequence { get; set; }
     }
 }

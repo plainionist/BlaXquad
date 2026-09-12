@@ -199,6 +199,12 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
             {
                 foreach (var role in transcriptSnapshot)
                 {
+                    Contract.Invariant(
+                        role.Sequence >= myDeliveredTranscriptSequences.GetValueOrDefault(role.Role),
+                        "Delivered transcript sequence must never move backward.");
+                    Contract.Invariant(
+                        role.Sequence >= mySynchronizedTranscriptSequences.GetValueOrDefault(role.Role),
+                        "Synchronized transcript sequence must never move backward.");
                     myDeliveredTranscriptSequences[role.Role] = role.Sequence;
                     mySynchronizedTranscriptSequences[role.Role] =
                         role.Sequence;
@@ -223,7 +229,12 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
                 "transcript.update",
                 TranscriptProtocol.CreateUpdatePayload(update));
             lock (myTranscriptUpdatesLock)
+            {
+                Contract.Invariant(
+                    update.Sequence >= myDeliveredTranscriptSequences.GetValueOrDefault(update.Role),
+                    "Delivered transcript sequence must never move backward.");
                 myDeliveredTranscriptSequences[update.Role] = update.Sequence;
+            }
         }
     }
 }
