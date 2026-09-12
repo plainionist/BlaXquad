@@ -533,7 +533,7 @@ omitted mode and reject unsupported provider/fake-control values explicitly rath
 fake-control parse at their input boundaries (omitted Copilot mode still defaults to form). Snapshots emit
 lowercase `form`/`url`. `UiCommandHandler` opens accepted URLs from the enum.
 
-### Slice 12 - Type elicitation action
+### Slice 12 - Type elicitation action [done]
 
 **Task:** `type-elicitation-action`
 
@@ -549,6 +549,10 @@ without exposing C# enum names.
 
 **Acceptance:** provider observations remain lowercase `accept`, `decline`, and `cancel`; invalid actions produce a
 protocol error and no provider response. No type other than `ElicitationAction` is added.
+
+**Status: complete (f052259a3a).** `ElicitationAction` is on `AgentElicitationResponse`. `UiCommandHandler` parses
+the wire action once and rejects unsupported tokens before the provider is called. Copilot and fake-control map to
+their lowercase spellings. Black-box coverage adds decline, cancel, and one unsupported spelling.
 
 ### Slice 13 - Normalize tool read capability
 
