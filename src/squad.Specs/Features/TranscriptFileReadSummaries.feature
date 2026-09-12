@@ -14,6 +14,16 @@ Feature: Transcript file-read summaries without content leakage
     When the operator launches Headquarters
     Then Headquarters starts an agent session for role "coder"
 
+  Scenario: An otherwise-unknown tool explicitly kinded as a read shows its path without leaking file contents
+    When the "coder" agent starts tool call "R1" named "custom_fetch_resource" for path "src/App.cs" explicitly kinded as a read
+    Then the dashboard receives a transcript update for role "coder" with source "read" and content "src/App.cs"
+    When the user requests a fresh transcript synchronization for role "coder"
+    Then the transcript synchronization for role "coder" includes exactly these entries:
+      | source | content    |
+      | read   | src/App.cs |
+    When the operator shuts down Headquarters
+    Then Headquarters exits with code 0
+
   Scenario: Path-only file reads show their path without leaking file contents
     When the "coder" agent starts tool call "R1" named "read_file" for path "src/App.cs"
     Then the dashboard receives a transcript update for role "coder" with source "read" and content "src/App.cs"

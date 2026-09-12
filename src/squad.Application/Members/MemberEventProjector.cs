@@ -81,7 +81,7 @@ internal static class MemberEventProjector
                 {
                     break;
                 }
-                var isRead = tool.Kind == "read" || IsReadTool(tool.ToolName);
+                var isRead = tool.IsRead || IsReadTool(tool.ToolName);
                 var suppressOutput = isRead;
                 var toolDescription = isRead ? DescribeRead(tool) : DescribeToolStart(tool);
                 if (!string.IsNullOrWhiteSpace(toolDescription))

@@ -855,6 +855,11 @@ public sealed class BackendScenarioSteps
         Await(myScenario.Agent(role).EmitToolStartedAsync(
             toolCallId, toolName, JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = path })));
 
+    [When("the {string} agent starts tool call {string} named {string} for path {string} explicitly kinded as a read")]
+    public void WhenTheAgentStartsToolCallNamedForPathExplicitlyKindedAsARead(string role, string toolCallId, string toolName, string path) =>
+        Await(myScenario.Agent(role).EmitToolStartedAsync(
+            toolCallId, toolName, JsonSerializer.Serialize(new Dictionary<string, string> { ["path"] = path }), toolKind: "read"));
+
     [When("the {string} agent emits tool output {string} for tool call {string}")]
     public void WhenTheAgentEmitsToolOutputForToolCall(string role, string output, string toolCallId) =>
         Await(myScenario.Agent(role).EmitToolOutputChangedAsync(toolCallId, DecodeEscapes(output)));

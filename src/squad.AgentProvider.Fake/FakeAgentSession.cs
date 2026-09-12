@@ -282,7 +282,7 @@ internal sealed class FakeAgentSession : IAgentSession
                     data.GetProperty("toolCallId").GetString()!,
                     data.GetProperty("toolName").GetString()!,
                     GetNullableString(data, "arguments"),
-                    GetNullableString(data, "toolKind"),
+                    ParseToolKind(GetNullableString(data, "toolKind")),
                     GetNullableString(data, "workingDirectory")));
                 return null;
             case "tool-progress":
@@ -392,6 +392,16 @@ internal sealed class FakeAgentSession : IAgentSession
         "form" => ElicitationMode.Form,
         "url" => ElicitationMode.Url,
         _ => throw new InvalidOperationException($"Unsupported elicitation mode '{mode}' from the fake-control envelope."),
+    };
+
+    /// <summary>Maps the fake-control envelope's optional tool-kind spelling into the provider-neutral read
+    /// capability at this control-pipe input boundary, rejecting any unsupported spelling explicitly rather than
+    /// carrying it inward.</summary>
+    private static bool ParseToolKind(string? toolKind) => toolKind switch
+    {
+        null => false,
+        "read" => true,
+        _ => throw new InvalidOperationException($"Unsupported tool kind '{toolKind}' from the fake-control envelope."),
     };
 
     /// <summary>Maps <see cref="ElicitationAction"/> explicitly to the fake-control envelope's own action spelling

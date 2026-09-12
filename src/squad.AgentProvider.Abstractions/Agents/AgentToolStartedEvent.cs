@@ -5,7 +5,7 @@ public sealed record AgentToolStartedEvent(
     string ToolCallId,
     string ToolName,
     string? Arguments = null,
-    string? Kind = null,
+    bool IsRead = false,
     string? WorkingDirectory = null) : AgentEvent(OccurredAt);
 
 
