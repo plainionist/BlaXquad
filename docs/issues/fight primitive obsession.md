@@ -697,6 +697,11 @@ missing/blank ID is archived as failed before fan-out. No type other than `Hando
    wrapped `InvalidDataException` path in `HandoffJson.Read` before fan-out. Do not leak constructor contract
    exceptions.
 
+**Status: complete (b9c61a3068).** `HandoffId` is a sealed record with an explicit constructor enforcing nonblank
+text via `Contract.Requires`; `default(HandoffId)` cannot exist as a reference type. Constructor contract failures
+are translated to `JsonException` inside `ScalarJsonConverter.Read` (the shared JSON ingress boundary), which
+`HandoffJson.Read`'s existing `catch (JsonException)` clause wraps into `InvalidDataException` before fan-out.
+
 ### Contract-correction sequence
 
 The following five slices run immediately after Slice 17 and before Slice 18. They correct the string-backed value
