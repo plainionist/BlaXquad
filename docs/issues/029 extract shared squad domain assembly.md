@@ -306,7 +306,7 @@ unsupported token stays `INVALID_RECEIVE_MODE` / exit 2. Valid modes dispatch by
 read only in the command-side adapter, not stored on `SquadMemberDefinition`. Launch still rejects unsupported
 mode with `expected task or batch` before any session starts.
 
-### Slice 4 - Type member status and preserve its protocol vocabulary
+### Slice 4 - Type member status and preserve its protocol vocabulary [in progress]
 
 **Outcome:** Mutable application state uses one closed `SquadMemberStatus` vocabulary, and the UI boundary explicitly
 publishes the same lowercase status strings as before.
