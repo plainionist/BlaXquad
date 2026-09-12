@@ -655,7 +655,7 @@ distinction preserve existing behavior in `Handoffs.feature`, `Delivery.feature`
 are typed. JSON still emits `from`/`to`/`recipient` strings; filenames, CLI, and Gherkin stay strings; the spec
 observer still parses independently of `HandoffJson`.
 
-### Slice 17 - Type handoff IDs
+### Slice 17 - Type handoff IDs [done]
 
 **Task:** `type-handoff-id`
 
@@ -705,13 +705,18 @@ This also addresses the review findings on commit f7ae75651f, an earlier fixup s
 `Contract.Requires` while still leaving `HandoffId` a `readonly record struct` (so `default`/`new HandoffId()`
 bypassed the constructor); the type was changed to a sealed record (class) immediately afterward.
 
+**Status: complete (5deccee726, b9c61a3727).** `HandoffId` is a sealed record with `Contract.Requires` for
+nonblank, exactly preserved text. `ScalarJsonConverter` maps constructor `ArgumentException` to `JsonException` at
+JSON ingress; `HandoffJson.Read` keeps the wrapped `InvalidDataException` surface. Filename/ID spelling stays a
+string until document construction. Review findings are addressed.
+
 ### Contract-correction sequence
 
 The following five slices run immediately after Slice 17 and before Slice 18. They correct the string-backed value
 objects already present or introduced by completed slices. Each slice changes one value object's invariant and
 introduces no type.
 
-### Slice 17A - Make role IDs valid by construction
+### Slice 17A - Make role IDs valid by construction [done]
 
 **Task:** `enforce-role-id-contract`
 
@@ -725,6 +730,9 @@ configuration boundary, and preserve value equality, `.Value`, and `ToString()` 
 **Acceptance:** reusable role lookup, role ordering, shared-role member configuration, and startup-instruction
 composition retain their behavior under `MemberConfiguration.feature`, `RoleOrder.feature`, and
 `AgentStartupInstructions.feature`. No type is added.
+
+**Status: complete (6cd5cbfac3).** `RoleId` is a sealed record with `Contract.Requires` for nonblank, exactly
+preserved text. Configuration still validates raw role names before construction.
 
 ### Slice 17B - Make squad member IDs valid by construction
 
