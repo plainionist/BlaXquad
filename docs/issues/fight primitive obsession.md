@@ -655,7 +655,7 @@ distinction preserve existing behavior in `Handoffs.feature`, `Delivery.feature`
 are typed. JSON still emits `from`/`to`/`recipient` strings; filenames, CLI, and Gherkin stay strings; the spec
 observer still parses independently of `HandoffJson`.
 
-### Slice 17 - Type handoff IDs [done]
+### Slice 17 - Type handoff IDs
 
 **Task:** `type-handoff-id`
 
@@ -674,9 +674,28 @@ to the existing wrapped `InvalidDataException` surface rather than leaking `Argu
 **Acceptance:** valid handoffs preserve their exact JSON shape and delivery behavior, while a raw handoff with a
 missing/blank ID is archived as failed before fan-out. No type other than `HandoffId` is added.
 
-**Status: complete (452d23fc35).** `HandoffId` is on `HandoffDocument` and valid `QueuedHandoff` observations.
-JSON `id` stays a string via `ScalarJsonConverter`. Filename/ID spelling is generated as a string and wrapped at
-document construction. Blank IDs still fail through the wrapped `InvalidDataException` surface before fan-out.
+### Review findings (81cc6ff)
+
+1. **Severity: high.** `src/squad.Handoffs/HandoffId.cs`.
+   **Violated behavior:** Slice 17 requires a sealed immutable record with an explicit constructor that uses
+   `Contract.Requires` to reject null, empty, and whitespace. A record struct whose invalid `default` bypasses
+   that invariant is forbidden. Accepted IDs must be preserved exactly.
+   **Root cause:** `HandoffId` is a positional `readonly record struct` with no constructor contract, so
+   `default(HandoffId)` is a blank identity and blank strings construct successfully.
+   **Required outcome:** Make `HandoffId` a sealed immutable record with an explicit constructor that enforces
+   nonblank, exactly preserved text via `Contract.Requires`. Do not trim, normalize, or change case.
+
+2. **Severity: medium.** `src/squad.Handoffs/HandoffJson.cs` (`ScalarJsonConverter<HandoffId, string>`) and
+   `HandoffDocument.Validate`.
+   **Violated behavior:** Missing or blank IDs must fail as invalid handoff documents through the existing wrapped
+   `InvalidDataException` surface. Scalar-construction contract failures at JSON ingress must not leak
+   `ArgumentException`.
+   **Root cause:** Blank IDs are accepted by the value object and only rejected later via `Id.Value` in `Validate`.
+   Once the constructor owns the invariant, `HandoffJson.Read` will surface `ArgumentException` unless ingress
+   translates it.
+   **Required outcome:** After the constructor enforces nonblank, keep missing/blank `id` failing through the
+   wrapped `InvalidDataException` path in `HandoffJson.Read` before fan-out. Do not leak constructor contract
+   exceptions.
 
 ### Contract-correction sequence
 
