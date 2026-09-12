@@ -333,19 +333,9 @@ manual match the required design, no displaced row records or pass-through wrapp
 builds and publishes, and the full existing Gherkin suite passes without protocol, persistence, ordering, or
 behavior regressions.
 
-**Status: complete (pending commit).** Added `squad.Domain/SquadMemberStatus.cs` with exactly `Starting`,
-`Running`, `Idle`, `Stopped`, `Error`. `MemberAggregate.Status` is now that enum (default `Starting`);
-`MemberSnapshot.Status` mirrors it. `MemberEventProjector` assigns `Running`/`Stopped`/`Error`/`Idle` from the
-matching provider events; `MemberProcessor.MarkFailedCore` (terminal-failure handling) assigns `Error`.
-`SquadMembers.GetRoleReadiness` compares against `SquadMemberStatus.Idle` instead of the string `"idle"`. The one
-remaining string boundary is `SquadMembers.CreateSnapshot`, which now calls a new private `MapStatus` switch
-expression (exhaustive over all five members, `ArgumentOutOfRangeException` otherwise) to compose the unchanged
-lowercase `state.snapshot` field; no other production code composes or compares that string. `docs/Manual/modules.md`
-(`squad.Domain` surface and `squad.Application` prose) and `docs/Manual/architecture.md` (application-model prose)
-now name `SquadMemberStatus`; `docs/Manual/glossary.md` had no outdated status vocabulary to correct, so it is
-unchanged. No `RoleRow`/`MemberConfigRow`/row-record survivals remain anywhere in `src`. Build clean (0
-warnings/errors); full suite 197/197 passed, run only through `dotnet build`/`dotnet test` per this role's build
-safety rule (not `dotnet publish`).
+**Status: complete (8e32542c61).** `SquadMemberStatus` is `Starting`/`Running`/`Idle`/`Stopped`/`Error`. Authoritative
+application state uses the enum; `state.snapshot` still publishes the lowercase protocol strings via an exhaustive
+mapping at composition. Readiness still requires an idle non-working member. All issue 029 slices are complete.
 
 ## Acceptance criteria
 
