@@ -49,7 +49,7 @@ or lifecycle rule. Stateless mappings and thin adapters need no ceremonial invar
 
 ## Implementation plan
 
-### Slice 1: Remove redundant non-null guards
+### Slice 1: Remove redundant non-null guards [done]
 
 1. Remove the existing `ArgumentNullException.ThrowIfNull` calls for non-nullable parameters from
    `AgentEventChannel`, `CopilotSdkAgentRuntime`, `SquadMembers`, `SquadViewModel`, `Headquarters`, and
@@ -61,6 +61,10 @@ or lifecycle rule. Stateless mappings and thin adapters need no ceremonial invar
 
 This is a behavior-preserving mechanical slice. It must build independently and must not contain any new
 precondition or invariant decisions.
+
+**Status: complete (5265da2d4a).** Removed `ArgumentNullException.ThrowIfNull` for non-nullable parameters on those
+six trusted typed call paths. No `Contract` replacements were added. Untyped-boundary validation is unchanged.
+Slices 2–6 remain pending until the architect activates the next slice.
 
 ### Slice 2: Standardize existing semantic preconditions
 
