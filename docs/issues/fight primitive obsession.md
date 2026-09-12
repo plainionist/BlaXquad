@@ -576,7 +576,7 @@ a raw kind token.
 the adapter; Copilot has no SDK capability signal and defaults `IsRead` to false, with known tool names still
 classified in `MemberEventProjector`. A black-box unknown-tool case proves explicit read classification.
 
-### Slice 14 - Type tool-call IDs
+### Slice 14 - Type tool-call IDs [done]
 
 **Task:** `type-tool-call-id`
 
@@ -590,6 +590,10 @@ raw diagnostics/control JSON. Do not add format validation, and keep tool names 
 is unchanged, and read summaries still correlate under `TranscriptToolCallCorrelation.feature`,
 `TranscriptToolLifecycleState.feature`, `TranscriptToolOutputAggregation.feature`, and
 `TranscriptFileReadSummaries.feature`. No type other than `ToolCallId` is added.
+
+**Status: complete (fb1e879164).** `ToolCallId` is on all four tool lifecycle events and the Copilot/transcript
+correlation dictionaries. SDK and fake-control strings wrap once at adapter ingress. Tool names and raw
+diagnostics/control JSON stay strings.
 
 ### Slice 15 - Type transcript source
 
