@@ -38,7 +38,7 @@ public static class HandoffQueue
         output.WriteLine($"TASK: {filePath}");
         output.WriteLine($"FROM: {document.From}");
         output.WriteLine($"TYPE: {TypeLabel(document.Kind)}");
-        output.WriteLine($"PRIORITY: {Priority.Format(document.Priority)}");
+        output.WriteLine($"PRIORITY: {document.Priority}");
         if (document.Kind == HandoffKind.GitHandoff)
         {
             output.WriteLine($"TASK_NAME: {document.GitHandoff!.Task}");
@@ -59,7 +59,7 @@ public static class HandoffQueue
         var firstPriority = HandoffJson.Read(files[0]).Priority;
         output.WriteLine($"BATCH: {batchDir}");
         output.WriteLine($"COUNT: {files.Count}");
-        output.WriteLine($"PRIORITY: {Priority.Format(firstPriority)}");
+        output.WriteLine($"PRIORITY: {firstPriority}");
         for (var i = 0; i < files.Count; i++)
         {
             output.WriteLine();

@@ -65,7 +65,7 @@ static class ReadyForNextBatch
 
             if (selectedFiles.Count == 0)
             {
-                Fail(2, $"AMBIGUOUS_TASK_STATE: no tasks selected for batch priority {Priority.Format(batchPriority)}.");
+                Fail(2, $"AMBIGUOUS_TASK_STATE: no tasks selected for batch priority {batchPriority}.");
             }
 
             HandoffQueue.PrintBatch(Console.Out, batchDir);

@@ -20,6 +20,7 @@ public static class HandoffJson
             new JsonStringEnumConverter(),
             new ScalarJsonConverter<SquadMemberId, string>(id => id.Value, value => new SquadMemberId(value)),
             new ScalarJsonConverter<HandoffId, string>(id => id.Value, value => new HandoffId(value)),
+            new ScalarJsonConverter<HandoffPriority, int>(priority => priority.Value, value => new HandoffPriority(value)),
         },
     };
 

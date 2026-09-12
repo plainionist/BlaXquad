@@ -19,7 +19,7 @@ public sealed record HandoffDocument
     public required SquadMemberId From { get; init; }
     public required IReadOnlyList<SquadMemberId> To { get; init; }
     public SquadMemberId? Recipient { get; init; }
-    public required int Priority { get; init; }
+    public required HandoffPriority Priority { get; init; }
     public required HandoffKind Kind { get; init; }
     public GitHandoffData? GitHandoff { get; init; }
     public NoteData? Note { get; init; }

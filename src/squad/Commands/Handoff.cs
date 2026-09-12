@@ -98,7 +98,7 @@ static class Handoff
         {
             errors.Add($"Option '--task' must be no longer than 80 characters; got {task.Length}.");
         }
-        if (!Priority.IsValid(priority))
+        if (!HandoffPriority.IsValid(priority))
         {
             errors.Add($"Option '--priority' must be two digits from 00 to 99; got '{priority}'.");
         }
@@ -162,7 +162,7 @@ static class Handoff
         {
             errors.Add($"Option '--message' must be no longer than 80 characters; got {message.Length}.");
         }
-        if (!Priority.IsValid(priority))
+        if (!HandoffPriority.IsValid(priority))
         {
             errors.Add($"Option '--priority' must be two digits from 00 to 99; got '{priority}'.");
         }
@@ -313,7 +313,7 @@ static class Handoff
             From = new SquadMemberId(sender),
             To = recipients.Select(recipient => new SquadMemberId(recipient)).ToList(),
             Recipient = null,
-            Priority = Priority.Parse(priority),
+            Priority = HandoffPriority.Parse(priority),
             Kind = kind,
             GitHandoff = kind == HandoffKind.GitHandoff ? new GitHandoffData(task!, commit!) : null,
             Note = kind == HandoffKind.Note ? new NoteData(message!) : null,
