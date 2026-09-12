@@ -407,7 +407,7 @@ readiness, failure, and session disposal remain member-specific under `MemberCon
 `SquadMembers` routing, Headquarters readiness, and fake-journal storage. Review findings are addressed: readiness
 carries the parsed id, the Copilot teardown diagnostic keeps `role`, and typed identifiers are named `memberId`.
 
-### Slice 6 - Type UI member commands
+### Slice 6 - Type UI member commands [done]
 
 **Task:** `type-ui-member-commands`
 
@@ -422,6 +422,10 @@ existing `role` and `leader` JSON fields; protocol errors continue to quote the 
 and the versioned state snapshot remain byte-shape compatible under `UiProtocolValidation.feature`,
 `InteractionPublicationAndOwnership.feature`, `PromptIsolationAndReadiness.feature`, and
 `StdioUiProtocolMultiRole.feature`.
+
+**Status: complete (61307b3f5e).** `ISquadUi` member commands take `SquadMemberId`. `UiCommandHandler` wraps the
+wire `role` once via `RequireMemberId` before dispatch. Snapshot JSON and protocol errors still quote the original
+value.
 
 ### Slice 7 - Type transcript member state
 
