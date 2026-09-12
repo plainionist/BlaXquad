@@ -475,7 +475,7 @@ continue to compile and pass without changing feature wording.
 maps, readiness waits, and UI synchronization skip state are keyed by `SquadMemberId`. Gherkin `role` wording,
 raw configuration builders, and protocol correlation keys remain strings. `ObservationJournal` was already typed.
 
-### Slice 9 - Remove duplicated interaction ownership
+### Slice 9 - Remove duplicated interaction ownership [done]
 
 **Task:** `remove-interaction-owner-duplication`
 
@@ -490,6 +490,9 @@ disagree.
 **Acceptance:** permission, input, and elicitation publication and response routing remain isolated by member,
 including identical request IDs on two members, wrong-member responses, cancellation, and reconnect retention in
 `InteractionPublicationAndOwnership.feature` and `InteractionCancellationAndTranscriptRetention.feature`.
+
+**Status: complete (42581a5d28).** `Role` is removed from the three interaction request events. Copilot and fake
+sessions publish without copying member identity. Snapshot `role` is composed from the owning `MemberSnapshot.Id`.
 
 ### Slice 10 - Type interaction request IDs
 
