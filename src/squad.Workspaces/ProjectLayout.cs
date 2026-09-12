@@ -15,6 +15,7 @@ public record ProjectLayout(
     /// <summary>Resolves workspace paths from the requested directory and tool paths from the installed application.</summary>
     public static ProjectLayout Create(string workingDirArg)
     {
+        Contract.Requires(!string.IsNullOrWhiteSpace(workingDirArg), "workingDirArg must not be blank.");
         var workingDir = Path.GetFullPath(workingDirArg);
         var scriptDir = AppContext.BaseDirectory.TrimEnd('/', '\\');
         var packDir = Path.Combine(workingDir, "blaxquad");

@@ -13,10 +13,18 @@ public static class Priority
     public static bool IsValid(string? value) => value is not null && myTwoDigits.IsMatch(value);
 
     /// <summary>Parses an already-validated two-digit priority into its native integer value.</summary>
-    public static int Parse(string value) => int.Parse(value, CultureInfo.InvariantCulture);
+    public static int Parse(string value)
+    {
+        Contract.Requires(IsValid(value), "value must be exactly two decimal digits.");
+        return int.Parse(value, CultureInfo.InvariantCulture);
+    }
 
     /// <summary>Formats a native integer priority as two digits for filename ordering or CLI presentation.</summary>
-    public static string Format(int priority) => priority.ToString("D2", CultureInfo.InvariantCulture);
+    public static string Format(int priority)
+    {
+        Contract.Requires(priority is >= 0 and <= 99, "priority must be from 0 through 99.");
+        return priority.ToString("D2", CultureInfo.InvariantCulture);
+    }
 }
 
 

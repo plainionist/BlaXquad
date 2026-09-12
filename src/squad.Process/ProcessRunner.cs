@@ -12,6 +12,7 @@ public static class ProcessRunner
     /// </summary>
     public static void Start(string fileName, IEnumerable<string> args, string workingDirectory)
     {
+        Contract.Requires(!string.IsNullOrWhiteSpace(fileName), "fileName must not be blank.");
         var psi = new ProcessStartInfo(fileName)
         {
             UseShellExecute = false,
@@ -28,6 +29,7 @@ public static class ProcessRunner
     /// <summary>Returns the child result without treating a non-zero exit code as an exception.</summary>
     public static ProcessResult Run(string fileName, IEnumerable<string> args, string? workingDirectory = null, IReadOnlyDictionary<string, string>? environment = null)
     {
+        Contract.Requires(!string.IsNullOrWhiteSpace(fileName), "fileName must not be blank.");
         var psi = new ProcessStartInfo(fileName)
         {
             RedirectStandardOutput = true,
@@ -80,6 +82,7 @@ public static class ProcessRunner
         IReadOnlyDictionary<string, string>? environment = null,
         CancellationToken cancellationToken = default)
     {
+        Contract.Requires(!string.IsNullOrWhiteSpace(fileName), "fileName must not be blank.");
         var psi = new ProcessStartInfo(fileName)
         {
             RedirectStandardOutput = true,
