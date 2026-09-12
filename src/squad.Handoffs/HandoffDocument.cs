@@ -15,6 +15,10 @@ public sealed record HandoffDocument
     /// <summary>The suffix identifying a durable handoff artifact as JSON, distinct from a legacy ".handoff" file.</summary>
     public const string FileSuffix = ".handoff.json";
 
+    /// <summary>The maximum length the CLI enforces for a human-authored <see cref="GitHandoffData.Task"/> or
+    /// <see cref="NoteData.Message"/>, re-enforced here so a persisted document can never bypass it.</summary>
+    private const int MaxTextLength = 80;
+
     public required HandoffId Id { get; init; }
     public required SquadMemberId From { get; init; }
     public required IReadOnlyList<SquadMemberId> To { get; init; }
@@ -37,8 +41,9 @@ public sealed record HandoffDocument
         _ => throw new InvalidDataException($"unknown handoff kind {Kind}"),
     };
 
-    /// <summary>Rejects a missing or empty recipient list and any kind/variant pairing other than exactly the
-    /// variant matching <see cref="Kind"/>.</summary>
+    /// <summary>Rejects a missing or empty recipient list, an empty or overlong <see cref="GitHandoffData.Task"/> or
+    /// <see cref="NoteData.Message"/>, and any kind/variant pairing other than exactly the variant matching
+    /// <see cref="Kind"/>.</summary>
     public void Validate()
     {
         var errors = new List<string>();
@@ -66,6 +71,10 @@ public sealed record HandoffDocument
                     {
                         errors.Add("missing gitHandoff.task");
                     }
+                    else if (GitHandoff.Task.Length > MaxTextLength)
+                    {
+                        errors.Add($"gitHandoff.task must be no longer than {MaxTextLength} characters; got {GitHandoff.Task.Length}");
+                    }
                     if (GitHandoff.Commit is null)
                     {
                         errors.Add("missing gitHandoff.commit");
@@ -74,9 +83,16 @@ public sealed record HandoffDocument
                 break;
             case HandoffKind.Note:
                 ValidateVariant(errors, "note", Note, GitHandoff);
-                if (Note is not null && string.IsNullOrWhiteSpace(Note.Message))
+                if (Note is not null)
                 {
-                    errors.Add("missing note.message");
+                    if (string.IsNullOrWhiteSpace(Note.Message))
+                    {
+                        errors.Add("missing note.message");
+                    }
+                    else if (Note.Message.Length > MaxTextLength)
+                    {
+                        errors.Add($"note.message must be no longer than {MaxTextLength} characters; got {Note.Message.Length}");
+                    }
                 }
                 break;
             default:
