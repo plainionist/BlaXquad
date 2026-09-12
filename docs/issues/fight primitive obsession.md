@@ -554,7 +554,7 @@ protocol error and no provider response. No type other than `ElicitationAction` 
 the wire action once and rejects unsupported tokens before the provider is called. Copilot and fake-control map to
 their lowercase spellings. Black-box coverage adds decline, cancel, and one unsupported spelling.
 
-### Slice 13 - Normalize tool read capability
+### Slice 13 - Normalize tool read capability [done]
 
 **Task:** `normalize-tool-read-capability`
 
@@ -571,6 +571,10 @@ count behavior.
 
 **Acceptance:** read output never leaks, ordinary tools still stream output, and no provider-neutral event carries
 a raw kind token.
+
+**Status: complete (da9ce2060e).** `AgentToolStartedEvent.Kind` is `bool IsRead`. Fake-control parses `toolKind` at
+the adapter; Copilot has no SDK capability signal and defaults `IsRead` to false, with known tool names still
+classified in `MemberEventProjector`. A black-box unknown-tool case proves explicit read classification.
 
 ### Slice 14 - Type tool-call IDs
 
