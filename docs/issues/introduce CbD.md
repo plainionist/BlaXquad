@@ -125,7 +125,7 @@ capacity, shutdown timeout, session-registration, and `TranscriptUpdate` shape c
 at their owning APIs. Malformed UI messages stay on the existing protocol path. Slices 5–6 remain pending until
 the architect activates the next slice.
 
-### Slice 5: Protect orchestration lifecycle invariants
+### Slice 5: Protect orchestration lifecycle invariants [done]
 
 Audit the stateful lifecycle owners in `squad.Runtime`, `squad.AgentProvider.CopilotSdk`, `squad.Handoffs.Delivery`,
 and the hosting adapters. Add cheap invariant checks at mutation boundaries, including:
@@ -139,6 +139,11 @@ and the hosting adapters. Add cheap invariant checks at mutation boundaries, inc
 
 Preserve explicitly idempotent start/stop/dispose paths and expected "not started", "shutting down", unavailable,
 and teardown-failure behavior. Do not turn those states into invariants.
+
+**Status: complete (2a3bb9ab75).** Headquarters slot installation, Squad/SessionGeneration start-vs-retire,
+Copilot SDK attach-once, OperationLease/AbortLease, and handoff-poller pairing now use `Contract.Invariant`.
+Idempotent start/stop/dispose and expected not-started/teardown paths were left unchanged. Slice 6 remains
+pending until the architect activates it.
 
 ### Slice 6: Protect application and transcript invariants
 
