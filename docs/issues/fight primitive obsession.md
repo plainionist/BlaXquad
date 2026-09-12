@@ -976,7 +976,7 @@ behavior remain covered by `HeadquartersOwnership.feature`, `PromptIsolationAndR
 `AgentReadinessStatus`. `WaitForAgentAsync` branches on the enum; timeout detail is an exhaustive switch of the
 prior strings. Unknown successful tokens are invalid protocol data. Wire JSON stays string-based.
 
-### Slice 25 - Use cancellation for closed command admission
+### Slice 25 - Use cancellation for closed command admission [done]
 
 **Task:** `use-cancellation-for-closed-admission`
 
@@ -991,6 +991,10 @@ exception or broad catch.
 **Acceptance:** a command admitted before shutdown drains to its canceled result, a later command is rejected with
 the existing "shutting down" protocol error and no side effect, and event observation stops cleanly under
 `ShutdownCommandAdmission.feature` and `HeadquartersEarlyShutdown.feature`.
+
+**Status: complete (c12ab12048).** Closed admission throws `OperationCanceledException("Squad is shutting down")`.
+`SessionGeneration` handles cancellation by type. Unknown members stay `InvalidOperationException`. No custom
+exception or broad catch.
 
 ### Slice 26 - Type rejected-command effect in the UI fixture
 
