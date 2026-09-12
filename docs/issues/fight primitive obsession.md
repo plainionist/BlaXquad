@@ -899,7 +899,7 @@ added.
 `QueuedHandoff`. JSON uses `Timestamps.Format`/`Parse` via `ScalarJsonConverter`. Filename and delivery-log stamps
 stay strings. Missing `CreatedAt` is `default`; malformed values keep the wrapped invalid-data surface.
 
-### Slice 21 - Validate persisted handoff text invariants
+### Slice 21 - Validate persisted handoff text invariants [done]
 
 **Task:** `validate-persisted-handoff-text`
 
@@ -912,6 +912,11 @@ overlong values are rejected before any recipient copy or wake-up.
 
 **Acceptance:** CLI diagnostics remain unchanged and malformed persisted documents are archived as failed under
 `Handoffs.feature` and `Delivery.feature`.
+
+**Status: complete (513a6a08a8).** `HandoffDocument.Validate` rejects empty/whitespace and >80-character
+`gitHandoff.task` / `note.message`. Task and message stay strings. CLI diagnostics are unchanged. Four
+`Delivery.feature` scenarios prove empty and overlong values are archived as failed with no recipient copy or
+wake-up.
 
 ### Slice 22 - Centralize handoff queue layout
 
