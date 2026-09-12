@@ -697,6 +697,19 @@ missing/blank ID is archived as failed before fan-out. No type other than `Hando
    wrapped `InvalidDataException` path in `HandoffJson.Read` before fan-out. Do not leak constructor contract
    exceptions.
 
+### Review findings (f7ae75651f)
+
+Finding 2 is addressed: `HandoffJson.Read` wraps `ArgumentException` as `InvalidDataException`, and `Validate` no
+longer re-checks blank IDs.
+
+1. **Severity: high.** `src/squad.Handoffs/HandoffId.cs`.
+   **Violated behavior:** Slice 17 requires a sealed immutable record. A record struct whose invalid `default`
+   bypasses the constructor is forbidden.
+   **Root cause:** Rework added `Contract.Requires` but kept `readonly record struct HandoffId`. `default(HandoffId)`
+   and `new HandoffId()` still produce a blank identity without running the constructor.
+   **Required outcome:** Change `HandoffId` to a sealed immutable record (class) with the existing explicit
+   constructor and `Contract.Requires` nonblank check. Do not keep a struct.
+
 ### Contract-correction sequence
 
 The following five slices run immediately after Slice 17 and before Slice 18. They correct the string-backed value
