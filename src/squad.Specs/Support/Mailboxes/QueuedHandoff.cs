@@ -1,3 +1,5 @@
+using squad.Domain;
+
 namespace squad.Specs.Support.Mailboxes;
 
 /// <summary>A queued handoff described in user terms: who sent it, who receives it, and its delivery instruction.
@@ -7,14 +9,14 @@ namespace squad.Specs.Support.Mailboxes;
 /// <paramref name="CompletedAt"/> are the document's lifecycle timestamps, present only once the corresponding
 /// transition (creation, delivery, claim, or completion) has happened to this artifact.</summary>
 internal sealed record QueuedHandoff(
-    string Sender,
-    IReadOnlyList<string> Recipients,
+    SquadMemberId Sender,
+    IReadOnlyList<SquadMemberId> Recipients,
     string Priority,
     string Type,
     string? Task,
     string? Message,
     string Payload,
-    string? Recipient,
+    SquadMemberId? Recipient,
     string CreatedAt,
     string? EnqueuedAt,
     string? DequeuedAt,

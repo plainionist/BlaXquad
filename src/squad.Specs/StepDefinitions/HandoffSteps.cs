@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Mailboxes;
 
@@ -74,8 +75,8 @@ public sealed class HandoffSteps
         var handoff = SingleQueuedHandoff();
         Assert.Multiple(() =>
         {
-            Assert.That(handoff.Sender, Is.EqualTo(sender));
-            Assert.That(handoff.Recipients, Is.EqualTo(RecipientArray(recipients)));
+            Assert.That(handoff.Sender, Is.EqualTo(new SquadMemberId(sender)));
+            Assert.That(handoff.Recipients, Is.EqualTo(RecipientArray(recipients).Select(role => new SquadMemberId(role))));
         });
     }
 

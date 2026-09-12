@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Mailboxes;
 
@@ -93,7 +94,7 @@ public sealed class DeliverySteps
 
     [Then("the new handoff for {string} has recipient header {string}")]
     public void ThenTheNewHandoffHasRecipientHeader(string role, string recipient) =>
-        Assert.That(myMailbox.NewInboxHandoffs(role).Single().Recipient, Is.EqualTo(recipient));
+        Assert.That(myMailbox.NewInboxHandoffs(role).Single().Recipient, Is.EqualTo(new SquadMemberId(recipient)));
 
     [Then("the new handoff for {string} carries createdAt and enqueuedAt timestamps but no dequeuedAt or completedAt timestamp")]
     public void ThenTheNewHandoffCarriesCreatedAndEnqueuedTimestamps(string role)

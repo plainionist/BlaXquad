@@ -19,6 +19,6 @@ internal sealed class SessionRoleNotifier : IRoleNotifier
         myMembers = members;
     }
 
-    public Task NotifyAsync(string role, CancellationToken cancellationToken = default) =>
-        myMembers.SendHarnessAsync(new SquadMemberId(role), myWakeMessage, cancellationToken);
+    public Task NotifyAsync(SquadMemberId role, CancellationToken cancellationToken = default) =>
+        myMembers.SendHarnessAsync(role, myWakeMessage, cancellationToken);
 }

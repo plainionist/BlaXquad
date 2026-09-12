@@ -1,4 +1,5 @@
 using System.Text.Json;
+using squad.Domain;
 using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.Support.Mailboxes;
@@ -127,14 +128,14 @@ public sealed class HandoffMailboxObserver
         var payload = kind == "git_handoff" ? $"merge_and_process {from} {commit}" : message ?? "";
 
         return new QueuedHandoff(
-            Sender: from,
-            Recipients: root.GetProperty("to").EnumerateArray().Select(e => e.GetString()!).ToArray(),
+            Sender: new SquadMemberId(from),
+            Recipients: root.GetProperty("to").EnumerateArray().Select(e => new SquadMemberId(e.GetString()!)).ToArray(),
             Priority: priority.ToString("D2"),
             Type: kind,
             Task: task,
             Message: message,
             Payload: payload,
-            Recipient: GetOptionalString(root, "recipient"),
+            Recipient: GetOptionalString(root, "recipient") is { } recipient ? new SquadMemberId(recipient) : null,
             CreatedAt: root.GetProperty("createdAt").GetString()!,
             EnqueuedAt: GetOptionalString(root, "enqueuedAt"),
             DequeuedAt: GetOptionalString(root, "dequeuedAt"),

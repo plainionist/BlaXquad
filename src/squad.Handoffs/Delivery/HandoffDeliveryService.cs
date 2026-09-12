@@ -19,7 +19,7 @@ sealed class HandoffDeliveryService
 
     public async Task ProcessOnceAsync(IReadOnlyList<SquadMemberDefinition> members, CancellationToken cancellationToken = default)
     {
-        var memberMap = members.ToDictionary(member => member.Id.Value);
+        var memberMap = members.ToDictionary(member => member.Id);
         foreach (var (memberId, memberInfo) in memberMap)
         {
             var outboxDir = Path.Combine(memberInfo.WorktreePath, ".blaxquad", "handoffs", "outbox");
@@ -50,11 +50,11 @@ sealed class HandoffDeliveryService
         }
     }
 
-    private async Task DeliverAsync(Dictionary<string, SquadMemberDefinition> members, string senderMember, string path, CancellationToken cancellationToken)
+    private async Task DeliverAsync(Dictionary<SquadMemberId, SquadMemberDefinition> members, SquadMemberId senderMember, string path, CancellationToken cancellationToken)
     {
         var document = HandoffJson.Read(path);
 
-        var deliveries = new List<(string Recipient, SquadMemberDefinition MemberInfo)>();
+        var deliveries = new List<(SquadMemberId Recipient, SquadMemberDefinition MemberInfo)>();
         foreach (var recipient in document.To)
         {
             if (!members.TryGetValue(recipient, out var memberInfo))
@@ -81,7 +81,7 @@ sealed class HandoffDeliveryService
         {
             try
             {
-                await myNotifier.NotifyAsync(memberInfo.Id.Value, cancellationToken);
+                await myNotifier.NotifyAsync(memberInfo.Id, cancellationToken);
             }
             catch (Exception exception)
             {

@@ -1,5 +1,6 @@
 using squad.Process;
 using squad.Configuration;
+using squad.Domain;
 using squad.Handoffs;
 
 namespace squad.Commands;
@@ -309,8 +310,8 @@ static class Handoff
         var document = new HandoffDocument
         {
             Id = id,
-            From = sender,
-            To = recipients,
+            From = new SquadMemberId(sender),
+            To = recipients.Select(recipient => new SquadMemberId(recipient)).ToList(),
             Recipient = null,
             Priority = Priority.Parse(priority),
             Kind = kind,

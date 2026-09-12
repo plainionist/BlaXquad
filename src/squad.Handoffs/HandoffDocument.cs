@@ -1,3 +1,5 @@
+using squad.Domain;
+
 namespace squad.Handoffs;
 
 /// <summary>
@@ -14,9 +16,9 @@ public sealed record HandoffDocument
     public const string FileSuffix = ".handoff.json";
 
     public required string Id { get; init; }
-    public required string From { get; init; }
-    public required IReadOnlyList<string> To { get; init; }
-    public string? Recipient { get; init; }
+    public required SquadMemberId From { get; init; }
+    public required IReadOnlyList<SquadMemberId> To { get; init; }
+    public SquadMemberId? Recipient { get; init; }
     public required int Priority { get; init; }
     public required HandoffKind Kind { get; init; }
     public GitHandoffData? GitHandoff { get; init; }
@@ -45,11 +47,11 @@ public sealed record HandoffDocument
         {
             errors.Add("missing id");
         }
-        if (string.IsNullOrWhiteSpace(From))
+        if (string.IsNullOrWhiteSpace(From.Value))
         {
             errors.Add("missing from");
         }
-        if (To is null || To.Count == 0 || To.Any(string.IsNullOrWhiteSpace))
+        if (To is null || To.Count == 0 || To.Any(recipient => string.IsNullOrWhiteSpace(recipient.Value)))
         {
             errors.Add("missing or empty to");
         }

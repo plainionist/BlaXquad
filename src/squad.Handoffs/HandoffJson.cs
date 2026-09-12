@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using squad.Domain;
 
 namespace squad.Handoffs;
 
@@ -14,7 +15,11 @@ public static class HandoffJson
     {
         WriteIndented = true,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        Converters = { new JsonStringEnumConverter() },
+        Converters =
+        {
+            new JsonStringEnumConverter(),
+            new ScalarJsonConverter<SquadMemberId, string>(id => id.Value, value => new SquadMemberId(value)),
+        },
     };
 
     /// <summary>Deserializes and validates one handoff document, wrapping any malformed JSON or invalid kind/variant
