@@ -84,6 +84,26 @@ once across all request kinds, not merely once within each kind.
 Do not share this type with the provider adapter. Application state owns the projected request and transcript
 retention; provider state owns response completion. They have the same key but different responsibilities.
 
+### Review findings (cf535d7cd9)
+
+1. **Severity: high.** `src/squad.Application/SquadMemberAggregate.cs` `RestorePending`,
+   `src/squad.Application/MemberInteractionState.cs` `Restore`, and
+   `src/squad.Application/SquadMemberProcessor.cs` `ExecuteCompleteInteractionAsync` /
+   `RunLoopAsync`.
+   **Violated behavior:** Headquarters shutdown must transition live interactions to `RetainedForRetirement`,
+   leaving them out of the pending view with transcript entries still protected. A recoverable failure of an
+   in-flight response must no-op when shutdown (or abort) has already taken that interaction, and must not
+   fail the member processor or the shutdown drain.
+   **Root cause:** `DrainAsync` calls `ClearInteractions` while a detached response can still be in flight.
+   `RestorePending` then finds the retained key and calls `Restore()`, whose default implementation throws
+   `InvalidOperationException` for any non-`Responding` variant. `OperationOutcomeMessage` applies that
+   mutation on the read loop with no catch, so the throw faults the processor. Abort removes the key (true
+   no-op); shutdown deliberately keeps it.
+   **Required outcome:** `RestorePending` no-ops unless the state is `Responding`. `RetainedForRetirement`
+   stays retained, protected, and unpublished. The read loop must not observe an exception on this path.
+   Prove it through the black-box Gherkin suite; add a scenario only if the current suite does not cover
+   shutdown overlapping an in-flight failed response.
+
 ### 2. Provider interaction completions
 
 `CopilotSdkAgentSession` repeats registration, completion, cancellation, failure, and cleanup over three typed
