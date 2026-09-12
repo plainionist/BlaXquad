@@ -279,7 +279,7 @@ resolved worktree path, nullable parsed receive mode, and raw token). `SquadConf
 and the context/handoff/ready-for-next/done-with-current commands consume it. The second raw-configuration scan is
 gone. `SquadMemberDefinition.ReceiveMode` is non-nullable.
 
-### Slice 2 - Type validated configuration identities
+### Slice 2 - Type validated configuration identities [done]
 
 **Task:** `type-validated-configuration-identities`
 
@@ -297,6 +297,10 @@ Use the existing `RoleId` and `SquadMemberId` in the successful configuration mo
 **Acceptance:** role order, default and explicit leader selection, unknown role references, duplicate members, and
 two members sharing one reusable role retain the behavior covered by `MemberConfiguration.feature`,
 `LeaderConfiguration.feature`, and `RoleOrder.feature`.
+
+**Status: complete (a4a1ebc6b8).** Validated `SquadConfiguration`/`SquadMemberConfiguration` now expose `RoleId` and
+`SquadMemberId`. The loader still validates raw document strings, then constructs those identities once.
+`Ctx`, `WorkspacePreparer`, and `LaunchPreparer` pass them through without re-wrapping.
 
 ### Slice 3 - Model the configured worktree target
 
