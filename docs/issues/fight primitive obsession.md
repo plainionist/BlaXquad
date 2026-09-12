@@ -227,3 +227,6 @@ prove the external representation.
 These cases should stay fixed while addressing the remaining call sites; replacing a typed value with its `.Value`
 before a boundary would recreate the same primitive obsession under a different name.
 
+## execution hint
+
+@architect: every new type introduced should be done with its own slice to make review simple and effective
