@@ -83,7 +83,7 @@ guards now use `Contract.Requires`. Enum exhaustiveness and lifecycle failures w
 `docs/Manual/modules.md` records the Requires/Invariant distinction and the rule against redundant non-null
 guards. Slices 3–6 remain pending until the architect activates the next slice.
 
-### Slice 3: Add foundational API preconditions
+### Slice 3: Add foundational API preconditions [done]
 
 Audit `squad.Domain`, `squad.Configuration`, `squad.Workspaces`, `squad.Handoffs`, `squad.Process`, and
 `squad.HeadquarterTools`, then add only semantic checks whose absence currently permits an invalid object or a later,
@@ -97,6 +97,11 @@ less diagnostic failure. At minimum:
 4. Require `ProjectLayout.Create` to receive a non-blank working directory.
 5. Preserve `SquadConfig`'s documented lenient read behavior and `HandoffDocument.Validate`'s external-data
    diagnostics rather than duplicating those rules in domain constructors.
+
+**Status: complete (984ff4c22f).** `SquadDefinition`, `Priority.Parse`/`Format`, `CliExitException`,
+`ProcessRunner` launch APIs, and `ProjectLayout.Create` now assert those semantic obligations with
+`Contract.Requires`. `SquadConfig` remains lenient; `HandoffDocument.Validate` is unchanged. Slices 4–6 remain
+pending until the architect activates the next slice.
 
 ### Slice 4: Add orchestration and protocol API preconditions
 
