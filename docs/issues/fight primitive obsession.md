@@ -853,7 +853,7 @@ and out-of-range JSON rejection are covered by `Handoffs.feature`, `TaskQueue.fe
 JSON via `ScalarJsonConverter`, and batch selection. CLI still aggregates invalid priority with other errors.
 `QueuedHandoff.Priority` is typed. JSON `priority` stays a number; filenames stay two-digit-prefixed.
 
-### Slice 19 - Type canonical Git commit IDs
+### Slice 19 - Type canonical Git commit IDs [done]
 
 **Task:** `type-git-commit-id`
 
@@ -871,6 +871,10 @@ noncanonical commit ID must fail validation before delivery through the establis
 **Acceptance:** HEAD, explicit revision, dirty-worktree override, invalid revision, payload rendering, and malformed
 durable commit coverage pass in `Handoffs.feature` and `Delivery.feature`. No type other than `GitCommitId` is
 added.
+
+**Status: complete (a9a570b126).** `GitCommitId` is a sealed record owning the ten-lowercase-hex invariant with
+no normalization. `--commit` stays text until Git resolves it. JSON and `merge_and_process` stay strings;
+noncanonical durable commits fail through the wrapped invalid-data surface before fan-out.
 
 ### Slice 20 - Type handoff lifecycle timestamps
 
