@@ -22,18 +22,18 @@ internal static class MemberEventProjector
             case AgentStartedEvent:
                 member.Status = SquadMemberStatus.Running;
                 member.IsWorking = false;
-                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "harness", "Session started.");
+                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, TranscriptSource.Harness, "Session started.");
                 break;
             case AgentStoppedEvent:
                 member.Status = SquadMemberStatus.Stopped;
                 member.IsWorking = false;
-                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "harness", "Session stopped.");
+                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, TranscriptSource.Harness, "Session stopped.");
                 break;
             case AgentErrorEvent error:
                 member.Status = SquadMemberStatus.Error;
                 member.IsWorking = false;
                 member.Error = error.Message;
-                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "error", error.Message);
+                transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, TranscriptSource.Error, error.Message);
                 break;
             case AgentIdleEvent:
                 member.Status = SquadMemberStatus.Idle;
@@ -45,10 +45,10 @@ internal static class MemberEventProjector
                 member.IsWorking = true;
                 member.Transcript.FinalizeAssistantEntry();
                 member.Transcript.FinalizeReasoningEntry();
-                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, "user", message.Content);
+                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, TranscriptSource.User, message.Content);
                 break;
             case AgentHarnessMessageEvent message:
-                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, "harness", message.Content);
+                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, TranscriptSource.Harness, message.Content);
                 break;
             case AgentReasoningEvent reasoning:
                 member.IsWorking = true;
@@ -63,7 +63,7 @@ internal static class MemberEventProjector
                 transcriptUpdate = AddTranscriptEntry(
                     member,
                     subagent.OccurredAt,
-                    "subagent",
+                    TranscriptSource.Subagent,
                     DescribeSubagent(subagent));
                 break;
             case AgentSkillInvokedEvent skill:
@@ -71,7 +71,7 @@ internal static class MemberEventProjector
                 transcriptUpdate = AddTranscriptEntry(
                     member,
                     skill.OccurredAt,
-                    "tool",
+                    TranscriptSource.Tool,
                     $"using skill({skill.Name})");
                 break;
             case AgentToolStartedEvent tool:
@@ -93,7 +93,7 @@ internal static class MemberEventProjector
                         isRead && !HasReadRange(tool),
                         new TranscriptEntry(
                             tool.OccurredAt,
-                            isRead ? "read" : "tool",
+                            isRead ? TranscriptSource.Read : TranscriptSource.Tool,
                             toolDescription));
                     member.ActiveTool = tool.ToolName;
                 }
@@ -142,21 +142,21 @@ internal static class MemberEventProjector
                 member.ContextLimitTokens = GetModelContextWindowLimit(member.Model, usage.LimitTokens);
                 break;
             case AgentSystemMessageEvent message:
-                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, "system", message.Content);
+                transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, TranscriptSource.System, message.Content);
                 break;
             case AgentPermissionRequest permission:
                 member.RegisterPermission(permission);
-                transcriptUpdate = AddTranscriptEntry(member, permission.OccurredAt, "harness", $"Permission required: {permission.Description}.", protect: true);
+                transcriptUpdate = AddTranscriptEntry(member, permission.OccurredAt, TranscriptSource.Harness, $"Permission required: {permission.Description}.", protect: true);
                 member.ProtectTranscriptEntry(permission.RequestId, transcriptUpdate.EntryIndex);
                 break;
             case AgentInputRequest input:
                 member.RegisterInput(input);
-                transcriptUpdate = AddTranscriptEntry(member, input.OccurredAt, "harness", input.Prompt, protect: true);
+                transcriptUpdate = AddTranscriptEntry(member, input.OccurredAt, TranscriptSource.Harness, input.Prompt, protect: true);
                 member.ProtectTranscriptEntry(input.RequestId, transcriptUpdate.EntryIndex);
                 break;
             case AgentElicitationRequest elicitation:
                 member.RegisterElicitation(elicitation);
-                transcriptUpdate = AddTranscriptEntry(member, elicitation.OccurredAt, "harness", elicitation.Prompt, protect: true);
+                transcriptUpdate = AddTranscriptEntry(member, elicitation.OccurredAt, TranscriptSource.Harness, elicitation.Prompt, protect: true);
                 member.ProtectTranscriptEntry(elicitation.RequestId, transcriptUpdate.EntryIndex);
                 break;
         }
@@ -380,7 +380,7 @@ internal static class MemberEventProjector
     private static TranscriptUpdate AddTranscriptEntry(
         MemberAggregate member,
         DateTimeOffset occurredAt,
-        string source,
+        TranscriptSource source,
         string content,
         bool protect = false) =>
         member.Transcript.AddTranscriptEntry(new TranscriptEntry(occurredAt, source, content), protect);

@@ -643,7 +643,7 @@ internal sealed class MemberProcessor : IDisposable
         }
         lock (Aggregate.SyncRoot)
         {
-            var transcriptUpdate = Aggregate.Transcript.AddTranscriptEntry(new TranscriptEntry(DateTimeOffset.UtcNow, "user", response.Answer));
+            var transcriptUpdate = Aggregate.Transcript.AddTranscriptEntry(new TranscriptEntry(DateTimeOffset.UtcNow, TranscriptSource.User, response.Answer));
             myTranscriptChanged(transcriptUpdate);
         }
     }

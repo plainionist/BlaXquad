@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -178,7 +179,7 @@ internal sealed class TranscriptArchive : IDisposable
         CreatePrivateDirectory(directory);
         WritePrivateText(
             GetMetadataPath(memberId, entryIndex),
-            JsonSerializer.Serialize(new { entry.OccurredAt, entry.Source }),
+            JsonSerializer.Serialize(new { entry.OccurredAt, Source = ToArchiveSource(entry.Source) }),
             append: false);
         WritePrivateText(
             GetContentPath(memberId, entryIndex),
@@ -229,7 +230,7 @@ internal sealed class TranscriptArchive : IDisposable
         using var metadata = JsonDocument.Parse(File.ReadAllText(GetMetadataPath(memberId, entryIndex)));
         return new TranscriptEntry(
             metadata.RootElement.GetProperty("OccurredAt").GetDateTimeOffset(),
-            metadata.RootElement.GetProperty("Source").GetString()!,
+            ParseArchiveSource(metadata.RootElement.GetProperty("Source").GetString()!),
             File.ReadAllText(GetContentPath(memberId, entryIndex)));
     }
 
@@ -273,6 +274,38 @@ internal sealed class TranscriptArchive : IDisposable
                 && predicate(entries);
         }
     }
+
+    /// <summary>Maps <see cref="TranscriptSource"/> explicitly to its stable archived spelling, so the on-disk
+    /// representation never depends on default enum serialization.</summary>
+    private static string ToArchiveSource(TranscriptSource source) => source switch
+    {
+        TranscriptSource.Harness => "harness",
+        TranscriptSource.User => "user",
+        TranscriptSource.Assistant => "assistant",
+        TranscriptSource.Reasoning => "reasoning",
+        TranscriptSource.System => "system",
+        TranscriptSource.Error => "error",
+        TranscriptSource.Tool => "tool",
+        TranscriptSource.Read => "read",
+        TranscriptSource.Subagent => "subagent",
+        _ => throw new UnreachableException($"Unhandled transcript source '{source}'."),
+    };
+
+    /// <summary>Parses an archived source spelling back into <see cref="TranscriptSource"/>, failing explicitly for
+    /// any value this archive format does not recognize.</summary>
+    private static TranscriptSource ParseArchiveSource(string source) => source switch
+    {
+        "harness" => TranscriptSource.Harness,
+        "user" => TranscriptSource.User,
+        "assistant" => TranscriptSource.Assistant,
+        "reasoning" => TranscriptSource.Reasoning,
+        "system" => TranscriptSource.System,
+        "error" => TranscriptSource.Error,
+        "tool" => TranscriptSource.Tool,
+        "read" => TranscriptSource.Read,
+        "subagent" => TranscriptSource.Subagent,
+        _ => throw new InvalidOperationException($"Unsupported archived transcript source '{source}'."),
+    };
 
     private static string LimitContent(string content, int maxCharacters)
     {

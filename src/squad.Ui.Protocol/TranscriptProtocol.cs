@@ -1,5 +1,6 @@
 using squad.Domain;
 using squad.Ui.Abstractions;
+using System.Diagnostics;
 
 namespace squad.Ui.Protocol;
 
@@ -89,7 +90,7 @@ internal static class TranscriptProtocol
         long contentStart = 0) => new
     {
         occurredAt = entry.OccurredAt,
-        source = entry.Source,
+        source = ToWireSource(entry.Source),
         content = entry.Content,
         hasArchivedContent,
         contentStart,
@@ -99,7 +100,7 @@ internal static class TranscriptProtocol
     {
         entryIndex = entry.EntryIndex,
         occurredAt = entry.Entry.OccurredAt,
-        source = entry.Entry.Source,
+        source = ToWireSource(entry.Entry.Source),
         content = entry.Entry.Content,
         hasArchivedContent = entry.HasArchivedContent,
         contentStart = entry.ContentStart,
@@ -140,6 +141,22 @@ internal static class TranscriptProtocol
             content = announcement.Content,
             truncated = announcement.Truncated,
         };
+
+    /// <summary>Maps <see cref="TranscriptSource"/> explicitly to its existing lowercase wire spelling at this
+    /// protocol boundary.</summary>
+    private static string ToWireSource(TranscriptSource source) => source switch
+    {
+        TranscriptSource.Harness => "harness",
+        TranscriptSource.User => "user",
+        TranscriptSource.Assistant => "assistant",
+        TranscriptSource.Reasoning => "reasoning",
+        TranscriptSource.System => "system",
+        TranscriptSource.Error => "error",
+        TranscriptSource.Tool => "tool",
+        TranscriptSource.Read => "read",
+        TranscriptSource.Subagent => "subagent",
+        _ => throw new UnreachableException($"Unhandled transcript source '{source}'."),
+    };
 }
 
 

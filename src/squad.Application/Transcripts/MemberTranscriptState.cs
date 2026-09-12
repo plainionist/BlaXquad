@@ -228,7 +228,7 @@ internal sealed class MemberTranscriptState
             ref myAssistantEntryBuffer,
             ref myAssistantTranscriptEntryIndex,
             occurredAt,
-            "assistant",
+            TranscriptSource.Assistant,
             content);
 
     public TranscriptUpdate AppendReasoningEntry(DateTimeOffset occurredAt, string content) =>
@@ -236,20 +236,20 @@ internal sealed class MemberTranscriptState
             ref myReasoningEntryBuffer,
             ref myReasoningTranscriptEntryIndex,
             occurredAt,
-            "reasoning",
+            TranscriptSource.Reasoning,
             content);
 
     public TranscriptUpdate CompleteAssistantEntry(DateTimeOffset occurredAt, string content) =>
         CompleteStreamingEntry(
             ref myAssistantEntryBuffer,
             ref myAssistantTranscriptEntryIndex,
-            new TranscriptEntry(occurredAt, "assistant", content));
+            new TranscriptEntry(occurredAt, TranscriptSource.Assistant, content));
 
     public TranscriptUpdate CompleteReasoningEntry(DateTimeOffset occurredAt, string content) =>
         CompleteStreamingEntry(
             ref myReasoningEntryBuffer,
             ref myReasoningTranscriptEntryIndex,
-            new TranscriptEntry(occurredAt, "reasoning", content));
+            new TranscriptEntry(occurredAt, TranscriptSource.Reasoning, content));
 
     public void FinalizeAssistantEntry() =>
         FinalizeStreamingEntry(ref myAssistantEntryBuffer, ref myAssistantTranscriptEntryIndex);
@@ -270,7 +270,7 @@ internal sealed class MemberTranscriptState
         ref TranscriptEntryBuffer? buffer,
         ref int? entryIndex,
         DateTimeOffset occurredAt,
-        string source,
+        TranscriptSource source,
         string content)
     {
         Contract.Invariant(

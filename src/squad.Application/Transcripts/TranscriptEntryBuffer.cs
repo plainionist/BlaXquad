@@ -19,7 +19,7 @@ internal sealed class TranscriptEntryBuffer
     private ulong myContentHash = 14695981039346656037;
     private bool myTruncated;
 
-    internal TranscriptEntryBuffer(DateTimeOffset occurredAt, string source, int maxCharacters)
+    internal TranscriptEntryBuffer(DateTimeOffset occurredAt, TranscriptSource source, int maxCharacters)
     {
         OccurredAt = occurredAt;
         Source = source;
@@ -27,7 +27,7 @@ internal sealed class TranscriptEntryBuffer
     }
 
     private DateTimeOffset OccurredAt { get; }
-    private string Source { get; }
+    private TranscriptSource Source { get; }
 
     internal int Length => myTruncated
         ? Math.Min(myTruncationMarker.Length, myMaxCharacters) + myTailLength
