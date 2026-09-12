@@ -956,7 +956,7 @@ remain covered by `Handoffs.feature`.
 enum. `QueuedHandoff.Type` is `HandoffKind` from independently parsed JSON. Unknown-command and usage/error text
 are unchanged.
 
-### Slice 24 - Type Headquarters readiness status
+### Slice 24 - Type Headquarters readiness status [done]
 
 **Task:** `type-agent-readiness-status`
 
@@ -971,6 +971,10 @@ status token is invalid protocol data rather than a new implicit state.
 **Acceptance:** ready, busy timeout, unknown member, initialization, stale metadata, and unavailable endpoint
 behavior remain covered by `HeadquartersOwnership.feature`, `PromptIsolationAndReadiness.feature`, and
 `HeadquartersEarlyShutdown.feature`. No type other than `AgentReadinessStatus` is added.
+
+**Status: complete (2678fe47e2).** `QueryAgentStatusAsync` maps protocol tokens and local unavailable outcomes to
+`AgentReadinessStatus`. `WaitForAgentAsync` branches on the enum; timeout detail is an exhaustive switch of the
+prior strings. Unknown successful tokens are invalid protocol data. Wire JSON stays string-based.
 
 ### Slice 25 - Use cancellation for closed command admission
 
