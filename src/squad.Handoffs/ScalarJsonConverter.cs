@@ -21,7 +21,14 @@ public sealed class ScalarJsonConverter<TValue, TScalar> : JsonConverter<TValue>
     {
         var scalar = JsonSerializer.Deserialize<TScalar>(ref reader, options)
             ?? throw new JsonException($"Expected a non-null {typeof(TScalar).Name} for {typeToConvert.Name}.");
-        return myFromScalar(scalar);
+        try
+        {
+            return myFromScalar(scalar);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new JsonException($"Invalid {typeToConvert.Name} value '{scalar}': {exception.Message}", exception);
+        }
     }
 
     public override void Write(Utf8JsonWriter writer, TValue value, JsonSerializerOptions options) =>
