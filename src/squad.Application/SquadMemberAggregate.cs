@@ -158,15 +158,17 @@ internal sealed class SquadMemberAggregate : IDisposable
 
     /// <summary>
     /// Transitions a responding interaction back to pending after a recoverable provider failure. A no-op when the
-    /// interaction was concurrently removed by an abort or headquarters shutdown - there is nothing left to restore.
+    /// interaction was concurrently removed by an abort, or retained-not-responding by a headquarters shutdown that
+    /// raced this same response - either way there is nothing left to restore, and this must never throw, since it
+    /// runs as a read-loop mutation with no surrounding catch.
     /// </summary>
     internal void RestorePending(InteractionRequestId requestId)
     {
         lock (myInteractionsLock)
         {
-            if (myInteractions.TryGetValue(requestId, out var state))
+            if (myInteractions.TryGetValue(requestId, out var state) && state.TryRestore(out var restored))
             {
-                myInteractions[requestId] = state.Restore();
+                myInteractions[requestId] = restored;
             }
         }
     }

@@ -92,6 +92,16 @@ internal sealed class BackendScenarioAgent(FakeProviderControlServer control, st
     public Task CompletePendingDisposalAsync(TimeSpan? timeout = null) =>
         control.CompletePendingDisposalAsync(role, timeout, uiDiagnostics);
 
+    /// <summary>Arms this role's session so its next permission response remains pending until explicitly
+    /// resolved through <see cref="FailPendingPermissionResponseAsync"/>.</summary>
+    public Task ArmPendingPermissionResponseAsync(TimeSpan? timeout = null) =>
+        control.ArmPendingPermissionResponseAsync(role, timeout, uiDiagnostics);
+
+    /// <summary>Resolves this role's currently pending permission response (armed by
+    /// <see cref="ArmPendingPermissionResponseAsync"/>) as failed with the given message.</summary>
+    public Task FailPendingPermissionResponseAsync(string message, TimeSpan? timeout = null) =>
+        control.FailPendingPermissionResponseAsync(role, message, timeout, uiDiagnostics);
+
     /// <summary>Waits until this role's session has reported that its disposal is being held (armed by
     /// <see cref="ArmPendingDisposalAsync"/>), and returns whether an admitted send on this same session had
     /// already reached its own canceled terminal outcome by the moment disposal began - this session's own

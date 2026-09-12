@@ -261,6 +261,14 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentReleasesItsPendingSessionDisposal(string role) =>
         Await(myScenario.Agent(role).CompletePendingDisposalAsync());
 
+    [When("the {string} agent holds its next permission response pending")]
+    public void WhenTheAgentHoldsItsNextPermissionResponsePending(string role) =>
+        Await(myScenario.Agent(role).ArmPendingPermissionResponseAsync());
+
+    [When("the {string} agent fails its pending permission response with message {string}")]
+    public void WhenTheAgentFailsItsPendingPermissionResponseWithMessage(string role, string message) =>
+        Await(myScenario.Agent(role).FailPendingPermissionResponseAsync(message));
+
     [Then("the {string} agent's session disposal is held after its admitted send is already canceled")]
     public void ThenTheAgentSSessionDisposalIsHeldAfterItsAdmittedSendIsAlreadyCanceled(string role) =>
         Assert.That(
