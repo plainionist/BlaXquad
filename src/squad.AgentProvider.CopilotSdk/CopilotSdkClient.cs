@@ -32,7 +32,7 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
         return new CopilotSdkClient(client);
     }
 
-    public async Task<CopilotSdkRuntimeSession> CreateSessionAsync(string workingDirectory, CopilotSdkAgentSession agentSession, string permissions, string? model, string? effort, CancellationToken cancellationToken = default)
+    public async Task<CopilotSdkRuntimeSession> CreateSessionAsync(string workingDirectory, CopilotSdkAgentSession agentSession, squad.Domain.PermissionMode permissions, string? model, string? effort, CancellationToken cancellationToken = default)
     {
         var toolEvents = new CopilotToolEventNormalizer(agentSession, workingDirectory);
         var session = await myClient.CreateSessionAsync(new SessionConfig
@@ -63,9 +63,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
 
     public ValueTask DisposeAsync() => myClient.DisposeAsync();
 
-    private static async Task<PermissionDecision> HandlePermissionRequestAsync(CopilotSdkAgentSession agentSession, string permissions, string workingDirectory, PermissionRequest request)
+    private static async Task<PermissionDecision> HandlePermissionRequestAsync(CopilotSdkAgentSession agentSession, squad.Domain.PermissionMode permissions, string workingDirectory, PermissionRequest request)
     {
-        if (permissions == "approveAll" && request.ManagedApprovalRequired is not true)
+        if (permissions == squad.Domain.PermissionMode.ApproveAll && request.ManagedApprovalRequired is not true)
         {
             return PermissionDecision.ApproveOnce();
         }

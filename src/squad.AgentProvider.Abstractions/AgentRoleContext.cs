@@ -1,3 +1,5 @@
+using squad.Domain;
+
 namespace squad.AgentProvider.Abstractions;
 
 /// <summary>Provides a backend with one role's resolved worktree, startup instruction, and agent settings.</summary>
@@ -6,7 +8,7 @@ public sealed record AgentRoleContext(
     string DisplayName,
     string WorktreePath,
     string InitialInstruction,
-    string Permissions,
+    PermissionMode Permissions,
     string? Model,
     string? Effort);
 

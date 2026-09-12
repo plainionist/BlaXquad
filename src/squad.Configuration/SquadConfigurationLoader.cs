@@ -223,8 +223,9 @@ public static class SquadConfigurationLoader
 
             var displayName = string.IsNullOrWhiteSpace(member.DisplayName) ? DisplayNameFor(name) : member.DisplayName;
             var typedReceiveMode = receiveMode == "task" ? ReceiveMode.Task : ReceiveMode.Batch;
+            var permissionMode = permissions == "approveAll" ? PermissionMode.ApproveAll : PermissionMode.Prompt;
             members.Add(new SquadMemberConfiguration(new SquadMemberId(name), displayName, new RoleId(role), WorktreeTarget.Parse(worktree), typedReceiveMode,
-                new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
+                new AgentSettings(permissionMode, agent.Model, agent.Effort)));
         }
 
         return members;

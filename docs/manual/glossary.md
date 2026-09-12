@@ -129,10 +129,11 @@ response is sent back to the waiting agent session.
 
 ## Permission mode
 
-The squad member's `agent.permissions` setting in `blaxquad/squad.json`:
+The squad member's `agent.permissions` setting in `blaxquad/squad.json` is parsed into the provider-neutral
+`PermissionMode` enum (`squad.Domain`):
 
-- `prompt` is the default and presents permission requests for user approval.
-- `approveAll` automatically approves requests that do not require managed
+- `prompt` (`PermissionMode.Prompt`) is the default and presents permission requests for user approval.
+- `approveAll` (`PermissionMode.ApproveAll`) automatically approves requests that do not require managed
   approval.
 
 Safe reads inside the member's worktree are approved automatically in either mode.

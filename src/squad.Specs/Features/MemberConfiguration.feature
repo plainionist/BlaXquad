@@ -5,8 +5,9 @@ Feature: Configure and launch reusable roles with distinct members
   references exactly one role). Two members may deliberately reference the same role - each still gets its own
   worktree, provider session, and startup state, and both receive the instruction to read the same role prompt.
   Headquarters accepts only schema version 2 and rejects an invalid document - a duplicate member name, a member
-  referencing an undeclared role, an unsupported receive mode, a role whose prompt file is missing, or a legacy
-  version-1 document - with a specific diagnostic before any member session starts.
+  referencing an undeclared role, an unsupported receive mode, an unsupported permission token, a role whose
+  prompt file is missing, or a legacy version-1 document - with a specific diagnostic before any member session
+  starts.
 
   Scenario: Two members sharing one role start independently and both read the same role prompt
     Given a backend scenario configured with role "coder" shared by members "coder-a,coder-b"
@@ -79,6 +80,26 @@ Feature: Configure and launch reusable roles with distinct members
     And the backend scenario waits for its rejected startup process to exit
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "Invalid receive mode 'nightly' for member 'coder': expected task or batch"
+    And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
+    And the backend scenario observes no session was ever started for member "coder"
+
+  Scenario: A member configured with an unsupported permission token is rejected before any member session starts
+    Given a backend scenario configured with roles "coder" and the raw configuration:
+      """
+      {
+        "schemaVersion": 2,
+        "leader": "coder",
+        "roles": ["coder"],
+        "members": [
+          { "name": "coder", "role": "coder", "worktree": "master", "agent": { "permissions": "denyAll" } }
+        ]
+      }
+      """
+    And the backend scenario has enabled the fake-provider control transport
+    When the backend scenario attempts to start squad-hq with the fake provider fixture
+    And the backend scenario waits for its rejected startup process to exit
+    Then the backend scenario observes its rejected startup exited with a non-zero code
+    And the backend scenario observes its rejected startup's standard error containing "Invalid permissions 'denyAll' for member 'coder': expected prompt or approveAll"
     And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
     And the backend scenario observes no session was ever started for member "coder"
 

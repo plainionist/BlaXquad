@@ -70,8 +70,9 @@ associated with the current worktree.
 
 The dependency-free shared kernel of stable, immutable squad vocabulary consumed by every other module: `RoleId`
 and `SquadMemberId` (distinct reusable-role and unique-member identities), `ReceiveMode` (a member's `Task` or
-`Batch` handoff acceptance mode), `SquadMemberStatus` (a member's `Starting`/`Running`/`Idle`/`Stopped`/`Error`
-lifecycle status), `AgentSettings` (normalized permissions, model, and effort), `SquadMemberDefinition` (one
+`Batch` handoff acceptance mode), `PermissionMode` (a member's `Prompt` or `ApproveAll` agent permission
+behavior), `SquadMemberStatus` (a member's `Starting`/`Running`/`Idle`/`Stopped`/`Error` lifecycle status),
+`AgentSettings` (normalized permission mode, model, and effort), `SquadMemberDefinition` (one
 resolved member's identity, display name, role reference, worktree, receive mode, and agent settings), and
 `SquadDefinition` (the ordered member roster and leader identity), plus the foundational `System.Contract` guard
 utility. `Contract.Requires` expresses a semantic caller obligation the type system cannot express (a bounded
