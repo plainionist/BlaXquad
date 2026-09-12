@@ -697,13 +697,18 @@ missing/blank ID is archived as failed before fan-out. No type other than `Hando
    wrapped `InvalidDataException` path in `HandoffJson.Read` before fan-out. Do not leak constructor contract
    exceptions.
 
-**Status: complete (b9c61a3068).** `HandoffId` is a sealed record with an explicit constructor enforcing nonblank
-text via `Contract.Requires`; `default(HandoffId)` cannot exist as a reference type. Constructor contract failures
-are translated to `JsonException` inside `ScalarJsonConverter.Read` (the shared JSON ingress boundary), which
-`HandoffJson.Read`'s existing `catch (JsonException)` clause wraps into `InvalidDataException` before fan-out.
-This also addresses the review findings on commit f7ae75651f, an earlier fixup step that had added
-`Contract.Requires` while still leaving `HandoffId` a `readonly record struct` (so `default`/`new HandoffId()`
-bypassed the constructor); the type was changed to a sealed record (class) immediately afterward.
+### Review findings (f7ae75651f)
+
+Finding 2 is addressed: `HandoffJson.Read` wraps `ArgumentException` as `InvalidDataException`, and `Validate` no
+longer re-checks blank IDs.
+
+1. **Severity: high.** `src/squad.Handoffs/HandoffId.cs`.
+   **Violated behavior:** Slice 17 requires a sealed immutable record. A record struct whose invalid `default`
+   bypasses the constructor is forbidden.
+   **Root cause:** Rework added `Contract.Requires` but kept `readonly record struct HandoffId`. `default(HandoffId)`
+   and `new HandoffId()` still produce a blank identity without running the constructor.
+   **Required outcome:** Change `HandoffId` to a sealed immutable record (class) with the existing explicit
+   constructor and `Contract.Requires` nonblank check. Do not keep a struct.
 
 **Status: complete (5deccee726, b9c61a3727).** `HandoffId` is a sealed record with `Contract.Requires` for
 nonblank, exactly preserved text. `ScalarJsonConverter` maps constructor `ArgumentException` to `JsonException` at
@@ -734,7 +739,7 @@ composition retain their behavior under `MemberConfiguration.feature`, `RoleOrde
 **Status: complete (6cd5cbfac3).** `RoleId` is a sealed record with `Contract.Requires` for nonblank, exactly
 preserved text. Configuration still validates raw role names before construction.
 
-### Slice 17B - Make squad member IDs valid by construction
+### Slice 17B - Make squad member IDs valid by construction [done]
 
 **Task:** `enforce-squad-member-id-contract`
 
@@ -749,6 +754,10 @@ must continue validating raw input first so their current diagnostics remain unc
 **Acceptance:** member configuration, command routing, unknown-member diagnostics, shared-role isolation, and
 handoff participant JSON remain unchanged under `MemberConfiguration.feature`, `UiProtocolValidation.feature`,
 `PromptIsolationAndReadiness.feature`, and `Handoffs.feature`. No type is added.
+
+**Status: complete (199ef771b7).** `SquadMemberId` is a sealed record with `Contract.Requires` for nonblank,
+exactly preserved text. Config/CLI/UI still validate raw input before construction. Unset launch `Ctx.Leader` is
+`SquadMemberId?`.
 
 ### Slice 17C - Enforce the worktree-target invariant
 
