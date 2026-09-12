@@ -427,7 +427,7 @@ and the versioned state snapshot remain byte-shape compatible under `UiProtocolV
 wire `role` once via `RequireMemberId` before dispatch. Snapshot JSON and protocol errors still quote the original
 value.
 
-### Slice 7 - Type transcript member state
+### Slice 7 - Type transcript member state [done]
 
 **Task:** `type-transcript-member-state`
 
@@ -444,6 +444,10 @@ once; `TranscriptProtocol` is the sole formatter for outgoing `role` strings. Fi
 multi-member updates preserve their ordering and isolation under `TranscriptSynchronizationOrder.feature`,
 `TranscriptHistoryPaging.feature`, `TranscriptActiveStreamRetention.feature`, and
 `StdioUiProtocolMultiRole.feature`.
+
+**Status: complete (ee78787378).** `ITranscriptUi` and transcript records carry `SquadMemberId`. Incoming wire
+names are parsed once in `UiCommandHandler`; `TranscriptProtocol` is the sole outgoing `role` formatter. Archive
+path hashing uses `memberId.Value` only at `GetRoleDirectory`.
 
 ### Slice 8 - Type accepted member state in specifications
 
