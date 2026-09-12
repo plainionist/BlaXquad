@@ -349,7 +349,7 @@ Closed application choices are enums owned by the module that decides them, neve
 comparison once parsed: `PermissionMode`, `ReceiveMode`, and `SquadMemberStatus` (`squad.Domain`); `ElicitationMode`
 and `ElicitationAction` (`squad.AgentProvider.Abstractions`, mapped from provider/wire spellings in
 `CopilotSdkClient` and `UiCommandHandler`); `TranscriptSource` (mapped from projected agent events in
-`MemberEventProjector`, formatted back to its stable lowercase spelling only in `TranscriptProtocol` and
+`SquadMemberEventProjector`, formatted back to its stable lowercase spelling only in `TranscriptProtocol` and
 `TranscriptArchive`); `HandoffKind` (mapped once from the CLI's `commit`/`note` token and from persisted JSON);
 `AgentReadinessStatus` (mapped once in `HeadquartersControlClient` from the control protocol's
 `ready`/`not-ready`/`unknown-role`/`initializing` tokens, local to `squad.Runtime.Control`); and

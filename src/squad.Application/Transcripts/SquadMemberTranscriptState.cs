@@ -9,7 +9,7 @@ namespace squad.Application.Transcripts;
 /// one squad member. Reads acquire the shared member lock; mutations require the caller to hold it so member and
 /// transcript changes commit atomically.
 /// </summary>
-internal sealed class MemberTranscriptState
+internal sealed class SquadMemberTranscriptState
 {
     private const string myArchivedContentAvailableMarker =
         "[Earlier content is available in transcript history.]\n";
@@ -20,7 +20,7 @@ internal sealed class MemberTranscriptState
     private readonly List<IndexedTranscriptEntry> myTranscriptEntries = [];
     private readonly HashSet<int> myProtectedTranscriptEntries = [];
     private readonly Dictionary<ToolCallId, ToolTranscriptState> myToolTranscriptEntries = [];
-    private readonly MemberTranscriptArchive myTranscriptArchive;
+    private readonly SquadMemberTranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myRetentionOptions;
     private TranscriptEntryBuffer? myAssistantEntryBuffer;
     private TranscriptEntryBuffer? myReasoningEntryBuffer;
@@ -28,9 +28,9 @@ internal sealed class MemberTranscriptState
     private int? myReasoningTranscriptEntryIndex;
     private int myRetainedContentCharacters;
 
-    public MemberTranscriptState(
+    public SquadMemberTranscriptState(
         SquadMemberId memberId,
-        MemberTranscriptArchive transcriptArchive,
+        SquadMemberTranscriptArchive transcriptArchive,
         object syncRoot)
     {
         myMemberId = memberId;

@@ -8,7 +8,7 @@ namespace squad.Application.Members;
 
 /// <summary>
 /// One member's independent, single-reader, bounded mailbox, and the sole mutable accessor of this member's
-/// <see cref="MemberAggregate"/> - no other type ever reads or writes it. A provider-event or session-terminal
+/// <see cref="SquadMemberAggregate"/> - no other type ever reads or writes it. A provider-event or session-terminal
 /// message never awaits provider I/O, so the read loop applies it inline, in order. A prompt, abort, or
 /// interaction-response message removes any pending interaction it replaces inline on the read loop, then runs its
 /// provider I/O detached from the loop - so a slow or blocked provider call for this member can never delay this
@@ -21,12 +21,12 @@ namespace squad.Application.Members;
 /// superseded by a later dispatch can never reopen canceled or terminal work, even though the loop still always
 /// resolves the caller's own completion.
 /// </summary>
-internal sealed class MemberProcessor : IDisposable
+internal sealed class SquadMemberProcessor : IDisposable
 {
     // Bounded so a caller posting a message awaits mailbox capacity (backpressure) rather than an unbounded queue
     // growing without limit; multiple senders write concurrently (public commands and this processor's own
     // detached operations reporting their start and outcome), so SingleWriter is false.
-    private readonly Channel<MemberMessage> myMailbox = Channel.CreateBounded<MemberMessage>(
+    private readonly Channel<SquadMemberMessage> myMailbox = Channel.CreateBounded<SquadMemberMessage>(
         new BoundedChannelOptions(256) { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
 
     private readonly object myInFlightLock = new();
@@ -49,8 +49,8 @@ internal sealed class MemberProcessor : IDisposable
     private readonly Action<TranscriptUpdate> myTranscriptChanged;
     private readonly Task myLoop;
 
-    internal MemberProcessor(
-        MemberAggregate aggregate,
+    internal SquadMemberProcessor(
+        SquadMemberAggregate aggregate,
         object admissionLock,
         Func<bool> isAcceptingUnlocked,
         CancellationToken shutdownToken,
@@ -71,7 +71,7 @@ internal sealed class MemberProcessor : IDisposable
     /// This member's authoritative domain state. Exposed for read-only snapshot and query composition; every
     /// mutation of it happens inside this processor, reached only through the members below.
     /// </summary>
-    internal MemberAggregate Aggregate { get; }
+    internal SquadMemberAggregate Aggregate { get; }
 
     internal Task SendPromptAsync(string prompt, CancellationToken cancellationToken) =>
         PostAsync(completion => new SendPromptMessage(PromptKind.Prompt, prompt, cancellationToken, completion));
@@ -182,7 +182,7 @@ internal sealed class MemberProcessor : IDisposable
 
     public void Dispose() => Aggregate.Dispose();
 
-    private async Task PostAsync(Func<TaskCompletionSource, MemberMessage> createMessage)
+    private async Task PostAsync(Func<TaskCompletionSource, SquadMemberMessage> createMessage)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await myMailbox.Writer.WriteAsync(createMessage(completion)).ConfigureAwait(false);
@@ -557,7 +557,7 @@ internal sealed class MemberProcessor : IDisposable
         TranscriptUpdate? transcriptUpdate;
         lock (Aggregate.SyncRoot)
         {
-            transcriptUpdate = MemberEventProjector.Project(Aggregate, agentEvent);
+            transcriptUpdate = SquadMemberEventProjector.Project(Aggregate, agentEvent);
             if (transcriptUpdate is not null)
             {
                 myTranscriptChanged(transcriptUpdate);

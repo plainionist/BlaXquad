@@ -11,10 +11,10 @@ namespace squad.Application.Members;
 /// coordination, and terminal failure. It is the sole mutable owner of that state, and every local collection below
 /// is keyed only by request or operation identity - never by another member or role.
 /// </summary>
-internal sealed class MemberAggregate : IDisposable
+internal sealed class SquadMemberAggregate : IDisposable
 {
     private readonly object myStateLock = new();
-    private readonly MemberTranscriptState myTranscript;
+    private readonly SquadMemberTranscriptState myTranscript;
 
     private readonly object myInteractionsLock = new();
     private readonly Dictionary<InteractionRequestId, AgentPermissionRequest> myPermissions = [];
@@ -31,16 +31,16 @@ internal sealed class MemberAggregate : IDisposable
     private bool myFailedAbort;
     private bool myFailed;
 
-    internal MemberAggregate(
+    internal SquadMemberAggregate(
         SquadGenerationId generation,
         SquadMemberId id,
         string displayName,
-        MemberTranscriptArchive transcriptArchive)
+        SquadMemberTranscriptArchive transcriptArchive)
     {
         Generation = generation;
         Id = id;
         DisplayName = displayName;
-        myTranscript = new MemberTranscriptState(id, transcriptArchive, myStateLock);
+        myTranscript = new SquadMemberTranscriptState(id, transcriptArchive, myStateLock);
     }
 
     /// <summary>The identity of the squad generation this member belongs to. It never outlives that generation.</summary>
@@ -69,13 +69,13 @@ internal sealed class MemberAggregate : IDisposable
     internal IAgentSession? Session { get; set; }
 
     internal object SyncRoot => myStateLock;
-    internal MemberTranscriptState Transcript => myTranscript;
+    internal SquadMemberTranscriptState Transcript => myTranscript;
 
-    internal MemberSnapshot CreateSnapshot()
+    internal SquadMemberSnapshot CreateSnapshot()
     {
         lock (myStateLock)
         {
-            return new MemberSnapshot(
+            return new SquadMemberSnapshot(
                 Id,
                 DisplayName,
                 Status,

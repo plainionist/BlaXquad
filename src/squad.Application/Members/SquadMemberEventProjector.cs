@@ -6,13 +6,13 @@ using System.Text.Json;
 namespace squad.Application.Members;
 
 /// <summary>
-/// Projects a provider <see cref="AgentEvent"/> onto a <see cref="MemberAggregate"/> and its transcript.
+/// Projects a provider <see cref="AgentEvent"/> onto a <see cref="SquadMemberAggregate"/> and its transcript.
 /// Stateless, synchronous, and deterministic: it mutates only the supplied member aggregate. Callers are
 /// responsible for admission checks and for holding the member's lock.
 /// </summary>
-internal static class MemberEventProjector
+internal static class SquadMemberEventProjector
 {
-    public static TranscriptUpdate? Project(MemberAggregate member, AgentEvent agentEvent)
+    public static TranscriptUpdate? Project(SquadMemberAggregate member, AgentEvent agentEvent)
     {
         member.EventCount++;
         member.LastEventAt = agentEvent.OccurredAt;
@@ -163,7 +163,7 @@ internal static class MemberEventProjector
         return transcriptUpdate;
     }
 
-    private static TranscriptUpdate ApplyAssistantMessage(MemberAggregate member, AgentAssistantMessageEvent message)
+    private static TranscriptUpdate ApplyAssistantMessage(SquadMemberAggregate member, AgentAssistantMessageEvent message)
     {
         if (message.IsDelta)
         {
@@ -172,7 +172,7 @@ internal static class MemberEventProjector
         return member.Transcript.CompleteAssistantEntry(message.OccurredAt, message.Content);
     }
 
-    private static TranscriptUpdate ApplyReasoning(MemberAggregate member, AgentReasoningEvent reasoning)
+    private static TranscriptUpdate ApplyReasoning(SquadMemberAggregate member, AgentReasoningEvent reasoning)
     {
         if (reasoning.IsDelta)
         {
@@ -378,7 +378,7 @@ internal static class MemberEventProjector
     }
 
     private static TranscriptUpdate AddTranscriptEntry(
-        MemberAggregate member,
+        SquadMemberAggregate member,
         DateTimeOffset occurredAt,
         TranscriptSource source,
         string content,

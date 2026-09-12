@@ -23,7 +23,7 @@ internal sealed class GenerationTranscriptArchive
     internal bool IsLive => !myRevoked;
 
     /// <summary>Opens the member-bound handle through which one member publishes and reads its own history.</summary>
-    internal MemberTranscriptArchive OpenMember(SquadMemberId member) => new(myStore, this, member);
+    internal SquadMemberTranscriptArchive OpenMember(SquadMemberId member) => new(myStore, this, member);
 
     /// <summary>Permanently closes publication for this generation. Idempotent.</summary>
     internal void Revoke() => myRevoked = true;

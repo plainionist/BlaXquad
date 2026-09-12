@@ -20,12 +20,12 @@ public sealed class SquadMembers : IDisposable
     private readonly CancellationTokenSource myShutdown = new();
     // The ordered member directory is the only application-domain collection keyed by member identity. Each
     // member's processor is its aggregate's sole mutable accessor - the sole path through which a prompt, harness,
-    // abort, interaction-response, provider-event, or session-terminal message reaches that member's MemberAggregate,
+    // abort, interaction-response, provider-event, or session-terminal message reaches that member's SquadMemberAggregate,
     // reached here only through processor.Aggregate for read-only snapshot and query composition. A slow or blocked
     // provider call for one member can never delay another member's processor, and never delays this member's own
     // provider-event or session-terminal messages either, since those are applied inline without awaiting provider
     // I/O.
-    private readonly Dictionary<SquadMemberId, MemberProcessor> myMembers = new();
+    private readonly Dictionary<SquadMemberId, SquadMemberProcessor> myMembers = new();
     private readonly List<SquadMemberId> myMemberOrder = [];
     private readonly SquadMemberId myLeader;
     private readonly GenerationTranscriptArchive myTranscripts;
@@ -53,12 +53,12 @@ public sealed class SquadMembers : IDisposable
             {
                 continue;
             }
-            var aggregate = new MemberAggregate(
+            var aggregate = new SquadMemberAggregate(
                 generation,
                 member.Id,
                 member.DisplayName,
                 myTranscripts.OpenMember(member.Id));
-            myMembers.Add(member.Id, new MemberProcessor(
+            myMembers.Add(member.Id, new SquadMemberProcessor(
                 aggregate,
                 myAdmissionLock,
                 isAcceptingUnlocked: () => myAccepting,
@@ -228,7 +228,7 @@ public sealed class SquadMembers : IDisposable
         }
     }
 
-    private static JsonElement CreateSnapshot(string leader, IReadOnlyList<MemberSnapshot> members) =>
+    private static JsonElement CreateSnapshot(string leader, IReadOnlyList<SquadMemberSnapshot> members) =>
         JsonSerializer.SerializeToElement(new
         {
             leader,
@@ -298,7 +298,7 @@ public sealed class SquadMembers : IDisposable
     /// reaches the caller as a faulted task rather than a synchronous throw, matching every other command entry
     /// point.
     /// </summary>
-    private async Task RouteAsync(SquadMemberId memberId, Func<MemberProcessor, Task> action)
+    private async Task RouteAsync(SquadMemberId memberId, Func<SquadMemberProcessor, Task> action)
     {
         EnsureAccepting();
         await action(GetProcessor(memberId));
@@ -310,7 +310,7 @@ public sealed class SquadMembers : IDisposable
     /// no-op behavior for provider events and failures the projector could reasonably see for a role it does not
     /// recognize.
     /// </summary>
-    private async Task RouteIgnoringUnknownRoleAsync(SquadMemberId memberId, Func<MemberProcessor, Task> action)
+    private async Task RouteIgnoringUnknownRoleAsync(SquadMemberId memberId, Func<SquadMemberProcessor, Task> action)
     {
         EnsureAccepting();
         if (myMembers.TryGetValue(memberId, out var processor))
@@ -319,7 +319,7 @@ public sealed class SquadMembers : IDisposable
         }
     }
 
-    private MemberProcessor GetProcessor(SquadMemberId memberId)
+    private SquadMemberProcessor GetProcessor(SquadMemberId memberId)
     {
         if (myMembers.TryGetValue(memberId, out var processor))
         {
@@ -328,7 +328,7 @@ public sealed class SquadMembers : IDisposable
         throw new InvalidOperationException($"Unknown role: {memberId}");
     }
 
-    private MemberAggregate GetMember(SquadMemberId memberId) => GetProcessor(memberId).Aggregate;
+    private SquadMemberAggregate GetMember(SquadMemberId memberId) => GetProcessor(memberId).Aggregate;
 
     private bool IsAccepting
     {

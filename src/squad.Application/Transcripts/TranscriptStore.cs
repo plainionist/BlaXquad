@@ -14,7 +14,7 @@ public sealed class TranscriptStore : IDisposable
     private readonly TranscriptRetentionOptions myRetentionOptions = new();
     private readonly TranscriptArchive myArchive;
     private readonly object myPublicationLock = new();
-    private readonly Dictionary<SquadMemberId, MemberPublicationIdentity> myPublicationIdentities = [];
+    private readonly Dictionary<SquadMemberId, SquadMemberPublicationIdentity> myPublicationIdentities = [];
 
     public TranscriptStore()
     {
@@ -55,16 +55,16 @@ public sealed class TranscriptStore : IDisposable
 
     public void Dispose() => myArchive.Dispose();
 
-    private MemberPublicationIdentity GetIdentity(SquadMemberId member)
+    private SquadMemberPublicationIdentity GetIdentity(SquadMemberId member)
     {
         if (!myPublicationIdentities.TryGetValue(member, out var identity))
         {
-            myPublicationIdentities[member] = identity = new MemberPublicationIdentity();
+            myPublicationIdentities[member] = identity = new SquadMemberPublicationIdentity();
         }
         return identity;
     }
 
-    private sealed class MemberPublicationIdentity
+    private sealed class SquadMemberPublicationIdentity
     {
         public int NextEntryIndex;
         public long Sequence;

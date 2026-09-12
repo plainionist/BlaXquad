@@ -7,12 +7,12 @@ namespace squad.Application.Members;
 /// </summary>
 internal sealed class OperationLease : IDisposable
 {
-    private readonly MemberAggregate myMember;
+    private readonly SquadMemberAggregate myMember;
     private readonly SemaphoreSlim myOperationLock;
     private CancellationTokenSource? myOperation;
     private bool myDisposed;
 
-    internal OperationLease(MemberAggregate member, SemaphoreSlim operationLock)
+    internal OperationLease(SquadMemberAggregate member, SemaphoreSlim operationLock)
     {
         myMember = member;
         myOperationLock = operationLock;

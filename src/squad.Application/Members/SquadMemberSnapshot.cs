@@ -7,7 +7,7 @@ namespace squad.Application.Members;
 /// Captures one member's configured identity, presentation, projected status, pending interactions, and transcript
 /// position at a single synchronization boundary for immutable snapshot publication.
 /// </summary>
-internal sealed record MemberSnapshot(
+internal sealed record SquadMemberSnapshot(
     SquadMemberId Id,
     string DisplayName,
     SquadMemberStatus Status,

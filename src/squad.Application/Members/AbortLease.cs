@@ -7,12 +7,12 @@ namespace squad.Application.Members;
 /// </summary>
 internal sealed class AbortLease : IDisposable
 {
-    private readonly MemberAggregate myMember;
+    private readonly SquadMemberAggregate myMember;
     private readonly TaskCompletionSource myCompletion;
     private bool myOutcomeRecorded;
     private bool myDisposed;
 
-    internal AbortLease(MemberAggregate member, TaskCompletionSource completion)
+    internal AbortLease(SquadMemberAggregate member, TaskCompletionSource completion)
     {
         myMember = member;
         myCompletion = completion;

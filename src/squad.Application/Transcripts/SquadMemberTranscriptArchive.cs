@@ -10,13 +10,13 @@ namespace squad.Application.Transcripts;
 /// stay monotonic across generations. Publication is dropped once the owning generation is revoked, so a retired
 /// member can never write again.
 /// </summary>
-internal sealed class MemberTranscriptArchive
+internal sealed class SquadMemberTranscriptArchive
 {
     private readonly TranscriptStore myStore;
     private readonly GenerationTranscriptArchive myGeneration;
     private readonly SquadMemberId myMember;
 
-    internal MemberTranscriptArchive(TranscriptStore store, GenerationTranscriptArchive generation, SquadMemberId member)
+    internal SquadMemberTranscriptArchive(TranscriptStore store, GenerationTranscriptArchive generation, SquadMemberId member)
     {
         myStore = store;
         myGeneration = generation;

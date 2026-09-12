@@ -5,7 +5,7 @@ using squad.Domain;
 namespace squad.Application.Members;
 
 /// <summary>
-/// The typed messages one member's <see cref="MemberProcessor"/> mailbox accepts. Each message carries the
+/// The typed messages one member's <see cref="SquadMemberProcessor"/> mailbox accepts. Each message carries the
 /// <see cref="TaskCompletionSource"/> its sender awaits, so the sender observes success, failure, or cancellation
 /// exactly as it did before typed routing replaced the opaque command delegates - only the routing and the mutation
 /// ownership changed. A prompt, abort, or interaction-response message performs its own provider I/O outside the
@@ -13,7 +13,7 @@ namespace squad.Application.Members;
 /// member's current generation and operation identity, so the loop can drop a mutation that no longer matches this
 /// member's active operation instead of reopening canceled or terminal work.
 /// </summary>
-internal abstract record MemberMessage;
+internal abstract record SquadMemberMessage;
 
 /// <summary>Distinguishes the two typed prompt operations a member can receive without an opaque delegate.</summary>
 internal enum PromptKind
@@ -26,40 +26,40 @@ internal sealed record SendPromptMessage(
     PromptKind Kind,
     string Prompt,
     CancellationToken CancellationToken,
-    TaskCompletionSource Completion) : MemberMessage;
+    TaskCompletionSource Completion) : SquadMemberMessage;
 
 /// <summary>Aborts this member's active work. Leader/follower coalescing happens inside the processor.</summary>
 internal sealed record AbortMessage(
     CancellationToken CancellationToken,
-    TaskCompletionSource Completion) : MemberMessage;
+    TaskCompletionSource Completion) : SquadMemberMessage;
 
 internal sealed record CompletePermissionMessage(
     InteractionRequestId RequestId,
     AgentPermissionResponse Response,
     CancellationToken CancellationToken,
-    TaskCompletionSource Completion) : MemberMessage;
+    TaskCompletionSource Completion) : SquadMemberMessage;
 
 internal sealed record CompleteInputMessage(
     InteractionRequestId RequestId,
     AgentInputResponse Response,
     CancellationToken CancellationToken,
-    TaskCompletionSource Completion) : MemberMessage;
+    TaskCompletionSource Completion) : SquadMemberMessage;
 
 internal sealed record CompleteElicitationMessage(
     InteractionRequestId RequestId,
     AgentElicitationResponse Response,
     CancellationToken CancellationToken,
-    TaskCompletionSource Completion) : MemberMessage;
+    TaskCompletionSource Completion) : SquadMemberMessage;
 
 /// <summary>Applies one projected provider event. Never awaits provider I/O, so the read loop runs it inline.</summary>
 internal sealed record ApplyProviderEventMessage(
     AgentEvent Event,
-    TaskCompletionSource Completion) : MemberMessage;
+    TaskCompletionSource Completion) : SquadMemberMessage;
 
 /// <summary>Marks this member permanently failed. Never awaits provider I/O, so the read loop runs it inline.</summary>
 internal sealed record SessionTerminalMessage(
     Exception Failure,
-    TaskCompletionSource Completion) : MemberMessage;
+    TaskCompletionSource Completion) : SquadMemberMessage;
 
 /// <summary>
 /// Applies the mutation a prompt, abort, or interaction-response operation performs once its async admission gates
@@ -76,7 +76,7 @@ internal sealed record OperationStartingMessage(
     SquadMemberId Member,
     Guid OperationId,
     Action Apply,
-    TaskCompletionSource Applied) : MemberMessage;
+    TaskCompletionSource Applied) : SquadMemberMessage;
 
 /// <summary>
 /// Reports the outcome of a prompt, abort, or interaction-response operation once its detached provider I/O has
@@ -94,11 +94,11 @@ internal sealed record OperationOutcomeMessage(
     Guid OperationId,
     Action? ApplyMutation,
     bool Unconditional,
-    Action ResolveCompletion) : MemberMessage;
+    Action ResolveCompletion) : SquadMemberMessage;
 
 /// <summary>
 /// Marks the point, once read, before which every command message queued when retirement began has already been
 /// read - and so every detached operation those messages will ever start has already been dispatched - letting
-/// <see cref="MemberProcessor.RetireAsync"/> safely wait out exactly those operations before closing the mailbox.
+/// <see cref="SquadMemberProcessor.RetireAsync"/> safely wait out exactly those operations before closing the mailbox.
 /// </summary>
-internal sealed record RetirementSentinelMessage(TaskCompletionSource Drained) : MemberMessage;
+internal sealed record RetirementSentinelMessage(TaskCompletionSource Drained) : SquadMemberMessage;
