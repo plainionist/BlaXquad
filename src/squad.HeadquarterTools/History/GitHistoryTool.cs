@@ -1,7 +1,7 @@
 using squad.Process;
 using squad.Ui.Abstractions;
 
-namespace squad.Tools.History;
+namespace squad.HeadquarterTools.History;
 
 /// <summary>
 /// Launches the optional `gitHistoryCommand` configured in `blaxquad/squad.json` in the workspace directory.

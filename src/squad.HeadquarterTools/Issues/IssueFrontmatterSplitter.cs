@@ -1,4 +1,4 @@
-namespace squad.Tools.Issues;
+namespace squad.HeadquarterTools.Issues;
 
 /// <summary>
 /// Splits one issue file's raw text into its optional frontmatter block and remaining body. A frontmatter block is

@@ -1,8 +1,8 @@
 using squad.Process;
 using squad.Application;
 using squad.Hosting.Abstractions;
-using squad.Tools.Issues;
-using squad.Tools.History;
+using squad.HeadquarterTools.Issues;
+using squad.HeadquarterTools.History;
 using squad.Workspaces;
 using squad.Runtime;
 using squad.Runtime.Control;

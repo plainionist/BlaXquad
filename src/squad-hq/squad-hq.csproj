@@ -13,7 +13,7 @@
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
-    <ProjectReference Include="..\squad.Tools\squad.Tools.csproj"
+    <ProjectReference Include="..\squad.HeadquarterTools\squad.HeadquarterTools.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />

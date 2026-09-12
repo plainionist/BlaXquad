@@ -1,4 +1,4 @@
-namespace squad.Tools.Issues;
+namespace squad.HeadquarterTools.Issues;
 
 /// <summary>Extracts the first ten lines of an issue's body, preserving each returned line's exact text.</summary>
 internal static class IssueBodyPreviewExtractor

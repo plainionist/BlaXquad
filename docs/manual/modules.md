@@ -109,7 +109,7 @@ built Vue distribution, and window icon into both `squad-hq`'s ordinary build
 output and its publish output, so `--hosting` resolves it as the packaged
 default exactly like an explicit descriptor resolves any other adapter.
 
-## `squad.Tools`
+## `squad.HeadquarterTools`
 
 Implements the workspace tools squad-hq discovers or launches on the operator's behalf, grouped by folder.
 `Issues/` discovers and parses the fixed workspace `docs/issues` Markdown catalog: it splits and parses YAML
@@ -149,7 +149,7 @@ Defines transport-neutral contracts and data exchanged between application
 state and presentation: user commands, snapshots, transcript announcements and
 updates, pages, and archived entries. Also defines `IWorkspaceTools`, the
 narrow, workspace-scoped contract each configured tool (for example the
-optional Git history launcher in `squad.Tools`) implements to report its own
+optional Git history launcher in `squad.HeadquarterTools`) implements to report its own
 availability and perform its own launch.
 
 ## `squad.Ui.Protocol`
