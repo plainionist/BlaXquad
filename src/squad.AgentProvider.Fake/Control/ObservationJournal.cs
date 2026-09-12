@@ -19,10 +19,7 @@ internal sealed class ObservationJournal
     private readonly object myLock = new();
     private readonly List<(SquadMemberId MemberId, string Type, string SessionId)> myObservations = [];
     private readonly List<string> myProtocolErrors = [];
-    private readonly Dictionary<SquadMemberId, string> myActiveSessionByMemberId = new();
-    private readonly Dictionary<SquadMemberId, string> myLatestPromptByMemberId = new();
-    private readonly Dictionary<(SquadMemberId MemberId, string Kind), JsonElement> myLatestObservationByMemberIdAndKind = new();
-    private readonly Dictionary<(SquadMemberId MemberId, string Kind), int> myObservationCountsByMemberIdAndKind = new();
+    private readonly Dictionary<SquadMemberId, MemberObservationJournal> myMembers = new();
 
     /// <summary>Records a session-lifecycle notification ("session-started" or "session-disposed") for the given
     /// role and session id, marking that session as the role's active one when it started.</summary>
@@ -33,7 +30,7 @@ internal sealed class ObservationJournal
             myObservations.Add((memberId, type, sessionId));
             if (type == "session-started")
             {
-                myActiveSessionByMemberId[memberId] = sessionId;
+                GetMember(memberId).ActiveSessionId = sessionId;
             }
         }
     }
@@ -43,7 +40,7 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            myLatestPromptByMemberId[memberId] = prompt;
+            GetMember(memberId).LatestPrompt = prompt;
         }
     }
 
@@ -53,8 +50,15 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            myLatestObservationByMemberIdAndKind[(memberId, kind)] = data.Clone();
-            myObservationCountsByMemberIdAndKind[(memberId, kind)] = myObservationCountsByMemberIdAndKind.GetValueOrDefault((memberId, kind)) + 1;
+            var member = GetMember(memberId);
+            if (member.Observations.TryGetValue(kind, out var state))
+            {
+                state.Record(data.Clone());
+            }
+            else
+            {
+                member.Observations[kind] = new ObservationState(data.Clone());
+            }
         }
     }
 
@@ -73,7 +77,13 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myActiveSessionByMemberId.TryGetValue(new SquadMemberId(role), out sessionId!);
+            if (myMembers.TryGetValue(new SquadMemberId(role), out var member) && member.ActiveSessionId is not null)
+            {
+                sessionId = member.ActiveSessionId;
+                return true;
+            }
+            sessionId = null!;
+            return false;
         }
     }
 
@@ -96,7 +106,8 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myLatestObservationByMemberIdAndKind.ContainsKey((new SquadMemberId(role), kind));
+            return myMembers.TryGetValue(new SquadMemberId(role), out var member)
+                && member.Observations.ContainsKey(kind);
         }
     }
 
@@ -106,7 +117,7 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myLatestPromptByMemberId.TryGetValue(new SquadMemberId(role), out var prompt) ? prompt : null;
+            return myMembers.TryGetValue(new SquadMemberId(role), out var member) ? member.LatestPrompt : null;
         }
     }
 
@@ -116,8 +127,9 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myLatestObservationByMemberIdAndKind.TryGetValue((new SquadMemberId(role), "harness-message"), out var data)
-                ? data.GetProperty("content").GetString()
+            return myMembers.TryGetValue(new SquadMemberId(role), out var member)
+                && member.Observations.TryGetValue("harness-message", out var state)
+                ? state.Data.GetProperty("content").GetString()
                 : null;
         }
     }
@@ -154,9 +166,9 @@ internal sealed class ObservationJournal
         {
             lock (myLock)
             {
-                if (myLatestPromptByMemberId.TryGetValue(memberId, out var prompt))
+                if (myMembers.TryGetValue(memberId, out var member) && member.LatestPrompt is not null)
                 {
-                    return prompt;
+                    return member.LatestPrompt;
                 }
             }
             if (DateTime.UtcNow >= deadline)
@@ -298,7 +310,9 @@ internal sealed class ObservationJournal
         {
             lock (myLock)
             {
-                if (myObservationCountsByMemberIdAndKind.GetValueOrDefault((memberId, kind)) >= minimumCount)
+                if (myMembers.TryGetValue(memberId, out var member)
+                    && member.Observations.TryGetValue(kind, out var state)
+                    && state.Count >= minimumCount)
                 {
                     return;
                 }
@@ -323,9 +337,10 @@ internal sealed class ObservationJournal
         {
             lock (myLock)
             {
-                if (myLatestObservationByMemberIdAndKind.TryGetValue((memberId, kind), out var data))
+                if (myMembers.TryGetValue(memberId, out var member)
+                    && member.Observations.TryGetValue(kind, out var state))
                 {
-                    return data.Clone();
+                    return state.Data.Clone();
                 }
             }
             if (DateTime.UtcNow >= deadline)
@@ -372,13 +387,19 @@ internal sealed class ObservationJournal
                 _ => $"... ({myObservations.Count - 10} earlier observations omitted)\n"
                     + string.Join('\n', myObservations.TakeLast(10).Select(o => $"{o.Type} role='{o.MemberId}' session='{o.SessionId}'")),
             };
-            var prompts = myLatestPromptByMemberId.Count == 0
-                ? "(none)"
-                : string.Join('\n', myLatestPromptByMemberId.Select(entry => $"role='{entry.Key}' prompt='{entry.Value}'"));
-            var genericObservations = myLatestObservationByMemberIdAndKind.Count == 0
-                ? "(none)"
-                : string.Join('\n', myLatestObservationByMemberIdAndKind.Select(entry =>
-                    $"role='{entry.Key.MemberId}' kind='{entry.Key.Kind}' data={FormatObservationData(entry.Value)}"));
+            var prompts = myMembers.Any(entry => entry.Value.LatestPrompt is not null)
+                ? string.Join(
+                    '\n',
+                    myMembers
+                        .Where(entry => entry.Value.LatestPrompt is not null)
+                        .Select(entry => $"role='{entry.Key}' prompt='{entry.Value.LatestPrompt}'"))
+                : "(none)";
+            var genericObservations = myMembers.Any(entry => entry.Value.Observations.Count > 0)
+                ? string.Join(
+                    '\n',
+                    myMembers.SelectMany(entry => entry.Value.Observations.Select(observation =>
+                        $"role='{entry.Key}' kind='{observation.Key}' data={FormatObservationData(observation.Value.Data)}")))
+                : "(none)";
             var protocolErrors = myProtocolErrors.Count == 0 ? "(none)" : string.Join('\n', myProtocolErrors);
             var provider = $"""
                 Observations:
@@ -398,5 +419,15 @@ internal sealed class ObservationJournal
     {
         var raw = data.ToString();
         return raw.Length <= 160 ? raw : raw[..157] + "...";
+    }
+
+    /// <summary>Returns this role's member journal, creating an empty one on first use.</summary>
+    private MemberObservationJournal GetMember(SquadMemberId memberId)
+    {
+        if (!myMembers.TryGetValue(memberId, out var member))
+        {
+            myMembers[memberId] = member = new MemberObservationJournal();
+        }
+        return member;
     }
 }
