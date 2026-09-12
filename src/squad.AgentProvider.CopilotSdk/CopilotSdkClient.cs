@@ -120,10 +120,20 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
         var response = await agentSession.RequestElicitationAsync(request.Message, ParseElicitationMode(request.Mode?.ToString()), schema, request.Url);
         return new ElicitationResult
         {
-            Action = new UIElicitationResponseAction(response.Action),
+            Action = ToSdkElicitationAction(response.Action),
             Content = ToSdkElicitationContent(response.Content),
         };
     }
+
+    /// <summary>Maps <see cref="ElicitationAction"/> explicitly to the Copilot SDK's own action spelling at this
+    /// SDK output boundary.</summary>
+    private static UIElicitationResponseAction ToSdkElicitationAction(ElicitationAction action) => action switch
+    {
+        ElicitationAction.Accept => UIElicitationResponseAction.Accept,
+        ElicitationAction.Decline => UIElicitationResponseAction.Decline,
+        ElicitationAction.Cancel => UIElicitationResponseAction.Cancel,
+        _ => throw new UnreachableException(),
+    };
 
     /// <summary>Maps the Copilot SDK's elicitation mode spelling into <see cref="ElicitationMode"/> at the SDK
     /// input boundary, preserving the SDK's own "form" default for an omitted mode and rejecting any other

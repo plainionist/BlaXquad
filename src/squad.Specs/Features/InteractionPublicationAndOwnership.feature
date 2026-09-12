@@ -68,6 +68,48 @@ Feature: Interaction publication and ownership
       | yes        |
     And the "reviewer" agent has not observed an elicitation response
 
+  Scenario: Elicitation responses support the decline and cancel actions
+    When the "coder" agent requests elicitation "elicitation-1" with prompt "Confirm the deployment?":
+      | mode | url |
+      | form |     |
+    Then the dashboard shows a pending elicitation "elicitation-1" for role "coder" with prompt "Confirm the deployment?":
+      | mode | url |
+      | form |     |
+    When the user responds to elicitation "elicitation-1" for role "coder" with action "decline":
+      | form value |
+      |            |
+    Then the "coder" agent observes an elicitation response for "elicitation-1" with action "decline":
+      | form value |
+      |            |
+    When the "reviewer" agent requests elicitation "elicitation-2" with prompt "Confirm the rollback?":
+      | mode | url |
+      | form |     |
+    Then the dashboard shows a pending elicitation "elicitation-2" for role "reviewer" with prompt "Confirm the rollback?":
+      | mode | url |
+      | form |     |
+    When the user responds to elicitation "elicitation-2" for role "reviewer" with action "cancel":
+      | form value |
+      |            |
+    Then the "reviewer" agent observes an elicitation response for "elicitation-2" with action "cancel":
+      | form value |
+      |            |
+
+  Scenario: An unsupported elicitation action is rejected as a protocol error before the provider is called
+    When the "coder" agent requests elicitation "elicitation-1" with prompt "Confirm the deployment?":
+      | mode | url |
+      | form |     |
+    Then the dashboard shows a pending elicitation "elicitation-1" for role "coder" with prompt "Confirm the deployment?":
+      | mode | url |
+      | form |     |
+    When the user responds to elicitation "elicitation-1" for role "coder" with action "acknowledge":
+      | form value |
+      |            |
+    Then the user observes a protocol error mentioning "Unsupported elicitation action"
+    And the "coder" agent has not observed an elicitation response
+    And the dashboard shows a pending elicitation "elicitation-1" for role "coder" with prompt "Confirm the deployment?":
+      | mode | url |
+      | form |     |
+
   Scenario: Wrong-role, duplicate, and late responses are rejected without disturbing the owner's pending request
     When the "coder" agent requests permission "permission-1" with description "Run the deploy script?"
     Then the dashboard shows a pending permission "permission-1" for role "coder" with description "Run the deploy script?"

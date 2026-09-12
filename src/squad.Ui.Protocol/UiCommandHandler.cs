@@ -125,9 +125,8 @@ internal sealed class UiCommandHandler
             case "elicitation.respond":
                 var elicitationRole = RequireMemberId(message.Role);
                 var elicitationId = RequireRequestId(message.RequestId);
-                var action = RequirePayloadString(
-                    message.Payload,
-                    "action");
+                var action = RequireElicitationAction(
+                    RequirePayloadString(message.Payload, "action"));
                 var request = myUi.GetPendingElicitation(
                     elicitationRole,
                     elicitationId);
@@ -136,7 +135,7 @@ internal sealed class UiCommandHandler
                     elicitationId,
                     action,
                     GetPayloadElement(message.Payload, "content"));
-                if (action == "accept" && request.Mode == ElicitationMode.Url)
+                if (action == ElicitationAction.Accept && request.Mode == ElicitationMode.Url)
                 {
                     OpenExternalUrl(
                         Require(request.Url, "pending elicitation URL"));
@@ -184,6 +183,16 @@ internal sealed class UiCommandHandler
     /// once, before it is dispatched to any authoritative application operation.</summary>
     private static InteractionRequestId RequireRequestId(string? requestId) =>
         new(Require(requestId, "requestId"));
+
+    /// <summary>Parses an incoming wire elicitation action into an <see cref="ElicitationAction"/> exactly once,
+    /// rejecting any unsupported token as a protocol error before the provider is ever called.</summary>
+    private static ElicitationAction RequireElicitationAction(string action) => action switch
+    {
+        "accept" => ElicitationAction.Accept,
+        "decline" => ElicitationAction.Decline,
+        "cancel" => ElicitationAction.Cancel,
+        _ => throw new InvalidOperationException($"Unsupported elicitation action '{action}'."),
+    };
 
     private static string RequirePayloadString(
         JsonElement payload,

@@ -172,7 +172,7 @@ public sealed class SquadMembers : IDisposable
     public Task CompleteInputAsync(SquadMemberId memberId, InteractionRequestId requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, processor => processor.CompleteInputAsync(requestId, new AgentInputResponse(answer, wasFreeform), cancellationToken));
 
-    public Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
+    public Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, ElicitationAction action, JsonElement? content, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, processor => processor.CompleteElicitationAsync(requestId, new AgentElicitationResponse(action, content), cancellationToken));
 
     public Task EnqueueEventAsync(SquadMemberId memberId, AgentEvent agentEvent, CancellationToken cancellationToken = default) =>

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Diagnostics;
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.AgentProvider.Fake.Control;
@@ -241,7 +242,7 @@ internal sealed class FakeAgentSession : IAgentSession
         {
             await myControl.NotifyObservationAsync(
                 MemberId.Value, SessionId, "elicitation-response",
-                new { requestId = requestId.Value, action = response.Action, content = response.Content }, cancellationToken);
+                new { requestId = requestId.Value, action = ToWireElicitationAction(response.Action), content = response.Content }, cancellationToken);
         }
     }
 
@@ -391,6 +392,16 @@ internal sealed class FakeAgentSession : IAgentSession
         "form" => ElicitationMode.Form,
         "url" => ElicitationMode.Url,
         _ => throw new InvalidOperationException($"Unsupported elicitation mode '{mode}' from the fake-control envelope."),
+    };
+
+    /// <summary>Maps <see cref="ElicitationAction"/> explicitly to the fake-control envelope's own action spelling
+    /// at this control-pipe output boundary.</summary>
+    private static string ToWireElicitationAction(ElicitationAction action) => action switch
+    {
+        ElicitationAction.Accept => "accept",
+        ElicitationAction.Decline => "decline",
+        ElicitationAction.Cancel => "cancel",
+        _ => throw new UnreachableException(),
     };
 
     private static IReadOnlyList<string>? GetNullableStringArray(JsonElement data, string name)

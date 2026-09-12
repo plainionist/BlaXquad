@@ -106,7 +106,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     public Task CompleteInputAsync(SquadMemberId memberId, InteractionRequestId requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, members => members.CompleteInputAsync(memberId, requestId, answer, wasFreeform, cancellationToken));
 
-    public Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
+    public Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, ElicitationAction action, JsonElement? content, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, members => members.CompleteElicitationAsync(memberId, requestId, action, content, cancellationToken));
 
     void ISquadPublication.NotifyStateChanged(SquadGenerationId generation, UiRefreshPriority priority)
