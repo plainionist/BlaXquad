@@ -89,6 +89,23 @@ Feature: Delivering handoffs
     And "reviewer" has no new handoff
     And the "reviewer" agent has not observed the handoff wake-up message
 
+  Scenario: Reject a handoff with a noncanonical commit id before delivering any copy
+    When "coder" durably queues a handoff with invalid content:
+      """
+      {
+        "id": "seed-noncanonical-commit",
+        "from": "coder",
+        "to": ["reviewer"],
+        "priority": 50,
+        "kind": "git_handoff",
+        "gitHandoff": { "task": "implement-search", "commit": "not-a-commit" },
+        "createdAt": "2026-08-22T12:00:00Z"
+      }
+      """
+    Then the sender handoff is archived as failed
+    And "reviewer" has no new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
+
   Scenario: Lifecycle timestamps survive delivery, claim, and completion
     Given "coder" prepares a note with priority "50" and message "Ready for review." to:
       | role     |

@@ -315,7 +315,7 @@ static class Handoff
             Recipient = null,
             Priority = HandoffPriority.Parse(priority),
             Kind = kind,
-            GitHandoff = kind == HandoffKind.GitHandoff ? new GitHandoffData(task!, commit!) : null,
+            GitHandoff = kind == HandoffKind.GitHandoff ? new GitHandoffData(task!, new GitCommitId(commit!)) : null,
             Note = kind == HandoffKind.Note ? new NoteData(message!) : null,
             CreatedAt = createdAt,
             EnqueuedAt = null,

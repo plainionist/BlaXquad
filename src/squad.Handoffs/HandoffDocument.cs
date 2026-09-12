@@ -66,7 +66,7 @@ public sealed record HandoffDocument
                     {
                         errors.Add("missing gitHandoff.task");
                     }
-                    if (string.IsNullOrWhiteSpace(GitHandoff.Commit))
+                    if (GitHandoff.Commit is null)
                     {
                         errors.Add("missing gitHandoff.commit");
                     }
