@@ -36,6 +36,8 @@ what is this "Todo added 15 items" - internal DB?
 
 - check "AI_info" tooling how it indexes the md files wrt front-matter and section headlines
 
+- integrate https://github.com/plainionist/git-review-checkpoint
+
 - seems to be slower?
 - visualize sub agents?
 
