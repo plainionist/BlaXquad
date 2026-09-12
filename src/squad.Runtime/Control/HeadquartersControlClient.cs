@@ -55,6 +55,7 @@ public static class HeadquartersControlClient
     /// <summary>Requests shutdown and waits until Headquarters releases project ownership.</summary>
     public static async Task<bool> ShutdownAsync(string projectRoot, TimeSpan timeout)
     {
+        Contract.Requires(timeout > TimeSpan.Zero, "timeout must be positive.");
         if (!await RequestShutdownAsync(projectRoot))
         {
             return false;

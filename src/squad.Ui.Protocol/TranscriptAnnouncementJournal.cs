@@ -17,6 +17,8 @@ internal sealed class TranscriptAnnouncementJournal
         int maxEntriesPerRole,
         int maxCharactersPerRole)
     {
+        Contract.Requires(maxEntriesPerRole > 0, "maxEntriesPerRole must be positive.");
+        Contract.Requires(maxCharactersPerRole > 0, "maxCharactersPerRole must be positive.");
         myMaxEntriesPerRole = maxEntriesPerRole;
         myMaxCharactersPerRole = maxCharactersPerRole;
     }

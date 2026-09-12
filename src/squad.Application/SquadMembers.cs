@@ -86,17 +86,27 @@ public sealed class SquadMembers : IDisposable
     /// <summary>The read model published while no squad generation is installed: a leaderless, memberless squad.</summary>
     internal static JsonElement CreateEmptySnapshot() => CreateSnapshot("", []);
 
-    public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole) =>
-        myMemberOrder
+    public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole)
+    {
+        Contract.Requires(maxEntriesPerRole > 0, "maxEntriesPerRole must be positive.");
+        return myMemberOrder
             .Select(id => myMembers[id].Aggregate)
             .Select(member => member.Transcript.CreateTranscriptSnapshot(maxEntriesPerRole))
             .ToArray();
+    }
 
-    public RoleTranscriptPage CreateTranscriptPage(string role, int beforeIndex, int maxEntries) =>
-        GetMember(role).Transcript.CreateTranscriptPage(beforeIndex, maxEntries);
+    public RoleTranscriptPage CreateTranscriptPage(string role, int beforeIndex, int maxEntries)
+    {
+        Contract.Requires(beforeIndex >= 0, "beforeIndex must not be negative.");
+        Contract.Requires(maxEntries > 0, "maxEntries must be positive.");
+        return GetMember(role).Transcript.CreateTranscriptPage(beforeIndex, maxEntries);
+    }
 
-    public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex) =>
-        GetMember(role).Transcript.CreateArchivedTranscriptEntry(entryIndex);
+    public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex)
+    {
+        Contract.Requires(entryIndex >= 0, "entryIndex must not be negative.");
+        return GetMember(role).Transcript.CreateArchivedTranscriptEntry(entryIndex);
+    }
 
     public AgentElicitationRequest GetPendingElicitation(string role, string requestId) =>
         GetMember(role).GetElicitation(requestId);
@@ -124,13 +134,16 @@ public sealed class SquadMembers : IDisposable
             return member.Status == SquadMemberStatus.Idle && !member.IsWorking;
     }
 
-    /// <summary>Sets a role's active provider session by routing to that member's processor.</summary>
+    /// <summary>
+    /// Sets a role's active provider session by routing to that member's processor. Unlike command routing, an
+    /// unrecognized role here signals a broken provider callback - every session role is drawn from this
+    /// generation's own configured roster - so it is rejected rather than silently ignored.
+    /// </summary>
     public void RegisterSession(IAgentSession session)
     {
-        if (myMembers.TryGetValue(new SquadMemberId(session.Role), out var processor))
-        {
-            processor.SetSession(session);
-        }
+        var isKnownMember = myMembers.TryGetValue(new SquadMemberId(session.Role), out var processor);
+        Contract.Requires(isKnownMember, $"Unknown role: {session.Role}");
+        processor!.SetSession(session);
     }
 
     public Task MarkRoleFailedAsync(string role, Exception exception)

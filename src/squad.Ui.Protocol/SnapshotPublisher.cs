@@ -31,6 +31,7 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
 
     public SnapshotPublisher(Func<Task> publish, TimeSpan interval)
     {
+        Contract.Requires(interval > TimeSpan.Zero, "interval must be positive.");
         myPublish = publish;
         myInterval = interval;
         myWorker = RunAsync();

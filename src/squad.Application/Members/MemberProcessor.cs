@@ -127,7 +127,12 @@ internal sealed class MemberProcessor : IDisposable
     internal void SetSession(IAgentSession session)
     {
         lock (myAdmissionLock)
+        {
+            Contract.Requires(
+                Aggregate.Session is null || Aggregate.Session.Completion.IsCompleted,
+                $"Role '{Aggregate.Id}' already has a live provider session.");
             Aggregate.Session = session;
+        }
     }
 
     /// <summary>Cancels this member's pending provider interactions, then clears them locally. Used during shutdown.</summary>
