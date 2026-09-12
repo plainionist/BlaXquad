@@ -248,7 +248,7 @@ settings, and the current string receive mode); `RoleKnown`/`Find` are `MemberKn
 converting to `SquadMemberId.Value` only at console/handoff-document boundaries. `RoleRow` is deleted. `squad.json`
 schema, CLI output, exit codes, and diagnostics are unchanged.
 
-### Slice 3 - Type receive mode at its owning boundaries
+### Slice 3 - Type receive mode at its owning boundaries [in progress]
 
 **Outcome:** Valid configured members carry only `ReceiveMode.Task` or `ReceiveMode.Batch` internally, while
 configuration JSON and command behavior continue to use the stable `task` and `batch` spellings.
