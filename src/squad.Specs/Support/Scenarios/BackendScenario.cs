@@ -1,5 +1,6 @@
 using System.Text.Json;
 using squad.AgentProvider.Fake.Control;
+using squad.Domain;
 using squad.Hosting.Stdio;
 using squad.Specs.Support.Processes;
 using squad.Specs.Support.Ui;
@@ -38,7 +39,7 @@ public sealed class BackendScenario : IDisposable
     private bool myDisposed;
     private readonly bool myOwnsWorkspace;
     private readonly List<BackendScenario> myChildren = [];
-    private readonly List<string> myConfiguredRoles = [];
+    private readonly List<SquadMemberId> myConfiguredMembers = [];
 
     public BackendScenario(ScenarioWorkspace workspace)
         : this(workspace, ownsWorkspace: false)
@@ -60,7 +61,7 @@ public sealed class BackendScenario : IDisposable
     /// <summary>Every role name configured so far through <see cref="ConfigureRole"/> or <see cref="ConfigureRoles"/>,
     /// in configuration order - for step definitions that must act on every configured role without the feature
     /// naming each one explicitly (e.g. arming every role's automatic reply once its session has started).</summary>
-    public IReadOnlyList<string> ConfiguredRoles => myConfiguredRoles;
+    public IReadOnlyList<SquadMemberId> ConfiguredMembers => myConfiguredMembers;
 
     /// <summary>Creates one Git project configured with a single role at the project root worktree.</summary>
     public void ConfigureRole(string role)
@@ -80,7 +81,7 @@ public sealed class BackendScenario : IDisposable
             }
             """ + "\n");
         myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
-        myConfiguredRoles.Add(role);
+        myConfiguredMembers.Add(new SquadMemberId(role));
     }
 
     /// <summary>
@@ -100,7 +101,7 @@ public sealed class BackendScenario : IDisposable
     public IReadOnlyDictionary<string, string> ConfigureRoles(IReadOnlyList<(string Role, string? ReceiveMode)> roles)
     {
         var worktrees = myWorkspace.ConfigureProject(roles);
-        myConfiguredRoles.AddRange(roles.Select(entry => entry.Role));
+        myConfiguredMembers.AddRange(roles.Select(entry => new SquadMemberId(entry.Role)));
         return worktrees;
     }
 
@@ -119,7 +120,7 @@ public sealed class BackendScenario : IDisposable
     public IReadOnlyDictionary<string, string> ConfigureRoleSharedByMembers(string role, params string[] memberNames)
     {
         var worktrees = myWorkspace.ConfigureProjectWithSharedRole(role, memberNames);
-        myConfiguredRoles.AddRange(memberNames);
+        myConfiguredMembers.AddRange(memberNames.Select(name => new SquadMemberId(name)));
         return worktrees;
     }
 

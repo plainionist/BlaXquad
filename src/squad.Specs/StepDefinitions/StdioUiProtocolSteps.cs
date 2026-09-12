@@ -1,6 +1,7 @@
 using squad.Specs.Support;
 using squad.Specs.Support.Scenarios;
 using squad.AgentProvider.Fake;
+using squad.Domain;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -19,7 +20,7 @@ public sealed class StdioUiProtocolSteps
     private static readonly TimeSpan PreReadyGraceWindow = TimeSpan.FromSeconds(2);
 
     private readonly BackendScenario myScenario;
-    private readonly Dictionary<string, int> mySynchronizationSkipByRole = new(StringComparer.Ordinal);
+    private readonly Dictionary<SquadMemberId, int> mySynchronizationSkipByMember = [];
     private IssueDescriptorObservation? myReferencedIssue;
 
     public StdioUiProtocolSteps(BackendScenario scenario)
@@ -44,14 +45,14 @@ public sealed class StdioUiProtocolSteps
     public void WhenAUiProtocolClientSendsUiReady()
     {
         Await(myScenario.CompleteReadyHandshakeAsync());
-        foreach (var role in myScenario.ConfiguredRoles)
+        foreach (var memberId in myScenario.ConfiguredMembers)
         {
             // Every session in this feature answers its own prompts automatically ("echo: {prompt}") across the
             // shared fake-provider control pipe instead of a second, narrower provider fixture - arming it here,
             // once the role's session has genuinely started, keeps every later scenario step semantic (prompt in,
             // transcript update out) with no per-prompt reply step of its own.
-            Await(myScenario.WaitForRoleSessionStartedAsync(role));
-            Await(myScenario.Agent(role).EnableAutoEchoAsync());
+            Await(myScenario.WaitForRoleSessionStartedAsync(memberId.Value));
+            Await(myScenario.Agent(memberId.Value).EnableAutoEchoAsync());
         }
     }
 
@@ -75,9 +76,9 @@ public sealed class StdioUiProtocolSteps
         // Snapshotting each configured role's synchronization count before issuing this request - and later
         // waiting for that count-plus-first one - identifies exactly the "recovery" synchronization this request
         // produced, never the initial one the "ui.ready" handshake already published.
-        foreach (var role in myScenario.ConfiguredRoles)
+        foreach (var memberId in myScenario.ConfiguredMembers)
         {
-            mySynchronizationSkipByRole[role] = myScenario.CountTranscriptSynchronizations(role);
+            mySynchronizationSkipByMember[memberId] = myScenario.CountTranscriptSynchronizations(memberId.Value);
         }
         myScenario.RequestTranscriptSynchronization();
     }
@@ -102,7 +103,7 @@ public sealed class StdioUiProtocolSteps
 
     [Then("a recovery \"transcript.synchronize\" message for role {string} is written to stdout")]
     public void ThenARecoveryTranscriptSynchronizeMessageForRoleIsWrittenToStdout(string role) =>
-        Await(myScenario.WaitForNextTranscriptSynchronizationAsync(role, mySynchronizationSkipByRole[role]));
+        Await(myScenario.WaitForNextTranscriptSynchronizationAsync(role, mySynchronizationSkipByMember[new SquadMemberId(role)]));
 
     [Then("a \"state.snapshot\" message is written to stdout")]
     public void ThenAStateSnapshotMessageIsWrittenToStdout() =>
@@ -122,9 +123,9 @@ public sealed class StdioUiProtocolSteps
         // Guards against a race where the echoed transcript update has not yet reached stdout: wait for every
         // configured role to settle back to idle before checking every captured line's shape, rather than
         // asserting well-formedness against a possibly still-partial buffer.
-        foreach (var role in myScenario.ConfiguredRoles)
+        foreach (var memberId in myScenario.ConfiguredMembers)
         {
-            Await(myScenario.WaitForRoleStatusAsync(role, "idle"));
+            Await(myScenario.WaitForRoleStatusAsync(memberId.Value, "idle"));
         }
         Assert.That(myScenario.EveryCapturedStandardOutputLineIsAWellFormedEnvelope(), Is.True);
     }

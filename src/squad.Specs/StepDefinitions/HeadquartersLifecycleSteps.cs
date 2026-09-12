@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Specs.Support.Scenarios;
 using squad.AgentProvider.Fake;
 
@@ -20,7 +21,7 @@ public sealed class HeadquartersLifecycleSteps
     private BackendScenario? myReplacementHeadquarters;
     private int myExitCode;
     private Task<int>? myPendingShutdown;
-    private readonly Dictionary<string, BackendScenarioCommand> myReadinessWaits = new(StringComparer.Ordinal);
+    private readonly Dictionary<SquadMemberId, BackendScenarioCommand> myReadinessWaits = [];
 
     public HeadquartersLifecycleSteps(BackendScenario scenario)
     {
@@ -117,7 +118,7 @@ public sealed class HeadquartersLifecycleSteps
 
     [When("the operator begins waiting for role {string} to become ready with `squad-hq wait-for-agent`")]
     public void WhenTheOperatorBeginsWaitingForRoleToBecomeReadyWithSquadHqWaitForAgent(string role) =>
-        myReadinessWaits[role] = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(10));
+        myReadinessWaits[new SquadMemberId(role)] = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(10));
 
     [Then("role {string}'s readiness wait remains pending")]
     public async Task ThenRoleSReadinessWaitRemainsPending(string role)
@@ -130,13 +131,13 @@ public sealed class HeadquartersLifecycleSteps
         var probe = myScenario.StartWaitForAgent(role, TimeSpan.FromSeconds(1));
         var probeResult = await probe.WaitForCompletionAsync(TimeSpan.FromSeconds(5));
         Assert.That(probeResult.StdErr, Does.Contain("agent not ready"), () => probeResult.StdErr);
-        Assert.That(myReadinessWaits[role].IsRunning, Is.True);
+        Assert.That(myReadinessWaits[new SquadMemberId(role)].IsRunning, Is.True);
     }
 
     [Then("role {string}'s readiness wait succeeds")]
     public async Task ThenRoleSReadinessWaitSucceeds(string role)
     {
-        var result = await myReadinessWaits[role].WaitForCompletionAsync(TimeSpan.FromSeconds(10));
+        var result = await myReadinessWaits[new SquadMemberId(role)].WaitForCompletionAsync(TimeSpan.FromSeconds(10));
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.Zero, () => result.StdErr);
@@ -149,7 +150,7 @@ public sealed class HeadquartersLifecycleSteps
     {
         // The watch itself was started with its own 10s "wait-for-agent --timeout" bound; the extra margin here
         // only bounds how long a genuinely broken watch is allowed to hang before this assertion gives up.
-        var result = await myReadinessWaits[role].WaitForCompletionAsync(TimeSpan.FromSeconds(20));
+        var result = await myReadinessWaits[new SquadMemberId(role)].WaitForCompletionAsync(TimeSpan.FromSeconds(20));
         Assert.That(result.StdOut, Does.Not.Contain("is ready"), () => result.StdErr);
     }
 

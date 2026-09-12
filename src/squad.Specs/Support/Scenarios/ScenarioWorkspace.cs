@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Specs.Support.Processes;
 
 namespace squad.Specs.Support.Scenarios;
@@ -8,7 +9,7 @@ public sealed class ScenarioWorkspace : IDisposable
     private static readonly TimeSpan WorkspaceCleanupPollInterval = TimeSpan.FromMilliseconds(100);
     private readonly Dictionary<string, object> myValues = new(StringComparer.Ordinal);
     private readonly ScenarioProcessRunner myProcessRunner = new();
-    private readonly Dictionary<string, string> myRoleWorktrees = new(StringComparer.Ordinal);
+    private readonly Dictionary<SquadMemberId, string> myMemberWorktrees = [];
 
     public ScenarioWorkspace()
     {
@@ -44,8 +45,8 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void RestoreProjectConfiguration() =>
         WriteSquadConfiguration(
-            myRoleWorktrees.Keys.FirstOrDefault(),
-            myRoleWorktrees.Keys.Select(role => (Role: role, ReceiveMode: (string?)null)).ToList());
+            myMemberWorktrees.Keys.FirstOrDefault().Value,
+            myMemberWorktrees.Keys.Select(memberId => (Role: memberId.Value, ReceiveMode: (string?)null)).ToList());
 
     /// <summary>
     /// Declares <paramref name="sharedRelativePath"/> as a `sharedWorktreePaths` entry in `blaxquad/squad.json`
@@ -55,9 +56,9 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void ConfigureSharedWorktreePath(string sharedRelativePath)
     {
-        var leader = myRoleWorktrees.Keys.First();
-        var members = myRoleWorktrees.Keys
-            .Select(role => (Name: role, Role: role, Worktree: role, ReceiveMode: (string?)null))
+        var leader = myMemberWorktrees.Keys.First().Value;
+        var members = myMemberWorktrees.Keys
+            .Select(memberId => (Name: memberId.Value, Role: memberId.Value, Worktree: memberId.Value, ReceiveMode: (string?)null))
             .ToList();
         WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(leader, members, [sharedRelativePath]));
     }
@@ -71,9 +72,9 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void ConfigureToolCommand(string fieldName, string commandJson)
     {
-        var leader = myRoleWorktrees.Keys.First();
-        var members = myRoleWorktrees.Keys
-            .Select(role => (Name: role, Role: role, Worktree: role, ReceiveMode: (string?)null))
+        var leader = myMemberWorktrees.Keys.First().Value;
+        var members = myMemberWorktrees.Keys
+            .Select(memberId => (Name: memberId.Value, Role: memberId.Value, Worktree: memberId.Value, ReceiveMode: (string?)null))
             .ToList();
         WriteFile(
             "blaxquad/squad.json",
@@ -91,7 +92,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void SeedNonEmptyDirectory(string role, string relativePath)
     {
-        var target = Path.Combine(myRoleWorktrees[role], Path.Combine(relativePath.Split('/')));
+        var target = Path.Combine(myMemberWorktrees[new SquadMemberId(role)], Path.Combine(relativePath.Split('/')));
         Directory.CreateDirectory(target);
         File.WriteAllText(Path.Combine(target, "existing.txt"), "pre-existing content\n");
     }
@@ -163,13 +164,13 @@ public sealed class ScenarioWorkspace : IDisposable
     /// worktree path themselves.
     /// </summary>
     public void WriteFileInRoleWorktree(string role, string relativePath, string content) =>
-        WriteFileUnder(myRoleWorktrees[role], relativePath, content);
+        WriteFileUnder(myMemberWorktrees[new SquadMemberId(role)], relativePath, content);
 
     /// <summary>
     /// The worktree path recorded for a role by <see cref="ConfigureProject"/>, exposed so test-owned support (never
     /// step definitions) can locate role-scoped durable state such as a mailbox.
     /// </summary>
-    public string RoleWorktreePath(string role) => myRoleWorktrees[role];
+    public string RoleWorktreePath(string role) => myMemberWorktrees[new SquadMemberId(role)];
 
     /// <summary>
     /// Poisons a role's already-created handoff outbox directory by replacing it with a directory link (a Windows
@@ -183,7 +184,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void PoisonRoleHandoffOutbox(string role)
     {
-        var outboxDir = Path.Combine(myRoleWorktrees[role], ".blaxquad", "handoffs", "outbox");
+        var outboxDir = Path.Combine(myMemberWorktrees[new SquadMemberId(role)], ".blaxquad", "handoffs", "outbox");
         if (Directory.Exists(outboxDir))
         {
             Directory.Delete(outboxDir, recursive: true);
@@ -212,7 +213,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void RepairRoleHandoffOutbox(string role)
     {
-        var outboxDir = Path.Combine(myRoleWorktrees[role], ".blaxquad", "handoffs", "outbox");
+        var outboxDir = Path.Combine(myMemberWorktrees[new SquadMemberId(role)], ".blaxquad", "handoffs", "outbox");
         if ((File.GetAttributes(outboxDir) & FileAttributes.ReparsePoint) != 0)
         {
             File.SetAttributes(outboxDir, FileAttributes.Normal);
@@ -291,12 +292,12 @@ public sealed class ScenarioWorkspace : IDisposable
             WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
             var worktreePath = PathInWorkspace(".worktrees", role);
             AssertSuccessful(RunGit("worktree", "add", "--quiet", "-b", $"squad-{role}", worktreePath));
-            myRoleWorktrees[role] = worktreePath;
+            myMemberWorktrees[new SquadMemberId(role)] = worktreePath;
         }
 
         WriteSquadConfiguration(leader, roles);
 
-        return myRoleWorktrees;
+        return myMemberWorktrees.ToDictionary(entry => entry.Key.Value, entry => entry.Value);
     }
 
     public void SetLeader(string? leader, params string[] roles) =>
@@ -319,12 +320,12 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void ConfigureReceiveMode(string role, string receiveMode)
     {
-        var members = myRoleWorktrees.Keys
-            .Select(configuredRole => (
-                Name: configuredRole,
-                Role: configuredRole,
-                Worktree: configuredRole,
-                ReceiveMode: configuredRole == role ? receiveMode : (string?)null))
+        var members = myMemberWorktrees.Keys
+            .Select(memberId => (
+                Name: memberId.Value,
+                Role: memberId.Value,
+                Worktree: memberId.Value,
+                ReceiveMode: memberId.Value == role ? receiveMode : (string?)null))
             .ToList();
         WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(role, members));
     }
@@ -406,7 +407,7 @@ public sealed class ScenarioWorkspace : IDisposable
         {
             var worktreePath = PathInWorkspace(".worktrees", memberName);
             AssertSuccessful(RunGit("worktree", "add", "--quiet", "-b", $"squad-{memberName}", worktreePath));
-            myRoleWorktrees[memberName] = worktreePath;
+            myMemberWorktrees[new SquadMemberId(memberName)] = worktreePath;
         }
 
         var members = memberNames
@@ -414,7 +415,7 @@ public sealed class ScenarioWorkspace : IDisposable
             .ToList();
         WriteFile("blaxquad/squad.json", BuildSquadConfigurationJson(memberNames[0], members));
 
-        return myRoleWorktrees;
+        return myMemberWorktrees.ToDictionary(entry => entry.Key.Value, entry => entry.Value);
     }
 
     /// <summary>
@@ -426,7 +427,7 @@ public sealed class ScenarioWorkspace : IDisposable
         string toolName,
         IReadOnlyList<string>? arguments = null,
         IReadOnlyDictionary<string, string?>? environment = null) =>
-        RunTool(toolName, arguments, environment, myRoleWorktrees[role]);
+        RunTool(toolName, arguments, environment, myMemberWorktrees[new SquadMemberId(role)]);
 
     public System.Diagnostics.Process StartProcess(
         string executable,
@@ -466,7 +467,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// made on its branch and worktree rather than the shared repository root.
     /// </summary>
     public CommandResult RunRoleGit(string role, params string[] arguments) =>
-        Run("git", arguments, workingDirectory: myRoleWorktrees[role]);
+        Run("git", arguments, workingDirectory: myMemberWorktrees[new SquadMemberId(role)]);
 
     public void InitializeGitRepository()
     {
