@@ -209,23 +209,20 @@ internal sealed class SquadMemberProcessor : IDisposable
                     DispatchDetached(operationId => ExecuteAbortAsync(operationId, abort.CancellationToken, abort.Completion));
                     break;
                 case CompletePermissionMessage completePermission:
-                    CompleteInteraction(
+                    CompleteInteraction<AgentPermissionRequest>(
                         completePermission.RequestId, completePermission.CancellationToken, completePermission.Completion,
-                        Aggregate.RemovePermission, Aggregate.RegisterPermission,
                         (session, token) => session.RespondToPermissionAsync(completePermission.RequestId, completePermission.Response, token),
                         publishAnswer: null);
                     break;
                 case CompleteInputMessage completeInput:
-                    CompleteInteraction(
+                    CompleteInteraction<AgentInputRequest>(
                         completeInput.RequestId, completeInput.CancellationToken, completeInput.Completion,
-                        Aggregate.RemoveInput, Aggregate.RegisterInput,
                         (session, token) => session.RespondToInputAsync(completeInput.RequestId, completeInput.Response, token),
                         publishAnswer: () => PublishInputAnswerTranscriptEntry(completeInput.Response));
                     break;
                 case CompleteElicitationMessage completeElicitation:
-                    CompleteInteraction(
+                    CompleteInteraction<AgentElicitationRequest>(
                         completeElicitation.RequestId, completeElicitation.CancellationToken, completeElicitation.Completion,
-                        Aggregate.RemoveElicitation, Aggregate.RegisterElicitation,
                         (session, token) => session.RespondToElicitationAsync(completeElicitation.RequestId, completeElicitation.Response, token),
                         publishAnswer: null);
                     break;
@@ -298,20 +295,17 @@ internal sealed class SquadMemberProcessor : IDisposable
         }
     }
 
-    /// <summary>Removes the pending interaction this message replaces inline, in order, on the read loop.</summary>
+    /// <summary>Transitions the pending interaction this message replaces to responding, inline, in order, on the read loop.</summary>
     private void CompleteInteraction<TRequest>(
         InteractionRequestId requestId,
         CancellationToken cancellationToken,
         TaskCompletionSource completion,
-        Func<InteractionRequestId, TRequest> remove,
-        Action<TRequest> restore,
         Func<IAgentSession, CancellationToken, Task> respond,
         Action? publishAnswer)
     {
-        TRequest request;
         try
         {
-            request = remove(requestId);
+            Aggregate.BeginResponding<TRequest>(requestId);
         }
         catch (Exception exception)
         {
@@ -319,7 +313,7 @@ internal sealed class SquadMemberProcessor : IDisposable
             return;
         }
         DispatchDetached(operationId => ExecuteCompleteInteractionAsync(
-            operationId, requestId, request, cancellationToken, completion, restore, respond, publishAnswer));
+            operationId, requestId, cancellationToken, completion, respond, publishAnswer));
     }
 
     private async Task ExecutePromptAsync(
@@ -403,13 +397,11 @@ internal sealed class SquadMemberProcessor : IDisposable
             unconditional: true).ConfigureAwait(false);
     }
 
-    private async Task ExecuteCompleteInteractionAsync<TRequest>(
+    private async Task ExecuteCompleteInteractionAsync(
         Guid operationId,
         InteractionRequestId requestId,
-        TRequest request,
         CancellationToken cancellationToken,
         TaskCompletionSource completion,
-        Action<TRequest> restore,
         Func<IAgentSession, CancellationToken, Task> respond,
         Action? publishAnswer)
     {
@@ -441,7 +433,7 @@ internal sealed class SquadMemberProcessor : IDisposable
                 }
                 else if (!Aggregate.IsFailed)
                 {
-                    restore(request);
+                    Aggregate.RestorePending(requestId);
                 }
                 else
                 {

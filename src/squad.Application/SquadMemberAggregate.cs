@@ -2,6 +2,7 @@ using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Application.Transcripts;
 using squad.Domain;
+using squad.Ui.Abstractions;
 
 namespace squad.Application;
 
@@ -17,10 +18,7 @@ internal sealed class SquadMemberAggregate : IDisposable
     private readonly SquadMemberTranscriptState myTranscript;
 
     private readonly object myInteractionsLock = new();
-    private readonly Dictionary<InteractionRequestId, AgentPermissionRequest> myPermissions = [];
-    private readonly Dictionary<InteractionRequestId, AgentInputRequest> myInputs = [];
-    private readonly Dictionary<InteractionRequestId, AgentElicitationRequest> myElicitations = [];
-    private readonly Dictionary<InteractionRequestId, int> myProtectedTranscriptEntries = [];
+    private readonly Dictionary<InteractionRequestId, MemberInteractionState> myInteractions = [];
 
     private readonly SemaphoreSlim myPromptLock = new(1, 1);
     private readonly SemaphoreSlim myOperationLock = new(1, 1);
@@ -100,101 +98,131 @@ internal sealed class SquadMemberAggregate : IDisposable
 
     internal IReadOnlyCollection<AgentPermissionRequest> Permissions
     {
-        get { lock (myInteractionsLock) return myPermissions.Values.ToArray(); }
+        get { lock (myInteractionsLock) return PendingRequests<AgentPermissionRequest>(); }
     }
 
     internal IReadOnlyCollection<AgentInputRequest> Inputs
     {
-        get { lock (myInteractionsLock) return myInputs.Values.ToArray(); }
+        get { lock (myInteractionsLock) return PendingRequests<AgentInputRequest>(); }
     }
 
     internal IReadOnlyCollection<AgentElicitationRequest> Elicitations
     {
-        get { lock (myInteractionsLock) return myElicitations.Values.ToArray(); }
+        get { lock (myInteractionsLock) return PendingRequests<AgentElicitationRequest>(); }
     }
 
     internal AgentElicitationRequest GetElicitation(InteractionRequestId requestId)
     {
         lock (myInteractionsLock)
         {
-            if (myElicitations.TryGetValue(requestId, out var request))
+            if (myInteractions.TryGetValue(requestId, out var state) &&
+                state is MemberInteractionState.Pending<AgentElicitationRequest> pending)
             {
-                return request;
+                return pending.Request;
             }
             throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{Id}'.");
         }
     }
 
-    internal void RegisterPermission(AgentPermissionRequest request) => Register(myPermissions, request.RequestId, request);
+    /// <summary>
+    /// Registers a fresh permission request, appends and protects its transcript entry, and stores the complete
+    /// interaction state as one owner-level transition. Validates request-id uniqueness across every request kind,
+    /// not merely within this one.
+    /// </summary>
+    internal TranscriptUpdate RegisterPermission(AgentPermissionRequest request, TranscriptEntry entry) =>
+        RegisterInteraction(request.RequestId, request, entry);
 
-    internal void RegisterInput(AgentInputRequest request) => Register(myInputs, request.RequestId, request);
+    internal TranscriptUpdate RegisterInput(AgentInputRequest request, TranscriptEntry entry) =>
+        RegisterInteraction(request.RequestId, request, entry);
 
-    internal void RegisterElicitation(AgentElicitationRequest request) => Register(myElicitations, request.RequestId, request);
+    internal TranscriptUpdate RegisterElicitation(AgentElicitationRequest request, TranscriptEntry entry) =>
+        RegisterInteraction(request.RequestId, request, entry);
 
-    internal void ProtectTranscriptEntry(InteractionRequestId requestId, int entryIndex)
+    /// <summary>
+    /// Transitions a pending interaction of the expected request kind to responding, so it survives while provider
+    /// I/O is in flight but no longer appears in a pending-interaction snapshot.
+    /// </summary>
+    internal void BeginResponding<TRequest>(InteractionRequestId requestId)
     {
         lock (myInteractionsLock)
-            myProtectedTranscriptEntries[requestId] = entryIndex;
+        {
+            if (myInteractions.TryGetValue(requestId, out var state) &&
+                state is MemberInteractionState.Pending<TRequest> pending)
+            {
+                myInteractions[requestId] = new MemberInteractionState.Responding<TRequest>(pending.Request, pending.ProtectedTranscriptEntryIndex);
+                return;
+            }
+            throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{Id}'.");
+        }
     }
 
-    internal AgentPermissionRequest RemovePermission(InteractionRequestId requestId) => Remove(myPermissions, requestId);
+    /// <summary>
+    /// Transitions a responding interaction back to pending after a recoverable provider failure. A no-op when the
+    /// interaction was concurrently removed by an abort or headquarters shutdown - there is nothing left to restore.
+    /// </summary>
+    internal void RestorePending(InteractionRequestId requestId)
+    {
+        lock (myInteractionsLock)
+        {
+            if (myInteractions.TryGetValue(requestId, out var state))
+            {
+                myInteractions[requestId] = state.Restore();
+            }
+        }
+    }
 
-    internal AgentInputRequest RemoveInput(InteractionRequestId requestId) => Remove(myInputs, requestId);
-
-    internal AgentElicitationRequest RemoveElicitation(InteractionRequestId requestId) => Remove(myElicitations, requestId);
-
+    /// <summary>Removes one interaction regardless of its phase and returns the transcript entry it protected.</summary>
     internal int? TryRemoveProtectedTranscriptEntry(InteractionRequestId requestId)
     {
         lock (myInteractionsLock)
-            return myProtectedTranscriptEntries.Remove(requestId, out var entryIndex) ? entryIndex : null;
+            return myInteractions.Remove(requestId, out var state) ? state.ProtectedTranscriptEntryIndex : null;
     }
 
-    /// <summary>Removes every pending interaction for this member and returns the transcript entries they protected.</summary>
+    /// <summary>Removes every interaction for this member and returns the transcript entries they protected.</summary>
     internal IReadOnlyList<int> RemoveAllInteractions()
     {
         lock (myInteractionsLock)
         {
-            myPermissions.Clear();
-            myInputs.Clear();
-            myElicitations.Clear();
-            var protectedEntries = myProtectedTranscriptEntries.Values.ToArray();
-            myProtectedTranscriptEntries.Clear();
+            var protectedEntries = myInteractions.Values.Select(state => state.ProtectedTranscriptEntryIndex).ToArray();
+            myInteractions.Clear();
             return protectedEntries;
         }
     }
 
+    /// <summary>
+    /// Clears every request kind from the published pending-interaction view for headquarters shutdown, while
+    /// deliberately leaving each entry's transcript protection in place for the rest of the generation's retirement.
+    /// </summary>
     internal void ClearInteractions()
     {
         lock (myInteractionsLock)
         {
-            myPermissions.Clear();
-            myInputs.Clear();
-            myElicitations.Clear();
+            foreach (var (requestId, state) in myInteractions.ToArray())
+            {
+                myInteractions[requestId] = new MemberInteractionState.RetainedForRetirement(state.ProtectedTranscriptEntryIndex);
+            }
         }
     }
 
-    private void Register<TRequest>(Dictionary<InteractionRequestId, TRequest> requests, InteractionRequestId requestId, TRequest request)
+    private TranscriptUpdate RegisterInteraction<TRequest>(InteractionRequestId requestId, TRequest request, TranscriptEntry entry)
     {
         lock (myInteractionsLock)
         {
-            if (!requests.TryAdd(requestId, request))
+            if (myInteractions.ContainsKey(requestId))
             {
                 throw new InvalidOperationException($"Interaction '{requestId}' is already pending for role '{Id}'.");
             }
+            var update = myTranscript.AddTranscriptEntry(entry, protect: true);
+            myInteractions.Add(requestId, new MemberInteractionState.Pending<TRequest>(request, update.EntryIndex));
+            return update;
         }
     }
 
-    private TRequest Remove<TRequest>(Dictionary<InteractionRequestId, TRequest> requests, InteractionRequestId requestId)
-    {
-        lock (myInteractionsLock)
-        {
-            if (requests.Remove(requestId, out var request))
-            {
-                return request;
-            }
-            throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{Id}'.");
-        }
-    }
+    private TRequest[] PendingRequests<TRequest>() =>
+        myInteractions.Values
+            .OfType<MemberInteractionState.Pending<TRequest>>()
+            .Select(state => state.Request)
+            .ToArray();
 
     #endregion
 

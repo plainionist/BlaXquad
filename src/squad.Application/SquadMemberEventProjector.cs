@@ -145,19 +145,19 @@ internal static class SquadMemberEventProjector
                 transcriptUpdate = AddTranscriptEntry(member, message.OccurredAt, TranscriptSource.System, message.Content);
                 break;
             case AgentPermissionRequest permission:
-                member.RegisterPermission(permission);
-                transcriptUpdate = AddTranscriptEntry(member, permission.OccurredAt, TranscriptSource.Harness, $"Permission required: {permission.Description}.", protect: true);
-                member.ProtectTranscriptEntry(permission.RequestId, transcriptUpdate.EntryIndex);
+                transcriptUpdate = member.RegisterPermission(
+                    permission,
+                    new TranscriptEntry(permission.OccurredAt, TranscriptSource.Harness, $"Permission required: {permission.Description}."));
                 break;
             case AgentInputRequest input:
-                member.RegisterInput(input);
-                transcriptUpdate = AddTranscriptEntry(member, input.OccurredAt, TranscriptSource.Harness, input.Prompt, protect: true);
-                member.ProtectTranscriptEntry(input.RequestId, transcriptUpdate.EntryIndex);
+                transcriptUpdate = member.RegisterInput(
+                    input,
+                    new TranscriptEntry(input.OccurredAt, TranscriptSource.Harness, input.Prompt));
                 break;
             case AgentElicitationRequest elicitation:
-                member.RegisterElicitation(elicitation);
-                transcriptUpdate = AddTranscriptEntry(member, elicitation.OccurredAt, TranscriptSource.Harness, elicitation.Prompt, protect: true);
-                member.ProtectTranscriptEntry(elicitation.RequestId, transcriptUpdate.EntryIndex);
+                transcriptUpdate = member.RegisterElicitation(
+                    elicitation,
+                    new TranscriptEntry(elicitation.OccurredAt, TranscriptSource.Harness, elicitation.Prompt));
                 break;
         }
         return transcriptUpdate;
