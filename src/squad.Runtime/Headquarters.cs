@@ -2,7 +2,6 @@ using squad.Hosting.Abstractions;
 using squad.AgentProvider.Abstractions;
 using squad.Application;
 using squad.Application.Transcripts;
-using squad.Domain;
 using squad.Runtime.Control;
 using squad.Ui.Abstractions;
 using squad.Workspaces;
@@ -249,8 +248,7 @@ public sealed class Headquarters : IAsyncDisposable
             // The generation must be published before its sessions start, so an operator that reaches Headquarters
             // during startup observes a known, not-yet-ready role rather than an unknown one.
             myViewModel.Install(members);
-            myHeadquartersLease.SetAgentReadinessProvider(
-                (memberId, cancellationToken) => myViewModel.GetRoleReadinessAsync(memberId.Value, cancellationToken));
+            myHeadquartersLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
             cancellationToken.ThrowIfCancellationRequested();
             await EnsureWindowStartedAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();

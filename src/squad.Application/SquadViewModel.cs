@@ -87,8 +87,8 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     /// Returns the tri-state local readiness result derived purely from the installed generation's already-projected
     /// session, prompt, idle, stopped, and failed events - the only readiness source `wait-for-agent` observes.
     /// </summary>
-    public Task<bool?> GetRoleReadinessAsync(string role, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Installed?.Members.GetRoleReadiness(new SquadMemberId(role)));
+    public Task<bool?> GetRoleReadinessAsync(SquadMemberId memberId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Installed?.Members.GetRoleReadiness(memberId));
 
     public Task SendAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
         RouteAsync(role, members => members.SendAsync(new SquadMemberId(role), prompt, cancellationToken));

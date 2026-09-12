@@ -353,7 +353,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         catch (Exception disposeFailure)
         {
             var teardownFailure = new AggregateException(
-                $"Failed to stop overloaded Copilot SDK member '{MemberId}' within the teardown grace period.",
+                $"Failed to stop overloaded Copilot SDK role '{MemberId}' within the teardown grace period.",
                 abortFailure,
                 disposeFailure);
             myEscalateTeardownFailure?.Invoke(teardownFailure);
