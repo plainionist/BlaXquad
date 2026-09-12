@@ -16,8 +16,20 @@ public sealed record WorktreeTarget
     private WorktreeTarget(string? name) => Name = name;
 
     /// <summary>Parses the raw configured "worktree" token: the documented <c>"master"</c> value is the project
-    /// root; any other name is a linked worktree.</summary>
-    public static WorktreeTarget Parse(string raw) => raw == "master" ? ProjectRoot : new WorktreeTarget(raw);
+    /// root; any other name is a linked worktree, which must be nonblank, not <c>"."</c> or <c>".."</c>, and free
+    /// of path separators, without normalizing the supplied name.</summary>
+    public static WorktreeTarget Parse(string raw)
+    {
+        if (raw == "master")
+        {
+            return ProjectRoot;
+        }
+
+        Contract.Requires(!string.IsNullOrWhiteSpace(raw), "worktree target must not be null or blank.");
+        Contract.Requires(raw is not ("." or ".."), $"worktree target '{raw}' must not be '.' or '..'.");
+        Contract.Requires(!raw.Contains('/') && !raw.Contains('\\'), $"worktree target '{raw}' must not contain a path separator.");
+        return new WorktreeTarget(raw);
+    }
 
     /// <summary>Resolves this target to its concrete worktree path: <paramref name="workingDir"/> itself for the
     /// project root, or the linked worktree's directory under <paramref name="worktreesDir"/> otherwise.</summary>
