@@ -309,7 +309,7 @@ static class Handoff
 
         var document = new HandoffDocument
         {
-            Id = id,
+            Id = new HandoffId(id),
             From = new SquadMemberId(sender),
             To = recipients.Select(recipient => new SquadMemberId(recipient)).ToList(),
             Recipient = null,

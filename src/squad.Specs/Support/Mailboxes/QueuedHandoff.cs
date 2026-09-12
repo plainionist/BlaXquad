@@ -1,4 +1,5 @@
 using squad.Domain;
+using squad.Handoffs;
 
 namespace squad.Specs.Support.Mailboxes;
 
@@ -9,6 +10,7 @@ namespace squad.Specs.Support.Mailboxes;
 /// <paramref name="CompletedAt"/> are the document's lifecycle timestamps, present only once the corresponding
 /// transition (creation, delivery, claim, or completion) has happened to this artifact.</summary>
 internal sealed record QueuedHandoff(
+    HandoffId Id,
     SquadMemberId Sender,
     IReadOnlyList<SquadMemberId> Recipients,
     string Priority,

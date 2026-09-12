@@ -15,9 +15,9 @@ internal sealed class ScenarioProcessRunner : IDisposable
 {
     private static readonly Regex AnsiEscape = new(@"\x1B\[[0-?]*[ -/]*[@-~]", RegexOptions.Compiled);
     private static readonly TimeSpan ProcessExitTimeout = TimeSpan.FromSeconds(5);
-    private readonly List<Process> myRunningProcesses = [];
+    private readonly List<System.Diagnostics.Process> myRunningProcesses = [];
 
-    public Process Start(
+    public System.Diagnostics.Process Start(
         string executable,
         IReadOnlyList<string>? arguments,
         IReadOnlyDictionary<string, string?>? environment,
@@ -34,7 +34,7 @@ internal sealed class ScenarioProcessRunner : IDisposable
             }
         }
 
-        var process = Process.Start(startInfo)
+        var process = System.Diagnostics.Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{executable}'.");
         myRunningProcesses.Add(process);
         return process;
@@ -52,7 +52,7 @@ internal sealed class ScenarioProcessRunner : IDisposable
             startInfo.ArgumentList.Add(argument);
         }
 
-        using var process = Process.Start(startInfo)
+        using var process = System.Diagnostics.Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{executable}'.");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -72,7 +72,7 @@ internal sealed class ScenarioProcessRunner : IDisposable
     /// <see cref="CancellableChildProcess"/>) so this scenario's own emergency cleanup on <see cref="Dispose"/>
     /// still terminates it if a specification never reaches its own normal shutdown.
     /// </summary>
-    public void TrackProcess(Process process) => myRunningProcesses.Add(process);
+    public void TrackProcess(System.Diagnostics.Process process) => myRunningProcesses.Add(process);
 
     /// <summary>
     /// Stops every process this scenario started or tracked. Each stop is bounded and isolated: a process that

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using squad.Domain;
+using squad.Handoffs;
 using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.Support.Mailboxes;
@@ -119,6 +120,7 @@ public sealed class HandoffMailboxObserver
         using var document = JsonDocument.Parse(File.ReadAllText(path));
         var root = document.RootElement;
 
+        var id = root.GetProperty("id").GetString()!;
         var from = root.GetProperty("from").GetString()!;
         var kind = root.GetProperty("kind").GetString()!;
         var priority = root.GetProperty("priority").GetInt32();
@@ -128,6 +130,7 @@ public sealed class HandoffMailboxObserver
         var payload = kind == "git_handoff" ? $"merge_and_process {from} {commit}" : message ?? "";
 
         return new QueuedHandoff(
+            Id: new HandoffId(id),
             Sender: new SquadMemberId(from),
             Recipients: root.GetProperty("to").EnumerateArray().Select(e => new SquadMemberId(e.GetString()!)).ToArray(),
             Priority: priority.ToString("D2"),
