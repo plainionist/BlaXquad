@@ -494,7 +494,7 @@ including identical request IDs on two members, wrong-member responses, cancella
 **Status: complete (42581a5d28).** `Role` is removed from the three interaction request events. Copilot and fake
 sessions publish without copying member identity. Snapshot `role` is composed from the owning `MemberSnapshot.Id`.
 
-### Slice 10 - Type interaction request IDs
+### Slice 10 - Type interaction request IDs [done]
 
 **Task:** `type-interaction-request-id`
 
@@ -510,6 +510,10 @@ Keep `UiMessage.RequestId`, fake-control envelopes, Gherkin values, and issue-ca
 
 **Acceptance:** all interaction ownership, duplicate/late response, cancellation, and UI validation scenarios
 retain their exact wire IDs and diagnostics. No type other than `InteractionRequestId` is added.
+
+**Status: complete (31a9419339).** `InteractionRequestId` is the opaque request identity on events, session
+responses, mailbox messages, pending dictionaries, and `ISquadUi`. `UiCommandHandler` wraps the wire `requestId`
+once; snapshots and fake-control JSON format `.Value`. `UiMessage.RequestId` stays a string.
 
 ### Slice 11 - Type elicitation mode
 
