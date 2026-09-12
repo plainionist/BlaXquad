@@ -54,3 +54,47 @@ attempt that can collide with the still-finishing orphan.
 - Where possible, avoid tearing down the tracking handle for a still-running process; if the handle must be
   dropped, surface that distinction explicitly ("handle dropped, process state unknown" vs. "process confirmed
   exited") so the caller does not have to infer it from a subsequent, unrelated file-lock failure.
+
+## Scope
+
+The shell-session registry and the process lifecycle behind `powershell` are supplied by the external agent
+harness; no BlaXquad module owns or can repair that state. The repository-level change is therefore limited to
+making the coder's operating policy safe under an unknown process state. It must not add product code, a
+repository-specific process supervisor, machine-wide process discovery, lock-file probing, or a retry delay that
+merely guesses when an orphan has exited. Durable terminal status remains an upstream tooling improvement.
+
+## Implementation plan
+
+### Slice 1: Stop validation after build/test tracking is lost
+
+**Task:** `stop-after-lost-build-test-tracking`
+
+**Logical change:** Make loss of both the execution handle and root PID a hard validation blocker, so an
+unaccounted-for build or test can never be overlapped by a replacement invocation in the same worktree.
+
+**Implementation:**
+
+- Update `blaxquad/roles/coder.prompt` only. Keep direct `dotnet build` and `dotnet test` execution, the one-command
+  limit, and the prohibition on machine-wide process inspection or name-based cleanup.
+- Require builds and tests to use synchronous tool execution with an initial wait chosen to cover the expected
+  duration; use the maximum supported initial wait for the full `squad.Specs` suite. If the command continues in
+  the background, retain and read the same shell handle rather than starting another invocation.
+- Distinguish a known root PID from fully lost tracking. A retained PID may still be monitored or terminated
+  directly with its known descendant tree, but it must never be rediscovered through process enumeration.
+- If both handle and root PID are lost, classify the invocation as still potentially running. Do not launch another
+  build or test, use another command as a lock probe, infer completion from elapsed time, or claim that validation
+  passed.
+- Require the coder to stop validation and send the architect a `squad handoff note` identifying the untracked
+  command and the fact that its result is unknown. Work may resume only after the operator supplies a fresh,
+  confirmed-safe execution context; the coder must not manufacture that confirmation.
+
+**Acceptance:**
+
+- The coder prompt makes the long-running synchronous invocation and same-handle continuation the default.
+- At most one build or test can be in flight or in an unknown state for the current worktree.
+- Losing both tracking identifiers cannot lead to a replacement build/test invocation or a reviewer handoff that
+  claims successful validation.
+- A still-known PID remains usable only for targeted lifecycle operations; machine-wide and process-name discovery
+  remain forbidden.
+- The blocked state is reported explicitly to the architect instead of being hidden by retries or treated as a
+  product test failure.
