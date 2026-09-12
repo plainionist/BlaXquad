@@ -250,7 +250,7 @@ before a boundary would recreate the same primitive obsession under a different 
 - Each slice includes all production call sites, directly coupled test support, focused black-box acceptance
   coverage, and directly affected manual text needed to leave that intermediate commit buildable and accurate.
 
-### Slice 1 - Separate lenient command configuration
+### Slice 1 - Separate lenient command configuration [done]
 
 **Task:** `separate-lenient-member-configuration`
 
@@ -273,6 +273,11 @@ definition, while the lenient command path must still distinguish:
 **Acceptance:** `TaskQueue.feature`, `BatchQueue.feature`, `Context.feature`, and `Handoffs.feature` retain their
 observable results; the domain model contains no nullable `ReceiveMode`. No type other than `SquadConfigMember` is
 added.
+
+**Status: complete (72d80491be).** `SquadConfigMember` is the lenient command-side read result (typed member ID,
+resolved worktree path, nullable parsed receive mode, and raw token). `SquadConfig.ReadMembers`, `CurrentRoleResolver`,
+and the context/handoff/ready-for-next/done-with-current commands consume it. The second raw-configuration scan is
+gone. `SquadMemberDefinition.ReceiveMode` is non-nullable.
 
 ### Slice 2 - Type validated configuration identities
 
