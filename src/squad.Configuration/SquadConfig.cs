@@ -8,7 +8,9 @@ namespace squad.Configuration;
 /// Provides lenient command-side member lookup from <c>blaxquad/squad.json</c>'s schema-version-2 "members"
 /// array. Missing or malformed configuration is represented as an empty member list so individual commands can
 /// report context-specific errors. Each configured participant is addressed by the member identity CLI and
-/// handoff commands have always used, distinct from its (possibly shared) role.
+/// handoff commands have always used, distinct from its (possibly shared) role. An omitted receive mode defaults
+/// to <see cref="ReceiveMode.Task"/>; an explicitly empty or unsupported receive mode maps to <c>null</c> so a
+/// command can still report it, without inventing an "unknown" domain value or defaulting it to task.
 /// </summary>
 public static class SquadConfig
 {
@@ -36,7 +38,13 @@ public static class SquadConfig
                 var name = memberElem.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
                 var role = memberElem.TryGetProperty("role", out var ro) ? ro.GetString() ?? name : name;
                 var worktree = memberElem.TryGetProperty("worktree", out var w) ? w.GetString() ?? "" : "";
-                var receiveMode = memberElem.TryGetProperty("receiveMode", out var r) ? r.GetString() ?? "task" : "task";
+                var rawReceiveMode = memberElem.TryGetProperty("receiveMode", out var r) ? r.GetString() ?? "task" : "task";
+                var receiveMode = rawReceiveMode switch
+                {
+                    "task" => ReceiveMode.Task,
+                    "batch" => ReceiveMode.Batch,
+                    _ => (ReceiveMode?)null,
+                };
                 var displayName = memberElem.TryGetProperty("displayName", out var d) ? d.GetString() ?? name : name;
 
                 var permissions = "prompt";

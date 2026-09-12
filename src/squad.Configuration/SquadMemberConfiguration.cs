@@ -1,3 +1,5 @@
+using squad.Domain;
+
 namespace squad.Configuration;
 
 /// <summary>One configured squad member: a unique operational identity plus its role reference, worktree, receive
@@ -7,7 +9,7 @@ public sealed record SquadMemberConfiguration(
     string DisplayName,
     string Role,
     string Worktree,
-    string ReceiveMode,
+    ReceiveMode ReceiveMode,
     SquadAgentConfiguration Agent);
 
 

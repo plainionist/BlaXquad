@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
+using squad.Domain;
+
 namespace squad.Configuration;
 
 /// <summary>Loads and validates the complete launch configuration, including role prompts and safe worktree paths.
@@ -219,7 +221,8 @@ public static class SquadConfigurationLoader
             }
 
             var displayName = string.IsNullOrWhiteSpace(member.DisplayName) ? DisplayNameFor(name) : member.DisplayName;
-            members.Add(new SquadMemberConfiguration(name, displayName, role, worktree, receiveMode,
+            var typedReceiveMode = receiveMode == "task" ? ReceiveMode.Task : ReceiveMode.Batch;
+            members.Add(new SquadMemberConfiguration(name, displayName, role, worktree, typedReceiveMode,
                 new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
         }
 

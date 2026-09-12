@@ -1,4 +1,5 @@
 using squad.Configuration;
+using squad.Domain;
 using squad.Process;
 
 namespace squad.Commands;
@@ -14,18 +15,15 @@ static class ReadyForNext
             var members = SquadConfig.ReadMembers(projectRoot);
             var member = CurrentRoleResolver.Resolve(members, roleWorktreeRoot);
             var role = member.Id.Value;
-            if (string.IsNullOrEmpty(member.ReceiveMode))
+            if (member.ReceiveMode is null)
             {
                 Console.Error.WriteLine($"Unknown role: {role}");
                 return 1;
             }
 
-            return member.ReceiveMode switch
-            {
-                "batch" => ReadyForNextBatch.Run(args),
-                "task" => ReadyForNextTask.Run(args),
-                _ => Invalid(member.ReceiveMode, role),
-            };
+            return member.ReceiveMode == ReceiveMode.Batch
+                ? ReadyForNextBatch.Run(args)
+                : ReadyForNextTask.Run(args);
         }
         catch (CliExitException ex)
         {
@@ -35,12 +33,6 @@ static class ReadyForNext
             }
             return ex.ExitCode;
         }
-    }
-
-    static int Invalid(string receiveMode, string role)
-    {
-        Console.Error.WriteLine($"INVALID_RECEIVE_MODE: {receiveMode} for role {role}");
-        return 2;
     }
 }
 
