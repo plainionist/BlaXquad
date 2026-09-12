@@ -595,7 +595,7 @@ is unchanged, and read summaries still correlate under `TranscriptToolCallCorrel
 correlation dictionaries. SDK and fake-control strings wrap once at adapter ingress. Tool names and raw
 diagnostics/control JSON stay strings.
 
-### Slice 15 - Type transcript source
+### Slice 15 - Type transcript source [done]
 
 **Task:** `type-transcript-source`
 
@@ -614,6 +614,10 @@ synchronization, paging, replacement, and process-lifetime history in `Transcrip
 `TranscriptFileReadSummaries.feature`, `TranscriptSubagentPresentation.feature`,
 `TranscriptSkillActivityPresentation.feature`, and transcript paging/retention features. No type other than
 `TranscriptSource` is added.
+
+**Status: complete (71164dd6a8).** `TranscriptSource` covers the full current set on `TranscriptEntry`, buffers,
+projection, live state, and archive reconstruction. `TranscriptProtocol` and the archive map lowercase spellings
+explicitly; unsupported archived values throw. Wire observations and frontend presentation stay strings.
 
 ### Slice 16 - Type handoff participant identities
 
