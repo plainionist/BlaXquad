@@ -17,14 +17,13 @@ static class ReadyForNext
             var role = member.Id.Value;
             if (member.ReceiveMode is null)
             {
-                var rawReceiveMode = SquadConfig.RawReceiveMode(projectRoot, role);
-                if (string.IsNullOrEmpty(rawReceiveMode))
+                if (string.IsNullOrEmpty(member.RawReceiveMode))
                 {
                     Console.Error.WriteLine($"Unknown role: {role}");
                     return 1;
                 }
 
-                Console.Error.WriteLine($"INVALID_RECEIVE_MODE: {rawReceiveMode} for role {role}");
+                Console.Error.WriteLine($"INVALID_RECEIVE_MODE: {member.RawReceiveMode} for role {role}");
                 return 2;
             }
 

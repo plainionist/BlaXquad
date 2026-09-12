@@ -1,6 +1,5 @@
 using squad.Process;
 using squad.Configuration;
-using squad.Domain;
 using squad.Handoffs;
 
 namespace squad.Commands;
@@ -75,7 +74,7 @@ static class Handoff
         }
     }
 
-    static int RunCommit(string[] args, string roleWorktreeRoot, IReadOnlyList<SquadMemberDefinition> members, string sender)
+    static int RunCommit(string[] args, string roleWorktreeRoot, IReadOnlyList<SquadConfigMember> members, string sender)
     {
         var (options, errors) = ParseOptions(args, "commit", CommitOptions);
         options.TryGetValue("--to", out var to);
@@ -140,7 +139,7 @@ static class Handoff
         return 0;
     }
 
-    static int RunNote(string[] args, string roleWorktreeRoot, IReadOnlyList<SquadMemberDefinition> members, string sender)
+    static int RunNote(string[] args, string roleWorktreeRoot, IReadOnlyList<SquadConfigMember> members, string sender)
     {
         var (options, errors) = ParseOptions(args, "note", NoteOptions);
         options.TryGetValue("--to", out var to);
@@ -231,7 +230,7 @@ static class Handoff
         return (options, errors);
     }
 
-    static (List<string> recipients, List<string> errors) ValidateRecipients(string? to, IReadOnlyList<SquadMemberDefinition> members)
+    static (List<string> recipients, List<string> errors) ValidateRecipients(string? to, IReadOnlyList<SquadConfigMember> members)
     {
         if (string.IsNullOrWhiteSpace(to))
         {

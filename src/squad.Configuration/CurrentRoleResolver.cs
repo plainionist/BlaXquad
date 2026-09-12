@@ -1,4 +1,3 @@
-using squad.Domain;
 using squad.Process;
 
 namespace squad.Configuration;
@@ -8,7 +7,7 @@ namespace squad.Configuration;
 public static class CurrentRoleResolver
 {
     /// <summary>Fails with a controlled CLI error when no member or multiple members match the supplied path.</summary>
-    public static SquadMemberDefinition Resolve(IReadOnlyList<SquadMemberDefinition> members, string projectRoot)
+    public static SquadConfigMember Resolve(IReadOnlyList<SquadConfigMember> members, string projectRoot)
     {
         var currentRoot = Normalize(projectRoot);
         var matches = members.Where(member => Normalize(member.WorktreePath) == currentRoot).ToList();
