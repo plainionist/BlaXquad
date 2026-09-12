@@ -1,0 +1,147 @@
+digraph {
+  rankdir="BT"
+  ratio="Compress"
+  ranksep="2.0 equally"
+  subgraph "cluster_squad" {
+    label = "squad"
+    "[squad]" [label="[squad]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad-hq" {
+    label = "squad-hq"
+    "[squad-hq]" [label="[squad-hq]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.AgentProvider.Abstractions" {
+    label = "squad.AgentProvider.Abstractions"
+    "[squad.AgentProvider.Abstractions]" [label="[squad.AgentProvider.Abstractions]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.AgentProvider.CopilotSdk" {
+    label = "squad.AgentProvider.CopilotSdk"
+    "[squad.AgentProvider.CopilotSdk]" [label="[squad.AgentProvider.CopilotSdk]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Application" {
+    label = "squad.Application"
+    "[squad.Application]" [label="[squad.Application]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Configuration" {
+    label = "squad.Configuration"
+    "[squad.Configuration]" [label="[squad.Configuration]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Domain" {
+    label = "squad.Domain"
+    "[squad.Domain]" [label="[squad.Domain]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Handoffs" {
+    label = "squad.Handoffs"
+    "[squad.Handoffs]" [label="[squad.Handoffs]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.HeadquarterTools" {
+    label = "squad.HeadquarterTools"
+    "[squad.HeadquarterTools]" [label="[squad.HeadquarterTools]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Hosting.Abstractions" {
+    label = "squad.Hosting.Abstractions"
+    "[squad.Hosting.Abstractions]" [label="[squad.Hosting.Abstractions]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Hosting.Photino" {
+    label = "squad.Hosting.Photino"
+    "[squad.Hosting.Photino]" [label="[squad.Hosting.Photino]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Hosting.Stdio" {
+    label = "squad.Hosting.Stdio"
+    "[squad.Hosting.Stdio]" [label="[squad.Hosting.Stdio]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Process" {
+    label = "squad.Process"
+    "[squad.Process]" [label="[squad.Process]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Runtime" {
+    label = "squad.Runtime"
+    "[squad.Runtime]" [label="[squad.Runtime]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Ui.Abstractions" {
+    label = "squad.Ui.Abstractions"
+    "[squad.Ui.Abstractions]" [label="[squad.Ui.Abstractions]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Ui.Protocol" {
+    label = "squad.Ui.Protocol"
+    "[squad.Ui.Protocol]" [label="[squad.Ui.Protocol]", color="#FFD3D3D3"]
+  }
+  subgraph "cluster_squad.Workspaces" {
+    label = "squad.Workspaces"
+    "[squad.Workspaces]" [label="[squad.Workspaces]", color="#FFD3D3D3"]
+  }
+  "[squad]" [label="[squad]", color="#FFD3D3D3"]
+  "[squad-hq]" [label="[squad-hq]", color="#FFD3D3D3"]
+  "[squad.AgentProvider.Abstractions]" [label="[squad.AgentProvider.Abstractions]", color="#FFD3D3D3"]
+  "[squad.AgentProvider.CopilotSdk]" [label="[squad.AgentProvider.CopilotSdk]", color="#FFD3D3D3"]
+  "[squad.Application]" [label="[squad.Application]", color="#FFD3D3D3"]
+  "[squad.Configuration]" [label="[squad.Configuration]", color="#FFD3D3D3"]
+  "[squad.Domain]" [label="[squad.Domain]", color="#FFD3D3D3"]
+  "[squad.Handoffs]" [label="[squad.Handoffs]", color="#FFD3D3D3"]
+  "[squad.HeadquarterTools]" [label="[squad.HeadquarterTools]", color="#FFD3D3D3"]
+  "[squad.Hosting.Abstractions]" [label="[squad.Hosting.Abstractions]", color="#FFD3D3D3"]
+  "[squad.Hosting.Photino]" [label="[squad.Hosting.Photino]", color="#FFD3D3D3"]
+  "[squad.Hosting.Stdio]" [label="[squad.Hosting.Stdio]", color="#FFD3D3D3"]
+  "[squad.Process]" [label="[squad.Process]", color="#FFD3D3D3"]
+  "[squad.Runtime]" [label="[squad.Runtime]", color="#FFD3D3D3"]
+  "[squad.Ui.Abstractions]" [label="[squad.Ui.Abstractions]", color="#FFD3D3D3"]
+  "[squad.Ui.Protocol]" [label="[squad.Ui.Protocol]", color="#FFD3D3D3"]
+  "[squad.Workspaces]" [label="[squad.Workspaces]", color="#FFD3D3D3"]
+  "[squad]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad]" -> "[squad.Configuration]" [color="#FF000000"]
+  "[squad]" -> "[squad.Process]" [color="#FF000000"]
+  "[squad]" -> "[squad.Handoffs]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.AgentProvider.Abstractions]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.HeadquarterTools]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Hosting.Abstractions]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Configuration]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Process]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Application]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Handoffs]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Workspaces]" [color="#FF000000"]
+  "[squad-hq]" -> "[squad.Runtime]" [color="#FF000000"]
+  "[squad.AgentProvider.Abstractions]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.AgentProvider.CopilotSdk]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.AgentProvider.CopilotSdk]" -> "[squad.AgentProvider.Abstractions]" [color="#FF000000"]
+  "[squad.Application]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Application]" -> "[squad.AgentProvider.Abstractions]" [color="#FF000000"]
+  "[squad.Application]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad.Configuration]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Configuration]" -> "[squad.Process]" [color="#FF000000"]
+  "[squad.Handoffs]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Handoffs]" -> "[squad.Configuration]" [color="#FF000000"]
+  "[squad.Handoffs]" -> "[squad.Process]" [color="#FF000000"]
+  "[squad.HeadquarterTools]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.HeadquarterTools]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad.HeadquarterTools]" -> "[squad.Process]" [color="#FF000000"]
+  "[squad.Hosting.Abstractions]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Hosting.Abstractions]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad.Hosting.Photino]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Hosting.Photino]" -> "[squad.Process]" [color="#FF000000"]
+  "[squad.Hosting.Photino]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad.Hosting.Photino]" -> "[squad.Ui.Protocol]" [color="#FF000000"]
+  "[squad.Hosting.Photino]" -> "[squad.Hosting.Abstractions]" [color="#FF000000"]
+  "[squad.Hosting.Stdio]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Hosting.Stdio]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad.Hosting.Stdio]" -> "[squad.Ui.Protocol]" [color="#FF000000"]
+  "[squad.Hosting.Stdio]" -> "[squad.Hosting.Abstractions]" [color="#FF000000"]
+  "[squad.Process]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Runtime]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Runtime]" -> "[squad.AgentProvider.Abstractions]" [color="#FF000000"]
+  "[squad.Runtime]" -> "[squad.Application]" [color="#FF000000"]
+  "[squad.Runtime]" -> "[squad.Handoffs]" [color="#FF000000"]
+  "[squad.Runtime]" -> "[squad.Hosting.Abstractions]" [color="#FF000000"]
+  "[squad.Runtime]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad.Runtime]" -> "[squad.Workspaces]" [color="#FF000000"]
+  "[squad.Ui.Abstractions]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Ui.Abstractions]" -> "[squad.AgentProvider.Abstractions]" [color="#FF000000"]
+  "[squad.Ui.Protocol]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Ui.Protocol]" -> "[squad.Ui.Abstractions]" [color="#FF000000"]
+  "[squad.Workspaces]" -> "[squad.Domain]" [color="#FF000000"]
+  "[squad.Workspaces]" -> "[squad.AgentProvider.Abstractions]" [color="#FF000000"]
+  "[squad.Workspaces]" -> "[squad.Configuration]" [color="#FF000000"]
+  "[squad.Workspaces]" -> "[squad.Process]" [color="#FF000000"]
+  "[squad.Workspaces]" -> "[squad.Handoffs]" [color="#FF000000"]
+}
