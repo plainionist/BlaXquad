@@ -1,5 +1,6 @@
 using squad.Process;
 using squad.Configuration;
+using squad.Handoffs;
 
 namespace squad.Workspaces;
 
@@ -182,13 +183,21 @@ internal sealed class WorkspacePreparer
 
     public void PrepareHandoffDirs(Ctx ctx)
     {
-        string[] subdirs = ["outbox", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed"];
         foreach (var row in ctx.Members)
         {
             var worktreePath = row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir);
-            foreach (var dir in subdirs)
+            var root = HandoffQueue.Root(worktreePath);
+            foreach (var dir in new[]
             {
-                Directory.CreateDirectory(Path.Combine(worktreePath, ".blaxquad", "handoffs", dir));
+                HandoffQueue.Outbox(root),
+                HandoffQueue.Sent(root),
+                HandoffQueue.Failed(root),
+                HandoffQueue.NewInbox(root),
+                HandoffQueue.InProcessInbox(root),
+                HandoffQueue.CompletedInbox(root),
+            })
+            {
+                Directory.CreateDirectory(dir);
             }
         }
     }
@@ -203,7 +212,7 @@ internal sealed class WorkspacePreparer
         foreach (var worktreePath in ctx.Members.Select(row => row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir)).Distinct(pathComparer))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var handoffDirectory = Path.Combine(worktreePath, ".blaxquad", "handoffs");
+            var handoffDirectory = HandoffQueue.Root(worktreePath);
             if (Directory.Exists(handoffDirectory))
             {
                 Directory.Delete(handoffDirectory, recursive: true);

@@ -26,32 +26,32 @@ public sealed class HandoffMailboxObserver
 
     /// <summary>Every handoff currently queued in a role's outbox, in stable file order.</summary>
     internal IReadOnlyList<QueuedHandoff> QueuedHandoffs(string senderRole) =>
-        ListHandoffs(senderRole, "outbox");
+        ListHandoffs(HandoffQueue.Outbox(Root(senderRole)));
 
     /// <summary>The one handoff expected to be queued in a role's outbox.</summary>
     internal QueuedHandoff SingleQueuedHandoff(string senderRole) => QueuedHandoffs(senderRole).Single();
 
     /// <summary>Every handoff a role's outbox has archived as durably sent, in stable file order.</summary>
-    internal IReadOnlyList<QueuedHandoff> SentHandoffs(string senderRole) => ListHandoffs(senderRole, "sent");
+    internal IReadOnlyList<QueuedHandoff> SentHandoffs(string senderRole) => ListHandoffs(HandoffQueue.Sent(Root(senderRole)));
 
     /// <summary>Every handoff a role's outbox has archived as failed, in stable file order.</summary>
-    internal IReadOnlyList<QueuedHandoff> FailedHandoffs(string senderRole) => ListHandoffs(senderRole, "failed");
+    internal IReadOnlyList<QueuedHandoff> FailedHandoffs(string senderRole) => ListHandoffs(HandoffQueue.Failed(Root(senderRole)));
 
     /// <summary>The number of artifacts a role's outbox has archived as failed, counted without parsing them -
     /// an artifact archived as failed may itself be malformed content that could never be parsed.</summary>
-    internal int FailedHandoffCount(string senderRole) => CountFiles(senderRole, "failed");
+    internal int FailedHandoffCount(string senderRole) => CountFiles(HandoffQueue.Failed(Root(senderRole)));
 
     /// <summary>Every handoff durably delivered into a role's new-inbox bucket, in stable file order.</summary>
     internal IReadOnlyList<QueuedHandoff> NewInboxHandoffs(string recipientRole) =>
-        ListHandoffs(recipientRole, Path.Combine("inbox", "new"));
+        ListHandoffs(HandoffQueue.NewInbox(Root(recipientRole)));
 
     /// <summary>Every handoff currently claimed into a role's in-process inbox bucket, in stable file order.</summary>
     internal IReadOnlyList<QueuedHandoff> InProcessInboxHandoffs(string recipientRole) =>
-        ListHandoffs(recipientRole, Path.Combine("inbox", "in_process"));
+        ListHandoffs(HandoffQueue.InProcessInbox(Root(recipientRole)));
 
     /// <summary>Every handoff archived into a role's completed-inbox bucket, in stable file order.</summary>
     internal IReadOnlyList<QueuedHandoff> CompletedInboxHandoffs(string recipientRole) =>
-        ListHandoffs(recipientRole, Path.Combine("inbox", "completed"));
+        ListHandoffs(HandoffQueue.CompletedInbox(Root(recipientRole)));
 
     /// <summary>
     /// Seeds a raw outbound handoff artifact directly into a role's outbox, bypassing the "squad handoff" CLI's
@@ -60,7 +60,7 @@ public sealed class HandoffMailboxObserver
     /// </summary>
     internal void SeedInvalidOutboundNote(string senderRole, string recipients, string message)
     {
-        var outbox = Path.Combine(myWorkspace.RoleWorktreePath(senderRole), ".blaxquad", "handoffs", "outbox");
+        var outbox = HandoffQueue.Outbox(Root(senderRole));
         Directory.CreateDirectory(outbox);
         var recipientSlug = recipients.Replace(',', '_');
         var path = Path.Combine(outbox, $"50_{Guid.NewGuid():N}_from_{senderRole}_to_{recipientSlug}{FileSuffix}");
@@ -88,15 +88,16 @@ public sealed class HandoffMailboxObserver
     /// </summary>
     internal void SeedInvalidOutboundContent(string senderRole, string content)
     {
-        var outbox = Path.Combine(myWorkspace.RoleWorktreePath(senderRole), ".blaxquad", "handoffs", "outbox");
+        var outbox = HandoffQueue.Outbox(Root(senderRole));
         Directory.CreateDirectory(outbox);
         var path = Path.Combine(outbox, $"50_{Guid.NewGuid():N}_from_{senderRole}_to_reviewer{FileSuffix}");
         File.WriteAllText(path, content);
     }
 
-    private IReadOnlyList<QueuedHandoff> ListHandoffs(string role, string relativeDirectory)
+    private string Root(string role) => HandoffQueue.Root(myWorkspace.RoleWorktreePath(role));
+
+    private static IReadOnlyList<QueuedHandoff> ListHandoffs(string directory)
     {
-        var directory = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", relativeDirectory);
         if (!Directory.Exists(directory))
         {
             return [];
@@ -108,13 +109,10 @@ public sealed class HandoffMailboxObserver
             .ToList();
     }
 
-    private int CountFiles(string role, string relativeDirectory)
-    {
-        var directory = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", relativeDirectory);
-        return Directory.Exists(directory)
+    private static int CountFiles(string directory) =>
+        Directory.Exists(directory)
             ? Directory.GetFiles(directory, "*" + FileSuffix, SearchOption.TopDirectoryOnly).Length
             : 0;
-    }
 
     private static QueuedHandoff Parse(string path)
     {

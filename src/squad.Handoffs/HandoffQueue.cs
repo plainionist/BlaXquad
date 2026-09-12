@@ -2,9 +2,32 @@ using squad.Process;
 
 namespace squad.Handoffs;
 
-/// <summary>Enumerates queued handoffs in stable order and renders their command-line representation.</summary>
+/// <summary>Enumerates queued handoffs in stable order, renders their command-line representation, and names the
+/// canonical durable directory layout under one worktree's ".blaxquad/handoffs" root - the single owner of that
+/// layout, so no caller assembles its literal segments itself.</summary>
 public static class HandoffQueue
 {
+    /// <summary>The ".blaxquad/handoffs" root for one worktree's durable handoff state.</summary>
+    public static string Root(string worktreePath) => Path.Combine(worktreePath, ".blaxquad", "handoffs");
+
+    /// <summary>Where a sender queues a handoff not yet delivered to any recipient.</summary>
+    public static string Outbox(string root) => Path.Combine(root, "outbox");
+
+    /// <summary>Where a sender's durably delivered handoffs are archived.</summary>
+    public static string Sent(string root) => Path.Combine(root, "sent");
+
+    /// <summary>Where a sender's or recipient's failed handoffs are archived.</summary>
+    public static string Failed(string root) => Path.Combine(root, "failed");
+
+    /// <summary>Where a recipient's not-yet-claimed handoffs are delivered.</summary>
+    public static string NewInbox(string root) => Path.Combine(root, "inbox", "new");
+
+    /// <summary>Where a recipient's currently claimed task or batch is held.</summary>
+    public static string InProcessInbox(string root) => Path.Combine(root, "inbox", "in_process");
+
+    /// <summary>Where a recipient's completed handoffs are archived.</summary>
+    public static string CompletedInbox(string root) => Path.Combine(root, "inbox", "completed");
+
     /// <summary>Returns handoff files in stable name order, or an empty list when the directory does not exist.</summary>
     public static IReadOnlyList<string> HandoffFiles(string dir)
     {

@@ -8,10 +8,9 @@ static class DoneWithCurrentTask
 {
     public static int Run(string[] args)
     {
-        var handoffsDir = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs");
-        var inbox = Path.Combine(handoffsDir, "inbox");
-        var inProcessDir = Path.Combine(inbox, "in_process");
-        var completedDir = Path.Combine(inbox, "completed");
+        var root = HandoffQueue.Root(ProjectRoot.ResolveViaGit());
+        var inProcessDir = HandoffQueue.InProcessInbox(root);
+        var completedDir = HandoffQueue.CompletedInbox(root);
 
         Directory.CreateDirectory(inProcessDir);
         Directory.CreateDirectory(completedDir);

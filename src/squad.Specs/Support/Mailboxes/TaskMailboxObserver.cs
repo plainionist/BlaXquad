@@ -1,4 +1,5 @@
 using System.Text.Json;
+using squad.Handoffs;
 using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.Support.Mailboxes;
@@ -27,7 +28,7 @@ public sealed class TaskMailboxObserver
 
     private string? Find(string role, string state, string task)
     {
-        var directory = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", state);
+        var directory = InboxDir(HandoffQueue.Root(myWorkspace.RoleWorktreePath(role)), state);
         if (!Directory.Exists(directory))
         {
             return null;
@@ -36,6 +37,14 @@ public sealed class TaskMailboxObserver
         return Directory.EnumerateFiles(directory, "*" + FileSuffix, SearchOption.AllDirectories)
             .SingleOrDefault(path => HasTask(path, task));
     }
+
+    private static string InboxDir(string root, string state) => state switch
+    {
+        "new" => HandoffQueue.NewInbox(root),
+        "in_process" => HandoffQueue.InProcessInbox(root),
+        "completed" => HandoffQueue.CompletedInbox(root),
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state, "unknown inbox state"),
+    };
 
     private static bool HasTask(string path, string task)
     {

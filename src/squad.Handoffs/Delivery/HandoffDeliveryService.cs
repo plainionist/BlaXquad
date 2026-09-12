@@ -22,7 +22,7 @@ sealed class HandoffDeliveryService
         var memberMap = members.ToDictionary(member => member.Id);
         foreach (var (memberId, memberInfo) in memberMap)
         {
-            var outboxDir = Path.Combine(memberInfo.WorktreePath, ".blaxquad", "handoffs", "outbox");
+            var outboxDir = HandoffQueue.Outbox(HandoffQueue.Root(memberInfo.WorktreePath));
             foreach (var path in HandoffQueue.HandoffFiles(outboxDir))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -68,12 +68,12 @@ sealed class HandoffDeliveryService
         foreach (var (recipient, memberInfo) in deliveries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var target = Path.Combine(memberInfo.WorktreePath, ".blaxquad", "handoffs", "inbox", "new", filename);
+            var target = Path.Combine(HandoffQueue.NewInbox(HandoffQueue.Root(memberInfo.WorktreePath)), filename);
             var delivered = document with { Recipient = recipient, EnqueuedAt = Timestamps.NowOffset() };
             WriteRecipientArtifact(target, delivered);
         }
 
-        var sentDir = Path.Combine(members[senderMember].WorktreePath, ".blaxquad", "handoffs", "sent");
+        var sentDir = HandoffQueue.Sent(HandoffQueue.Root(members[senderMember].WorktreePath));
         MoveWithCollision(path, sentDir);
         myLog.Append(["delivered", path]);
 
@@ -116,7 +116,7 @@ sealed class HandoffDeliveryService
     private void Fail(string path, string reason)
     {
         var handoffsDir = Path.GetDirectoryName(Path.GetDirectoryName(path))!;
-        var failedDir = Path.Combine(handoffsDir, "failed");
+        var failedDir = HandoffQueue.Failed(handoffsDir);
         myLog.Append(["failed", path, reason]);
         File.WriteAllText(path + ".error", reason + "\n");
         MoveWithCollision(path, failedDir);

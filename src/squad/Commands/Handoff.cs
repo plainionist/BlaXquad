@@ -134,7 +134,7 @@ static class Handoff
             return ReportErrors(errors, CommitUsage);
         }
 
-        var stateDir = Path.Combine(roleWorktreeRoot, ".blaxquad", "handoffs");
+        var stateDir = HandoffQueue.Root(roleWorktreeRoot);
         var outboxFile = WriteHandoff(stateDir, HandoffKind.GitHandoff, priority, recipients, sender, task: task, commit: canonicalCommit, message: null);
         Console.WriteLine($"HANDOFF QUEUED: {outboxFile}");
         return 0;
@@ -172,7 +172,7 @@ static class Handoff
             return ReportErrors(errors, NoteUsage);
         }
 
-        var stateDir = Path.Combine(roleWorktreeRoot, ".blaxquad", "handoffs");
+        var stateDir = HandoffQueue.Root(roleWorktreeRoot);
         var outboxFile = WriteHandoff(stateDir, HandoffKind.Note, priority, recipients, sender, task: null, commit: null, message: message);
         Console.WriteLine($"HANDOFF QUEUED: {outboxFile}");
         return 0;
@@ -304,7 +304,7 @@ static class Handoff
         var recipientSlug = string.Join("_", recipients);
         var filename = $"{priority}_{timestampId}_{sequence}_from_{sender}_to_{recipientSlug}{HandoffDocument.FileSuffix}";
 
-        var outboxDir = Path.Combine(stateDir, "outbox");
+        var outboxDir = HandoffQueue.Outbox(stateDir);
         var outboxFile = Path.Combine(outboxDir, filename);
 
         var document = new HandoffDocument
@@ -324,8 +324,8 @@ static class Handoff
         };
 
         Directory.CreateDirectory(outboxDir);
-        Directory.CreateDirectory(Path.Combine(stateDir, "sent"));
-        Directory.CreateDirectory(Path.Combine(stateDir, "failed"));
+        Directory.CreateDirectory(HandoffQueue.Sent(stateDir));
+        Directory.CreateDirectory(HandoffQueue.Failed(stateDir));
 
         HandoffJson.Write(outboxFile, document);
         return outboxFile;

@@ -8,11 +8,10 @@ static class ReadyForNextBatch
 {
     public static int Run(string[] args)
     {
-        var handoffsDir = Path.Combine(ProjectRoot.ResolveViaGit(), ".blaxquad", "handoffs");
-        var inbox = Path.Combine(handoffsDir, "inbox");
-        var newDir = Path.Combine(inbox, "new");
-        var inProcessDir = Path.Combine(inbox, "in_process");
-        var completedDir = Path.Combine(inbox, "completed");
+        var root = HandoffQueue.Root(ProjectRoot.ResolveViaGit());
+        var newDir = HandoffQueue.NewInbox(root);
+        var inProcessDir = HandoffQueue.InProcessInbox(root);
+        var completedDir = HandoffQueue.CompletedInbox(root);
 
         Directory.CreateDirectory(newDir);
         Directory.CreateDirectory(inProcessDir);

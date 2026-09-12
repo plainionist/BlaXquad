@@ -1,4 +1,5 @@
 using squad.Domain;
+using squad.Handoffs;
 using squad.Specs.Support.Processes;
 
 namespace squad.Specs.Support.Scenarios;
@@ -184,7 +185,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void PoisonRoleHandoffOutbox(string role)
     {
-        var outboxDir = Path.Combine(myMemberWorktrees[new SquadMemberId(role)], ".blaxquad", "handoffs", "outbox");
+        var outboxDir = HandoffQueue.Outbox(HandoffQueue.Root(myMemberWorktrees[new SquadMemberId(role)]));
         if (Directory.Exists(outboxDir))
         {
             Directory.Delete(outboxDir, recursive: true);
@@ -213,7 +214,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void RepairRoleHandoffOutbox(string role)
     {
-        var outboxDir = Path.Combine(myMemberWorktrees[new SquadMemberId(role)], ".blaxquad", "handoffs", "outbox");
+        var outboxDir = HandoffQueue.Outbox(HandoffQueue.Root(myMemberWorktrees[new SquadMemberId(role)]));
         if ((File.GetAttributes(outboxDir) & FileAttributes.ReparsePoint) != 0)
         {
             File.SetAttributes(outboxDir, FileAttributes.Normal);

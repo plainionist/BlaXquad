@@ -1,3 +1,4 @@
+using squad.Handoffs;
 using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.Support.Mailboxes;
@@ -50,10 +51,10 @@ public sealed class TaskMailboxFixture
     /// </summary>
     internal void DuplicateCurrentTaskIntoCompletedArchive(string role)
     {
-        var inProcess = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", "in_process");
+        var root = HandoffQueue.Root(myWorkspace.RoleWorktreePath(role));
+        var inProcess = HandoffQueue.InProcessInbox(root);
         var source = Directory.GetFiles(inProcess, "*" + FileSuffix).Single();
-        var target = Path.Combine(
-            myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", "completed", Path.GetFileName(source));
+        var target = Path.Combine(HandoffQueue.CompletedInbox(root), Path.GetFileName(source));
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         File.Copy(source, target);
     }
@@ -76,9 +77,17 @@ public sealed class TaskMailboxFixture
               "enqueuedAt": "2026-08-22T12:00:00Z"
             }
             """;
-        var stateDir = batchName is null ? state : Path.Combine(state, batchName);
-        var path = Path.Combine(myWorkspace.RoleWorktreePath(role), ".blaxquad", "handoffs", "inbox", stateDir, filename);
+        var root = HandoffQueue.Root(myWorkspace.RoleWorktreePath(role));
+        var stateDir = InboxDir(root, state);
+        var path = batchName is null ? Path.Combine(stateDir, filename) : Path.Combine(stateDir, batchName, filename);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
     }
+
+    private static string InboxDir(string root, string state) => state switch
+    {
+        "new" => HandoffQueue.NewInbox(root),
+        "in_process" => HandoffQueue.InProcessInbox(root),
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state, "unknown inbox state"),
+    };
 }
