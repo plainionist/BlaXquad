@@ -103,7 +103,7 @@ less diagnostic failure. At minimum:
 `Contract.Requires`. `SquadConfig` remains lenient; `HandoffDocument.Validate` is unchanged. Slices 4–6 remain
 pending until the architect activates the next slice.
 
-### Slice 4: Add orchestration and protocol API preconditions
+### Slice 4: Add orchestration and protocol API preconditions [done]
 
 Audit `squad.AgentProvider.*`, `squad.Hosting.*`, `squad.Application`, `squad.Runtime`, `squad.Ui.Abstractions`, and
 `squad.Ui.Protocol`, then add checks at the component that owns each assumption. At minimum:
@@ -119,6 +119,11 @@ Audit `squad.AgentProvider.*`, `squad.Hosting.*`, `squad.Application`, `squad.Ru
    kind-specific fields.
 5. Keep malformed UI messages, invalid handoff documents, plug-in load failures, and provider/process failures on
    their existing validation and reporting paths; they are not `Contract` failures.
+
+**Status: complete (c8f5677c43).** Transcript bounds, retention compatibility, publication interval, announcement
+capacity, shutdown timeout, session-registration, and `TranscriptUpdate` shape checks now use `Contract.Requires`
+at their owning APIs. Malformed UI messages stay on the existing protocol path. Slices 5–6 remain pending until
+the architect activates the next slice.
 
 ### Slice 5: Protect orchestration lifecycle invariants
 
