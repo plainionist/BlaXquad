@@ -302,7 +302,7 @@ two members sharing one reusable role retain the behavior covered by `MemberConf
 `SquadMemberId`. The loader still validates raw document strings, then constructs those identities once.
 `Ctx`, `WorkspacePreparer`, and `LaunchPreparer` pass them through without re-wrapping.
 
-### Slice 3 - Model the configured worktree target
+### Slice 3 - Model the configured worktree target [done]
 
 **Task:** `model-worktree-target`
 
@@ -322,6 +322,10 @@ do not preserve the undocumented `"none"` branch in workspace preparation.
 isolation, shared worktree paths, launch reset/continue behavior, and handoff cleanup remain covered by
 `Context.feature`, `MemberConfiguration.feature`, `HeadquartersWorkspaceFailures.feature`, and
 `HandoffLaunchCleanup.feature`. No type other than `WorktreeTarget` is added.
+
+**Status: complete (02e4055be3).** `WorktreeTarget` distinguishes the project-root worktree from a named linked
+worktree. `SquadMemberConfiguration` carries it; `SquadMemberDefinition` keeps only the resolved path; workspace
+preparation uses `IsProjectRoot`/`ResolvePath` and no longer special-cases `"none"`.
 
 ### Slice 4 - Type permission mode end to end
 
