@@ -918,7 +918,7 @@ overlong values are rejected before any recipient copy or wake-up.
 `Delivery.feature` scenarios prove empty and overlong values are archived as failed with no recipient copy or
 wake-up.
 
-### Slice 22 - Centralize handoff queue layout
+### Slice 22 - Centralize handoff queue layout [done]
 
 **Task:** `centralize-handoff-queue-layout`
 
@@ -933,6 +933,10 @@ layout remains literal so it can still detect a wrong implementation path.
 **Acceptance:** task/batch transitions, delivery/failure archiving, collision handling, and launch cleanup use the
 same documented directories under `TaskQueue.feature`, `BatchQueue.feature`, `Delivery.feature`, and
 `HandoffLaunchCleanup.feature`.
+
+**Status: complete (23d6fc1bb0).** `HandoffQueue` owns Root/Outbox/Sent/Failed/NewInbox/InProcessInbox/CompletedInbox.
+Role commands, workspace prep/cleanup, delivery, and mailbox fixtures call those methods. No bucket enum or extra
+layout type. Feature text stays literal.
 
 ### Slice 23 - Parse handoff command kind once
 
