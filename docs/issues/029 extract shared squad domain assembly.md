@@ -215,7 +215,7 @@ configuration into backend setup, `SquadMembers`, and handoff delivery. `Prepare
 leader, or handoff-member fields. `MemberConfigRow` and `MemberConfiguration` are gone; `RoleRow` remains for
 slice 2.
 
-### Slice 2 - Replace the command-side role row with domain members
+### Slice 2 - Replace the command-side role row with domain members [in progress]
 
 **Outcome:** The role-facing CLI resolves, addresses, and validates configured participants using
 `SquadMemberDefinition`, leaving no fourth member representation in `squad.Configuration`.
