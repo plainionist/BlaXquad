@@ -655,7 +655,7 @@ distinction preserve existing behavior in `Handoffs.feature`, `Delivery.feature`
 are typed. JSON still emits `from`/`to`/`recipient` strings; filenames, CLI, and Gherkin stay strings; the spec
 observer still parses independently of `HandoffJson`.
 
-### Slice 17 - Type handoff IDs
+### Slice 17 - Type handoff IDs [done]
 
 **Task:** `type-handoff-id`
 
@@ -709,6 +709,10 @@ longer re-checks blank IDs.
    and `new HandoffId()` still produce a blank identity without running the constructor.
    **Required outcome:** Change `HandoffId` to a sealed immutable record (class) with the existing explicit
    constructor and `Contract.Requires` nonblank check. Do not keep a struct.
+
+**Status: complete (5deccee726).** `HandoffId` is a sealed record with `Contract.Requires` for nonblank, exactly
+preserved text. JSON ingress wraps constructor `ArgumentException` as `InvalidDataException`. Filename/ID spelling
+stays a string until document construction. Review findings are addressed.
 
 ### Contract-correction sequence
 
