@@ -797,7 +797,7 @@ wire diagnostics remain unchanged under `InteractionPublicationAndOwnership.feat
 **Status: complete (cd2b775ee0).** `InteractionRequestId` is a sealed record with `Contract.Requires` for
 nonblank, exactly preserved opaque text. UI still validates the wire `requestId` before construction.
 
-### Slice 17E - Make tool-call IDs valid by construction
+### Slice 17E - Make tool-call IDs valid by construction [done]
 
 **Task:** `enforce-tool-call-id-contract`
 
@@ -812,6 +812,9 @@ tool-correlation dictionary behavior.
 **Acceptance:** interleaved tool output, lifecycle replacement/completion, and read summaries retain their
 correlation under `TranscriptToolCallCorrelation.feature`, `TranscriptToolLifecycleState.feature`,
 `TranscriptToolOutputAggregation.feature`, and `TranscriptFileReadSummaries.feature`. No type is added.
+
+**Status: complete (daa5757a01).** `ToolCallId` is a sealed record with `Contract.Requires` for nonblank, exactly
+preserved opaque text. Copilot and fake adapters still wrap at their existing ingress.
 
 ### Slice 18 - Type handoff priority
 
