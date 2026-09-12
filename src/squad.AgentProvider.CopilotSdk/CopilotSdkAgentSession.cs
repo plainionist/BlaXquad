@@ -19,9 +19,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     private readonly TaskCompletionSource myCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object myInteractionLock = new();
     private readonly object myContextUsageLock = new();
-    private readonly Dictionary<InteractionRequestId, TaskCompletionSource<AgentPermissionResponse>> myPendingPermissions = [];
-    private readonly Dictionary<InteractionRequestId, TaskCompletionSource<AgentInputResponse>> myPendingInputs = [];
-    private readonly Dictionary<InteractionRequestId, TaskCompletionSource<AgentElicitationResponse>> myPendingElicitations = [];
+    private readonly Dictionary<InteractionRequestId, PendingProviderInteraction> myPendingInteractions = [];
     private readonly Queue<string> myPendingHarnessMessageEchoes = new();
     private readonly TaskCompletionSource myFailureTeardown = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CopilotSdkRuntimeSession? myRuntimeSession;
@@ -123,13 +121,13 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         AbortCoreAsync(cancellationToken);
 
     public Task RespondToPermissionAsync(InteractionRequestId requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default) =>
-        CompleteInteractionAsync(requestId, response, myPendingPermissions, cancellationToken);
+        CompleteInteractionAsync(requestId, response, cancellationToken);
 
     public Task RespondToInputAsync(InteractionRequestId requestId, AgentInputResponse response, CancellationToken cancellationToken = default) =>
-        CompleteInteractionAsync(requestId, response, myPendingInputs, cancellationToken);
+        CompleteInteractionAsync(requestId, response, cancellationToken);
 
     public Task RespondToElicitationAsync(InteractionRequestId requestId, AgentElicitationResponse response, CancellationToken cancellationToken = default) =>
-        CompleteInteractionAsync(requestId, response, myPendingElicitations, cancellationToken);
+        CompleteInteractionAsync(requestId, response, cancellationToken);
 
     public Task CancelPendingInteractionsAsync(CancellationToken cancellationToken = default)
     {
@@ -141,19 +139,17 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     private void CancelPendingInteractionsCore(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        CancelInteractions(myPendingPermissions, cancellationToken);
-        CancelInteractions(myPendingInputs, cancellationToken);
-        CancelInteractions(myPendingElicitations, cancellationToken);
+        CancelInteractions(cancellationToken);
     }
 
     internal Task<AgentPermissionResponse> RequestPermissionAsync(string description, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentPermissionRequest(DateTimeOffset.UtcNow, CreateInteractionId(), description), myPendingPermissions, cancellationToken);
+        RequestInteractionAsync<AgentPermissionResponse>(new AgentPermissionRequest(DateTimeOffset.UtcNow, CreateInteractionId(), description), cancellationToken);
 
     internal Task<AgentInputResponse> RequestInputAsync(string prompt, IReadOnlyList<string>? choices, bool allowFreeform, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentInputRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, choices, allowFreeform), myPendingInputs, cancellationToken);
+        RequestInteractionAsync<AgentInputResponse>(new AgentInputRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, choices, allowFreeform), cancellationToken);
 
     internal Task<AgentElicitationResponse> RequestElicitationAsync(string prompt, ElicitationMode mode, JsonElement? requestedSchema, string? url, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, mode, requestedSchema, url), myPendingElicitations, cancellationToken);
+        RequestInteractionAsync<AgentElicitationResponse>(new AgentElicitationRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, mode, requestedSchema, url), cancellationToken);
 
     public async IAsyncEnumerable<AgentEvent> Events([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -269,9 +265,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
 
     private void TransitionToFailure(Exception exception, bool teardownRuntimeSession)
     {
-        TaskCompletionSource<AgentPermissionResponse>[] permissions;
-        TaskCompletionSource<AgentInputResponse>[] inputs;
-        TaskCompletionSource<AgentElicitationResponse>[] elicitations;
+        PendingProviderInteraction[] pendingInteractions;
         lock (myInteractionLock)
         {
             if (myDisposed || myFailure is not null)
@@ -279,20 +273,17 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
                 return;
             }
             myFailure = exception;
-            permissions = myPendingPermissions.Values.ToArray();
-            inputs = myPendingInputs.Values.ToArray();
-            elicitations = myPendingElicitations.Values.ToArray();
-            myPendingPermissions.Clear();
-            myPendingInputs.Clear();
-            myPendingElicitations.Clear();
+            pendingInteractions = myPendingInteractions.Values.ToArray();
+            myPendingInteractions.Clear();
         }
 
         myEvents.Complete(exception);
         _ = TeardownAfterFailureAsync(teardownRuntimeSession);
         myCompletion.TrySetException(exception);
-        CompleteWithException(permissions, exception);
-        CompleteWithException(inputs, exception);
-        CompleteWithException(elicitations, exception);
+        foreach (var pendingInteraction in pendingInteractions)
+        {
+            pendingInteraction.Fail(exception);
+        }
     }
 
     /// <summary>
@@ -376,10 +367,10 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         }
     }
 
-    private async Task<TResponse> RequestInteractionAsync<TResponse>(AgentEvent request, Dictionary<InteractionRequestId, TaskCompletionSource<TResponse>> pendingInteractions, CancellationToken cancellationToken)
+    private async Task<TResponse> RequestInteractionAsync<TResponse>(AgentEvent request, CancellationToken cancellationToken)
     {
         var requestId = GetRequestId(request);
-        var completion = new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingInteraction = new PendingProviderInteraction.Typed<TResponse>();
         lock (myInteractionLock)
         {
             if (myFailure is { } failure)
@@ -390,74 +381,60 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
             {
                 throw new ObjectDisposedException(nameof(CopilotSdkAgentSession));
             }
-            pendingInteractions.Add(requestId, completion);
+            myPendingInteractions.Add(requestId, pendingInteraction);
         }
         await PublishAsync(request, cancellationToken).ConfigureAwait(false);
         try
         {
-            return await completion.Task.WaitAsync(cancellationToken);
+            return await pendingInteraction.Task.WaitAsync(cancellationToken);
         }
         finally
         {
             lock (myInteractionLock)
-                pendingInteractions.Remove(requestId);
+            {
+                // Only remove this request's own registration. A normal response, or a cancel/fault/abort/dispose
+                // path, already removed it under this same lock; guarding on reference identity means this method
+                // can never remove some unrelated, later registration that happened to reuse this request id.
+                if (myPendingInteractions.TryGetValue(requestId, out var current) && ReferenceEquals(current, pendingInteraction))
+                {
+                    myPendingInteractions.Remove(requestId);
+                }
+            }
         }
     }
 
-    private Task CompleteInteractionAsync<TResponse>(InteractionRequestId requestId, TResponse response, Dictionary<InteractionRequestId, TaskCompletionSource<TResponse>> pendingInteractions, CancellationToken cancellationToken)
+    private Task CompleteInteractionAsync<TResponse>(InteractionRequestId requestId, TResponse response, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        TaskCompletionSource<TResponse> completion;
+        PendingProviderInteraction.Typed<TResponse> pendingInteraction;
         lock (myInteractionLock)
         {
             if (myFailure is { } failure)
             {
                 throw failure;
             }
-            if (!pendingInteractions.Remove(requestId, out completion!))
+            if (!myPendingInteractions.TryGetValue(requestId, out var pending) || pending is not PendingProviderInteraction.Typed<TResponse> typed)
             {
                 throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{MemberId}'.");
             }
+            pendingInteraction = typed;
+            myPendingInteractions.Remove(requestId);
         }
-        completion.TrySetResult(response);
+        pendingInteraction.Complete(response);
         return Task.CompletedTask;
     }
 
-    private void CancelInteractions<TResponse>(Dictionary<InteractionRequestId, TaskCompletionSource<TResponse>> pendingInteractions, CancellationToken cancellationToken)
+    private void CancelInteractions(CancellationToken cancellationToken)
     {
-        TaskCompletionSource<TResponse>[] completions;
+        PendingProviderInteraction[] pendingInteractions;
         lock (myInteractionLock)
         {
-            completions = pendingInteractions.Values.ToArray();
-            pendingInteractions.Clear();
+            pendingInteractions = myPendingInteractions.Values.ToArray();
+            myPendingInteractions.Clear();
         }
-        foreach (var completion in completions)
+        foreach (var pendingInteraction in pendingInteractions)
         {
-            completion.TrySetCanceled(cancellationToken);
-        }
-    }
-
-    private void CancelInteractions<TResponse>(Dictionary<InteractionRequestId, TaskCompletionSource<TResponse>> pendingInteractions, Exception exception)
-    {
-        TaskCompletionSource<TResponse>[] completions;
-        lock (myInteractionLock)
-        {
-            completions = pendingInteractions.Values.ToArray();
-            pendingInteractions.Clear();
-        }
-        foreach (var completion in completions)
-        {
-            completion.TrySetException(exception);
-        }
-    }
-
-    private static void CompleteWithException<TResponse>(
-        IEnumerable<TaskCompletionSource<TResponse>> completions,
-        Exception exception)
-    {
-        foreach (var completion in completions)
-        {
-            completion.TrySetException(exception);
+            pendingInteraction.Cancel(cancellationToken);
         }
     }
 
