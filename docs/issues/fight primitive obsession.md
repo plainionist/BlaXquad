@@ -938,7 +938,7 @@ same documented directories under `TaskQueue.feature`, `BatchQueue.feature`, `De
 Role commands, workspace prep/cleanup, delivery, and mailbox fixtures call those methods. No bucket enum or extra
 layout type. Feature text stays literal.
 
-### Slice 23 - Parse handoff command kind once
+### Slice 23 - Parse handoff command kind once [done]
 
 **Task:** `parse-handoff-kind-once`
 
@@ -951,6 +951,10 @@ Unknown commands and all usage/error text remain unchanged.
 
 **Acceptance:** both command forms, per-kind help, invalid command, option-shape errors, and resulting document kind
 remain covered by `Handoffs.feature`.
+
+**Status: complete (b0e3f9ddde).** CLI token `commit`/`note` maps once to `HandoffKind`. Help and dispatch use the
+enum. `QueuedHandoff.Type` is `HandoffKind` from independently parsed JSON. Unknown-command and usage/error text
+are unchanged.
 
 ### Slice 24 - Type Headquarters readiness status
 
