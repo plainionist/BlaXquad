@@ -290,6 +290,11 @@ of the application state introduced by slice 1.
 - The Copilot provider builds and the provider packaging scenarios continue to pass; the provider-neutral
   interaction scenarios remain unchanged.
 
+**Status: complete (03ed4acd7c).** `CopilotSdkAgentSession` owns one `PendingProviderInteraction` registry.
+Typed completion matches id and response kind without `object`/`dynamic` casts; a wrong kind leaves the real
+pending completion intact and keeps the existing diagnostic. Cancel, fault, abort, dispose, and failure
+snapshot-and-clear once; the request `finally` removes only its own registration.
+
 ### Slice 3: Consolidate transcript delivery cursors
 
 **Task:** `consolidate-transcript-delivery-state`
