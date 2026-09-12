@@ -701,6 +701,9 @@ missing/blank ID is archived as failed before fan-out. No type other than `Hando
 text via `Contract.Requires`; `default(HandoffId)` cannot exist as a reference type. Constructor contract failures
 are translated to `JsonException` inside `ScalarJsonConverter.Read` (the shared JSON ingress boundary), which
 `HandoffJson.Read`'s existing `catch (JsonException)` clause wraps into `InvalidDataException` before fan-out.
+This also addresses the review findings on commit f7ae75651f, an earlier fixup step that had added
+`Contract.Requires` while still leaving `HandoffId` a `readonly record struct` (so `default`/`new HandoffId()`
+bypassed the constructor); the type was changed to a sealed record (class) immediately afterward.
 
 ### Contract-correction sequence
 
