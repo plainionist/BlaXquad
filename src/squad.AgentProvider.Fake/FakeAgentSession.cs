@@ -33,6 +33,7 @@ internal sealed class FakeAgentSession : IAgentSession
     private TaskCompletionSource? myPendingAbort;
     private string? myNextAbortFailureMessage;
     private TaskCompletionSource? myPendingDisposal;
+    private TaskCompletionSource? myPendingPermissionResponse;
     private bool myAutoEcho;
 
     public FakeAgentSession(SquadMemberId memberId, FakeProviderControlClient? control = null)
@@ -209,7 +210,15 @@ internal sealed class FakeAgentSession : IAgentSession
     public void CompletePendingDisposal() => myPendingDisposal?.TrySetResult();
 
     /// <summary>Reports, when a control transport is configured, the host's response to a permission request this
-    /// session previously emitted through <see cref="Emit"/>.</summary>
+    /// session previously emitted through <see cref="Emit"/>. If <see cref="ArmPendingPermissionResponse"/> armed
+    /// this session first, the response remains pending until <see cref="FailPendingPermissionResponse"/> resolves
+    /// it - proving the member-interaction registry's own recoverable-failure path (restoring a responding
+    /// interaction to pending, or leaving a headquarters-shutdown-retained one alone) without an arbitrary sleep or
+    /// depending on the provider's true response latency. Deliberately does not link this wait to
+    /// <paramref name="cancellationToken"/>: the caller derives that token from the member's own shutdown
+    /// lifetime, so linking it would let headquarters shutdown itself resolve the hold the instant it begins,
+    /// racing the scenario's own explicit ordering instead of letting the scenario decide precisely when the
+    /// response fails relative to shutdown's interaction cleanup.</summary>
     public async Task RespondToPermissionAsync(
         InteractionRequestId requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default)
     {
@@ -218,7 +227,33 @@ internal sealed class FakeAgentSession : IAgentSession
             await myControl.NotifyObservationAsync(
                 MemberId.Value, SessionId, "permission-response", new { requestId = requestId.Value, approved = response.Approved }, cancellationToken);
         }
+
+        // Keeps the field set (rather than clearing it up front) so a concurrent "fail pending permission
+        // response" control - which resolves through this same field - can still find and resolve the very
+        // instance this call is awaiting, then clears it (only if a newer arming has not since replaced it).
+        var pendingResponse = myPendingPermissionResponse;
+        if (pendingResponse is not null)
+        {
+            try
+            {
+                await pendingResponse.Task;
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref myPendingPermissionResponse, null, pendingResponse);
+            }
+        }
     }
+
+    /// <summary>Test-only control (not a production event): arms this session so its very next
+    /// <see cref="RespondToPermissionAsync"/> call remains pending until <see cref="FailPendingPermissionResponse"/>
+    /// resolves it - the deterministic control a scenario needs to prove a recoverable response failure racing a
+    /// concurrent abort or headquarters shutdown.</summary>
+    public void ArmPendingPermissionResponse() => myPendingPermissionResponse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>Resolves this session's currently pending permission response (armed by
+    /// <see cref="ArmPendingPermissionResponse"/>) as failed with the given message.</summary>
+    public void FailPendingPermissionResponse(string message) => myPendingPermissionResponse?.TrySetException(new InvalidOperationException(message));
 
     /// <summary>Reports, when a control transport is configured, the host's response to an input request this
     /// session previously emitted through <see cref="Emit"/>.</summary>
@@ -363,6 +398,12 @@ internal sealed class FakeAgentSession : IAgentSession
                 return null;
             case "arm-pending-disposal":
                 ArmPendingDisposal();
+                return null;
+            case "arm-pending-permission-response":
+                ArmPendingPermissionResponse();
+                return null;
+            case "fail-pending-permission-response":
+                FailPendingPermissionResponse(data.GetProperty("message").GetString()!);
                 return null;
             case "complete-pending-disposal":
                 CompletePendingDisposal();

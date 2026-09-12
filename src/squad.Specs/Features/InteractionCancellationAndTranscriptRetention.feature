@@ -40,6 +40,18 @@ Feature: Interaction cancellation and transcript retention
     Then Headquarters exits with code 0
     And the "reviewer" agent observes its pending interactions were cancelled
 
+  Scenario: A recoverable response failure that races headquarters shutdown does not fault cleanup
+    When the "coder" agent requests permission "permission-1" with description "Run the deploy script?"
+    Then the dashboard shows a pending permission "permission-1" for role "coder" with description "Run the deploy script?"
+    When the "coder" agent holds its next permission response pending
+    And the user responds to permission "permission-1" for role "coder" with approved "true"
+    Then the "coder" agent observes a permission response for "permission-1" approved "true"
+    When the operator begins shutting down Headquarters without waiting for it to exit
+    Then the "coder" agent observes its pending interactions were cancelled
+    When the "coder" agent fails its pending permission response with message "provider connection lost"
+    And Headquarters' process exits on its own
+    Then Headquarters exits with code 0
+
   Scenario: A pending permission's transcript context survives crossing the live-retention boundary
     When the "coder" agent requests permission "permission-1" with description "Run the deploy script?"
     Then the dashboard shows a pending permission "permission-1" for role "coder" with description "Run the deploy script?"

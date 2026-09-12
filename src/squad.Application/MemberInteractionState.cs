@@ -12,11 +12,16 @@ namespace squad.Application;
 internal abstract record MemberInteractionState(int ProtectedTranscriptEntryIndex)
 {
     /// <summary>
-    /// Returns the pending counterpart of this state, preserving its request and transcript entry. Only a
-    /// <see cref="Responding{TRequest}"/> state supports this transition.
+    /// Attempts to return the pending counterpart of this state, preserving its request and transcript entry.
+    /// Only a <see cref="Responding{TRequest}"/> state supports this transition; every other variant no-ops,
+    /// because by the time a recoverable response failure observes them, a concurrent abort or headquarters
+    /// shutdown has already taken this interaction out of responding - there is nothing left to restore.
     /// </summary>
-    internal virtual MemberInteractionState Restore() =>
-        throw new InvalidOperationException("Only a responding interaction can be restored to pending.");
+    internal virtual bool TryRestore(out MemberInteractionState restored)
+    {
+        restored = this;
+        return false;
+    }
 
     internal sealed record Pending<TRequest>(TRequest Request, int ProtectedTranscriptEntryIndex)
         : MemberInteractionState(ProtectedTranscriptEntryIndex);
@@ -24,7 +29,11 @@ internal abstract record MemberInteractionState(int ProtectedTranscriptEntryInde
     internal sealed record Responding<TRequest>(TRequest Request, int ProtectedTranscriptEntryIndex)
         : MemberInteractionState(ProtectedTranscriptEntryIndex)
     {
-        internal override MemberInteractionState Restore() => new Pending<TRequest>(Request, ProtectedTranscriptEntryIndex);
+        internal override bool TryRestore(out MemberInteractionState restored)
+        {
+            restored = new Pending<TRequest>(Request, ProtectedTranscriptEntryIndex);
+            return true;
+        }
     }
 
     /// <summary>

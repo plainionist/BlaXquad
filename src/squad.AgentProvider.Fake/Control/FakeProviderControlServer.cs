@@ -347,6 +347,19 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
     public Task CompletePendingDisposalAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
         EmitAsync(role, "complete-pending-disposal", new { }, timeout, additionalDiagnostics);
 
+    /// <summary>Arms the given role's session so its next permission response remains pending until
+    /// <see cref="FailPendingPermissionResponseAsync"/> resolves it - the deterministic control a scenario needs
+    /// to prove a recoverable response failure racing a concurrent abort or headquarters shutdown without an
+    /// arbitrary sleep.</summary>
+    public Task ArmPendingPermissionResponseAsync(string role, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "arm-pending-permission-response", new { }, timeout, additionalDiagnostics);
+
+    /// <summary>Resolves the given role's currently pending permission response (armed by
+    /// <see cref="ArmPendingPermissionResponseAsync"/>) as failed with the given message.</summary>
+    public Task FailPendingPermissionResponseAsync(
+        string role, string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null) =>
+        EmitAsync(role, "fail-pending-permission-response", new { message }, timeout, additionalDiagnostics);
+
     /// <summary>Waits until the connected client has reported that the given role's session disposal is being
     /// held (armed by <see cref="ArmPendingDisposalAsync"/>), and returns whether an admitted send on this same
     /// session had already reached its own canceled terminal outcome by the moment disposal began - this session's
