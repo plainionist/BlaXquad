@@ -16,7 +16,7 @@ This is an internal terminology and source-organization refactor. Preserve runti
 protocol field names, serialization, and the established lowercase prose term "member". Do not add compatibility
 aliases for the renamed internal types.
 
-### Slice 1: Qualify squad-member type names
+### Slice 1: Qualify squad-member type names [done]
 
 Make every `squad.Application` type whose name starts with `Member` and whose responsibility belongs to one configured
 squad member use the unambiguous `SquadMember` prefix:
@@ -40,6 +40,10 @@ Acceptance criteria:
 - every renamed top-level type has a matching `SquadMember*.cs` source filename, and no stale references to the old
   type names remain;
 - the solution builds and the existing backend specification suite passes without behavior or protocol changes.
+
+**Status: complete (43ae9eb51f).** Internal squad-member types now use the `SquadMember` prefix, with matching
+source filenames. Namespaces, directory layout, message subclasses, properties, protocol DTOs, and persisted fields
+are unchanged.
 
 ### Slice 2: Flatten the application member implementation
 
