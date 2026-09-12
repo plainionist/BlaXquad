@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-16"?>
+<SystemPackaging NetFramework="False" UsedTypesOnly="True" AssemblyRoot="C:\ws\plainionist\BlaXquad\bin" xmlns="http://github.com/ronin4net/plainion/GraphViz/Packaging/Spec">
+    <Package AutoClusters="namespace" Name="squad">
+        <Include Pattern="squad*" />
+    </Package>
+</SystemPackaging>
