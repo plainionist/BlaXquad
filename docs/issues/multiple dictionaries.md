@@ -320,6 +320,26 @@ transient recovery request.
   post-snapshot update, or emit an update already covered by the synchronization.
 - A consumed recovery request does not erase the member's delivered or synchronized cursor.
 
+### Review findings (b1016ca505)
+
+1. **Severity: high.** `src/squad.Ui.Protocol/UiDeliveryCoordinator.cs` `PublishSnapshot` and
+   `GetDeliveryState`; `src/squad.Ui.Protocol/TranscriptDeliveryState.cs` `Initial`.
+   **Violated behavior:** Requested recovery, queue-overflow recovery, and last-synchronized announcement
+   baselines must not regress a sequence or emit announcements already covered. A member that exists in the
+   registry only because of a requested position, or that has received incremental delivery but has never
+   been synchronized, must not be treated as delivered-at-0 or synchronized-at-0.
+   **Root cause:** The old maps stored a member only after an observed delivered or synchronized cursor.
+   Missing keys used `GetValueOrDefault(..., role.Sequence)` for announcement start and overflow iterated
+   only `myDeliveredTranscriptSequences`. The unified dictionary inserts `Initial` (0, 0, null) for a
+   request-only member and keeps that entry after `ConsumingRequestedPosition`. `PublishSnapshot` then
+   builds `lastSynchronizedSequences` from every entry and, on overflow, replaces a requested baseline
+   with `(0, 0)` when `DeliveredSequence` is still 0.
+   **Required outcome:** Never-synchronized members stay missing from last-synchronized baselines so
+   announcement start still falls back to `role.Sequence`. Overflow baselines iterate only members with an
+   observed delivered cursor, and must not replace a requested position with `(0, 0)` merely because the
+   member has no delivered update yet. Consuming a request must not leave a fake 0/0 cursor that later
+   cycles treat as observed. Wire payloads stay unchanged.
+
 ### Slice 4: Consolidate transcript archive metadata
 
 **Task:** `consolidate-transcript-archive-state`
