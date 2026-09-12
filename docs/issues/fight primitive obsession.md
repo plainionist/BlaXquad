@@ -327,7 +327,7 @@ isolation, shared worktree paths, launch reset/continue behavior, and handoff cl
 worktree. `SquadMemberConfiguration` carries it; `SquadMemberDefinition` keeps only the resolved path; workspace
 preparation uses `IsProjectRoot`/`ResolvePath` and no longer special-cases `"none"`.
 
-### Slice 4 - Type permission mode end to end
+### Slice 4 - Type permission mode end to end [done]
 
 **Task:** `type-permission-mode`
 
@@ -346,6 +346,10 @@ diagnostic before any session starts. Keep safe workspace reads and managed appr
 **Acceptance:** `MemberConfiguration.feature`, `InteractionPublicationAndOwnership.feature`, and
 `TranscriptFileReadSummaries.feature` pass with the exact JSON spelling and diagnostics unchanged. Update the
 permission-mode and module manual text. No type other than `PermissionMode` is added.
+
+**Status: complete (7157904f01).** `PermissionMode` is carried through settings, launch context, and the Copilot
+adapter. `SquadAgentConfiguration` was deleted as a duplicate of `AgentSettings`. The JSON `permissions` token
+stays a string; an unsupported token is rejected by `MemberConfiguration.feature` before any session starts.
 
 ### Slice 5 - Carry member identity through provider and application runtime
 
