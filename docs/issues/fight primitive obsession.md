@@ -655,7 +655,7 @@ distinction preserve existing behavior in `Handoffs.feature`, `Delivery.feature`
 are typed. JSON still emits `from`/`to`/`recipient` strings; filenames, CLI, and Gherkin stay strings; the spec
 observer still parses independently of `HandoffJson`.
 
-### Slice 17 - Type handoff IDs
+### Slice 17 - Type handoff IDs [done]
 
 **Task:** `type-handoff-id`
 
@@ -673,6 +673,10 @@ to the existing wrapped `InvalidDataException` surface rather than leaking `Argu
 
 **Acceptance:** valid handoffs preserve their exact JSON shape and delivery behavior, while a raw handoff with a
 missing/blank ID is archived as failed before fan-out. No type other than `HandoffId` is added.
+
+**Status: complete (452d23fc35).** `HandoffId` is on `HandoffDocument` and valid `QueuedHandoff` observations.
+JSON `id` stays a string via `ScalarJsonConverter`. Filename/ID spelling is generated as a string and wrapped at
+document construction. Blank IDs still fail through the wrapped `InvalidDataException` surface before fan-out.
 
 ### Contract-correction sequence
 
