@@ -710,9 +710,10 @@ longer re-checks blank IDs.
    **Required outcome:** Change `HandoffId` to a sealed immutable record (class) with the existing explicit
    constructor and `Contract.Requires` nonblank check. Do not keep a struct.
 
-**Status: complete (5deccee726).** `HandoffId` is a sealed record with `Contract.Requires` for nonblank, exactly
-preserved text. JSON ingress wraps constructor `ArgumentException` as `InvalidDataException`. Filename/ID spelling
-stays a string until document construction. Review findings are addressed.
+**Status: complete (5deccee726, b9c61a3727).** `HandoffId` is a sealed record with `Contract.Requires` for
+nonblank, exactly preserved text. `ScalarJsonConverter` maps constructor `ArgumentException` to `JsonException` at
+JSON ingress; `HandoffJson.Read` keeps the wrapped `InvalidDataException` surface. Filename/ID spelling stays a
+string until document construction. Review findings are addressed.
 
 ### Contract-correction sequence
 
