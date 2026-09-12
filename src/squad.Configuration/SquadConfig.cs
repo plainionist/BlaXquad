@@ -1,17 +1,19 @@
 using System.Text.Json;
 
+using squad.Domain;
+
 namespace squad.Configuration;
 
 /// <summary>
-/// Provides lenient command-side role lookup from <c>blaxquad/squad.json</c>'s schema-version-2 "members" array.
-/// Missing or malformed configuration is represented as an empty role list so individual commands can report
-/// context-specific errors. Each row still addresses one configured member by the identity CLI and handoff
-/// commands have always used; a genuine role-vs-member distinction is exposed by issue 024 slice 2.
+/// Provides lenient command-side member lookup from <c>blaxquad/squad.json</c>'s schema-version-2 "members"
+/// array. Missing or malformed configuration is represented as an empty member list so individual commands can
+/// report context-specific errors. Each configured participant is addressed by the member identity CLI and
+/// handoff commands have always used, distinct from its (possibly shared) role.
 /// </summary>
 public static class SquadConfig
 {
-    /// <summary>Reads resolved role rows, returning an empty list when the configuration cannot be consumed.</summary>
-    public static IReadOnlyList<RoleRow> ReadRoles(string projectRoot)
+    /// <summary>Reads resolved members, returning an empty list when the configuration cannot be consumed.</summary>
+    public static IReadOnlyList<SquadMemberDefinition> ReadMembers(string projectRoot)
     {
         var configFile = Path.Combine(projectRoot, "blaxquad", "squad.json");
         if (!File.Exists(configFile))
@@ -28,19 +30,37 @@ public static class SquadConfig
                 return [];
             }
 
-            var list = new List<RoleRow>();
+            var list = new List<SquadMemberDefinition>();
             foreach (var memberElem in membersElement.EnumerateArray())
             {
                 var name = memberElem.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var role = memberElem.TryGetProperty("role", out var ro) ? ro.GetString() ?? name : name;
                 var worktree = memberElem.TryGetProperty("worktree", out var w) ? w.GetString() ?? "" : "";
                 var receiveMode = memberElem.TryGetProperty("receiveMode", out var r) ? r.GetString() ?? "task" : "task";
                 var displayName = memberElem.TryGetProperty("displayName", out var d) ? d.GetString() ?? name : name;
+
+                var permissions = "prompt";
+                string? model = null;
+                string? effort = null;
+                if (memberElem.TryGetProperty("agent", out var agentElem) && agentElem.ValueKind == JsonValueKind.Object)
+                {
+                    permissions = agentElem.TryGetProperty("permissions", out var p) ? p.GetString() ?? "prompt" : "prompt";
+                    model = agentElem.TryGetProperty("model", out var m) ? m.GetString() : null;
+                    effort = agentElem.TryGetProperty("effort", out var e) ? e.GetString() : null;
+                }
 
                 var worktreePath = worktree == "master"
                     ? projectRoot
                     : Path.Combine(projectRoot, ".worktrees", worktree);
 
-                list.Add(new RoleRow(name, worktree, worktreePath, displayName, receiveMode));
+                list.Add(new SquadMemberDefinition(
+                    new SquadMemberId(name),
+                    displayName,
+                    new RoleId(role),
+                    worktree,
+                    worktreePath,
+                    receiveMode,
+                    new AgentSettings(permissions, model, effort)));
             }
             return list;
         }
@@ -50,11 +70,11 @@ public static class SquadConfig
         }
     }
 
-    public static bool RoleKnown(IEnumerable<RoleRow> rows, string role) =>
-        rows.Any(r => r.Role == role);
+    public static bool MemberKnown(IEnumerable<SquadMemberDefinition> members, string name) =>
+        members.Any(member => member.Id.Value == name);
 
-    public static RoleRow? Find(IEnumerable<RoleRow> rows, string role) =>
-        rows.FirstOrDefault(r => r.Role == role);
+    public static SquadMemberDefinition? Find(IEnumerable<SquadMemberDefinition> members, string name) =>
+        members.FirstOrDefault(member => member.Id.Value == name);
 }
 
 

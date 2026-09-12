@@ -215,7 +215,7 @@ configuration into backend setup, `SquadMembers`, and handoff delivery. `Prepare
 leader, or handoff-member fields. `MemberConfigRow` and `MemberConfiguration` are gone; `RoleRow` remains for
 slice 2.
 
-### Slice 2 - Replace the command-side role row with domain members [in progress]
+### Slice 2 - Replace the command-side role row with domain members [done]
 
 **Outcome:** The role-facing CLI resolves, addresses, and validates configured participants using
 `SquadMemberDefinition`, leaving no fourth member representation in `squad.Configuration`.
@@ -240,6 +240,13 @@ slice 2.
 recipient validation, task dispatch, and batch dispatch retain their current output, exit codes, ordering, and
 filesystem behavior. The repository builds and the existing `Context`, `Handoffs`, `TaskQueue`, and `BatchQueue`
 features pass through the published `squad` executable.
+
+**Status: complete (pending commit).** The lenient `SquadConfig.ReadMembers` now maps schema-version-2 member
+entries directly to `SquadMemberDefinition` (member identity, role, resolved worktree data, normalized agent
+settings, and the current string receive mode); `RoleKnown`/`Find` are `MemberKnown`/`Find` over that type.
+`CurrentRoleResolver.Resolve` and `squad context`/`handoff`/`ready-for-next`/`done-with-current` consume it,
+converting to `SquadMemberId.Value` only at console/handoff-document boundaries. `RoleRow` is deleted. `squad.json`
+schema, CLI output, exit codes, and diagnostics are unchanged.
 
 ### Slice 3 - Type receive mode at its owning boundaries
 

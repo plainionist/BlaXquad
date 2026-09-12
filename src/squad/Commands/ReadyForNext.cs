@@ -1,5 +1,5 @@
-using squad.Process;
 using squad.Configuration;
+using squad.Process;
 
 namespace squad.Commands;
 
@@ -11,20 +11,20 @@ static class ReadyForNext
         {
             var roleWorktreeRoot = Path.GetFullPath(ProjectRoot.ResolveViaGit());
             var projectRoot = ProjectRoot.ResolveProjectRoot(roleWorktreeRoot);
-            var roles = SquadConfig.ReadRoles(projectRoot);
-            var roleRow = CurrentRoleResolver.Resolve(roles, roleWorktreeRoot);
-            var role = roleRow.Role;
-            if (string.IsNullOrEmpty(roleRow.ReceiveMode))
+            var members = SquadConfig.ReadMembers(projectRoot);
+            var member = CurrentRoleResolver.Resolve(members, roleWorktreeRoot);
+            var role = member.Id.Value;
+            if (string.IsNullOrEmpty(member.ReceiveMode))
             {
                 Console.Error.WriteLine($"Unknown role: {role}");
                 return 1;
             }
 
-            return roleRow.ReceiveMode switch
+            return member.ReceiveMode switch
             {
                 "batch" => ReadyForNextBatch.Run(args),
                 "task" => ReadyForNextTask.Run(args),
-                _ => Invalid(roleRow.ReceiveMode, role),
+                _ => Invalid(member.ReceiveMode, role),
             };
         }
         catch (CliExitException ex)

@@ -1,15 +1,17 @@
+using squad.Domain;
 using squad.Process;
 
 namespace squad.Configuration;
 
-/// <summary>Matches a normalized worktree path to exactly one configured role.</summary>
+/// <summary>Matches a normalized worktree path to exactly one configured member, the participant that CLI and
+/// handoff commands address as the "current role".</summary>
 public static class CurrentRoleResolver
 {
-    /// <summary>Fails with a controlled CLI error when no role or multiple roles match the supplied path.</summary>
-    public static RoleRow Resolve(IReadOnlyList<RoleRow> roles, string projectRoot)
+    /// <summary>Fails with a controlled CLI error when no member or multiple members match the supplied path.</summary>
+    public static SquadMemberDefinition Resolve(IReadOnlyList<SquadMemberDefinition> members, string projectRoot)
     {
         var currentRoot = Normalize(projectRoot);
-        var matches = roles.Where(role => Normalize(role.WorktreePath) == currentRoot).ToList();
+        var matches = members.Where(member => Normalize(member.WorktreePath) == currentRoot).ToList();
         if (matches.Count == 1)
         {
             return matches[0];
@@ -17,7 +19,7 @@ public static class CurrentRoleResolver
 
         if (matches.Count > 1)
         {
-            throw new CliExitException(1, $"Ambiguous current worktree matches roles: {string.Join(", ", matches.Select(role => role.Role))}");
+            throw new CliExitException(1, $"Ambiguous current worktree matches roles: {string.Join(", ", matches.Select(member => member.Id.Value))}");
         }
 
         throw new CliExitException(1, "Could not resolve the current role from its worktree.");

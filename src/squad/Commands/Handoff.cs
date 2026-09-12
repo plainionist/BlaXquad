@@ -1,5 +1,6 @@
 using squad.Process;
 using squad.Configuration;
+using squad.Domain;
 using squad.Handoffs;
 
 namespace squad.Commands;
@@ -51,18 +52,18 @@ static class Handoff
         {
             var roleWorktreeRoot = Path.GetFullPath(ProjectRoot.ResolveViaGit());
             var projectRoot = ProjectRoot.ResolveProjectRoot(roleWorktreeRoot);
-            var roles = SquadConfig.ReadRoles(projectRoot);
-            var sender = CurrentRoleResolver.Resolve(roles, roleWorktreeRoot).Role;
+            var members = SquadConfig.ReadMembers(projectRoot);
+            var sender = CurrentRoleResolver.Resolve(members, roleWorktreeRoot).Id.Value;
 
-            if (!SquadConfig.RoleKnown(roles, sender))
+            if (!SquadConfig.MemberKnown(members, sender))
             {
                 Console.Error.WriteLine($"Unknown sender role: {sender}");
                 return 1;
             }
 
             return intent == "commit"
-                ? RunCommit(rest, roleWorktreeRoot, roles, sender)
-                : RunNote(rest, roleWorktreeRoot, roles, sender);
+                ? RunCommit(rest, roleWorktreeRoot, members, sender)
+                : RunNote(rest, roleWorktreeRoot, members, sender);
         }
         catch (CliExitException ex)
         {
@@ -74,7 +75,7 @@ static class Handoff
         }
     }
 
-    static int RunCommit(string[] args, string roleWorktreeRoot, IReadOnlyList<RoleRow> roles, string sender)
+    static int RunCommit(string[] args, string roleWorktreeRoot, IReadOnlyList<SquadMemberDefinition> members, string sender)
     {
         var (options, errors) = ParseOptions(args, "commit", CommitOptions);
         options.TryGetValue("--to", out var to);
@@ -82,7 +83,7 @@ static class Handoff
         var explicitRevision = options.TryGetValue("--commit", out var revision);
         var priority = options.GetValueOrDefault("--priority", "50");
 
-        var (recipients, recipientErrors) = ValidateRecipients(to, roles);
+        var (recipients, recipientErrors) = ValidateRecipients(to, members);
         errors.AddRange(recipientErrors);
 
         if (string.IsNullOrWhiteSpace(to))
@@ -139,14 +140,14 @@ static class Handoff
         return 0;
     }
 
-    static int RunNote(string[] args, string roleWorktreeRoot, IReadOnlyList<RoleRow> roles, string sender)
+    static int RunNote(string[] args, string roleWorktreeRoot, IReadOnlyList<SquadMemberDefinition> members, string sender)
     {
         var (options, errors) = ParseOptions(args, "note", NoteOptions);
         options.TryGetValue("--to", out var to);
         options.TryGetValue("--message", out var message);
         var priority = options.GetValueOrDefault("--priority", "50");
 
-        var (recipients, recipientErrors) = ValidateRecipients(to, roles);
+        var (recipients, recipientErrors) = ValidateRecipients(to, members);
         errors.AddRange(recipientErrors);
 
         if (string.IsNullOrWhiteSpace(to))
@@ -230,7 +231,7 @@ static class Handoff
         return (options, errors);
     }
 
-    static (List<string> recipients, List<string> errors) ValidateRecipients(string? to, IReadOnlyList<RoleRow> roles)
+    static (List<string> recipients, List<string> errors) ValidateRecipients(string? to, IReadOnlyList<SquadMemberDefinition> members)
     {
         if (string.IsNullOrWhiteSpace(to))
         {
@@ -254,7 +255,7 @@ static class Handoff
             {
                 errors.Add($"Duplicate recipient '{recipient}'.");
             }
-            if (!string.IsNullOrWhiteSpace(recipient) && !SquadConfig.RoleKnown(roles, recipient))
+            if (!string.IsNullOrWhiteSpace(recipient) && !SquadConfig.MemberKnown(members, recipient))
             {
                 errors.Add($"Unknown recipient role '{recipient}'.");
             }

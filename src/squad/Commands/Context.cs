@@ -50,11 +50,11 @@ static class Context
     {
         var roleWorktreeRoot = Path.GetFullPath(ProjectRoot.ResolveViaGit());
         var projectRoot = ProjectRoot.ResolveProjectRoot(roleWorktreeRoot);
-        var roles = SquadConfig.ReadRoles(projectRoot);
-        var role = CurrentRoleResolver.Resolve(roles, roleWorktreeRoot);
+        var members = SquadConfig.ReadMembers(projectRoot);
+        var member = CurrentRoleResolver.Resolve(members, roleWorktreeRoot);
         var sourcePath = Environment.GetEnvironmentVariable("BLAXQUAD_SRC");
         return new ContextInfo(
-            role.Role,
+            member.Id.Value,
             projectRoot,
             roleWorktreeRoot,
             string.IsNullOrWhiteSpace(sourcePath) ? projectRoot : Path.GetFullPath(sourcePath));
