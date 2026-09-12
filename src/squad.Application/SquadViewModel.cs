@@ -62,20 +62,20 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
 
     public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntriesPerRole);
+        Contract.Requires(maxEntriesPerRole > 0, "maxEntriesPerRole must be positive.");
         return Installed?.Members.CreateTranscriptSnapshot(maxEntriesPerRole) ?? [];
     }
 
     public RoleTranscriptPage CreateTranscriptPage(string role, int beforeIndex, int maxEntries)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(beforeIndex);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
+        Contract.Requires(beforeIndex >= 0, "beforeIndex must not be negative.");
+        Contract.Requires(maxEntries > 0, "maxEntries must be positive.");
         return RequireInstalled(role).CreateTranscriptPage(role, beforeIndex, maxEntries);
     }
 
     public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(entryIndex);
+        Contract.Requires(entryIndex >= 0, "entryIndex must not be negative.");
         return RequireInstalled(role).CreateArchivedTranscriptEntry(role, entryIndex);
     }
 

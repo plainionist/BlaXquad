@@ -23,8 +23,8 @@ public sealed class UiProtocolSession : IAsyncDisposable
         Action signalUiReady)
     {
         myUi = ui;
-        myTranscriptUi = ui as ITranscriptUi
-            ?? throw new ArgumentException("The Photino UI must support incremental transcripts.", nameof(ui));
+        Contract.Requires(ui is ITranscriptUi, "The Photino UI must support incremental transcripts.");
+        myTranscriptUi = (ITranscriptUi)ui;
         mySendSerializedMessage = sendSerializedMessage;
         myDeliveryCoordinator = new(myUi, myTranscriptUi, (type, payload) => Send(type, payload));
         myCommandHandler = new(

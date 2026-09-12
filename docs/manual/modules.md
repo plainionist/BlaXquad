@@ -74,7 +74,13 @@ and `SquadMemberId` (distinct reusable-role and unique-member identities), `Rece
 lifecycle status), `AgentSettings` (normalized permissions, model, and effort), `SquadMemberDefinition` (one
 resolved member's identity, display name, role reference, worktree, receive mode, and agent settings), and
 `SquadDefinition` (the ordered member roster and leader identity), plus the foundational `System.Contract` guard
-utility. It has no project references; configuration parsing, JSON, filesystem, and protocol concerns stay in the
+utility. `Contract.Requires` expresses a semantic caller obligation the type system cannot express (a bounded
+range, a supported variant, a required capability); `Contract.Invariant` expresses a state that must be impossible
+once inputs have already crossed their validation boundary (a stable ownership, identity, ordering, capacity, or
+lifecycle rule). Neither replaces validation of untyped input (JSON, CLI arguments, handoff files, reflection,
+filesystem, or process boundaries), and neither should be used to null-guard a non-nullable reference parameter on
+a trusted typed call path: nullable annotations enforced as warnings-as-errors already own that obligation there.
+It has no project references; configuration parsing, JSON, filesystem, and protocol concerns stay in the
 modules that map external input onto these values.
 
 ## `squad.Handoffs`

@@ -186,10 +186,7 @@ sealed class SleepInhibitor : ISleepInhibitor
     /// <summary>Starts a detached child process owned and terminated only by this sleep inhibitor.</summary>
     private static System.Diagnostics.Process StartDetached(IReadOnlyList<string> command, string? stdOutErrFile = null)
     {
-        if (command.Count == 0)
-        {
-            throw new ArgumentException("Command must not be empty.", nameof(command));
-        }
+        Contract.Requires(command.Count > 0, "command must not be empty.");
 
         var psi = new ProcessStartInfo(command[0])
         {

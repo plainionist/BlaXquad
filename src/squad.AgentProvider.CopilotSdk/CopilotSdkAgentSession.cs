@@ -1,5 +1,6 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace squad.AgentProvider.CopilotSdk;
@@ -460,12 +461,18 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
 
     private static string CreateInteractionId() => Guid.NewGuid().ToString("N");
 
-    private static string GetRequestId(AgentEvent request) => request switch
+    private static string GetRequestId(AgentEvent request)
     {
-        AgentPermissionRequest permission => permission.RequestId,
-        AgentInputRequest input => input.RequestId,
-        AgentElicitationRequest elicitation => elicitation.RequestId,
-        _ => throw new ArgumentException("Expected an interaction request.", nameof(request)),
-    };
+        Contract.Requires(
+            request is AgentPermissionRequest or AgentInputRequest or AgentElicitationRequest,
+            "Expected an interaction request.");
+        return request switch
+        {
+            AgentPermissionRequest permission => permission.RequestId,
+            AgentInputRequest input => input.RequestId,
+            AgentElicitationRequest elicitation => elicitation.RequestId,
+            _ => throw new UnreachableException(),
+        };
+    }
 }
 

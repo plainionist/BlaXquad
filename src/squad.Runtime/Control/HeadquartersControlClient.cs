@@ -13,7 +13,7 @@ public static class HeadquartersControlClient
     /// </summary>
     public static async Task WaitForAgentAsync(string projectRoot, string role, TimeSpan timeout)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
+        Contract.Requires(timeout > TimeSpan.Zero, "timeout must be positive.");
         projectRoot = Path.GetFullPath(projectRoot);
         var elapsed = Stopwatch.StartNew();
         var lastStatus = "Headquarters unavailable";
