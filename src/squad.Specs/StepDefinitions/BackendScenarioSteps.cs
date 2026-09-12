@@ -24,7 +24,7 @@ public sealed class BackendScenarioSteps
     private readonly Dictionary<SquadMemberId, int> myAssistantDeltaCounts = [];
     private readonly Dictionary<SquadMemberId, long> myLatestSynchronizedSequence = [];
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
-    private string? myLastInvalidMessageCase;
+    private RejectedCommandEffect? myLastRejectedCommandEffect;
 
     public BackendScenarioSteps(BackendScenario scenario)
     {
@@ -367,7 +367,11 @@ public sealed class BackendScenarioSteps
     [When("a UI-protocol client sends the invalid {string} envelope:")]
     public void WhenAUiProtocolClientSendsTheInvalidEnvelope(string messageCase, string envelope)
     {
-        myLastInvalidMessageCase = messageCase;
+        myLastRejectedCommandEffect = messageCase switch
+        {
+            "missing request ID" or "invalid boolean payload" => RejectedCommandEffect.PermissionResponse,
+            _ => RejectedCommandEffect.Prompt,
+        };
         myScenario.SendRawEnvelope(envelope);
     }
 
@@ -386,7 +390,7 @@ public sealed class BackendScenarioSteps
     [When("a UI-protocol client sends a prompt to the unknown role {string}")]
     public void WhenAUiProtocolClientSendsAPromptToTheUnknownRole(string role)
     {
-        myLastInvalidMessageCase = "unknown role";
+        myLastRejectedCommandEffect = RejectedCommandEffect.Prompt;
         myScenario.SendPrompt(role, "hello");
     }
 
@@ -397,10 +401,9 @@ public sealed class BackendScenarioSteps
     [Then("no provider-side command was invoked for the rejected message")]
     public void ThenNoProviderSideCommandWasInvokedForTheRejectedMessage()
     {
-        switch (myLastInvalidMessageCase)
+        switch (myLastRejectedCommandEffect)
         {
-            case "missing request ID":
-            case "invalid boolean payload":
+            case RejectedCommandEffect.PermissionResponse:
                 Assert.That(myScenario.Agent("coder").HasReceivedPermissionResponse(), Is.False);
                 break;
             default:
