@@ -70,6 +70,12 @@ The shared foundation is complete:
 The domain extraction itself remains outstanding: none of the squad identity, definition, receive-mode, or status
 types below has been added yet, and the parallel member records still exist.
 
+The stable manual is also only partly aligned with the issue-024 baseline. `docs/Manual/modules.md` does not describe
+`squad.Domain`, while `docs/Manual/architecture.md` and `docs/Manual/glossary.md` still say that worktrees, provider
+sessions, receive modes, agent settings, and the leader belong to a role. The implemented schema assigns those
+concerns to uniquely named squad members, which may share a reusable role. This issue must correct those directly
+related descriptions without renaming the intentionally role-shaped CLI, handoff, provider, or UI protocol fields.
+
 ## Required design
 
 ### Dependency-free shared kernel
@@ -162,21 +168,125 @@ handoff-delivery, provider-boundary, and presentation modules to consume the ext
 Avoid pass-through abstractions whose only purpose is hiding the new project reference. Boundary-specific DTOs may
 project from domain values when their shape is genuinely provider-, persistence-, or protocol-specific.
 
-## Implementation plan
+## Implementation slices
 
-1. Treat the implemented issue-024 squad, role, member, addressing, and configuration semantics as the baseline.
-2. Completed: add `squad.Domain` to the solution with no project references, add `Contracts.cs` as its only source
-  file, and reference it directly from every other C# project.
-3. Add `RoleId`, `SquadMemberId`, `AgentSettings`, `SquadMemberDefinition`, and `SquadDefinition` without changing
-  the established post-024 semantics.
-4. Replace `MemberConfigRow`, `MemberConfiguration`, and `RoleRow` with the canonical domain values and update
-  consumers to use the ordered `SquadDefinition`.
-5. Add `ReceiveMode` and `SquadMemberStatus`, replacing authoritative internal strings while preserving existing
-  configuration and protocol representations through boundary mappings.
-6. Update project references, namespaces, and `docs/Manual/modules.md` to describe the shared kernel and its strict
-   boundary.
-7. Build and publish from clean outputs, then run the existing black-box Gherkin suite through the real CLI and UI
-   protocol boundaries.
+### Slice 1 - Carry one canonical squad definition through Headquarters [in progress]
+
+**Outcome:** Workspace preparation, provider-context projection, application construction, and handoff delivery all
+consume one immutable ordered squad definition instead of independently projecting the same configured members.
+
+- Add `RoleId`, `SquadMemberId`, `AgentSettings`, `SquadMemberDefinition`, and `SquadDefinition` to `squad.Domain`,
+   with one top-level type per file. Keep them independent of configuration, JSON, filesystems, providers,
+   application state, and protocol serialization. `SquadDefinition` must defensively retain configured member order
+   and the leader's member identity; the two identity types must remain distinct throughout internal code. Keep the
+   already validated receive-mode value as a string on `SquadMemberDefinition` in this slice only; slice 3 replaces
+   that property with the closed domain enum without changing roster ownership again.
+- Keep `SquadConfiguration`, `SquadMemberConfiguration`, and `SquadAgentConfiguration` as persisted-input boundary
+   models. After validation and worktree-path resolution, map them once into the domain definition. Let the mutable
+   workspace preparation context retain that definition, and make `PreparedLaunch` carry the single
+   `SquadDefinition` rather than separate members, leader, and handoff-member projections.
+- Project `AgentBackendContext` from the domain definition at the provider boundary. Construct `SquadMembers` from
+   the same definition, retain its typed member order and leader, and use `SquadMemberId` and `RoleId` for
+   authoritative application identity, including member aggregates and internal operation messages. Convert to the
+   existing string addresses only where provider, transcript, command, or UI contracts still require them.
+- Give handoff delivery the same `SquadDefinition`; index delivery paths and notifications by member identity while
+   preserving the existing handoff document and notifier strings. Remove the now-unused
+   `squad.Handoffs -> squad.Configuration` project reference and `squad.Runtime`'s
+   `squad.Configuration` namespace dependency.
+- Delete `MemberConfigRow` and `MemberConfiguration` rather than retaining aliases, wrappers, or reduced
+   projections. Leave `RoleRow` and the role-facing `squad` command path unchanged until slice 2, where that separate
+   process boundary can be migrated and accepted independently.
+- Add the `squad.Domain` shared-kernel boundary to `docs/Manual/modules.md`. Align the directly affected squad,
+   member, role, leader, worktree, provider-session, and configuration descriptions in
+   `docs/Manual/architecture.md` and `docs/Manual/glossary.md` with the implemented issue-024 model, while retaining
+   the public role-shaped vocabulary of existing commands and protocols.
+
+**Acceptance:** `squad.Domain` still has no project references. Headquarters launch carries one ordered
+`SquadDefinition` from resolved configuration into backend setup, `SquadMembers`, and handoff delivery;
+`PreparedLaunch` has no parallel member, leader, or handoff-member fields. `MemberConfigRow` and
+`MemberConfiguration` no longer exist, and no equivalent replacement projections are introduced. Two members may
+still share one role while retaining distinct sessions and worktrees; configured order and leader selection remain
+unchanged in `state.snapshot`; handoff fan-out and wake-up still use member addresses; all current provider and UI
+payload strings remain unchanged. The repository builds and the existing `MemberConfiguration`,
+`LeaderConfiguration`, `RoleOrder`, `Delivery`, and stdio UI protocol scenarios pass through the published tools.
+
+### Slice 2 - Replace the command-side role row with domain members
+
+**Outcome:** The role-facing CLI resolves, addresses, and validates configured participants using
+`SquadMemberDefinition`, leaving no fourth member representation in `squad.Configuration`.
+
+- Change the lenient command-side configuration reader to map member entries to
+   `SquadMemberDefinition` values, including distinct member and role identities, resolved worktree data, normalized
+   agent settings, and the current string receive mode. It may expose the ordered member list needed by commands; it
+   must not add a command-specific participant record or manufacture a second `SquadDefinition`.
+- Make `CurrentRoleResolver`, `context`, `handoff`, `ready-for-next`, and `done-with-current` consume the canonical
+   member values. Compare typed identities internally and convert `SquadMemberId.Value` only at existing console,
+   filesystem, Git, and handoff-document boundaries. Preserve the role-shaped command names and output because they
+   are compatibility vocabulary for the addressed member.
+- Preserve the current command-reader behavior for missing or malformed configuration, configured order, worktree
+   path normalization, display-name and receive-mode defaults, an explicitly empty receive mode, unsupported receive
+   modes, ambiguous worktrees, and recipient validation. Do not silently coerce malformed external values merely to
+   construct a domain value.
+- Delete `RoleRow` and rename helpers whose implementation terminology still claims that the configured
+   participants are reusable roles. Do not retain a compatibility alias or wrapper.
+
+**Acceptance:** `RoleRow`, `MemberConfigRow`, and `MemberConfiguration` are all absent, with
+`SquadMemberDefinition` as their only configured-and-resolved replacement. `squad context`, handoff sender and
+recipient validation, task dispatch, and batch dispatch retain their current output, exit codes, ordering, and
+filesystem behavior. The repository builds and the existing `Context`, `Handoffs`, `TaskQueue`, and `BatchQueue`
+features pass through the published `squad` executable.
+
+### Slice 3 - Type receive mode at its owning boundaries
+
+**Outcome:** Valid configured members carry only `ReceiveMode.Task` or `ReceiveMode.Batch` internally, while
+configuration JSON and command behavior continue to use the stable `task` and `batch` spellings.
+
+- Add the dependency-free `ReceiveMode` enum to `squad.Domain`. Change the validated
+   `SquadMemberConfiguration` value and `SquadMemberDefinition.ReceiveMode` to that enum; keep the JSON document
+   property as a string.
+- Parse missing, `task`, `batch`, empty, and unsupported external values explicitly in the two configuration
+   adapters. The strict launch loader must retain its current default and validation diagnostic. The lenient
+   command-side reader must preserve its existing empty/unsupported-mode exit behavior without adding `Unknown` to
+   the enum, retaining a raw string on a domain descriptor, or defaulting invalid input to `Task`.
+- Dispatch `ready-for-next` and `done-with-current` by the enum. Use explicit boundary mappings rather than JSON
+   attributes on the domain type, `Enum.Parse`, or casing `ToString()` output.
+- Add one configuration-focused black-box scenario proving that an unsupported receive-mode token is rejected
+   before a member session starts. Reuse the existing task, batch, default, and explicitly empty-mode scenarios for
+   the other mappings; do not add tests that inspect the enum itself.
+
+**Acceptance:** Every authoritative receive-mode value outside the raw JSON documents is typed as `ReceiveMode`;
+the domain enum contains exactly `Task` and `Batch`. Omitted mode still means task, `batch` still selects batch
+queue behavior, an empty command-side mode retains its current diagnostic and exit code, and unsupported launch
+configuration is rejected with the existing `expected task or batch` diagnostic before any session starts. The
+repository builds and the configuration, task-queue, and batch-queue acceptance scenarios pass through the
+published executables.
+
+### Slice 4 - Type member status and preserve its protocol vocabulary
+
+**Outcome:** Mutable application state uses one closed `SquadMemberStatus` vocabulary, and the UI boundary explicitly
+publishes the same lowercase status strings as before.
+
+- Add `SquadMemberStatus` with exactly `Starting`, `Running`, `Idle`, `Stopped`, and `Error` to `squad.Domain`.
+   Change `MemberAggregate`, immutable member snapshots, provider-event projection, terminal-failure handling, and
+   readiness checks to use the enum; no authoritative application status string remains.
+- Map every enum member explicitly when composing `state.snapshot`, preserving `starting`, `running`, `idle`,
+   `stopped`, and `error` exactly. Keep the mapping at the existing application/presentation boundary; do not add
+   serialization attributes or UI protocol dependencies to `squad.Domain`, and do not duplicate status rules in
+   Vue.
+- Finish `docs/Manual/modules.md`, `docs/Manual/architecture.md`, and `docs/Manual/glossary.md` so the documented
+   shared-kernel surface is exactly `RoleId`, `SquadMemberId`, `ReceiveMode`, `SquadMemberStatus`, `AgentSettings`,
+   `SquadMemberDefinition`, and `SquadDefinition`, apart from the foundational `System.Contract` utility, and so the
+   mapping responsibilities of configuration, application, provider, handoff, and presentation modules are clear.
+- Build and publish from clean outputs and run the complete black-box Gherkin suite through the real `squad`,
+   `squad-hq`, provider, and stdio UI protocol boundaries. Do not add tests whose only purpose is proving that an old
+   type or assembly name is unavailable.
+
+**Acceptance:** Member status is typed throughout authoritative application state and the domain enum has exactly
+the five required values. Existing snapshots still publish the exact lowercase strings, readiness still requires an
+idle non-working member, and terminal stopped/error states remain final. The dependency-free domain surface and
+manual match the required design, no displaced row records or pass-through wrappers remain, the complete solution
+builds and publishes, and the full existing Gherkin suite passes without protocol, persistence, ordering, or
+behavior regressions.
 
 ## Acceptance criteria
 
