@@ -13,8 +13,7 @@ internal static class RawSdkEventTrace
 {
     private const string TracePathVariable = "BLAXQUAD_SDK_EVENT_TRACE";
     private static readonly object myTraceLock = new();
-    private static readonly Dictionary<string, string> myPreviousPayloads = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, string> myToolNames = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, ToolTraceState> myToolTraces = new(StringComparer.Ordinal);
     private static long mySequence;
 
     public static void Record(SessionEvent sessionEvent)
@@ -55,8 +54,7 @@ internal static class RawSdkEventTrace
                 File.AppendAllText(tracePath, JsonSerializer.Serialize(record) + Environment.NewLine);
                 if (sessionEvent is ToolExecutionCompleteEvent && description.ToolCallId is not null)
                 {
-                    myPreviousPayloads.Remove(description.ToolCallId);
-                    myToolNames.Remove(description.ToolCallId);
+                    myToolTraces.Remove(description.ToolCallId);
                 }
             }
             catch (Exception exception)
@@ -71,7 +69,7 @@ internal static class RawSdkEventTrace
         switch (sessionEvent)
         {
             case ToolExecutionStartEvent start:
-                myToolNames[start.Data.ToolCallId] = start.Data.ToolName;
+                GetOrCreateTrace(start.Data.ToolCallId).ToolName = start.Data.ToolName;
                 description = new("tool.execution_start", start.Data.ToolCallId, start.Data.ToolName, []);
                 return true;
             case ToolExecutionPartialResultEvent partial:
@@ -119,13 +117,12 @@ internal static class RawSdkEventTrace
 
     private static object DescribePayload(string? toolCallId, Payload payload)
     {
-        var previous = toolCallId is not null && myPreviousPayloads.TryGetValue(toolCallId, out var value)
-            ? value
-            : null;
+        var trace = toolCallId is not null ? GetOrCreateTrace(toolCallId) : null;
+        var previous = trace?.PreviousPayload;
         var (relationship, appendedContent) = Classify(previous, payload.Content);
-        if (toolCallId is not null)
+        if (trace is not null)
         {
-            myPreviousPayloads[toolCallId] = payload.Content;
+            trace.PreviousPayload = payload.Content;
         }
         return new
         {
@@ -159,7 +156,16 @@ internal static class RawSdkEventTrace
     }
 
     private static string? GetToolName(string toolCallId) =>
-        myToolNames.TryGetValue(toolCallId, out var toolName) ? toolName : null;
+        myToolTraces.TryGetValue(toolCallId, out var trace) ? trace.ToolName : null;
+
+    private static ToolTraceState GetOrCreateTrace(string toolCallId)
+    {
+        if (!myToolTraces.TryGetValue(toolCallId, out var trace))
+        {
+            myToolTraces[toolCallId] = trace = new ToolTraceState();
+        }
+        return trace;
+    }
 
     private static object? GetProperty(object? value, string name) =>
         value?.GetType().GetProperty(name)?.GetValue(value);
