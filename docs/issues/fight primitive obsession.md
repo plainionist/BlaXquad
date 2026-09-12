@@ -876,7 +876,7 @@ added.
 no normalization. `--commit` stays text until Git resolves it. JSON and `merge_and_process` stay strings;
 noncanonical durable commits fail through the wrapped invalid-data surface before fan-out.
 
-### Slice 20 - Type handoff lifecycle timestamps
+### Slice 20 - Type handoff lifecycle timestamps [done]
 
 **Task:** `type-handoff-timestamps`
 
@@ -894,6 +894,10 @@ the established wrapped invalid-data surface.
 **Acceptance:** missing or malformed required timestamp JSON is rejected before delivery, and
 creation/delivery/claim/completion preserve earlier instants exactly under `Delivery.feature`. No new type is
 added.
+
+**Status: complete (e46a31df24).** Lifecycle fields are `DateTimeOffset` on the document, queue transitions, and
+`QueuedHandoff`. JSON uses `Timestamps.Format`/`Parse` via `ScalarJsonConverter`. Filename and delivery-log stamps
+stay strings. Missing `CreatedAt` is `default`; malformed values keep the wrapped invalid-data surface.
 
 ### Slice 21 - Validate persisted handoff text invariants
 
