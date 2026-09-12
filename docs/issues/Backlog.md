@@ -1,24 +1,8 @@
+---
+title: === LATER ===
+priority: 5000
+---
 
-## v2 
-
-- modularization, component boundaries, deep modules
-
-## v3
-
-- intelligent filtering of tool and read file output
-  - when reading files i only want to see the line count
-  - when running tools i want the full command line but we need to trim the output, 
-    what about first 5 lines and last 5 lines?
-
-- effort recording
-  - sqlite db
-  - tool args
-  - must work from all sessions 
-  - no hook deployed into repo
-
-- sub-agents
-  - i want to see their output but we need to make clear that it is sub-agent output in the transcript
-  - some vertical bar like "quote"?
 
 ## CLI feature gap
 
@@ -30,7 +14,15 @@ what is this "Todo added 15 items" - internal DB?
 
 ## other
 
+
+- sub-agents
+  - i want to see their output but we need to make clear that it is sub-agent output in the transcript
+  - some vertical bar like "quote"?
+
+
 - check "AI_info" tooling how it indexes the md files wrt front-matter and section headlines
+
+- integrate https://github.com/plainionist/git-review-checkpoint
 
 - seems to be slower?
 - visualize sub agents?

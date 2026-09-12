@@ -12,14 +12,14 @@ the outside.
 
 The target test system runs:
 
-- the real published `squad.exe`;
-- the real published `squad-hq.exe`;
+- the real built `squad.exe`;
+- the real built `squad-hq.exe`;
 - the real C# UI JSON protocol without Photino or Vue;
 - a fake provider implementing the provider-neutral agent SPI; and
 - real Git, filesystem, workspace, Headquarters-control, and handoff behavior.
 
-The main backend suite must not reference or load `squad.AgentProvider.CopilotSdk` or `squad.Hosting.Photino`; the
-backend-spec publication of `squad-hq` carries neither.
+The main backend suite must not reference or load `squad.AgentProvider.CopilotSdk` or `squad.Hosting.Photino`; its
+framework-dependent test deployment carries neither. Packaging scenarios separately exercise published layouts.
 
 ## Test boundary
 
@@ -158,8 +158,8 @@ Raw paths and file formats remain inside the workspace support unless the format
 
 ### CLI
 
-- Publish and run the real `squad.exe`.
-- Publish and run the real `squad-hq.exe`.
+- Build, stage together, and run the real `squad.exe` and `squad-hq.exe`.
+- Publish only in scenarios whose observable behavior is package composition.
 - Capture exit code, standard output, standard error, and process lifetime.
 - Run `squad` from the same worktree and environment an agent would use.
 - Request shutdown and readiness through the real `squad-hq` commands.
@@ -239,7 +239,7 @@ Loading arbitrary code from a repository configuration is prohibited. An alterna
 choice by the process launcher.
 
 The provider-neutral headquarters executable must not have a compile-time dependency on `squad.AgentProvider.CopilotSdk`. Production
-packaging may include the Copilot provider as the default plug-in, while backend-spec publication may omit it.
+packaging may include the Copilot provider as the default plug-in, while the ordinary backend-spec build omits it.
 
 ### Headless UI host
 
@@ -263,16 +263,17 @@ For example:
 squad-hq launch --hosting <stdio-hosting-assembly>;squad.Hosting.Stdio.StdioHostingFactory --provider <fake-provider> <workspace>
 ```
 
-The stdio hosting adapter (`squad.Hosting.Stdio`) is test-distributed only - it ships beside `squad.Specs`' published
-tools and is never part of production `squad-hq` packaging. Only the backend acceptance harness selects it, and it
+The stdio hosting adapter (`squad.Hosting.Stdio`) is test-distributed only - it builds beside `squad.Specs` and is
+never part of production `squad-hq` packaging. Only the backend acceptance harness selects it, and it
 always does so through this explicit descriptor. Photino is the only default hosting adapter production packaging
 carries, and packaging opts it in (`IncludePhotinoHosting`, defaulting to `true`) rather than the executable
 composing it directly.
 
 Publishing with `-p:IncludePhotinoHosting=false` omits the Photino assembly, its dependency manifest, its managed
 and native dependencies, and the built Vue distribution from the publish output entirely, the same way
-`-p:IncludeCopilotSdkProvider=false` omits the default provider. The backend-spec publication passes both properties
-so the executable the backend suite actually runs carries neither default plug-in.
+`-p:IncludeCopilotSdkProvider=false` omits the default provider. Packaging scenarios request that combined neutral
+publication on demand. Ordinary backend scenarios instead stage framework-dependent build outputs once per test
+invocation and load the fake provider and stdio host through explicit descriptors.
 
 ## Fake-provider control channel
 

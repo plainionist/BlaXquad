@@ -8,6 +8,8 @@ public sealed class ScenarioWorkspace : IDisposable
 {
     private static readonly TimeSpan WorkspaceCleanupTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WorkspaceCleanupPollInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly object ArtifactPreparationLock = new();
+    private static readonly HashSet<string> PreparedArtifactTargets = new(StringComparer.Ordinal);
     private readonly Dictionary<string, object> myValues = new(StringComparer.Ordinal);
     private readonly ScenarioProcessRunner myProcessRunner = new();
     private readonly Dictionary<SquadMemberId, string> myMemberWorktrees = [];
@@ -99,7 +101,7 @@ public sealed class ScenarioWorkspace : IDisposable
     }
 
     /// <summary>
-    /// Copies the published, provider-free backend-spec squad-hq deployment (see
+    /// Copies the built, provider-free backend-spec squad-hq deployment (see
     /// <see cref="BackendSpecSquadHqExecutablePath"/>) into a directory owned by this workspace with its required
     /// "squad" helper script removed, so a specification can prove a missing helper script is detected through a
     /// real deployment - never by deleting the shared, concurrently used test-output helper other scenarios still
@@ -133,8 +135,14 @@ public sealed class ScenarioWorkspace : IDisposable
     /// assemblies with headquarters' own copies rather than loading the local copies sitting right beside the
     /// plug-in. Returns the deployed plug-in assembly's path.
     /// </summary>
-    public string HostingFixtureDeploymentWithDuplicateContractsPath =>
-        Path.Combine(AppContext.BaseDirectory, "hosting-fixture-duplicate-contracts", "squad.Hosting.Stdio.dll");
+    public string HostingFixtureDeploymentWithDuplicateContractsPath
+    {
+        get
+        {
+            EnsureArtifact("PublishHostingStdioFixture");
+            return Path.Combine(AppContext.BaseDirectory, "hosting-fixture-duplicate-contracts", "squad.Hosting.Stdio.dll");
+        }
+    }
 
     /// <summary>
     /// The packaged default Photino hosting plug-in assembly as it actually ships inside the production-like
@@ -143,7 +151,25 @@ public sealed class ScenarioWorkspace : IDisposable
     /// by default when "--hosting" is omitted, rather than a second, separately built copy.
     /// </summary>
     public string SquadToolsPhotinoHostingAssemblyPath =>
-        Path.Combine(AppContext.BaseDirectory, "squad-tools", "squad.Hosting.Photino.dll");
+        Path.Combine(PublishedToolsDirectory, "squad.Hosting.Photino.dll");
+
+    public string PublishedToolsDirectory
+    {
+        get
+        {
+            EnsureArtifact("PublishSquadTools");
+            return Path.Combine(AppContext.BaseDirectory, "squad-tools");
+        }
+    }
+
+    public string NeutralPublishedToolsDirectory
+    {
+        get
+        {
+            EnsureArtifact("PublishNeutralSquadTools");
+            return Path.Combine(AppContext.BaseDirectory, "squad-tools-neutral");
+        }
+    }
 
     private static void CopyDirectoryRecursive(string source, string destination)
     {
@@ -237,20 +263,31 @@ public sealed class ScenarioWorkspace : IDisposable
         IReadOnlyDictionary<string, string?>? environment = null,
         string? workingDirectory = null)
     {
-        var executable = ResolveTool(toolName, "squad-tools");
+        var executable = ResolveTool(toolName, "squad-tools-backend-spec");
+        return Run(executable, arguments ?? [], environment, workingDirectory);
+    }
+
+    public CommandResult RunPublishedTool(
+        string toolName,
+        IReadOnlyList<string>? arguments = null,
+        IReadOnlyDictionary<string, string?>? environment = null,
+        string? workingDirectory = null)
+    {
+        var executable = Path.Combine(
+            PublishedToolsDirectory,
+            OperatingSystem.IsWindows() ? toolName + ".exe" : toolName);
         return Run(executable, arguments ?? [], environment, workingDirectory);
     }
 
     /// <summary>
     /// The exact executable path used by <see cref="RunBackendSpecSquadHq"/>, exposed so
-    /// specifications can prove a command ran that precise publication rather than PATH, a
+    /// specifications can prove a command ran that precise staged build rather than PATH, a
     /// checkout binary, or the production-like squad-tools publication.
     /// </summary>
     public string BackendSpecSquadHqExecutablePath => ResolveTool("squad-hq", "squad-tools-backend-spec");
 
     /// <summary>
-    /// Runs the exact published, provider-free squad-hq used by backend specifications (published
-    /// with IncludeCopilotSdkProvider=false into its own test-output directory), never the
+    /// Runs the exact built, provider-free squad-hq used by backend specifications, never the
     /// production-like squad-tools publication, PATH, or a checkout binary.
     /// </summary>
     public CommandResult RunBackendSpecSquadHq(
@@ -608,10 +645,41 @@ public sealed class ScenarioWorkspace : IDisposable
         throw new InvalidOperationException("Could not locate the repository root.");
     }
 
+    private void EnsureArtifact(string target)
+    {
+        var key = $"{AppContext.BaseDirectory}|{target}";
+        lock (ArtifactPreparationLock)
+        {
+            if (PreparedArtifactTargets.Contains(key))
+            {
+                return;
+            }
+
+            var project = Path.Combine(RepositoryRootPath, "src", "squad.Specs", "squad.Specs.csproj");
+            var result = Run(
+                "dotnet",
+                [
+                    "msbuild",
+                    project,
+                    $"-target:{target}",
+                    "-property:Configuration=Release",
+                    $"-property:TargetDir={AppContext.BaseDirectory}",
+                    "-nologo",
+                    "-verbosity:quiet",
+                ],
+                workingDirectory: RepositoryRootPath);
+            if (result.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to prepare specification artifact '{target}':{Environment.NewLine}{result.StdErr}");
+            }
+            PreparedArtifactTargets.Add(key);
+        }
+    }
+
     /// <summary>
-    /// Resolves an exact executable from a specific test-output publication directory (for
-    /// example the production-like "squad-tools" or the provider-free
-    /// "squad-tools-backend-spec"). Never resolves from PATH or a checkout build output.
+    /// Resolves an exact executable from the staged backend-spec runtime. Never resolves from PATH or an arbitrary
+    /// checkout build output.
     /// </summary>
     private static string ResolveTool(string toolName, string publicationDirectoryName)
     {
