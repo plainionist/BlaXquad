@@ -778,7 +778,7 @@ preparation retain their behavior under `Context.feature`, `MemberConfiguration.
 **Status: complete (c874a0d13e).** `WorktreeTarget.Parse` enforces the master-vs-linked invariant with
 `Contract.Requires` and does not normalize. `SquadConfigurationLoader` still emits its existing diagnostics first.
 
-### Slice 17D - Make interaction request IDs valid by construction
+### Slice 17D - Make interaction request IDs valid by construction [done]
 
 **Task:** `enforce-interaction-request-id-contract`
 
@@ -793,6 +793,9 @@ validating or translating raw input through their established protocol/error sur
 **Acceptance:** interaction publication, response ownership, duplicate/late response handling, cancellation, and
 wire diagnostics remain unchanged under `InteractionPublicationAndOwnership.feature`,
 `InteractionCancellationAndTranscriptRetention.feature`, and `UiProtocolValidation.feature`. No type is added.
+
+**Status: complete (cd2b775ee0).** `InteractionRequestId` is a sealed record with `Contract.Requires` for
+nonblank, exactly preserved opaque text. UI still validates the wire `requestId` before construction.
 
 ### Slice 17E - Make tool-call IDs valid by construction
 
