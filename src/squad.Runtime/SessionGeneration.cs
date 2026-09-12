@@ -125,9 +125,6 @@ internal sealed class SessionGeneration
         catch (OperationCanceledException)
         {
         }
-        catch (InvalidOperationException exception) when (exception.Message == "Squad is shutting down")
-        {
-        }
         catch (Exception eventFailure)
         {
             try

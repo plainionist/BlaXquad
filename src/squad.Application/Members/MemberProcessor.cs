@@ -534,7 +534,7 @@ internal sealed class MemberProcessor : IDisposable
         lock (myAdmissionLock)
             if (!myIsAcceptingUnlocked())
             {
-                throw new InvalidOperationException("Squad is shutting down");
+                throw new OperationCanceledException("Squad is shutting down");
             }
     }
 

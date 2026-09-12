@@ -339,7 +339,7 @@ public sealed class SquadMembers : IDisposable
     {
         if (!IsAccepting)
         {
-            throw new InvalidOperationException("Squad is shutting down");
+            throw new OperationCanceledException("Squad is shutting down");
         }
     }
 
