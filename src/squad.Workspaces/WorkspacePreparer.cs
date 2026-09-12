@@ -1,6 +1,5 @@
 using squad.Process;
 using squad.Configuration;
-using squad.Domain;
 
 namespace squad.Workspaces;
 
@@ -64,18 +63,7 @@ internal sealed class WorkspacePreparer
             throw new WorkspacePreparationException(exception.Message, exception);
         }
 
-        ctx.Members = configuration.Members.Select(member =>
-        {
-            var worktreePath = member.Worktree == "master" ? ctx.WorkingDir : Path.Combine(ctx.WorktreesDir, member.Worktree);
-            return new SquadMemberDefinition(
-                member.Name,
-                member.DisplayName,
-                member.Role,
-                member.Worktree,
-                worktreePath,
-                member.ReceiveMode,
-                new AgentSettings(member.Agent.Permissions, member.Agent.Model, member.Agent.Effort));
-        }).ToList();
+        ctx.Members = configuration.Members;
         ctx.Leader = configuration.Leader;
         ctx.SharedWorktreePaths = configuration.SharedWorktreePaths;
         ctx.GitHistoryCommand = configuration.GitHistoryCommand;
@@ -95,16 +83,17 @@ internal sealed class WorkspacePreparer
         foreach (var row in ctx.Members)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (row.WorktreeName is "none" or "master")
+            if (row.WorktreeTarget.IsProjectRoot)
             {
                 continue;
             }
-            var gitPath = Path.Combine(row.WorktreePath, ".git");
+            var worktreePath = row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir);
+            var gitPath = Path.Combine(worktreePath, ".git");
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 continue;
             }
-            await RunAsync("git", ["-C", ctx.WorkingDir, "worktree", "add", "--force", "-B", $"squad-{row.WorktreeName}", row.WorktreePath, "HEAD"], cancellationToken);
+            await RunAsync("git", ["-C", ctx.WorkingDir, "worktree", "add", "--force", "-B", $"squad-{row.WorktreeTarget.Name}", worktreePath, "HEAD"], cancellationToken);
         }
     }
 
@@ -123,12 +112,13 @@ internal sealed class WorkspacePreparer
             foreach (var row in ctx.Members)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (row.WorktreeName is "none" or "master")
+                if (row.WorktreeTarget.IsProjectRoot)
                 {
                     continue;
                 }
-                await RunAsync("git", ["-C", row.WorktreePath, "checkout", "-B", $"squad-{row.WorktreeName}", head, "--force"], cancellationToken);
-                await RunAsync("git", ["-C", row.WorktreePath, "reset", "--hard", head], cancellationToken);
+                var worktreePath = row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir);
+                await RunAsync("git", ["-C", worktreePath, "checkout", "-B", $"squad-{row.WorktreeTarget.Name}", head, "--force"], cancellationToken);
+                await RunAsync("git", ["-C", worktreePath, "reset", "--hard", head], cancellationToken);
             }
         }
 
@@ -146,12 +136,12 @@ internal sealed class WorkspacePreparer
             Directory.CreateDirectory(source);
             foreach (var row in ctx.Members)
             {
-                if (row.WorktreeName is "none" or "master")
+                if (row.WorktreeTarget.IsProjectRoot)
                 {
                     continue;
                 }
 
-                var target = Path.Combine(row.WorktreePath, sharedPath);
+                var target = Path.Combine(row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir), sharedPath);
                 ReplaceWithSharedDirectoryLink(source, target);
             }
         }
@@ -195,9 +185,10 @@ internal sealed class WorkspacePreparer
         string[] subdirs = ["outbox", "sent", "failed", "inbox/new", "inbox/in_process", "inbox/completed"];
         foreach (var row in ctx.Members)
         {
+            var worktreePath = row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir);
             foreach (var dir in subdirs)
             {
-                Directory.CreateDirectory(Path.Combine(row.WorktreePath, ".blaxquad", "handoffs", dir));
+                Directory.CreateDirectory(Path.Combine(worktreePath, ".blaxquad", "handoffs", dir));
             }
         }
     }
@@ -209,7 +200,7 @@ internal sealed class WorkspacePreparer
     private static void ClearConfiguredHandoffs(Ctx ctx, CancellationToken cancellationToken)
     {
         var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        foreach (var worktreePath in ctx.Members.Select(row => row.WorktreePath).Distinct(pathComparer))
+        foreach (var worktreePath in ctx.Members.Select(row => row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir)).Distinct(pathComparer))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handoffDirectory = Path.Combine(worktreePath, ".blaxquad", "handoffs");

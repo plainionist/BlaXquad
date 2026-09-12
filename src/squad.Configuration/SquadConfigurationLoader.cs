@@ -161,6 +161,8 @@ public static class SquadConfigurationLoader
         var worktrees = new HashSet<string>(StringComparer.Ordinal);
         var paths = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         var masterCount = 0;
+        var rootDirectory = Path.GetFullPath(Path.Combine(rolesDirectory, "..", ".."));
+        var worktreesDirectory = Path.Combine(Path.GetDirectoryName(rolesDirectory)!, "..", ".worktrees");
 
         foreach (var member in documentMembers)
         {
@@ -213,9 +215,7 @@ public static class SquadConfigurationLoader
                 throw Error($"Invalid permissions '{permissions}' for member '{name}': expected prompt or approveAll");
             }
 
-            var worktreePath = worktree == "master"
-                ? Path.GetFullPath(Path.Combine(rolesDirectory, "..", ".."))
-                : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(rolesDirectory)!, "..", ".worktrees", worktree));
+            var worktreePath = Path.GetFullPath(WorktreeTarget.Parse(worktree).ResolvePath(rootDirectory, worktreesDirectory));
             if (!paths.Add(worktreePath))
             {
                 throw Error($"Duplicate normalized worktree path '{worktreePath}' in {configFile}");
@@ -223,7 +223,7 @@ public static class SquadConfigurationLoader
 
             var displayName = string.IsNullOrWhiteSpace(member.DisplayName) ? DisplayNameFor(name) : member.DisplayName;
             var typedReceiveMode = receiveMode == "task" ? ReceiveMode.Task : ReceiveMode.Batch;
-            members.Add(new SquadMemberConfiguration(new SquadMemberId(name), displayName, new RoleId(role), worktree, typedReceiveMode,
+            members.Add(new SquadMemberConfiguration(new SquadMemberId(name), displayName, new RoleId(role), WorktreeTarget.Parse(worktree), typedReceiveMode,
                 new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
         }
 

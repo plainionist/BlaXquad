@@ -1,3 +1,4 @@
+using squad.Configuration;
 using squad.Domain;
 
 namespace squad.Workspaces;
@@ -18,7 +19,7 @@ internal class Ctx
     public string StateDir { get; set; } = "";
     public string HandoffLog { get; set; } = "";
     public bool ContinueLaunch { get; set; }
-    public List<SquadMemberDefinition> Members { get; set; } = [];
+    public IReadOnlyList<SquadMemberConfiguration> Members { get; set; } = [];
     public SquadMemberId Leader { get; set; }
     public IReadOnlyList<string> SharedWorktreePaths { get; set; } = [];
     public IReadOnlyList<string>? GitHistoryCommand { get; set; }

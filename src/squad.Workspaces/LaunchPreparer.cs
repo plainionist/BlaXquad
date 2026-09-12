@@ -78,13 +78,23 @@ public sealed class LaunchPreparer
         myWorkspacePreparer.Parse(myContext);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var definition = new SquadDefinition(myContext.Members.ToArray(), myContext.Leader);
+        var members = myContext.Members.Select(member => new SquadMemberDefinition(
+            member.Name,
+            member.DisplayName,
+            member.Role,
+            ResolveWorktreePath(myContext, member),
+            member.ReceiveMode,
+            new AgentSettings(member.Agent.Permissions, member.Agent.Model, member.Agent.Effort))).ToArray();
+        var definition = new SquadDefinition(members, myContext.Leader);
         return Task.FromResult(new PreparedLaunch(
             BuildBackendContext(myContext),
             definition,
             myContext.HandoffLog,
             myContext.GitHistoryCommand));
     }
+
+    private static string ResolveWorktreePath(Ctx context, SquadMemberConfiguration member) =>
+        member.WorktreeTarget.ResolvePath(context.WorkingDir, context.WorktreesDir);
 
     private static AgentBackendContext BuildBackendContext(Ctx context)
     {
@@ -116,9 +126,9 @@ public sealed class LaunchPreparer
             context.WorkingDir,
             context.ScriptDir,
             context.Members.Select(member => new AgentRoleContext(
-                member.Id.Value,
+                member.Name.Value,
                 member.DisplayName,
-                member.WorktreePath,
+                ResolveWorktreePath(context, member),
                 InitialInstruction(member.Role.Value),
                 member.Agent.Permissions,
                 member.Agent.Model,
