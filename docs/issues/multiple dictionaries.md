@@ -374,6 +374,11 @@ contract.
   after append, replace, streaming truncation, and eviction.
 - No archive path, persisted metadata shape, or UI protocol payload changes.
 
+**Status: complete (efa0e07027).** One `RoleArchiveState` per member owns a sorted entry index and sticky
+role truncation. Each `ArchivedEntryState` owns retained length, total length, and re-derived content
+truncation. Append, replace, content-append, read, and eviction mutate one entry object; archive paths,
+JSON shape, missing-entry responses, locking, and disposal are unchanged.
+
 ### Slice 5: Consolidate fake-provider observations
 
 **Task:** `consolidate-fake-observation-state`
