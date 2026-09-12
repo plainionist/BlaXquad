@@ -374,6 +374,35 @@ provider `SessionId` as string.
 readiness, failure, and session disposal remain member-specific under `MemberConfiguration.feature`,
 `PromptIsolationAndReadiness.feature`, `AbortOrdering.feature`, and `HeadquartersLifecycle.feature`.
 
+### Review findings (317f72e084)
+
+1. **Severity: medium.** `src/squad.Runtime/Headquarters.cs` (SetAgentReadinessProvider lambda) and
+   `SquadViewModel.GetRoleReadinessAsync`.
+   **Violated behavior:** Slice 5 requires parsing the Headquarters-control `role` into `SquadMemberId` before
+   calling application readiness, and forbids turning a typed identity back into `.Value` before a real string
+   boundary. `GetRoleReadinessAsync` is not on `ISquadUi` (that string surface is Slice 6).
+   **Root cause:** `HeadquartersLease` is typed to `SquadMemberId`, but `GetRoleReadinessAsync` still takes
+   `string`, so Headquarters unwraps and ViewModel immediately wraps again. That is a pass-through adapter, not
+   carrying the parsed id through.
+   **Required outcome:** Type `SquadViewModel.GetRoleReadinessAsync` as `SquadMemberId` and assign the method group
+   to the lease provider so the parsed id reaches `SquadMembers.GetRoleReadiness` without a string round-trip.
+
+2. **Severity: medium.** `src/squad.AgentProvider.CopilotSdk/CopilotSdkAgentSession.cs` overloaded-teardown
+   diagnostic.
+   **Violated behavior:** Existing public diagnostics must keep their spelling.
+   **Root cause:** The message was changed from `Copilot SDK role '…'` to `Copilot SDK member '…'` while interpolating
+   `MemberId`.
+   **Required outcome:** Keep the previous `role` wording; interpolating `MemberId` is fine because `ToString()` is
+   the member name.
+
+3. **Severity: low.** `SquadMembers` routing parameters and `ObservationJournal` stored keys/record parameters.
+   **Violated behavior:** Internal members that hold a configured participant must be named `MemberId`/`memberId`,
+   not `Role`/`role` — this is not cosmetic.
+   **Root cause:** Types changed to `SquadMemberId` while parameter and tuple field names stayed `role`/`Role`
+   (e.g. `SendAsync(SquadMemberId role, …)`, `(SquadMemberId Role, string Type, string SessionId)`).
+   **Required outcome:** Rename those identifiers to `memberId`/`MemberId`. Keep fake-control JSON, query methods
+   that still accept Gherkin/control strings, and user-facing `Unknown role` text unchanged.
+
 ### Slice 6 - Type UI member commands
 
 **Task:** `type-ui-member-commands`
