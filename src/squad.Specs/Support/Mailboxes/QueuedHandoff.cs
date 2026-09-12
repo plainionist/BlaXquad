@@ -13,7 +13,7 @@ internal sealed record QueuedHandoff(
     HandoffId Id,
     SquadMemberId Sender,
     IReadOnlyList<SquadMemberId> Recipients,
-    string Priority,
+    HandoffPriority Priority,
     string Type,
     string? Task,
     string? Message,

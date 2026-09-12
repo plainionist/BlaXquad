@@ -133,7 +133,7 @@ public sealed class HandoffMailboxObserver
             Id: new HandoffId(id),
             Sender: new SquadMemberId(from),
             Recipients: root.GetProperty("to").EnumerateArray().Select(e => new SquadMemberId(e.GetString()!)).ToArray(),
-            Priority: priority.ToString("D2"),
+            Priority: new HandoffPriority(priority),
             Type: kind,
             Task: task,
             Message: message,

@@ -1,4 +1,5 @@
 using squad.Domain;
+using squad.Handoffs;
 using squad.Specs.Support.Scenarios;
 using squad.Specs.Support.Mailboxes;
 
@@ -82,7 +83,7 @@ public sealed class HandoffSteps
 
     [Then("the queued handoff has priority {string}")]
     public void ThenTheQueuedHandoffHasPriority(string priority) =>
-        Assert.That(SingleQueuedHandoff().Priority, Is.EqualTo(priority));
+        Assert.That(SingleQueuedHandoff().Priority, Is.EqualTo(HandoffPriority.Parse(priority)));
 
     [Then("the queued handoff is a Git handoff for task {string}")]
     public void ThenTheQueuedHandoffIsAGitHandoffForTask(string task)
