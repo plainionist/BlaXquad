@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="src/squad.Domain/squad.Domain.csproj" />
   <Project Path="src/squad.AgentProvider.Abstractions/squad.AgentProvider.Abstractions.csproj" />
   <Project Path="src/squad.AgentProvider.Fake/squad.AgentProvider.Fake.csproj" />
   <Project Path="src/squad.Configuration/squad.Configuration.csproj" />
