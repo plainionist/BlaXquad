@@ -22,10 +22,7 @@ internal sealed class TranscriptArchive : IDisposable
     private readonly string myDirectory;
     private readonly TranscriptRetentionOptions myOptions;
     private readonly object myStateLock = new();
-    private readonly Dictionary<SquadMemberId, SortedDictionary<int, int>> myEntryLengths = [];
-    private readonly Dictionary<(SquadMemberId MemberId, int EntryIndex), long> myTotalEntryLengths = [];
-    private readonly HashSet<(SquadMemberId MemberId, int EntryIndex)> myContentTruncatedEntries = [];
-    private readonly HashSet<SquadMemberId> myTruncatedRoles = [];
+    private readonly Dictionary<SquadMemberId, RoleArchiveState> myRoles = [];
     private bool myDisposed;
 
     public TranscriptArchive(TranscriptRetentionOptions options)
@@ -41,35 +38,27 @@ internal sealed class TranscriptArchive : IDisposable
         lock (myStateLock)
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
-            var entries = GetEntries(update.MemberId);
+            var role = GetRole(update.MemberId);
             var path = GetContentPath(update.MemberId, update.EntryIndex);
             switch (update.Kind)
             {
                 case TranscriptUpdateKind.AppendEntry:
-                    WriteEntry(update.MemberId, update.EntryIndex, update.Entry!);
-                    entries[update.EntryIndex] = Math.Min(
-                        update.Entry!.Content.Length,
-                        myOptions.MaxArchivedEntryCharacters);
-                    myTotalEntryLengths[(update.MemberId, update.EntryIndex)] =
-                        update.Entry.Content.Length;
-                    RecordContentTruncation(update.MemberId, update.EntryIndex, update.Entry.Content);
-                    break;
-                case TranscriptUpdateKind.AppendContent:
-                    AppendContent(update.MemberId, path, entries, update.EntryIndex, update.Content!);
-                    break;
                 case TranscriptUpdateKind.ReplaceEntry:
                     WriteEntry(update.MemberId, update.EntryIndex, update.Entry!);
-                    entries[update.EntryIndex] = Math.Min(
-                        update.Entry!.Content.Length,
-                        myOptions.MaxArchivedEntryCharacters);
-                    myTotalEntryLengths[(update.MemberId, update.EntryIndex)] =
-                        update.Entry.Content.Length;
-                    RecordContentTruncation(update.MemberId, update.EntryIndex, update.Entry.Content);
+                    var state = CreateEntryState(update.Entry!, myOptions.MaxArchivedEntryCharacters);
+                    role.Entries[update.EntryIndex] = state;
+                    if (state.ContentTruncated)
+                    {
+                        role.MarkTruncated();
+                    }
+                    break;
+                case TranscriptUpdateKind.AppendContent:
+                    AppendContent(path, role, update.EntryIndex, update.Content!);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(update.Kind));
             }
-            EnforceLimits(update.MemberId, entries);
+            EnforceLimits(update.MemberId, role);
         }
     }
 
@@ -81,11 +70,11 @@ internal sealed class TranscriptArchive : IDisposable
         lock (myStateLock)
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
-            if (!myEntryLengths.TryGetValue(memberId, out var entries))
+            if (!myRoles.TryGetValue(memberId, out var role))
             {
                 return [];
             }
-            return entries.Keys
+            return role.Entries.Keys
                 .Where(index => index < beforeIndex)
                 .TakeLast(maxEntries)
                 .Select(index => new IndexedTranscriptEntry(index, ReadEntryCore(memberId, index)))
@@ -94,13 +83,13 @@ internal sealed class TranscriptArchive : IDisposable
     }
 
     internal bool HasEntriesBefore(SquadMemberId memberId, int beforeIndex) =>
-        WithEntries(memberId, entries => entries.Keys.Any(index => index < beforeIndex));
+        WithRole(memberId, role => role.Entries.Keys.Any(index => index < beforeIndex));
 
     internal bool HasMoreContent(SquadMemberId memberId, int entryIndex, long retainedContentStart) =>
-        WithEntries(memberId, entries =>
+        WithRole(memberId, role =>
             retainedContentStart > 0
-            && entries.ContainsKey(entryIndex)
-            && (!myContentTruncatedEntries.Contains((memberId, entryIndex))
+            && role.Entries.TryGetValue(entryIndex, out var state)
+            && (!state.ContentTruncated
                 || myOptions.MaxArchivedEntryCharacters > myTruncationMarker.Length));
 
     internal RoleArchivedTranscriptEntry ReadEntry(SquadMemberId memberId, int entryIndex, long sequence)
@@ -108,8 +97,8 @@ internal sealed class TranscriptArchive : IDisposable
         lock (myStateLock)
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
-            if (!myEntryLengths.TryGetValue(memberId, out var entries)
-                || !entries.ContainsKey(entryIndex))
+            if (!myRoles.TryGetValue(memberId, out var role)
+                || !role.Entries.TryGetValue(entryIndex, out var state))
             {
                 return new RoleArchivedTranscriptEntry(
                     memberId,
@@ -120,31 +109,30 @@ internal sealed class TranscriptArchive : IDisposable
                     0,
                     0);
             }
-            var contentTruncated = myContentTruncatedEntries.Contains((memberId, entryIndex));
             return new RoleArchivedTranscriptEntry(
                 memberId,
                 sequence,
                 entryIndex,
                 ReadEntryCore(memberId, entryIndex),
-                contentTruncated,
-                myTotalEntryLengths[(memberId, entryIndex)],
-                contentTruncated
+                state.ContentTruncated,
+                state.TotalLength,
+                state.ContentTruncated
                     ? Math.Max(0, myOptions.MaxArchivedEntryCharacters - myTruncationMarker.Length)
-                    : entries[entryIndex]);
+                    : state.RetainedLength);
         }
     }
 
     internal bool HasEntriesOutside(SquadMemberId memberId, IReadOnlyCollection<int> includedIndices) =>
-        WithEntries(memberId, entries =>
+        WithRole(memberId, role =>
         {
             var included = includedIndices.ToHashSet();
-            return entries.Keys.Any(index => !included.Contains(index));
+            return role.Entries.Keys.Any(index => !included.Contains(index));
         });
 
     internal bool WasTruncated(SquadMemberId memberId)
     {
         lock (myStateLock)
-            return myTruncatedRoles.Contains(memberId);
+            return myRoles.TryGetValue(memberId, out var role) && role.Truncated;
     }
 
     public void Dispose()
@@ -163,13 +151,13 @@ internal sealed class TranscriptArchive : IDisposable
         }
     }
 
-    private SortedDictionary<int, int> GetEntries(SquadMemberId memberId)
+    private RoleArchiveState GetRole(SquadMemberId memberId)
     {
-        if (!myEntryLengths.TryGetValue(memberId, out var entries))
+        if (!myRoles.TryGetValue(memberId, out var role))
         {
-            myEntryLengths[memberId] = entries = [];
+            myRoles[memberId] = role = new RoleArchiveState();
         }
-        return entries;
+        return role;
     }
 
     private void WriteEntry(SquadMemberId memberId, int entryIndex, TranscriptEntry entry)
@@ -188,27 +176,26 @@ internal sealed class TranscriptArchive : IDisposable
     }
 
     private void AppendContent(
-        SquadMemberId memberId,
         string path,
-        SortedDictionary<int, int> entries,
+        RoleArchiveState role,
         int entryIndex,
         string content)
     {
-        if (!entries.TryGetValue(entryIndex, out var currentLength))
+        if (!role.Entries.TryGetValue(entryIndex, out var state))
         {
             return;
         }
-        myTotalEntryLengths[(memberId, entryIndex)] =
-            myTotalEntryLengths.GetValueOrDefault((memberId, entryIndex)) + content.Length;
-        if (myContentTruncatedEntries.Contains((memberId, entryIndex)))
+        state = state.WithAddedTotalLength(content.Length);
+        if (state.ContentTruncated)
         {
+            role.Entries[entryIndex] = state;
             return;
         }
         var maxCharacters = myOptions.MaxArchivedEntryCharacters;
-        if (content.Length <= maxCharacters - currentLength)
+        if (content.Length <= maxCharacters - state.RetainedLength)
         {
             WritePrivateText(path, content, append: true);
-            entries[entryIndex] = currentLength + content.Length;
+            role.Entries[entryIndex] = state.WithRetainedLength(state.RetainedLength + content.Length);
             return;
         }
 
@@ -220,9 +207,8 @@ internal sealed class TranscriptArchive : IDisposable
         }
         var marker = myTruncationMarker[..Math.Min(myTruncationMarker.Length, maxCharacters)];
         WritePrivateText(path, retained[..Math.Min(retained.Length, contentLimit)] + marker, append: false);
-        entries[entryIndex] = maxCharacters;
-        myContentTruncatedEntries.Add((memberId, entryIndex));
-        myTruncatedRoles.Add(memberId);
+        role.Entries[entryIndex] = state.WithRetainedLength(maxCharacters).WithContentTruncated();
+        role.MarkTruncated();
     }
 
     private TranscriptEntry ReadEntryCore(SquadMemberId memberId, int entryIndex)
@@ -234,20 +220,18 @@ internal sealed class TranscriptArchive : IDisposable
             File.ReadAllText(GetContentPath(memberId, entryIndex)));
     }
 
-    private void EnforceLimits(SquadMemberId memberId, SortedDictionary<int, int> entries)
+    private void EnforceLimits(SquadMemberId memberId, RoleArchiveState role)
     {
-        var totalCharacters = entries.Values.Sum();
-        while (entries.Count > myOptions.MaxArchivedEntries
+        var totalCharacters = role.Entries.Values.Sum(state => state.RetainedLength);
+        while (role.Entries.Count > myOptions.MaxArchivedEntries
             || totalCharacters > myOptions.MaxArchivedContentCharacters)
         {
-            var oldest = entries.First();
+            var oldest = role.Entries.First();
             File.Delete(GetMetadataPath(memberId, oldest.Key));
             File.Delete(GetContentPath(memberId, oldest.Key));
-            entries.Remove(oldest.Key);
-            myContentTruncatedEntries.Remove((memberId, oldest.Key));
-            myTotalEntryLengths.Remove((memberId, oldest.Key));
-            totalCharacters -= oldest.Value;
-            myTruncatedRoles.Add(memberId);
+            role.Entries.Remove(oldest.Key);
+            totalCharacters -= oldest.Value.RetainedLength;
+            role.MarkTruncated();
         }
     }
 
@@ -263,15 +247,15 @@ internal sealed class TranscriptArchive : IDisposable
     private string GetContentPath(SquadMemberId memberId, int entryIndex) =>
         Path.Combine(GetRoleDirectory(memberId), $"{entryIndex:D12}.txt");
 
-    private bool WithEntries(
+    private bool WithRole(
         SquadMemberId memberId,
-        Func<SortedDictionary<int, int>, bool> predicate)
+        Func<RoleArchiveState, bool> predicate)
     {
         lock (myStateLock)
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
-            return myEntryLengths.TryGetValue(memberId, out var entries)
-                && predicate(entries);
+            return myRoles.TryGetValue(memberId, out var role)
+                && predicate(role);
         }
     }
 
@@ -321,18 +305,11 @@ internal sealed class TranscriptArchive : IDisposable
         return content[..contentLength] + myTruncationMarker;
     }
 
-    private void RecordContentTruncation(SquadMemberId memberId, int entryIndex, string content)
-    {
-        if (content.Length > myOptions.MaxArchivedEntryCharacters)
-        {
-            myContentTruncatedEntries.Add((memberId, entryIndex));
-            myTruncatedRoles.Add(memberId);
-        }
-        else
-        {
-            myContentTruncatedEntries.Remove((memberId, entryIndex));
-        }
-    }
+    private static ArchivedEntryState CreateEntryState(TranscriptEntry entry, int maxCharacters) =>
+        new(
+            Math.Min(entry.Content.Length, maxCharacters),
+            entry.Content.Length,
+            entry.Content.Length > maxCharacters);
 
     private static void CreatePrivateDirectory(string path)
     {
