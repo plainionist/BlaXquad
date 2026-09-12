@@ -455,6 +455,10 @@ Payload-before-start and start-without-payload remain valid; Classify and trace 
 - Per-member page chaining, accumulated-entry reconciliation, delta numbering, and archived-entry sequence checks
   remain isolated when scenarios address more than one member.
 
+**Status: complete (3c528a2090).** One `MemberTranscriptObservationState` per role owns paging frontier, page
+count, latest page, accumulated entries, assistant-delta count, and latest synchronized sequence. Nullable
+frontier and sequence preserve never-observed versus genuine zero.
+
 ### Slice 8: Consolidate coexistence fixture state
 
 **Task:** `consolidate-coexistence-spec-state`
