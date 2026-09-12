@@ -996,7 +996,7 @@ the existing "shutting down" protocol error and no side effect, and event observ
 `SessionGeneration` handles cancellation by type. Unknown members stay `InvalidOperationException`. No custom
 exception or broad catch.
 
-### Slice 26 - Type rejected-command effect in the UI fixture
+### Slice 26 - Type rejected-command effect in the UI fixture [done]
 
 **Task:** `type-rejected-command-effect`
 
@@ -1009,6 +1009,10 @@ product types.
 
 **Acceptance:** every example and the unknown-member case in `UiProtocolValidation.feature` retains its existing
 error and no-provider-side-effect assertion. No type other than `RejectedCommandEffect` is added.
+
+**Status: complete (4158de572c).** `RejectedCommandEffect` (`Prompt` / `PermissionResponse`) replaces the free-form
+case string. Outline cases map at the binding boundary; the assertion switches on the enum. Raw envelopes and
+example text stay strings.
 
 ### Slice 27 - Document and verify retained primitive boundaries
 
