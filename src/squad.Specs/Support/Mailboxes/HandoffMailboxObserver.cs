@@ -121,12 +121,18 @@ public sealed class HandoffMailboxObserver
 
         var id = root.GetProperty("id").GetString()!;
         var from = root.GetProperty("from").GetString()!;
-        var kind = root.GetProperty("kind").GetString()!;
+        var kindLabel = root.GetProperty("kind").GetString()!;
+        var kind = kindLabel switch
+        {
+            "git_handoff" => HandoffKind.GitHandoff,
+            "note" => HandoffKind.Note,
+            _ => throw new InvalidDataException($"unknown handoff kind '{kindLabel}'"),
+        };
         var priority = root.GetProperty("priority").GetInt32();
         var task = GetOptionalString(root, "gitHandoff", "task");
         var commit = GetOptionalString(root, "gitHandoff", "commit");
         var message = GetOptionalString(root, "note", "message");
-        var payload = kind == "git_handoff" ? $"merge_and_process {from} {commit}" : message ?? "";
+        var payload = kind == HandoffKind.GitHandoff ? $"merge_and_process {from} {commit}" : message ?? "";
 
         return new QueuedHandoff(
             Id: new HandoffId(id),

@@ -91,7 +91,7 @@ public sealed class HandoffSteps
         var handoff = SingleQueuedHandoff();
         Assert.Multiple(() =>
         {
-            Assert.That(handoff.Type, Is.EqualTo("git_handoff"));
+            Assert.That(handoff.Type, Is.EqualTo(HandoffKind.GitHandoff));
             Assert.That(handoff.Task, Is.EqualTo(task));
         });
     }
@@ -112,7 +112,7 @@ public sealed class HandoffSteps
         var handoff = SingleQueuedHandoff();
         Assert.Multiple(() =>
         {
-            Assert.That(handoff.Type, Is.EqualTo("note"));
+            Assert.That(handoff.Type, Is.EqualTo(HandoffKind.Note));
             Assert.That(handoff.Message, Is.EqualTo(message));
             Assert.That(handoff.Payload, Is.EqualTo(message));
         });

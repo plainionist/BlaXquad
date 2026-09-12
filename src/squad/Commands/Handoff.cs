@@ -33,7 +33,8 @@ static class Handoff
         }
 
         var intent = args[0];
-        if (intent != "commit" && intent != "note")
+        var kind = ParseKind(intent);
+        if (kind is null)
         {
             Console.Error.WriteLine($"Unknown handoff command '{intent}'.");
             Console.Error.WriteLine();
@@ -44,7 +45,7 @@ static class Handoff
         var rest = args[1..];
         if (rest.Length > 0 && rest[0] is "-h" or "--help")
         {
-            Console.WriteLine(intent == "commit" ? CommitUsage : NoteUsage);
+            Console.WriteLine(kind == HandoffKind.GitHandoff ? CommitUsage : NoteUsage);
             return 0;
         }
 
@@ -61,7 +62,7 @@ static class Handoff
                 return 1;
             }
 
-            return intent == "commit"
+            return kind == HandoffKind.GitHandoff
                 ? RunCommit(rest, roleWorktreeRoot, members, sender)
                 : RunNote(rest, roleWorktreeRoot, members, sender);
         }
@@ -74,6 +75,15 @@ static class Handoff
             return ex.ExitCode;
         }
     }
+
+    /// <summary>Maps the first CLI token to its <see cref="HandoffKind"/> once, so every later branch (help
+    /// selection, dispatch) reads the enum instead of re-comparing the raw token.</summary>
+    static HandoffKind? ParseKind(string intent) => intent switch
+    {
+        "commit" => HandoffKind.GitHandoff,
+        "note" => HandoffKind.Note,
+        _ => null,
+    };
 
     static int RunCommit(string[] args, string roleWorktreeRoot, IReadOnlyList<SquadConfigMember> members, string sender)
     {
