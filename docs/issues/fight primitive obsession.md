@@ -106,8 +106,9 @@ rather than adding another identity copy that can disagree with its route.
 The request IDs on those events, their responses, UI contracts, and the pending-interaction dictionaries in
 [`MemberAggregate`](../../src/squad.Application/Members/MemberAggregate.cs) should use an opaque
 `InteractionRequestId` value object. Similarly, tool event IDs and transcript correlation state should use a
-`ToolCallId` value object. These values need no invented format validation; the types prevent request IDs, tool call
-IDs, session IDs, and arbitrary text from being mixed. Fake-provider and UI JSON still serialize them as strings.
+`ToolCallId` value object. Their semantic invariant is a nonblank, exactly preserved opaque value; they need no
+invented provider-specific format validation. The types prevent request IDs, tool call IDs, session IDs, and
+arbitrary text from being mixed. Fake-provider and UI JSON still serialize them as strings.
 
 `IAgentSession.SessionId` may remain a string. It is an opaque provider/control identifier used as supplied and is
 not used as a domain key or confused with the two application-owned ID kinds above.
@@ -242,8 +243,16 @@ before a boundary would recreate the same primitive obsession under a different 
   additional type becomes necessary, stop and return the slice to the architect so the plan can be split first.
 - Put every new top-level C# type in its own source file. Do not add default interface implementations or a custom
   exception type.
+- Every value object introduced or changed by these slices must be valid by construction: document its semantic
+  invariant and enforce it in every public constructor/factory with `Contract.Requires`. String-backed identities
+  reject null, empty, and whitespace while preserving accepted input exactly; do not silently trim, normalize, or
+  change case.
+- Do not use a value type when `default(T)` would violate the invariant. Use a sealed immutable record/class for
+  non-defaultable identities; a struct is acceptable only when its default value is a valid domain value.
 - Keep raw JSON/configuration fields, CLI arguments, Gherkin parameters, provider/control envelopes, and Vue
-  protocol fields as strings. Parse once when they enter typed C# code and format once when they leave it.
+  protocol fields as strings. Validate untrusted input there with the established diagnostics, then construct the
+  typed value once; constructor contracts do not replace boundary validation. Format once when values leave typed
+  C# code. Translate deserialization contract failures back to the boundary's established invalid-data surface.
 - Preserve all existing public spellings, diagnostics, JSON shapes and scalar kinds, queue filenames, transcript
   ordering, and lifecycle behavior. In particular, typed enums must never leak their C# names or numeric values to
   JSON.
@@ -502,9 +511,10 @@ sessions publish without copying member identity. Snapshot `role` is composed fr
 
 Use the opaque value object on all three interaction request events, all `IAgentSession` response methods,
 application mailbox messages, `MemberAggregate` pending/protected-entry dictionaries, UI abstraction methods, and
-Copilot pending-interaction dictionaries. Give it no invented format rule; it exists to prevent cross-kind ID
-mixups. The Copilot and fake provider adapters wrap IDs after their SDK/control boundaries, `UiCommandHandler`
-wraps `requestId` after envelope validation, and snapshot/fake-control JSON formats `.Value`.
+Copilot pending-interaction dictionaries. Its only value invariant is nonblank, exactly preserved opaque text; give
+it no invented provider-specific format rule. It exists to prevent cross-kind ID mixups. The Copilot and fake
+provider adapters wrap IDs after their SDK/control boundaries, `UiCommandHandler` wraps `requestId` after envelope
+validation, and snapshot/fake-control JSON formats `.Value`.
 
 Keep `UiMessage.RequestId`, fake-control envelopes, Gherkin values, and issue-catalog correlation IDs as strings.
 
@@ -584,7 +594,8 @@ classified in `MemberEventProjector`. A black-box unknown-tool case proves expli
 
 Use the opaque value object on every normalized tool lifecycle event and all tool-correlation state in the Copilot
 normalizers and `MemberTranscriptState`. Wrap SDK and fake-control strings once at adapter ingress; format only in
-raw diagnostics/control JSON. Do not add format validation, and keep tool names as strings.
+raw diagnostics/control JSON. Its only value invariant is nonblank, exactly preserved opaque text; do not invent
+provider-specific format validation, and keep tool names as strings.
 
 **Acceptance:** interleaved output remains attached to the correct entry, progress/replacement/completion ordering
 is unchanged, and read summaries still correlate under `TranscriptToolCallCorrelation.feature`,
@@ -644,19 +655,113 @@ distinction preserve existing behavior in `Handoffs.feature`, `Delivery.feature`
 are typed. JSON still emits `from`/`to`/`recipient` strings; filenames, CLI, and Gherkin stay strings; the spec
 observer still parses independently of `HandoffJson`.
 
-### Slice 17 - Type handoff IDs
+### Slice 17 - Type handoff IDs [done]
 
 **Task:** `type-handoff-id`
 
 **New type:** `HandoffId` in `squad.Handoffs`.
 
+Implement the ID as a sealed immutable record with an explicit constructor that uses `Contract.Requires` to reject
+null, empty, and whitespace. Do not use a record struct whose invalid `default` bypasses the invariant, and do not
+trim or otherwise normalize accepted IDs.
+
 Make generated and deserialized handoff identity explicit from creation through validation and delivery. Use the
-existing scalar converter to preserve the JSON string and keep the generated filename/ID spelling unchanged.
-Type the ID in valid semantic `QueuedHandoff` observations while keeping their JSON parsing independent. Reject
-missing or blank IDs as invalid handoff documents with the existing wrapped `InvalidDataException` surface.
+existing scalar converter to preserve the JSON string and keep the generated filename/ID spelling unchanged. Type
+the ID in valid semantic `QueuedHandoff` observations while keeping their JSON parsing independent. Reject missing
+or blank IDs as invalid handoff documents; translate scalar-construction contract failures at handoff JSON ingress
+to the existing wrapped `InvalidDataException` surface rather than leaking `ArgumentException`.
 
 **Acceptance:** valid handoffs preserve their exact JSON shape and delivery behavior, while a raw handoff with a
 missing/blank ID is archived as failed before fan-out. No type other than `HandoffId` is added.
+
+**Status: complete (452d23fc35).** `HandoffId` is on `HandoffDocument` and valid `QueuedHandoff` observations.
+JSON `id` stays a string via `ScalarJsonConverter`. Filename/ID spelling is generated as a string and wrapped at
+document construction. Blank IDs still fail through the wrapped `InvalidDataException` surface before fan-out.
+
+### Contract-correction sequence
+
+The following five slices run immediately after Slice 17 and before Slice 18. They correct the string-backed value
+objects already present or introduced by completed slices. Each slice changes one value object's invariant and
+introduces no type.
+
+### Slice 17A - Make role IDs valid by construction
+
+**Task:** `enforce-role-id-contract`
+
+**New types:** none.
+
+Change `RoleId` from a positional record struct to a sealed immutable record with an explicit constructor. Its
+invariant is nonblank, exactly preserved role identity, enforced with `Contract.Requires`; `default(RoleId)` must
+no longer create an invalid identity. Keep reusable-role configuration validation and diagnostics at the raw
+configuration boundary, and preserve value equality, `.Value`, and `ToString()` behavior.
+
+**Acceptance:** reusable role lookup, role ordering, shared-role member configuration, and startup-instruction
+composition retain their behavior under `MemberConfiguration.feature`, `RoleOrder.feature`, and
+`AgentStartupInstructions.feature`. No type is added.
+
+### Slice 17B - Make squad member IDs valid by construction
+
+**Task:** `enforce-squad-member-id-contract`
+
+**New types:** none.
+
+Change `SquadMemberId` from a positional record struct to a sealed immutable record with an explicit constructor.
+Its invariant is nonblank, exactly preserved configured-member identity, enforced with `Contract.Requires`;
+`default(SquadMemberId)` must no longer create an invalid identity. Configuration, CLI, control, and UI boundaries
+must continue validating raw input first so their current diagnostics remain unchanged. Preserve value equality,
+`.Value`, `ToString()`, JSON scalar representation, and member-keyed routing behavior.
+
+**Acceptance:** member configuration, command routing, unknown-member diagnostics, shared-role isolation, and
+handoff participant JSON remain unchanged under `MemberConfiguration.feature`, `UiProtocolValidation.feature`,
+`PromptIsolationAndReadiness.feature`, and `Handoffs.feature`. No type is added.
+
+### Slice 17C - Enforce the worktree-target invariant
+
+**Task:** `enforce-worktree-target-contract`
+
+**New types:** none.
+
+Make every `WorktreeTarget` construction path enforce the documented alternatives: the `"master"` token denotes
+the project root, while a linked-worktree target is nonblank, is neither `"."` nor `".."`, and contains no path
+separator. Use `Contract.Requires` inside the value object's parse/construction path without silently normalizing
+the supplied name. `SquadConfigurationLoader` must retain its explicit raw checks and exact configuration
+diagnostics before calling the value object.
+
+**Acceptance:** root and linked-worktree resolution, invalid configured names, shared-worktree paths, and launch
+preparation retain their behavior under `Context.feature`, `MemberConfiguration.feature`, and
+`HeadquartersWorkspaceFailures.feature`. No type is added.
+
+### Slice 17D - Make interaction request IDs valid by construction
+
+**Task:** `enforce-interaction-request-id-contract`
+
+**New types:** none.
+
+Change `InteractionRequestId` from a positional record struct to a sealed immutable record with an explicit
+constructor. Enforce its only semantic value invariant - nonblank, exactly preserved opaque provider identity -
+with `Contract.Requires`; do not invent a provider-specific format. SDK, fake-control, and UI boundaries continue
+validating or translating raw input through their established protocol/error surfaces. Preserve value equality,
+`.Value`, `ToString()`, and all pending-interaction dictionary behavior.
+
+**Acceptance:** interaction publication, response ownership, duplicate/late response handling, cancellation, and
+wire diagnostics remain unchanged under `InteractionPublicationAndOwnership.feature`,
+`InteractionCancellationAndTranscriptRetention.feature`, and `UiProtocolValidation.feature`. No type is added.
+
+### Slice 17E - Make tool-call IDs valid by construction
+
+**Task:** `enforce-tool-call-id-contract`
+
+**New types:** none.
+
+Change `ToolCallId` from a positional record struct to a sealed immutable record with an explicit constructor.
+Enforce its only semantic value invariant - nonblank, exactly preserved opaque provider identity - with
+`Contract.Requires`; do not invent a provider-specific format. SDK and fake-control adapters retain their raw
+boundary responsibilities and existing diagnostics. Preserve value equality, `.Value`, `ToString()`, and all
+tool-correlation dictionary behavior.
+
+**Acceptance:** interleaved tool output, lifecycle replacement/completion, and read summaries retain their
+correlation under `TranscriptToolCallCorrelation.feature`, `TranscriptToolLifecycleState.feature`,
+`TranscriptToolOutputAggregation.feature`, and `TranscriptFileReadSummaries.feature`. No type is added.
 
 ### Slice 18 - Type handoff priority
 
@@ -669,8 +774,11 @@ inclusive `0..99` invariant, exact two-digit CLI parsing/formatting, numeric JSO
 scalar converter, and filename ordering representation. Preserve aggregated CLI validation: an invalid priority
 must still be reported alongside independent recipient/option errors rather than throwing early.
 
-Use the typed priority in task/batch selection and valid semantic mailbox observations. Raw malformed JSON remains
-independently authored by the fixture.
+Use an explicit construction path with `Contract.Requires` for the inclusive range. A readonly record struct is
+permitted because its `default` value is priority `0`, which is valid; any non-default construction must enforce
+the invariant. Use the typed priority in task/batch selection and valid semantic mailbox observations. Raw
+malformed JSON remains independently authored by the fixture, and scalar-deserialization failures retain the
+handoff JSON invalid-data surface.
 
 **Acceptance:** default/overridden priority, invalid CLI priority, lexical queue ordering, equal-priority batching,
 and out-of-range JSON rejection are covered by `Handoffs.feature`, `TaskQueue.feature`, `BatchQueue.feature`, and
@@ -683,10 +791,14 @@ and out-of-range JSON rejection are covered by `Handoffs.feature`, `TaskQueue.fe
 
 **New type:** `GitCommitId` in `squad.Handoffs`.
 
-Keep the raw `--commit` revision as text until Git resolves it, then construct a `GitCommitId` for the canonical
-ten-hex-character abbreviation and carry it in `GitHandoffData`, rendering, and semantic mailbox observations.
-Use the existing scalar converter so durable JSON and `merge_and_process <sender> <commit>` remain strings with
-the same spelling. Deserialized handoffs with a noncanonical commit ID must fail validation before delivery.
+Implement `GitCommitId` as a sealed immutable record whose explicit constructor uses `Contract.Requires` to own
+the canonical exactly ten lowercase hexadecimal character invariant. Do not use a struct with an invalid default
+and do not normalize supplied text.
+
+Keep the raw `--commit` revision as text until Git resolves it, then construct the canonical value and carry it in
+`GitHandoffData`, rendering, and semantic mailbox observations. Use the existing scalar converter so durable JSON
+and `merge_and_process <sender> <commit>` remain strings with the same spelling. Deserialized handoffs with a
+noncanonical commit ID must fail validation before delivery through the established handoff invalid-data surface.
 
 **Acceptance:** HEAD, explicit revision, dirty-worktree override, invalid revision, payload rendering, and malformed
 durable commit coverage pass in `Handoffs.feature` and `Delivery.feature`. No type other than `GitCommitId` is
@@ -703,8 +815,13 @@ the handoff model, queue transitions, and valid semantic observations. Reuse the
 explicit invariant parsing/formatting so the durable ISO-8601 strings keep the established UTC spelling; keep the
 compact filename timestamp and delivery-log timestamp formatting as explicit string boundaries.
 
-**Acceptance:** malformed timestamp JSON is rejected before delivery, and creation/delivery/claim/completion
-preserve earlier instants exactly under `Delivery.feature`. No new type is added.
+`HandoffDocument` remains a raw durable-boundary model until validation, so validation must reject a missing
+required timestamp represented by `default(DateTimeOffset)` before semantic use. Scalar parsing failures retain
+the established wrapped invalid-data surface.
+
+**Acceptance:** missing or malformed required timestamp JSON is rejected before delivery, and
+creation/delivery/claim/completion preserve earlier instants exactly under `Delivery.feature`. No new type is
+added.
 
 ### Slice 21 - Validate persisted handoff text invariants
 
@@ -811,6 +928,10 @@ or a fixture property-bag key.
 
 The final audit must specifically confirm that:
 
+- every string-backed value object changed by this plan documents and enforces its invariant, rejects blank
+  identities, preserves accepted text exactly, and is not a struct when its default would be invalid;
+- untyped boundaries retain explicit validation and established diagnostics instead of relying on constructor
+  contract failures, including durable scalar deserialization;
 - no member-keyed C# state remains keyed by `string` after a boundary has parsed the member;
 - no interaction/tool correlation state remains keyed by `string`;
 - no closed permission, elicitation, transcript-source, handoff-kind, priority, readiness, or shutdown choice is
