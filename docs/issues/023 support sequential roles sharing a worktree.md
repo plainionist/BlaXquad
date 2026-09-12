@@ -1,6 +1,6 @@
 ---
 title: Support sequential roles sharing a worktree
-priority: 110
+priority: 5001
 ---
 
 # Support sequential roles sharing a worktree
