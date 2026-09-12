@@ -1,6 +1,6 @@
 ---
 title: domain model diagram
-priority: 50
+priority: 150
 ---
 
 identify the key concepts like squad, generation, member, ...
