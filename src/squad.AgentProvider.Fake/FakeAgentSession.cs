@@ -310,13 +310,12 @@ internal sealed class FakeAgentSession : IAgentSession
                 return null;
             case "permission-request":
                 myEvents.Publish(new AgentPermissionRequest(
-                    now, data.GetProperty("requestId").GetString()!, MemberId.Value, data.GetProperty("description").GetString()!));
+                    now, data.GetProperty("requestId").GetString()!, data.GetProperty("description").GetString()!));
                 return null;
             case "input-request":
                 myEvents.Publish(new AgentInputRequest(
                     now,
                     data.GetProperty("requestId").GetString()!,
-                    MemberId.Value,
                     data.GetProperty("prompt").GetString()!,
                     GetNullableStringArray(data, "choices"),
                     !data.TryGetProperty("allowFreeform", out var allowFreeform) || allowFreeform.ValueKind != JsonValueKind.False));
@@ -325,7 +324,6 @@ internal sealed class FakeAgentSession : IAgentSession
                 myEvents.Publish(new AgentElicitationRequest(
                     now,
                     data.GetProperty("requestId").GetString()!,
-                    MemberId.Value,
                     data.GetProperty("prompt").GetString()!,
                     data.GetProperty("mode").GetString()!,
                     null,

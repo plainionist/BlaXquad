@@ -246,29 +246,29 @@ public sealed class SquadMembers : IDisposable
                 contextLimitTokens = member.ContextLimitTokens,
                 eventCount = member.EventCount,
             }),
-            permissions = members.SelectMany(member => member.Permissions).Select(permission => new
+            permissions = members.SelectMany(member => member.Permissions.Select(permission => new
             {
                 requestId = permission.RequestId,
-                role = permission.Role,
+                role = member.Id.Value,
                 description = permission.Description,
-            }),
-            inputs = members.SelectMany(member => member.Inputs).Select(input => new
+            })),
+            inputs = members.SelectMany(member => member.Inputs.Select(input => new
             {
                 requestId = input.RequestId,
-                role = input.Role,
+                role = member.Id.Value,
                 prompt = input.Prompt,
                 choices = input.Choices,
                 allowFreeform = input.AllowFreeform,
-            }),
-            elicitations = members.SelectMany(member => member.Elicitations).Select(elicitation => new
+            })),
+            elicitations = members.SelectMany(member => member.Elicitations.Select(elicitation => new
             {
                 requestId = elicitation.RequestId,
-                role = elicitation.Role,
+                role = member.Id.Value,
                 prompt = elicitation.Prompt,
                 mode = elicitation.Mode,
                 requestedSchema = elicitation.RequestedSchema,
                 url = elicitation.Url,
-            }),
+            })),
         });
 
     /// <summary>

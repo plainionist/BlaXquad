@@ -147,13 +147,13 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     }
 
     internal Task<AgentPermissionResponse> RequestPermissionAsync(string description, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentPermissionRequest(DateTimeOffset.UtcNow, CreateInteractionId(), MemberId.Value, description), myPendingPermissions, cancellationToken);
+        RequestInteractionAsync(new AgentPermissionRequest(DateTimeOffset.UtcNow, CreateInteractionId(), description), myPendingPermissions, cancellationToken);
 
     internal Task<AgentInputResponse> RequestInputAsync(string prompt, IReadOnlyList<string>? choices, bool allowFreeform, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentInputRequest(DateTimeOffset.UtcNow, CreateInteractionId(), MemberId.Value, prompt, choices, allowFreeform), myPendingInputs, cancellationToken);
+        RequestInteractionAsync(new AgentInputRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, choices, allowFreeform), myPendingInputs, cancellationToken);
 
     internal Task<AgentElicitationResponse> RequestElicitationAsync(string prompt, string mode, JsonElement? requestedSchema, string? url, CancellationToken cancellationToken = default) =>
-        RequestInteractionAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, CreateInteractionId(), MemberId.Value, prompt, mode, requestedSchema, url), myPendingElicitations, cancellationToken);
+        RequestInteractionAsync(new AgentElicitationRequest(DateTimeOffset.UtcNow, CreateInteractionId(), prompt, mode, requestedSchema, url), myPendingElicitations, cancellationToken);
 
     public async IAsyncEnumerable<AgentEvent> Events([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
