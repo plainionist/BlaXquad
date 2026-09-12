@@ -2,7 +2,7 @@ namespace squad.AgentProvider.Abstractions.Agents;
 
 public sealed record AgentToolStartedEvent(
     DateTimeOffset OccurredAt,
-    string ToolCallId,
+    ToolCallId ToolCallId,
     string ToolName,
     string? Arguments = null,
     bool IsRead = false,

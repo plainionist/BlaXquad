@@ -2,7 +2,7 @@ namespace squad.AgentProvider.Abstractions.Agents;
 
 public sealed record AgentToolOutputChangedEvent(
     DateTimeOffset OccurredAt,
-    string ToolCallId,
+    ToolCallId ToolCallId,
     string Output) : AgentEvent(OccurredAt);
 
 

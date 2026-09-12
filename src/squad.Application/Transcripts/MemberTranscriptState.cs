@@ -1,3 +1,4 @@
+using squad.AgentProvider.Abstractions;
 using squad.Domain;
 using squad.Ui.Abstractions;
 
@@ -18,7 +19,7 @@ internal sealed class MemberTranscriptState
     private readonly object mySyncRoot;
     private readonly List<IndexedTranscriptEntry> myTranscriptEntries = [];
     private readonly HashSet<int> myProtectedTranscriptEntries = [];
-    private readonly Dictionary<string, ToolTranscriptState> myToolTranscriptEntries = new(StringComparer.Ordinal);
+    private readonly Dictionary<ToolCallId, ToolTranscriptState> myToolTranscriptEntries = [];
     private readonly MemberTranscriptArchive myTranscriptArchive;
     private readonly TranscriptRetentionOptions myRetentionOptions;
     private TranscriptEntryBuffer? myAssistantEntryBuffer;
@@ -125,7 +126,7 @@ internal sealed class MemberTranscriptState
 
     /// <summary>Starts a correlated tool entry and protects it from retention until the matching completion arrives.</summary>
     public TranscriptUpdate StartTool(
-        string toolCallId,
+        ToolCallId toolCallId,
         string toolName,
         bool suppressOutput,
         bool appendLineCount,
@@ -144,7 +145,7 @@ internal sealed class MemberTranscriptState
     }
 
     public TranscriptUpdate? ChangeToolOutput(
-        string toolCallId,
+        ToolCallId toolCallId,
         string output)
     {
         if (!myToolTranscriptEntries.TryGetValue(toolCallId, out var tool))
@@ -161,7 +162,7 @@ internal sealed class MemberTranscriptState
     }
 
     public TranscriptUpdate? ChangeToolProgress(
-        string toolCallId,
+        ToolCallId toolCallId,
         string progress)
     {
         if (!myToolTranscriptEntries.TryGetValue(toolCallId, out var tool))
@@ -182,7 +183,7 @@ internal sealed class MemberTranscriptState
     /// replacement plus the next active tool. Unknown call IDs return <see langword="null"/>.
     /// </summary>
     public ToolCompletionResult? CompleteTool(
-        string toolCallId,
+        ToolCallId toolCallId,
         string? displayOutputFallback,
         string? contentFallback)
     {

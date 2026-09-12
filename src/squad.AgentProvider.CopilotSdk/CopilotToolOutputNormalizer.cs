@@ -1,3 +1,5 @@
+using squad.AgentProvider.Abstractions;
+
 namespace squad.AgentProvider.CopilotSdk;
 
 /// <summary>
@@ -6,10 +8,10 @@ namespace squad.AgentProvider.CopilotSdk;
 /// </summary>
 internal sealed class CopilotToolOutputNormalizer
 {
-    private readonly Dictionary<string, ToolOutputState> myOutputs = new(StringComparer.Ordinal);
+    private readonly Dictionary<ToolCallId, ToolOutputState> myOutputs = [];
     private readonly object myStateLock = new();
 
-    public void Start(string toolCallId)
+    public void Start(ToolCallId toolCallId)
     {
         lock (myStateLock)
             myOutputs[toolCallId] = new(null, StreamingMode.Unknown);
@@ -19,7 +21,7 @@ internal sealed class CopilotToolOutputNormalizer
     /// Applies one partial output and returns the changed cumulative value, or <see langword="null"/> for a
     /// duplicate snapshot.
     /// </summary>
-    public string? Apply(string toolCallId, string partialOutput)
+    public string? Apply(ToolCallId toolCallId, string partialOutput)
     {
         lock (myStateLock)
         {
@@ -50,7 +52,7 @@ internal sealed class CopilotToolOutputNormalizer
         }
     }
 
-    public bool Complete(string toolCallId)
+    public bool Complete(ToolCallId toolCallId)
     {
         lock (myStateLock)
             return myOutputs.Remove(toolCallId, out var state) && state.Output?.Length > 0;

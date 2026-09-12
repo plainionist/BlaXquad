@@ -2,7 +2,7 @@ namespace squad.AgentProvider.Abstractions.Agents;
 
 public sealed record AgentToolCompletedEvent(
 	DateTimeOffset OccurredAt,
-	string ToolCallId,
+	ToolCallId ToolCallId,
 	string ToolName,
 	bool Succeeded,
 	string? DisplayOutputFallback = null,

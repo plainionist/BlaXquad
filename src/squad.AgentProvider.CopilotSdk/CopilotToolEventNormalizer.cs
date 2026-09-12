@@ -1,3 +1,4 @@
+using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using GitHub.Copilot;
 using System.Text.Json;
@@ -14,7 +15,7 @@ internal sealed class CopilotToolEventNormalizer
     private readonly CopilotSdkAgentSession myAgentSession;
     private readonly string myWorkingDirectory;
     private readonly CopilotToolOutputNormalizer myOutputNormalizer = new();
-    private readonly Dictionary<string, string> myToolNames = new(StringComparer.Ordinal);
+    private readonly Dictionary<ToolCallId, string> myToolNames = [];
     private readonly object myStateLock = new();
 
     public CopilotToolEventNormalizer(CopilotSdkAgentSession agentSession, string workingDirectory)
@@ -29,39 +30,42 @@ internal sealed class CopilotToolEventNormalizer
         switch (sessionEvent)
         {
             case ToolExecutionStartEvent start:
+                var startedToolCallId = new ToolCallId(start.Data.ToolCallId);
                 lock (myStateLock)
-                    myToolNames[start.Data.ToolCallId] = start.Data.ToolName;
-                myOutputNormalizer.Start(start.Data.ToolCallId);
+                    myToolNames[startedToolCallId] = start.Data.ToolName;
+                myOutputNormalizer.Start(startedToolCallId);
                 myAgentSession.Publish(new AgentToolStartedEvent(
                     occurredAt,
-                    start.Data.ToolCallId,
+                    startedToolCallId,
                     start.Data.ToolName,
                     JsonSerializer.Serialize(start.Data.Arguments),
                     WorkingDirectory: myWorkingDirectory));
                 return true;
             case ToolExecutionPartialResultEvent partial:
+                var partialToolCallId = new ToolCallId(partial.Data.ToolCallId);
                 var normalizedOutput = myOutputNormalizer.Apply(
-                    partial.Data.ToolCallId,
+                    partialToolCallId,
                     partial.Data.PartialOutput);
                 if (normalizedOutput is not null)
                 {
                     myAgentSession.Publish(new AgentToolOutputChangedEvent(
                         occurredAt,
-                        partial.Data.ToolCallId,
+                        partialToolCallId,
                         normalizedOutput));
                 }
                 return true;
             case ToolExecutionProgressEvent progress:
                 myAgentSession.Publish(new AgentToolProgressEvent(
                     occurredAt,
-                    progress.Data.ToolCallId,
+                    new ToolCallId(progress.Data.ToolCallId),
                     progress.Data.ProgressMessage));
                 return true;
             case ToolExecutionCompleteEvent complete:
-                var (toolName, displayOutputFallback, contentFallback) = Complete(complete);
+                var completedToolCallId = new ToolCallId(complete.Data.ToolCallId);
+                var (toolName, displayOutputFallback, contentFallback) = Complete(completedToolCallId, complete);
                 myAgentSession.Publish(new AgentToolCompletedEvent(
                     occurredAt,
-                    complete.Data.ToolCallId,
+                    completedToolCallId,
                     toolName,
                     complete.Data.Success,
                     displayOutputFallback,
@@ -70,7 +74,7 @@ internal sealed class CopilotToolEventNormalizer
             case AssistantServerToolProgressEvent serverProgress:
                 myAgentSession.Publish(new AgentToolProgressEvent(
                     occurredAt,
-                    $"server:{serverProgress.Data.Kind}:{serverProgress.Data.OutputIndex}",
+                    new ToolCallId($"server:{serverProgress.Data.Kind}:{serverProgress.Data.OutputIndex}"),
                     serverProgress.Data.Status));
                 return true;
             default:
@@ -79,16 +83,16 @@ internal sealed class CopilotToolEventNormalizer
     }
 
     private (string ToolName, string? DisplayOutputFallback, string? ContentFallback) Complete(
-        ToolExecutionCompleteEvent complete)
+        ToolCallId toolCallId, ToolExecutionCompleteEvent complete)
     {
         lock (myStateLock)
         {
-            var streamedOutput = myOutputNormalizer.Complete(complete.Data.ToolCallId);
+            var streamedOutput = myOutputNormalizer.Complete(toolCallId);
             var toolName = complete.Data.ToolDescription?.Name
-                ?? (myToolNames.Remove(complete.Data.ToolCallId, out var startedToolName)
+                ?? (myToolNames.Remove(toolCallId, out var startedToolName)
                     ? startedToolName
                     : "tool");
-            myToolNames.Remove(complete.Data.ToolCallId);
+            myToolNames.Remove(toolCallId);
             var displayOutputFallback = streamedOutput
                 ? null
                 : complete.Data.Result?.DetailedContent
@@ -101,4 +105,5 @@ internal sealed class CopilotToolEventNormalizer
         }
     }
 }
+
 

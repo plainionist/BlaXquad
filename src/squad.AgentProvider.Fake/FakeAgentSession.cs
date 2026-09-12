@@ -279,7 +279,7 @@ internal sealed class FakeAgentSession : IAgentSession
             case "tool-started":
                 myEvents.Publish(new AgentToolStartedEvent(
                     now,
-                    data.GetProperty("toolCallId").GetString()!,
+                    new ToolCallId(data.GetProperty("toolCallId").GetString()!),
                     data.GetProperty("toolName").GetString()!,
                     GetNullableString(data, "arguments"),
                     ParseToolKind(GetNullableString(data, "toolKind")),
@@ -287,16 +287,16 @@ internal sealed class FakeAgentSession : IAgentSession
                 return null;
             case "tool-progress":
                 myEvents.Publish(new AgentToolProgressEvent(
-                    now, data.GetProperty("toolCallId").GetString()!, data.GetProperty("progress").GetString()!));
+                    now, new ToolCallId(data.GetProperty("toolCallId").GetString()!), data.GetProperty("progress").GetString()!));
                 return null;
             case "tool-output-changed":
                 myEvents.Publish(new AgentToolOutputChangedEvent(
-                    now, data.GetProperty("toolCallId").GetString()!, data.GetProperty("output").GetString()!));
+                    now, new ToolCallId(data.GetProperty("toolCallId").GetString()!), data.GetProperty("output").GetString()!));
                 return null;
             case "tool-completed":
                 myEvents.Publish(new AgentToolCompletedEvent(
                     now,
-                    data.GetProperty("toolCallId").GetString()!,
+                    new ToolCallId(data.GetProperty("toolCallId").GetString()!),
                     data.GetProperty("toolName").GetString()!,
                     data.GetProperty("succeeded").GetBoolean(),
                     GetNullableString(data, "displayOutputFallback"),
