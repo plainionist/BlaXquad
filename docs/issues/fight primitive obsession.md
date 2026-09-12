@@ -619,7 +619,7 @@ synchronization, paging, replacement, and process-lifetime history in `Transcrip
 projection, live state, and archive reconstruction. `TranscriptProtocol` and the archive map lowercase spellings
 explicitly; unsupported archived values throw. Wire observations and frontend presentation stay strings.
 
-### Slice 16 - Type handoff participant identities
+### Slice 16 - Type handoff participant identities [done]
 
 **Task:** `type-handoff-member-identities`
 
@@ -638,6 +638,11 @@ of `HandoffJson`.
 **Acceptance:** fan-out, unknown-recipient rejection, recipient headers, wake-ups, and shared-role/member
 distinction preserve existing behavior in `Handoffs.feature`, `Delivery.feature`, and
 `MemberConfiguration.feature`. No type other than `ScalarJsonConverter<TValue, TScalar>` is added.
+
+**Status: complete (936251301a).** `ScalarJsonConverter` is registered only for `SquadMemberId`. Document
+`From`/`To`/`Recipient`, delivery maps, `IRoleNotifier`, CLI construction, and parsed `QueuedHandoff` observations
+are typed. JSON still emits `from`/`to`/`recipient` strings; filenames, CLI, and Gherkin stay strings; the spec
+observer still parses independently of `HandoffJson`.
 
 ### Slice 17 - Type handoff IDs
 
