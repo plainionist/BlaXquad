@@ -104,6 +104,10 @@ retention; provider state owns response completion. They have the same key but d
    Prove it through the black-box Gherkin suite; add a scenario only if the current suite does not cover
    shutdown overlapping an in-flight failed response.
 
+**Status: resolved (e34423bef1).** `RestorePending` no-ops unless `TryRestore` succeeds on a `Responding`
+state. `RetainedForRetirement` stays retained. `InteractionCancellationAndTranscriptRetention.feature` covers
+shutdown overlapping an in-flight failed permission response without faulting cleanup.
+
 ### 2. Provider interaction completions
 
 `CopilotSdkAgentSession` repeats registration, completion, cancellation, failure, and cleanup over three typed
@@ -249,6 +253,12 @@ including that interaction's protected transcript entry.
   recoverably: the failed response reports its provider error, the same interaction remains pending and protected,
   and a later successful response completes it exactly once.
 - No UI protocol payload, request/response contract, or existing diagnostic changes.
+
+**Status: complete (e34423bef1).** `SquadMemberAggregate` owns one `MemberInteractionState` per request id.
+Pending/responding variants carry exactly one request kind plus the protected transcript index;
+`RetainedForRetirement` carries only the index. Registration is one owner-level transition; response handling
+uses pending → responding → pending/removed; shutdown retains protection without republishing. A recoverable
+response failure that races shutdown no-ops instead of faulting the processor.
 
 ### Slice 2: Consolidate Copilot provider completions
 
