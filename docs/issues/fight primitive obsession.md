@@ -515,7 +515,7 @@ retain their exact wire IDs and diagnostics. No type other than `InteractionRequ
 responses, mailbox messages, pending dictionaries, and `ISquadUi`. `UiCommandHandler` wraps the wire `requestId`
 once; snapshots and fake-control JSON format `.Value`. `UiMessage.RequestId` stays a string.
 
-### Slice 11 - Type elicitation mode
+### Slice 11 - Type elicitation mode [done]
 
 **Task:** `type-elicitation-mode`
 
@@ -528,6 +528,10 @@ omitted mode and reject unsupported provider/fake-control values explicitly rath
 
 **Acceptance:** both form and URL requests retain their current state-snapshot shape and accepted URL behavior in
 `InteractionPublicationAndOwnership.feature`. No type other than `ElicitationMode` is added.
+
+**Status: complete (431d3fb7bf).** `ElicitationMode` (`Form`, `Url`) is on `AgentElicitationRequest`. Copilot and
+fake-control parse at their input boundaries (omitted Copilot mode still defaults to form). Snapshots emit
+lowercase `form`/`url`. `UiCommandHandler` opens accepted URLs from the enum.
 
 ### Slice 12 - Type elicitation action
 
