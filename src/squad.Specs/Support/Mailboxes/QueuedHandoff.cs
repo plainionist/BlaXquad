@@ -19,10 +19,10 @@ internal sealed record QueuedHandoff(
     string? Message,
     string Payload,
     SquadMemberId? Recipient,
-    string CreatedAt,
-    string? EnqueuedAt,
-    string? DequeuedAt,
-    string? CompletedAt)
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? EnqueuedAt,
+    DateTimeOffset? DequeuedAt,
+    DateTimeOffset? CompletedAt)
 {
     /// <summary>Whether the payload instructs merging and processing the given committed change from the sender.</summary>
     public bool InstructsMergingCommit(string sender, string commit) =>

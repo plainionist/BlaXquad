@@ -54,7 +54,7 @@ static class ReadyForNextTask
             }
 
             File.Move(sourceFile, targetFile);
-            HandoffJson.Update(targetFile, document => document with { DequeuedAt = Timestamps.Now() });
+            HandoffJson.Update(targetFile, document => document with { DequeuedAt = Timestamps.NowOffset() });
             HandoffQueue.PrintTask(Console.Out, targetFile);
             return 0;
         }

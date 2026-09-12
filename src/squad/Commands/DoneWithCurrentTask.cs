@@ -39,7 +39,7 @@ static class DoneWithCurrentTask
             var sourceFile = inProcessFiles[0];
             var targetFile = Path.Combine(completedDir, Path.GetFileName(sourceFile));
 
-            HandoffJson.Update(sourceFile, document => document with { CompletedAt = Timestamps.Now() });
+            HandoffJson.Update(sourceFile, document => document with { CompletedAt = Timestamps.NowOffset() });
             if (Path.Exists(targetFile))
             {
                 Fail(2, $"AMBIGUOUS_TASK_STATE: completed file already exists: {targetFile}");

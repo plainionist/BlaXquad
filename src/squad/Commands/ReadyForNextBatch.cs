@@ -60,7 +60,7 @@ static class ReadyForNextBatch
                 }
 
                 File.Move(sourceFile, targetFile);
-                HandoffJson.Update(targetFile, document => document with { DequeuedAt = Timestamps.Now() });
+                HandoffJson.Update(targetFile, document => document with { DequeuedAt = Timestamps.NowOffset() });
             }
 
             if (selectedFiles.Count == 0)

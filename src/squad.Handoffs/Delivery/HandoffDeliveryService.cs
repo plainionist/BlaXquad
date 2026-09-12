@@ -69,7 +69,7 @@ sealed class HandoffDeliveryService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var target = Path.Combine(memberInfo.WorktreePath, ".blaxquad", "handoffs", "inbox", "new", filename);
-            var delivered = document with { Recipient = recipient, EnqueuedAt = Timestamps.Now() };
+            var delivered = document with { Recipient = recipient, EnqueuedAt = Timestamps.NowOffset() };
             WriteRecipientArtifact(target, delivered);
         }
 

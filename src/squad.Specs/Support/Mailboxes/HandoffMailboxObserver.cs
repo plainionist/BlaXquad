@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using squad.Domain;
 using squad.Handoffs;
@@ -139,11 +140,16 @@ public sealed class HandoffMailboxObserver
             Message: message,
             Payload: payload,
             Recipient: GetOptionalString(root, "recipient") is { } recipient ? new SquadMemberId(recipient) : null,
-            CreatedAt: root.GetProperty("createdAt").GetString()!,
-            EnqueuedAt: GetOptionalString(root, "enqueuedAt"),
-            DequeuedAt: GetOptionalString(root, "dequeuedAt"),
-            CompletedAt: GetOptionalString(root, "completedAt"));
+            CreatedAt: DateTimeOffset.Parse(root.GetProperty("createdAt").GetString()!, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+            EnqueuedAt: ParseOptionalTimestamp(GetOptionalString(root, "enqueuedAt")),
+            DequeuedAt: ParseOptionalTimestamp(GetOptionalString(root, "dequeuedAt")),
+            CompletedAt: ParseOptionalTimestamp(GetOptionalString(root, "completedAt")));
     }
+
+    private static DateTimeOffset? ParseOptionalTimestamp(string? text) =>
+        text is null
+            ? null
+            : DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
     private static string? GetOptionalString(JsonElement root, string objectProperty, string stringProperty) =>
         root.TryGetProperty(objectProperty, out var obj) && obj.ValueKind == JsonValueKind.Object

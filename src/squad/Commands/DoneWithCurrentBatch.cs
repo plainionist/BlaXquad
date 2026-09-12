@@ -39,7 +39,7 @@ static class DoneWithCurrentBatch
             var sourceDir = inProcessBatches[0];
             var batchFiles = HandoffQueue.HandoffFiles(sourceDir);
             var targetDir = Path.Combine(completedDir, Path.GetFileName(sourceDir));
-            var completedAt = Timestamps.Now();
+            var completedAt = Timestamps.NowOffset();
 
             if (batchFiles.Count == 0)
             {

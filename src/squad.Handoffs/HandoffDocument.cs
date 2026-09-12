@@ -23,10 +23,10 @@ public sealed record HandoffDocument
     public required HandoffKind Kind { get; init; }
     public GitHandoffData? GitHandoff { get; init; }
     public NoteData? Note { get; init; }
-    public required string CreatedAt { get; init; }
-    public string? EnqueuedAt { get; init; }
-    public string? DequeuedAt { get; init; }
-    public string? CompletedAt { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset? EnqueuedAt { get; init; }
+    public DateTimeOffset? DequeuedAt { get; init; }
+    public DateTimeOffset? CompletedAt { get; init; }
 
     /// <summary>Derives the recipient-facing payload instruction from typed fields instead of persisting the same
     /// information again in a second embedded mini-language.</summary>
@@ -51,7 +51,7 @@ public sealed record HandoffDocument
         {
             errors.Add("missing or empty to");
         }
-        if (string.IsNullOrWhiteSpace(CreatedAt))
+        if (CreatedAt == default)
         {
             errors.Add("missing createdAt");
         }

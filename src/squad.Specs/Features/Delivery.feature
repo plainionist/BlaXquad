@@ -106,6 +106,39 @@ Feature: Delivering handoffs
     And "reviewer" has no new handoff
     And the "reviewer" agent has not observed the handoff wake-up message
 
+  Scenario: Reject a handoff with a missing createdAt before delivering any copy
+    When "coder" durably queues a handoff with invalid content:
+      """
+      {
+        "id": "seed-missing-created-at",
+        "from": "coder",
+        "to": ["reviewer"],
+        "priority": 50,
+        "kind": "note",
+        "note": { "message": "Ready for review." }
+      }
+      """
+    Then the sender handoff is archived as failed
+    And "reviewer" has no new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
+
+  Scenario: Reject a handoff with a malformed createdAt before delivering any copy
+    When "coder" durably queues a handoff with invalid content:
+      """
+      {
+        "id": "seed-malformed-created-at",
+        "from": "coder",
+        "to": ["reviewer"],
+        "priority": 50,
+        "kind": "note",
+        "note": { "message": "Ready for review." },
+        "createdAt": "not-a-timestamp"
+      }
+      """
+    Then the sender handoff is archived as failed
+    And "reviewer" has no new handoff
+    And the "reviewer" agent has not observed the handoff wake-up message
+
   Scenario: Lifecycle timestamps survive delivery, claim, and completion
     Given "coder" prepares a note with priority "50" and message "Ready for review." to:
       | role     |

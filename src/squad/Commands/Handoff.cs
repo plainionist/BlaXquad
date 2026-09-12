@@ -298,7 +298,7 @@ static class Handoff
         string? task, string? commit, string? message)
     {
         var timestampId = Timestamps.IdNow();
-        var createdAt = Timestamps.Now();
+        var createdAt = Timestamps.NowOffset();
         var sequence = SequenceCounter.Next(stateDir);
         var id = $"{timestampId}_{sequence}_from_{sender}";
         var recipientSlug = string.Join("_", recipients);

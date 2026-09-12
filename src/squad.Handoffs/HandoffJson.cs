@@ -22,6 +22,7 @@ public static class HandoffJson
             new ScalarJsonConverter<HandoffId, string>(id => id.Value, value => new HandoffId(value)),
             new ScalarJsonConverter<HandoffPriority, int>(priority => priority.Value, value => new HandoffPriority(value)),
             new ScalarJsonConverter<GitCommitId, string>(id => id.Value, value => new GitCommitId(value)),
+            new ScalarJsonConverter<DateTimeOffset, string>(Timestamps.Format, Timestamps.Parse),
         },
     };
 
