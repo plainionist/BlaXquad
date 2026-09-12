@@ -45,7 +45,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public void RestoreProjectConfiguration() =>
         WriteSquadConfiguration(
-            myMemberWorktrees.Keys.FirstOrDefault().Value,
+            myMemberWorktrees.Keys.First().Value,
             myMemberWorktrees.Keys.Select(memberId => (Role: memberId.Value, ReceiveMode: (string?)null)).ToList());
 
     /// <summary>

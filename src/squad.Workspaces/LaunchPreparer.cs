@@ -85,7 +85,7 @@ public sealed class LaunchPreparer
             ResolveWorktreePath(myContext, member),
             member.ReceiveMode,
             member.Agent)).ToArray();
-        var definition = new SquadDefinition(members, myContext.Leader);
+        var definition = new SquadDefinition(members, myContext.Leader!);
         return Task.FromResult(new PreparedLaunch(
             BuildBackendContext(myContext),
             definition,
