@@ -340,6 +340,15 @@ transient recovery request.
    member has no delivered update yet. Consuming a request must not leave a fake 0/0 cursor that later
    cycles treat as observed. Wire payloads stay unchanged.
 
+**Status: resolved (56649c234c).** `DeliveredSequence` and `SynchronizedSequence` are `long?`; absence is not
+sequence 0. `lastSynchronizedSequences` includes only observed synchronized cursors. Overflow baselines skip
+members with no observed delivery, so a request-only entry cannot collapse to `(0, 0)`.
+
+**Status: complete (56649c234c).** One `TranscriptDeliveryState` per member owns delivered and synchronized
+cursors plus the transient recovery request. Monotonic transitions live on the state object; a publish cycle
+consumes only the request. Never-observed cursors stay null so overflow and last-synchronized baselines match
+the previous missing-key behavior.
+
 ### Slice 4: Consolidate transcript archive metadata
 
 **Task:** `consolidate-transcript-archive-state`
