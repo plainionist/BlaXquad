@@ -241,7 +241,7 @@ recipient validation, task dispatch, and batch dispatch retain their current out
 filesystem behavior. The repository builds and the existing `Context`, `Handoffs`, `TaskQueue`, and `BatchQueue`
 features pass through the published `squad` executable.
 
-**Status: complete (pending commit).** The lenient `SquadConfig.ReadMembers` now maps schema-version-2 member
+**Status: complete (05a8cebb1b).** The lenient `SquadConfig.ReadMembers` now maps schema-version-2 member
 entries directly to `SquadMemberDefinition` (member identity, role, resolved worktree data, normalized agent
 settings, and the current string receive mode); `RoleKnown`/`Find` are `MemberKnown`/`Find` over that type.
 `CurrentRoleResolver.Resolve` and `squad context`/`handoff`/`ready-for-next`/`done-with-current` consume it,
