@@ -248,7 +248,7 @@ settings, and the current string receive mode); `RoleKnown`/`Find` are `MemberKn
 converting to `SquadMemberId.Value` only at console/handoff-document boundaries. `RoleRow` is deleted. `squad.json`
 schema, CLI output, exit codes, and diagnostics are unchanged.
 
-### Slice 3 - Type receive mode at its owning boundaries [done]
+### Slice 3 - Type receive mode at its owning boundaries [in progress]
 
 **Outcome:** Valid configured members carry only `ReceiveMode.Task` or `ReceiveMode.Batch` internally, while
 configuration JSON and command behavior continue to use the stable `task` and `batch` spellings.
@@ -273,7 +273,7 @@ configuration is rejected with the existing `expected task or batch` diagnostic 
 repository builds and the configuration, task-queue, and batch-queue acceptance scenarios pass through the
 published executables.
 
-**Status: complete (pending commit).** Added `squad.Domain/ReceiveMode.cs` with exactly `Task` and `Batch`.
+**Status: changes requested (dccf420f46).** Added `squad.Domain/ReceiveMode.cs` with exactly `Task` and `Batch`.
 `SquadMemberConfiguration.ReceiveMode` (strict) is the non-nullable enum; `SquadMemberDefinition.ReceiveMode`
 (shared descriptor) is `ReceiveMode?`, since the lenient command-side reader may not resolve a configured string
 to either member. `SquadConfigurationLoader` keeps its existing raw-string validation and diagnostic, then maps
@@ -292,6 +292,29 @@ was intended.
 
 Added the required black-box scenario "A member configured with an unsupported receive mode is rejected before
 any member session starts" to `MemberConfiguration.feature`. Full suite: 196/196 passed.
+
+## Slice 3 review (dccf420f46) — changes requested
+
+### Finding 1 — High
+
+- **Location:** `src/squad.Domain/SquadMemberDefinition.cs` (`ReceiveMode?`); `src/squad.Configuration/SquadConfig.cs`
+  (`ReadMembers` maps empty and unsupported tokens to `null`); `src/squad/Commands/ReadyForNext.cs` and
+  `src/squad/Commands/DoneWithCurrent.cs` (every `null` is `Unknown role` / exit 1).
+- **Violated behavior:** Slice 3 requires the lenient command-side reader to preserve existing empty *and*
+  unsupported-mode exit behavior, without adding `Unknown` to the enum, retaining a raw string on a domain
+  descriptor, or defaulting invalid input to `Task`. Empty receive mode must stay `Unknown role: {role}` / exit 1.
+  A non-empty unsupported token must stay `INVALID_RECEIVE_MODE: {value} for role {role}` / exit 2. Valid `task` /
+  `batch` / omitted mode still dispatch by the enum. `SquadMemberDefinition.ReceiveMode` is specified as that enum;
+  every authoritative value outside raw JSON is `ReceiveMode`. That an existing scenario did not cover the
+  unsupported command-side path does not license dropping it. The Acceptance paragraph's launch diagnostic does not
+  override the bullet that preserves command-side unsupported-mode exit behavior.
+- **Root cause:** Empty and unsupported tokens are both mapped to `null` on `ReceiveMode?`, and both commands treat
+  all `null` as the empty-mode path. The offending token is discarded, so the exit-2 diagnostic cannot be produced.
+  `null` is a third authoritative value on the canonical descriptor — a stand-in for `Unknown`.
+- **Required outcome:** Keep both command-side diagnostics and exit codes. Parse missing, `task`, `batch`, empty, and
+  unsupported values explicitly in the command-side adapter. Dispatch `ready-for-next` and `done-with-current` by
+  `ReceiveMode` for `Task` and `Batch`. Do not add `Unknown`, do not store the raw token on `SquadMemberDefinition`,
+  and do not default invalid input to `Task`. Leave the strict launch `expected task or batch` rejection unchanged.
 
 ### Slice 4 - Type member status and preserve its protocol vocabulary
 
