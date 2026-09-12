@@ -19,8 +19,7 @@ namespace squad.Specs.StepDefinitions;
 public sealed class HostCoexistenceSteps
 {
     private readonly BackendScenario myScenario;
-    private readonly Dictionary<string, BackendScenario> myScenariosByLabel = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, int> myExitCodesByLabel = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ProjectObservationState> myProjectsByLabel = new(StringComparer.Ordinal);
 
     public HostCoexistenceSteps(BackendScenario scenario)
     {
@@ -36,12 +35,12 @@ public sealed class HostCoexistenceSteps
 
     [When("the operator launches Headquarters with the \"stdio\" UI transport for project {string}")]
     public void WhenTheOperatorLaunchesHeadquartersWithTheStdioUiTransportForProject(string label) =>
-        myScenariosByLabel[label].LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
+        myProjectsByLabel[label].Scenario.LaunchWithoutReadyHandshake<FakeAgentProviderFactory>();
 
     [When("a UI-protocol client sends \"ui.ready\" to project {string}")]
     public void WhenAUiProtocolClientSendsUiReadyToProject(string label)
     {
-        var scenario = myScenariosByLabel[label];
+        var scenario = myProjectsByLabel[label].Scenario;
         Await(scenario.CompleteReadyHandshakeAsync());
         // This project's "coder" session answers its own prompts automatically ("echo: {prompt}") across the
         // shared fake-provider control pipe instead of a second, narrower provider fixture - arming it here, once
@@ -58,26 +57,26 @@ public sealed class HostCoexistenceSteps
         {
             throw new NotSupportedException($"Only the 'prompt.send' command is supported here, not '{type}'.");
         }
-        myScenariosByLabel[label].SendPrompt(role, prompt);
+        myProjectsByLabel[label].Scenario.SendPrompt(role, prompt);
     }
 
     [Then("a \"transcript.update\" message for role {string} with content {string} is written to stdout for project {string}")]
     public void ThenATranscriptUpdateMessageForRoleWithContentIsWrittenToStdoutForProject(string role, string content, string label) =>
-        Await(myScenariosByLabel[label].WaitForTranscriptAsync(role, content));
+        Await(myProjectsByLabel[label].Scenario.WaitForTranscriptAsync(role, content));
 
     [When("the operator shuts down Headquarters for project {string}")]
     public void WhenTheOperatorShutsDownHeadquartersForProject(string label) =>
-        myExitCodesByLabel[label] = Await(myScenariosByLabel[label].ShutdownAsync());
+        myProjectsByLabel[label].ExitCode = Await(myProjectsByLabel[label].Scenario.ShutdownAsync());
 
     [Then("Headquarters exits with code {int} for project {string}")]
     public void ThenHeadquartersExitsWithCodeForProject(int expectedExitCode, string label) =>
-        Assert.That(myExitCodesByLabel[label], Is.EqualTo(expectedExitCode));
+        Assert.That(myProjectsByLabel[label].ExitCode, Is.EqualTo(expectedExitCode));
 
     [Then("Headquarters for project {string} is still running")]
     public void ThenHeadquartersForProjectIsStillRunning(string label)
     {
         Thread.Sleep(200);
-        Assert.That(myScenariosByLabel[label].IsRunning, Is.True, $"Project '{label}' should still be running.");
+        Assert.That(myProjectsByLabel[label].Scenario.IsRunning, Is.True, $"Project '{label}' should still be running.");
     }
 
     private void CreateProject(string label)
@@ -85,7 +84,7 @@ public sealed class HostCoexistenceSteps
         var scenario = myScenario.CreateIndependentProject();
         scenario.ConfigureRole("coder");
         scenario.EnableFakeProviderControl();
-        myScenariosByLabel[label] = scenario;
+        myProjectsByLabel[label] = new ProjectObservationState(scenario);
     }
 
     private static void Await(Task task) => task.GetAwaiter().GetResult();
