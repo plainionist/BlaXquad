@@ -13,8 +13,11 @@ static class HostingLoader
     // beside its assembly (e.g. because squad.Ui.Abstractions is also that plug-in's own build dependency).
     // squad.AgentProvider.Abstractions is included because ISquadUi's own signatures (e.g. GetPendingElicitation)
     // reference its types, so it crosses the hosting boundary too even though hosting never loads a provider.
+    // squad.Domain is included for the same reason: ISquadUi's member-command signatures now take SquadMemberId,
+    // so a hosting plug-in that calls those methods (e.g. from squad.Ui.Protocol's UiCommandHandler) must resolve
+    // SquadMemberId to the host's own type identity, not a private copy loaded into the plug-in's load context.
     private static readonly HashSet<string> SharedAssemblyNames =
-        ["squad.Hosting.Abstractions", "squad.Ui.Abstractions", "squad.AgentProvider.Abstractions"];
+        ["squad.Hosting.Abstractions", "squad.Ui.Abstractions", "squad.AgentProvider.Abstractions", "squad.Domain"];
 
     // Keeps every hosting load context reachable so it (and the assemblies it loaded) survive for the process lifetime.
     // Kept separate from ProviderLoader's own list so provider and hosting plug-ins never share a load context.

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using squad.Domain;
 using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
@@ -99,21 +100,21 @@ internal sealed class UiCommandHandler
                 break;
             case "prompt.send":
                 await myUi.SendAsync(
-                    Require(message.Role, "role"),
+                    RequireMemberId(message.Role),
                     RequirePayloadString(message.Payload, "prompt"));
                 break;
             case "role.abort":
-                await myUi.AbortAsync(Require(message.Role, "role"));
+                await myUi.AbortAsync(RequireMemberId(message.Role));
                 break;
             case "permission.respond":
                 await myUi.CompletePermissionAsync(
-                    Require(message.Role, "role"),
+                    RequireMemberId(message.Role),
                     Require(message.RequestId, "requestId"),
                     RequirePayloadBoolean(message.Payload, "approved"));
                 break;
             case "input.respond":
                 await myUi.CompleteInputAsync(
-                    Require(message.Role, "role"),
+                    RequireMemberId(message.Role),
                     Require(message.RequestId, "requestId"),
                     GetPayloadString(message.Payload, "answer"),
                     GetPayloadBoolean(
@@ -122,7 +123,7 @@ internal sealed class UiCommandHandler
                         true));
                 break;
             case "elicitation.respond":
-                var elicitationRole = Require(message.Role, "role");
+                var elicitationRole = RequireMemberId(message.Role);
                 var elicitationId = Require(
                     message.RequestId,
                     "requestId");
@@ -175,6 +176,11 @@ internal sealed class UiCommandHandler
             ? throw new InvalidOperationException(
                 $"The UI message is missing {property}.")
             : value;
+
+    /// <summary>Validates and wraps an incoming wire role into a <see cref="SquadMemberId"/> exactly once, before
+    /// it is dispatched to any authoritative application operation.</summary>
+    private static SquadMemberId RequireMemberId(string? role) =>
+        new(Require(role, "role"));
 
     private static string RequirePayloadString(
         JsonElement payload,
