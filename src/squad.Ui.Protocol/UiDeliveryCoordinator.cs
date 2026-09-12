@@ -134,14 +134,24 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
             {
                 myDeliveryStates[memberId] = myDeliveryStates[memberId].ConsumingRequestedPosition();
             }
-            lastSynchronizedSequences = myDeliveryStates.ToDictionary(
-                entry => entry.Key,
-                entry => entry.Value.SynchronizedSequence);
+            lastSynchronizedSequences = [];
+            foreach (var (memberId, state) in myDeliveryStates)
+            {
+                if (state.SynchronizedSequence is { } synchronizedSequence)
+                {
+                    lastSynchronizedSequences[memberId] = synchronizedSequence;
+                }
+            }
             if (updatesRequireSynchronization)
             {
                 foreach (var (memberId, state) in myDeliveryStates)
                 {
-                    var sequence = state.DeliveredSequence;
+                    if (state.DeliveredSequence is not { } sequence)
+                    {
+                        // No observed delivery for this member yet - nothing to seed an overflow baseline from,
+                        // and a requested position (if any) already reflects what the member still needs.
+                        continue;
+                    }
                     if (!recoveryBaselines.TryGetValue(
                             memberId,
                             out var existing)
