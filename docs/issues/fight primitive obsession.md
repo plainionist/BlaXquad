@@ -351,7 +351,7 @@ permission-mode and module manual text. No type other than `PermissionMode` is a
 adapter. `SquadAgentConfiguration` was deleted as a duplicate of `AgentSettings`. The JSON `permissions` token
 stays a string; an unsupported token is rejected by `MemberConfiguration.feature` before any session starts.
 
-### Slice 5 - Carry member identity through provider and application runtime
+### Slice 5 - Carry member identity through provider and application runtime [done]
 
 **Task:** `carry-member-identity-through-runtime`
 
@@ -402,6 +402,10 @@ readiness, failure, and session disposal remain member-specific under `MemberCon
    (e.g. `SendAsync(SquadMemberId role, …)`, `(SquadMemberId Role, string Type, string SessionId)`).
    **Required outcome:** Rename those identifiers to `memberId`/`MemberId`. Keep fake-control JSON, query methods
    that still accept Gherkin/control strings, and user-facing `Unknown role` text unchanged.
+
+**Status: complete (bf83e456bb).** `SquadMemberId` is the runtime member identity on sessions, role context,
+`SquadMembers` routing, Headquarters readiness, and fake-journal storage. Review findings are addressed: readiness
+carries the parsed id, the Copilot teardown diagnostic keeps `role`, and typed identifiers are named `memberId`.
 
 ### Slice 6 - Type UI member commands
 
