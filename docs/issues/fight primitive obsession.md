@@ -449,7 +449,7 @@ multi-member updates preserve their ordering and isolation under `TranscriptSync
 names are parsed once in `UiCommandHandler`; `TranscriptProtocol` is the sole outgoing `role` formatter. Archive
 path hashing uses `memberId.Value` only at `GetRoleDirectory`.
 
-### Slice 8 - Type accepted member state in specifications
+### Slice 8 - Type accepted member state in specifications [done]
 
 **Task:** `type-spec-member-state`
 
@@ -470,6 +470,10 @@ configured identity, without changing Gherkin's established user-facing `role` v
 
 **Acceptance:** the focused configuration, lifecycle, multi-role UI, and transcript features used by slices 5-7
 continue to compile and pass without changing feature wording.
+
+**Status: complete (f73a428818).** Configured-member collections, worktree maps, transcript paging/delta/sequence
+maps, readiness waits, and UI synchronization skip state are keyed by `SquadMemberId`. Gherkin `role` wording,
+raw configuration builders, and protocol correlation keys remain strings. `ObservationJournal` was already typed.
 
 ### Slice 9 - Remove duplicated interaction ownership
 
