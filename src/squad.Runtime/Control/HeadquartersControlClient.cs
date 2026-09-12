@@ -16,24 +16,24 @@ public static class HeadquartersControlClient
         Contract.Requires(timeout > TimeSpan.Zero, "timeout must be positive.");
         projectRoot = Path.GetFullPath(projectRoot);
         var elapsed = Stopwatch.StartNew();
-        var lastStatus = "Headquarters unavailable";
+        var lastStatus = AgentReadinessStatus.Unavailable;
         while (elapsed.Elapsed < timeout)
         {
             var remaining = timeout - elapsed.Elapsed;
             var status = await QueryAgentStatusAsync(projectRoot, role, remaining);
-            if (status == "ready")
+            if (status == AgentReadinessStatus.Ready)
             {
                 return;
             }
-            if (status == "unknown-role")
+            if (status == AgentReadinessStatus.UnknownRole)
             {
                 throw new InvalidOperationException($"The squad has no agent role named '{role}'.");
             }
-            if (status == "not-ready")
+            if (status == AgentReadinessStatus.NotReady)
             {
-                lastStatus = "agent not ready";
+                lastStatus = AgentReadinessStatus.NotReady;
             }
-            else if (lastStatus == "Headquarters unavailable")
+            else if (lastStatus == AgentReadinessStatus.Unavailable)
             {
                 lastStatus = status;
             }
@@ -49,8 +49,21 @@ public static class HeadquartersControlClient
         }
 
         throw new TimeoutException(
-            $"Agent '{role}' did not become ready within {timeout.TotalSeconds:0.###} seconds ({lastStatus}).");
+            $"Agent '{role}' did not become ready within {timeout.TotalSeconds:0.###} seconds ({DescribeForTimeout(lastStatus)}).");
     }
+
+    /// <summary>Derives <see cref="WaitForAgentAsync"/>'s existing user-facing timeout detail from an exhaustive
+    /// switch over every non-terminal status it can still be holding when the wait loop times out.</summary>
+    private static string DescribeForTimeout(AgentReadinessStatus status) => status switch
+    {
+        AgentReadinessStatus.NotReady => "agent not ready",
+        AgentReadinessStatus.Initializing => "initializing",
+        AgentReadinessStatus.Unavailable => "Headquarters unavailable",
+        AgentReadinessStatus.EndpointUnavailable => "Headquarters control endpoint unavailable",
+        AgentReadinessStatus.Ready or AgentReadinessStatus.UnknownRole =>
+            throw new InvalidOperationException($"unreachable: {status} never reaches the timeout path."),
+        _ => throw new InvalidOperationException($"unknown agent readiness status {status}"),
+    };
 
     /// <summary>Requests shutdown and waits until Headquarters releases project ownership.</summary>
     public static async Task<bool> ShutdownAsync(string projectRoot, TimeSpan timeout)
@@ -110,12 +123,12 @@ public static class HeadquartersControlClient
         return true;
     }
 
-    private static async Task<string> QueryAgentStatusAsync(string projectRoot, string role, TimeSpan remaining)
+    private static async Task<AgentReadinessStatus> QueryAgentStatusAsync(string projectRoot, string role, TimeSpan remaining)
     {
         var stateDir = Path.Combine(projectRoot, ".blaxquad");
         if (!Directory.Exists(stateDir) || HeadquartersLease.RemoveStaleMetadata(projectRoot))
         {
-            return "Headquarters unavailable";
+            return AgentReadinessStatus.Unavailable;
         }
 
         var pipeName = HeadquartersLease.PipeNameFor(projectRoot);
@@ -132,9 +145,9 @@ public static class HeadquartersControlClient
         {
             if (HeadquartersLease.RemoveStaleMetadata(projectRoot))
             {
-                return "Headquarters unavailable";
+                return AgentReadinessStatus.Unavailable;
             }
-            return "Headquarters control endpoint unavailable";
+            return AgentReadinessStatus.EndpointUnavailable;
         }
 
         using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
@@ -142,7 +155,7 @@ public static class HeadquartersControlClient
         var ioRemaining = remaining - queryElapsed.Elapsed;
         if (ioRemaining <= TimeSpan.Zero)
         {
-            return "Headquarters control endpoint unavailable";
+            return AgentReadinessStatus.EndpointUnavailable;
         }
         var ioDuration = ioRemaining < TimeSpan.FromSeconds(1)
             ? ioRemaining
@@ -163,8 +176,8 @@ public static class HeadquartersControlClient
         catch (Exception exception) when (exception is IOException or OperationCanceledException or ObjectDisposedException)
         {
             return HeadquartersLease.RemoveStaleMetadata(projectRoot)
-                ? "Headquarters unavailable"
-                : "Headquarters control endpoint unavailable";
+                ? AgentReadinessStatus.Unavailable
+                : AgentReadinessStatus.EndpointUnavailable;
         }
         if (string.IsNullOrWhiteSpace(response))
         {
@@ -184,7 +197,14 @@ public static class HeadquartersControlClient
         {
             throw new InvalidDataException("Headquarters returned an invalid readiness response.");
         }
-        return message.GetString()!;
+        return message.GetString() switch
+        {
+            "ready" => AgentReadinessStatus.Ready,
+            "not-ready" => AgentReadinessStatus.NotReady,
+            "unknown-role" => AgentReadinessStatus.UnknownRole,
+            "initializing" => AgentReadinessStatus.Initializing,
+            _ => throw new InvalidDataException("Headquarters returned an invalid readiness response."),
+        };
     }
 }
 
