@@ -4,6 +4,7 @@ using squad.Application.Members;
 using squad.Application.Transcripts;
 using squad.Domain;
 using squad.Ui.Abstractions;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace squad.Application;
@@ -265,7 +266,12 @@ public sealed class SquadMembers : IDisposable
                 requestId = elicitation.RequestId.Value,
                 role = member.Id.Value,
                 prompt = elicitation.Prompt,
-                mode = elicitation.Mode,
+                mode = elicitation.Mode switch
+                {
+                    ElicitationMode.Form => "form",
+                    ElicitationMode.Url => "url",
+                    _ => throw new UnreachableException(),
+                },
                 requestedSchema = elicitation.RequestedSchema,
                 url = elicitation.Url,
             })),

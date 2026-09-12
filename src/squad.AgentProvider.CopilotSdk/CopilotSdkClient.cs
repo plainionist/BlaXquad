@@ -1,3 +1,4 @@
+using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using GitHub.Copilot;
 using GitHub.Copilot.Rpc;
@@ -116,13 +117,23 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     private static async Task<ElicitationResult> HandleElicitationRequestAsync(CopilotSdkAgentSession agentSession, ElicitationContext request)
     {
         JsonElement? schema = request.RequestedSchema is null ? null : JsonSerializer.SerializeToElement(request.RequestedSchema);
-        var response = await agentSession.RequestElicitationAsync(request.Message, request.Mode?.ToString() ?? "form", schema, request.Url);
+        var response = await agentSession.RequestElicitationAsync(request.Message, ParseElicitationMode(request.Mode?.ToString()), schema, request.Url);
         return new ElicitationResult
         {
             Action = new UIElicitationResponseAction(response.Action),
             Content = ToSdkElicitationContent(response.Content),
         };
     }
+
+    /// <summary>Maps the Copilot SDK's elicitation mode spelling into <see cref="ElicitationMode"/> at the SDK
+    /// input boundary, preserving the SDK's own "form" default for an omitted mode and rejecting any other
+    /// unsupported spelling explicitly rather than carrying it inward.</summary>
+    private static ElicitationMode ParseElicitationMode(string? mode) => mode switch
+    {
+        null or "form" => ElicitationMode.Form,
+        "url" => ElicitationMode.Url,
+        _ => throw new InvalidOperationException($"Unsupported elicitation mode '{mode}' from the Copilot SDK."),
+    };
 
     private static IDictionary<string, object>? ToSdkElicitationContent(JsonElement? content)
     {

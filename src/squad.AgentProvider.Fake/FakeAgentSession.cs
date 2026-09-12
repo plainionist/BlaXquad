@@ -325,7 +325,7 @@ internal sealed class FakeAgentSession : IAgentSession
                     now,
                     new InteractionRequestId(data.GetProperty("requestId").GetString()!),
                     data.GetProperty("prompt").GetString()!,
-                    data.GetProperty("mode").GetString()!,
+                    ParseElicitationMode(data.GetProperty("mode").GetString()),
                     null,
                     GetNullableString(data, "url")));
                 return null;
@@ -382,6 +382,16 @@ internal sealed class FakeAgentSession : IAgentSession
 
     private static string? GetNullableString(JsonElement data, string name) =>
         data.TryGetProperty(name, out var element) && element.ValueKind != JsonValueKind.Null ? element.GetString() : null;
+
+    /// <summary>Maps the fake-control envelope's elicitation mode spelling into <see cref="ElicitationMode"/> at
+    /// this control-pipe input boundary, rejecting any unsupported spelling explicitly rather than carrying it
+    /// inward.</summary>
+    private static ElicitationMode ParseElicitationMode(string? mode) => mode switch
+    {
+        "form" => ElicitationMode.Form,
+        "url" => ElicitationMode.Url,
+        _ => throw new InvalidOperationException($"Unsupported elicitation mode '{mode}' from the fake-control envelope."),
+    };
 
     private static IReadOnlyList<string>? GetNullableStringArray(JsonElement data, string name)
     {

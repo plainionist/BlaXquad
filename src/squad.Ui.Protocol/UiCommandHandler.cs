@@ -136,7 +136,7 @@ internal sealed class UiCommandHandler
                     elicitationId,
                     action,
                     GetPayloadElement(message.Payload, "content"));
-                if (action == "accept" && request.Mode == "url")
+                if (action == "accept" && request.Mode == ElicitationMode.Url)
                 {
                     OpenExternalUrl(
                         Require(request.Url, "pending elicitation URL"));
