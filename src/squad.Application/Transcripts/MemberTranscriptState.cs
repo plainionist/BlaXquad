@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Ui.Abstractions;
 
 namespace squad.Application.Transcripts;
@@ -13,7 +14,7 @@ internal sealed class MemberTranscriptState
         "[Earlier content is available in transcript history.]\n";
     private const string myArchivedContentUnavailableMarker =
         "[Earlier content is no longer available.]\n";
-    private readonly string myMemberId;
+    private readonly SquadMemberId myMemberId;
     private readonly object mySyncRoot;
     private readonly List<IndexedTranscriptEntry> myTranscriptEntries = [];
     private readonly HashSet<int> myProtectedTranscriptEntries = [];
@@ -27,7 +28,7 @@ internal sealed class MemberTranscriptState
     private int myRetainedContentCharacters;
 
     public MemberTranscriptState(
-        string memberId,
+        SquadMemberId memberId,
         MemberTranscriptArchive transcriptArchive,
         object syncRoot)
     {

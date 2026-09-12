@@ -1,3 +1,5 @@
+using squad.Domain;
+
 namespace squad.Application.Transcripts;
 
 /// <summary>
@@ -12,7 +14,7 @@ public sealed class TranscriptStore : IDisposable
     private readonly TranscriptRetentionOptions myRetentionOptions = new();
     private readonly TranscriptArchive myArchive;
     private readonly object myPublicationLock = new();
-    private readonly Dictionary<string, MemberPublicationIdentity> myPublicationIdentities = new(StringComparer.Ordinal);
+    private readonly Dictionary<SquadMemberId, MemberPublicationIdentity> myPublicationIdentities = [];
 
     public TranscriptStore()
     {
@@ -31,21 +33,21 @@ public sealed class TranscriptStore : IDisposable
     internal TranscriptArchive Archive => myArchive;
 
     /// <summary>Reserves the next transcript entry index for a member, continuing across squad generations.</summary>
-    internal int ReserveEntryIndex(string member)
+    internal int ReserveEntryIndex(SquadMemberId member)
     {
         lock (myPublicationLock)
             return GetIdentity(member).NextEntryIndex++;
     }
 
     /// <summary>Advances a member's transcript sequence, continuing across squad generations.</summary>
-    internal long AdvanceSequence(string member)
+    internal long AdvanceSequence(SquadMemberId member)
     {
         lock (myPublicationLock)
             return ++GetIdentity(member).Sequence;
     }
 
     /// <summary>The sequence through which a member's published transcript is current.</summary>
-    internal long CurrentSequence(string member)
+    internal long CurrentSequence(SquadMemberId member)
     {
         lock (myPublicationLock)
             return GetIdentity(member).Sequence;
@@ -53,7 +55,7 @@ public sealed class TranscriptStore : IDisposable
 
     public void Dispose() => myArchive.Dispose();
 
-    private MemberPublicationIdentity GetIdentity(string member)
+    private MemberPublicationIdentity GetIdentity(SquadMemberId member)
     {
         if (!myPublicationIdentities.TryGetValue(member, out var identity))
         {

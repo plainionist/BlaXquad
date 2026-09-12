@@ -67,18 +67,16 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
         return Installed?.Members.CreateTranscriptSnapshot(maxEntriesPerRole) ?? [];
     }
 
-    public RoleTranscriptPage CreateTranscriptPage(string role, int beforeIndex, int maxEntries)
+    public RoleTranscriptPage CreateTranscriptPage(SquadMemberId memberId, int beforeIndex, int maxEntries)
     {
         Contract.Requires(beforeIndex >= 0, "beforeIndex must not be negative.");
         Contract.Requires(maxEntries > 0, "maxEntries must be positive.");
-        var memberId = new SquadMemberId(role);
         return RequireInstalled(memberId).CreateTranscriptPage(memberId, beforeIndex, maxEntries);
     }
 
-    public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex)
+    public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(SquadMemberId memberId, int entryIndex)
     {
         Contract.Requires(entryIndex >= 0, "entryIndex must not be negative.");
-        var memberId = new SquadMemberId(role);
         return RequireInstalled(memberId).CreateArchivedTranscriptEntry(memberId, entryIndex);
     }
 

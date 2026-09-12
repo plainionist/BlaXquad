@@ -18,7 +18,7 @@ internal sealed class UiCommandHandler
     private readonly Action<string, object, string?> mySend;
     private readonly Action<
         bool,
-        IReadOnlyDictionary<string, TranscriptSynchronizationPosition>?>
+        IReadOnlyDictionary<SquadMemberId, TranscriptSynchronizationPosition>?>
         myRequestTranscriptSynchronization;
     private readonly Action mySignalUiReady;
 
@@ -30,7 +30,7 @@ internal sealed class UiCommandHandler
         Action<string, object, string?> send,
         Action<
             bool,
-            IReadOnlyDictionary<string, TranscriptSynchronizationPosition>?>
+            IReadOnlyDictionary<SquadMemberId, TranscriptSynchronizationPosition>?>
             requestTranscriptSynchronization,
         Action signalUiReady)
     {
@@ -52,11 +52,10 @@ internal sealed class UiCommandHandler
                 var initialPositions = myTranscriptUi
                     .CreateTranscriptSnapshot(1)
                     .ToDictionary(
-                        role => role.Role,
+                        role => role.MemberId,
                         role => new TranscriptSynchronizationPosition(
                             role.Sequence,
-                            role.Sequence),
-                        StringComparer.Ordinal);
+                            role.Sequence));
                 myRequestTranscriptSynchronization(true, initialPositions);
                 mySend(
                     "workspace-tools.snapshot",
@@ -70,12 +69,12 @@ internal sealed class UiCommandHandler
                     GetTranscriptSynchronizationPositions(message.Payload));
                 break;
             case "transcript.page":
-                var pageRole = Require(message.Role, "role");
+                var pageMemberId = RequireMemberId(message.Role);
                 var beforeIndex = RequirePayloadInt32(
                     message.Payload,
                     "beforeIndex");
                 var page = myTranscriptUi.CreateTranscriptPage(
-                    pageRole,
+                    pageMemberId,
                     beforeIndex,
                     myMaxTranscriptPageEntries);
                 mySend(
@@ -84,13 +83,13 @@ internal sealed class UiCommandHandler
                     null);
                 break;
             case "transcript.entry":
-                var entryRole = Require(message.Role, "role");
+                var entryMemberId = RequireMemberId(message.Role);
                 var entryIndex = RequirePayloadInt32(
                     message.Payload,
                     "entryIndex");
                 var archivedEntry =
                     myTranscriptUi.CreateArchivedTranscriptEntry(
-                        entryRole,
+                        entryMemberId,
                         entryIndex);
                 mySend(
                     "transcript.entry",
@@ -226,13 +225,12 @@ internal sealed class UiCommandHandler
         return value;
     }
 
-    private static IReadOnlyDictionary<string, TranscriptSynchronizationPosition>
+    private static IReadOnlyDictionary<SquadMemberId, TranscriptSynchronizationPosition>
         GetTranscriptSynchronizationPositions(JsonElement payload)
     {
         if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
         {
-            return new Dictionary<string, TranscriptSynchronizationPosition>(
-                StringComparer.Ordinal);
+            return new Dictionary<SquadMemberId, TranscriptSynchronizationPosition>();
         }
         if (payload.ValueKind != JsonValueKind.Object)
         {
@@ -241,8 +239,7 @@ internal sealed class UiCommandHandler
         }
         if (!payload.TryGetProperty("roles", out var roles))
         {
-            return new Dictionary<string, TranscriptSynchronizationPosition>(
-                StringComparer.Ordinal);
+            return new Dictionary<SquadMemberId, TranscriptSynchronizationPosition>();
         }
         if (roles.ValueKind != JsonValueKind.Array)
         {
@@ -250,9 +247,7 @@ internal sealed class UiCommandHandler
                 "The UI message contains invalid transcript positions.");
         }
 
-        var positions =
-            new Dictionary<string, TranscriptSynchronizationPosition>(
-                StringComparer.Ordinal);
+        var positions = new Dictionary<SquadMemberId, TranscriptSynchronizationPosition>();
         foreach (var role in roles.EnumerateArray())
         {
             if (role.ValueKind != JsonValueKind.Object
@@ -286,7 +281,7 @@ internal sealed class UiCommandHandler
                 throw new InvalidOperationException(
                     "The UI message contains an invalid transcript position.");
             }
-            positions[roleName.GetString()!] = new(
+            positions[new SquadMemberId(roleName.GetString()!)] = new(
                 visualValue,
                 announcementValue);
         }

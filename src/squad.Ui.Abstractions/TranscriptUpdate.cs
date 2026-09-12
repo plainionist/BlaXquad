@@ -1,9 +1,11 @@
+using squad.Domain;
+
 namespace squad.Ui.Abstractions;
 
 /// <summary>Describes one sequenced mutation of a role transcript and its optional recovery announcement.</summary>
 public sealed record TranscriptUpdate
 {
-    public string Role { get; init; }
+    public SquadMemberId MemberId { get; init; }
     public long Sequence { get; init; }
     public TranscriptUpdateKind Kind { get; init; }
     public int EntryIndex { get; init; }
@@ -14,7 +16,7 @@ public sealed record TranscriptUpdate
     public TranscriptAnnouncement? Announcement { get; init; }
 
     public TranscriptUpdate(
-        string Role,
+        SquadMemberId MemberId,
         long Sequence,
         TranscriptUpdateKind Kind,
         int EntryIndex,
@@ -33,7 +35,7 @@ public sealed record TranscriptUpdate
         Contract.Requires(
             Kind == TranscriptUpdateKind.AppendContent || Entry is not null,
             "AppendEntry and ReplaceEntry updates must supply Entry.");
-        this.Role = Role;
+        this.MemberId = MemberId;
         this.Sequence = Sequence;
         this.Kind = Kind;
         this.EntryIndex = EntryIndex;

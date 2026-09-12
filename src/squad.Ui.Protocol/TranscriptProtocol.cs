@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
@@ -7,29 +8,29 @@ internal static class TranscriptProtocol
 {
     public static object CreateSynchronizationPayload(
         IReadOnlyList<RoleTranscriptSnapshot> transcriptSnapshot,
-        IReadOnlyDictionary<string, TranscriptRecoveryAnnouncement>? recoveryAnnouncements = null,
+        IReadOnlyDictionary<SquadMemberId, TranscriptRecoveryAnnouncement>? recoveryAnnouncements = null,
         bool recovery = false) => new
         {
             recovery,
             roles = transcriptSnapshot.Select(role => new
             {
-                role = role.Role,
+                role = role.MemberId.Value,
                 sequence = role.Sequence,
                 entries = role.Entries.Select(CreateIndexedEntryPayload),
                 hasMore = role.HasMore,
                 historyTruncated = role.HistoryTruncated,
                 announcementAfter = recoveryAnnouncements?.TryGetValue(
-                    role.Role,
+                    role.MemberId,
                     out var interval) == true
                         ? interval.AfterSequence
                         : (long?)null,
                 announcementThrough = recoveryAnnouncements?.TryGetValue(
-                    role.Role,
+                    role.MemberId,
                     out interval) == true
                         ? interval.ThroughSequence
                         : (long?)null,
                 announcement = recoveryAnnouncements?.TryGetValue(
-                    role.Role,
+                    role.MemberId,
                     out var announcement) == true
                     && (announcement.Truncated || announcement.Fragments.Count > 0)
                         ? CreateRecoveryAnnouncementPayload(announcement)
@@ -39,7 +40,7 @@ internal static class TranscriptProtocol
 
     public static object CreateUpdatePayload(TranscriptUpdate update) => new
     {
-        role = update.Role,
+        role = update.MemberId.Value,
         sequence = update.Sequence,
         operation = update.Kind switch
         {
@@ -63,7 +64,7 @@ internal static class TranscriptProtocol
 
     public static object CreatePagePayload(RoleTranscriptPage page) => new
     {
-        role = page.Role,
+        role = page.MemberId.Value,
         entries = page.Entries.Select(CreateIndexedEntryPayload),
         hasMore = page.HasMore,
         historyTruncated = page.HistoryTruncated,
@@ -71,7 +72,7 @@ internal static class TranscriptProtocol
 
     public static object CreateArchivedEntryPayload(RoleArchivedTranscriptEntry archivedEntry) => new
     {
-        role = archivedEntry.Role,
+        role = archivedEntry.MemberId.Value,
         sequence = archivedEntry.Sequence,
         entryIndex = archivedEntry.EntryIndex,
         entry = archivedEntry.Entry is null

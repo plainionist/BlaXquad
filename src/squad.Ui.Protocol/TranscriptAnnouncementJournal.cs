@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
@@ -10,7 +11,7 @@ internal sealed class TranscriptAnnouncementJournal
 {
     private readonly int myMaxEntriesPerRole;
     private readonly int myMaxCharactersPerRole;
-    private readonly Dictionary<string, RoleJournal> myRoles = new(StringComparer.Ordinal);
+    private readonly Dictionary<SquadMemberId, RoleJournal> myRoles = [];
     private readonly object myStateLock = new();
 
     public TranscriptAnnouncementJournal(
@@ -27,10 +28,10 @@ internal sealed class TranscriptAnnouncementJournal
     {
         lock (myStateLock)
         {
-            if (!myRoles.TryGetValue(update.Role, out var journal))
+            if (!myRoles.TryGetValue(update.MemberId, out var journal))
             {
                 journal = new RoleJournal();
-                myRoles.Add(update.Role, journal);
+                myRoles.Add(update.MemberId, journal);
             }
 
             Contract.Invariant(
@@ -62,13 +63,13 @@ internal sealed class TranscriptAnnouncementJournal
     /// has been discarded.
     /// </summary>
     public TranscriptRecoveryAnnouncement Read(
-        string role,
+        SquadMemberId memberId,
         long afterSequence,
         long throughSequence)
     {
         lock (myStateLock)
         {
-            if (!myRoles.TryGetValue(role, out var journal))
+            if (!myRoles.TryGetValue(memberId, out var journal))
             {
                 return new(afterSequence, throughSequence, [], false);
             }

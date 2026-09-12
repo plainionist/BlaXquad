@@ -40,7 +40,7 @@ internal sealed class MemberAggregate : IDisposable
         Generation = generation;
         Id = id;
         DisplayName = displayName;
-        myTranscript = new MemberTranscriptState(id.Value, transcriptArchive, myStateLock);
+        myTranscript = new MemberTranscriptState(id, transcriptArchive, myStateLock);
     }
 
     /// <summary>The identity of the squad generation this member belongs to. It never outlives that generation.</summary>

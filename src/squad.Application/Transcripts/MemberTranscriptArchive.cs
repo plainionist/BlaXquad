@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Ui.Abstractions;
 
 namespace squad.Application.Transcripts;
@@ -13,9 +14,9 @@ internal sealed class MemberTranscriptArchive
 {
     private readonly TranscriptStore myStore;
     private readonly GenerationTranscriptArchive myGeneration;
-    private readonly string myMember;
+    private readonly SquadMemberId myMember;
 
-    internal MemberTranscriptArchive(TranscriptStore store, GenerationTranscriptArchive generation, string member)
+    internal MemberTranscriptArchive(TranscriptStore store, GenerationTranscriptArchive generation, SquadMemberId member)
     {
         myStore = store;
         myGeneration = generation;

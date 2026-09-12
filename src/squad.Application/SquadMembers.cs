@@ -56,7 +56,7 @@ public sealed class SquadMembers : IDisposable
                 generation,
                 member.Id,
                 member.DisplayName,
-                myTranscripts.OpenMember(member.Id.Value));
+                myTranscripts.OpenMember(member.Id));
             myMembers.Add(member.Id, new MemberProcessor(
                 aggregate,
                 myAdmissionLock,

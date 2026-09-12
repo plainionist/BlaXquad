@@ -1,3 +1,4 @@
+using squad.Domain;
 using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
@@ -24,13 +25,10 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
         myTranscriptAnnouncementJournal = new(
             myMaxRecoveryAnnouncementUpdatesPerRole,
             myMaxRecoveryAnnouncementCharactersPerRole);
-    private readonly Dictionary<string, long> myDeliveredTranscriptSequences =
-        new(StringComparer.Ordinal);
-    private readonly Dictionary<string, long> mySynchronizedTranscriptSequences =
-        new(StringComparer.Ordinal);
-    private readonly Dictionary<string, TranscriptSynchronizationPosition>
-        myRequestedTranscriptPositions =
-        new(StringComparer.Ordinal);
+    private readonly Dictionary<SquadMemberId, long> myDeliveredTranscriptSequences = [];
+    private readonly Dictionary<SquadMemberId, long> mySynchronizedTranscriptSequences = [];
+    private readonly Dictionary<SquadMemberId, TranscriptSynchronizationPosition>
+        myRequestedTranscriptPositions = [];
     private bool myTranscriptUpdatesRequireSynchronization;
     private bool myTranscriptSynchronizationRequested;
     private bool myInitialTranscriptSynchronizationRequested;
@@ -76,7 +74,7 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
 
     internal void RequestTranscriptSynchronization(
         bool initial = false,
-        IReadOnlyDictionary<string, TranscriptSynchronizationPosition>?
+        IReadOnlyDictionary<SquadMemberId, TranscriptSynchronizationPosition>?
             positions = null)
     {
         lock (myTranscriptUpdatesLock)
@@ -85,16 +83,16 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
             myInitialTranscriptSynchronizationRequested |= initial;
             if (positions is not null)
             {
-                foreach (var (role, position) in positions)
+                foreach (var (memberId, position) in positions)
                 {
                     if (!myRequestedTranscriptPositions.TryGetValue(
-                            role,
+                            memberId,
                             out var existing))
                     {
-                        myRequestedTranscriptPositions[role] = position;
+                        myRequestedTranscriptPositions[memberId] = position;
                         continue;
                     }
-                    myRequestedTranscriptPositions[role] = new(
+                    myRequestedTranscriptPositions[memberId] = new(
                         Math.Min(
                             existing.VisualSequence,
                             position.VisualSequence),
@@ -124,9 +122,9 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
         bool updatesRequireSynchronization;
         bool synchronizationRequested;
         bool initialSynchronizationRequested;
-        Dictionary<string, TranscriptSynchronizationPosition>
+        Dictionary<SquadMemberId, TranscriptSynchronizationPosition>
             recoveryBaselines;
-        Dictionary<string, long> lastSynchronizedSequences;
+        Dictionary<SquadMemberId, long> lastSynchronizedSequences;
         lock (myTranscriptUpdatesLock)
         {
             updates = [.. myTranscriptUpdates];
@@ -139,24 +137,20 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
             initialSynchronizationRequested =
                 myInitialTranscriptSynchronizationRequested;
             myInitialTranscriptSynchronizationRequested = false;
-            recoveryBaselines = new(
-                myRequestedTranscriptPositions,
-                StringComparer.Ordinal);
+            recoveryBaselines = new(myRequestedTranscriptPositions);
             myRequestedTranscriptPositions.Clear();
-            lastSynchronizedSequences = new(
-                mySynchronizedTranscriptSequences,
-                StringComparer.Ordinal);
+            lastSynchronizedSequences = new(mySynchronizedTranscriptSequences);
             if (updatesRequireSynchronization)
             {
-                foreach (var (role, sequence)
+                foreach (var (memberId, sequence)
                          in myDeliveredTranscriptSequences)
                 {
                     if (!recoveryBaselines.TryGetValue(
-                            role,
+                            memberId,
                             out var existing)
                         || sequence < existing.AnnouncementSequence)
                     {
-                        recoveryBaselines[role] = new(sequence, sequence);
+                        recoveryBaselines[memberId] = new(sequence, sequence);
                     }
                 }
             }
@@ -172,18 +166,17 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
         var recoveryAnnouncements =
             synchronize && transcriptSnapshot is not null
                 ? transcriptSnapshot.ToDictionary(
-                    role => role.Role,
+                    role => role.MemberId,
                     role => myTranscriptAnnouncementJournal.Read(
-                        role.Role,
+                        role.MemberId,
                         recoveryBaselines.TryGetValue(
-                            role.Role,
+                            role.MemberId,
                             out var position)
                             ? position.AnnouncementSequence
                             : lastSynchronizedSequences.GetValueOrDefault(
-                                role.Role,
+                                role.MemberId,
                                 role.Sequence),
-                        role.Sequence),
-                    StringComparer.Ordinal)
+                        role.Sequence))
                 : null;
 
         mySend("state.snapshot", myUi.CreateSnapshot());
@@ -200,26 +193,25 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
                 foreach (var role in transcriptSnapshot)
                 {
                     Contract.Invariant(
-                        role.Sequence >= myDeliveredTranscriptSequences.GetValueOrDefault(role.Role),
+                        role.Sequence >= myDeliveredTranscriptSequences.GetValueOrDefault(role.MemberId),
                         "Delivered transcript sequence must never move backward.");
                     Contract.Invariant(
-                        role.Sequence >= mySynchronizedTranscriptSequences.GetValueOrDefault(role.Role),
+                        role.Sequence >= mySynchronizedTranscriptSequences.GetValueOrDefault(role.MemberId),
                         "Synchronized transcript sequence must never move backward.");
-                    myDeliveredTranscriptSequences[role.Role] = role.Sequence;
-                    mySynchronizedTranscriptSequences[role.Role] =
+                    myDeliveredTranscriptSequences[role.MemberId] = role.Sequence;
+                    mySynchronizedTranscriptSequences[role.MemberId] =
                         role.Sequence;
                 }
             }
         }
 
         var synchronizedSequences = transcriptSnapshot?.ToDictionary(
-            role => role.Role,
-            role => role.Sequence,
-            StringComparer.Ordinal);
+            role => role.MemberId,
+            role => role.Sequence);
         foreach (var update in updates)
         {
             if (synchronizedSequences?.TryGetValue(
-                    update.Role,
+                    update.MemberId,
                     out var sequence) == true
                 && update.Sequence <= sequence)
             {
@@ -231,9 +223,9 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
             lock (myTranscriptUpdatesLock)
             {
                 Contract.Invariant(
-                    update.Sequence >= myDeliveredTranscriptSequences.GetValueOrDefault(update.Role),
+                    update.Sequence >= myDeliveredTranscriptSequences.GetValueOrDefault(update.MemberId),
                     "Delivered transcript sequence must never move backward.");
-                myDeliveredTranscriptSequences[update.Role] = update.Sequence;
+                myDeliveredTranscriptSequences[update.MemberId] = update.Sequence;
             }
         }
     }
