@@ -403,6 +403,11 @@ JSON shape, missing-entry responses, locking, and disposal are unchanged.
 - Repeated observations retain the latest value and exact count; role isolation and undisposed-session detection
   remain unchanged.
 
+**Status: complete (0810f5aa19).** One `MemberObservationJournal` per role owns latest session id, latest prompt,
+and per-kind `ObservationState` (cloned JSON plus count). Lifecycle and protocol-error lists stay journal-wide.
+A disposed session remains the latest observed session; timeout diagnostics still render lifecycle, prompt,
+generic-observation, and protocol-error data.
+
 ### Slice 6: Consolidate raw SDK tool trace state
 
 **Task:** `consolidate-sdk-tool-trace-state`
