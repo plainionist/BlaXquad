@@ -108,8 +108,8 @@ descriptor, mirroring how it already loads agent providers.
 
 Implements `IHostingFactory` with a headless, stdio-framed `IWindowHost` that
 drives a `UiProtocolSession` over standard input/output. It is test-distributed
-only: it ships beside `squad.Specs`' published tools and is loaded at runtime
-via `--hosting`, never referenced or built into production `squad-hq` packaging.
+only: it builds beside `squad.Specs` and is loaded at runtime via `--hosting`,
+never referenced or built into production `squad-hq` packaging.
 
 ## `squad.Hosting.Fake`
 

@@ -21,11 +21,11 @@ public sealed class HostingSelectionSteps
     public void WhenTheOperatorLaunchesHeadquartersWithTheHostingOptionSpecifiedTwice() =>
         myWorkspace.RunTool(
             "squad-hq",
-            ["launch", "--hosting", Descriptor(typeof(StdioHostingFactory)), "--hosting", Descriptor(typeof(StdioHostingFactory)), myWorkspace.Root]);
+            ["launch", "--provider", Descriptor(typeof(FakeAgentProviderFactory)), "--hosting", Descriptor(typeof(StdioHostingFactory)), "--hosting", Descriptor(typeof(StdioHostingFactory)), myWorkspace.Root]);
 
     [When("the operator launches Headquarters with the hosting option missing its value")]
     public void WhenTheOperatorLaunchesHeadquartersWithTheHostingOptionMissingItsValue() =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--hosting"]);
+        myWorkspace.RunTool("squad-hq", ["launch", "--provider", Descriptor(typeof(FakeAgentProviderFactory)), "--hosting"]);
 
     [When("the operator launches Headquarters with a malformed hosting descriptor")]
     public void WhenTheOperatorLaunchesHeadquartersWithAMalformedHostingDescriptor() =>
@@ -90,11 +90,13 @@ public sealed class HostingSelectionSteps
     // preparation fails first, so this proves resolution safely without opening a real Photino window.
     [When("the operator launches Headquarters against an unconfigured project with hosting omitted")]
     public void WhenTheOperatorLaunchesHeadquartersAgainstAnUnconfiguredProjectWithHostingOmitted() =>
-        myWorkspace.RunTool("squad-hq", ["launch", myWorkspace.Root]);
+        myWorkspace.RunPublishedTool("squad-hq", ["launch", myWorkspace.Root]);
 
     [When("the operator launches Headquarters against an unconfigured project with an explicit Photino hosting descriptor")]
     public void WhenTheOperatorLaunchesHeadquartersAgainstAnUnconfiguredProjectWithAnExplicitPhotinoHostingDescriptor() =>
-        Launch($"{myWorkspace.SquadToolsPhotinoHostingAssemblyPath};squad.Hosting.Photino.PhotinoHostingFactory");
+        myWorkspace.RunPublishedTool(
+            "squad-hq",
+            ["launch", "--hosting", $"{myWorkspace.SquadToolsPhotinoHostingAssemblyPath};squad.Hosting.Photino.PhotinoHostingFactory", myWorkspace.Root]);
 
     [Then("the launch fails with a workspace diagnostic containing {string} and no hosting diagnostic")]
     public void ThenTheLaunchFailsWithAWorkspaceDiagnosticContainingAndNoHostingDiagnostic(string expectedText)
@@ -106,7 +108,9 @@ public sealed class HostingSelectionSteps
     }
 
     private void Launch(string hostingDescriptor) =>
-        myWorkspace.RunTool("squad-hq", ["launch", "--hosting", hostingDescriptor, myWorkspace.Root]);
+        myWorkspace.RunTool(
+            "squad-hq",
+            ["launch", "--provider", Descriptor(typeof(FakeAgentProviderFactory)), "--hosting", hostingDescriptor, myWorkspace.Root]);
 
     private static string Descriptor(Type fixtureType) =>
         $"{fixtureType.Assembly.Location};{fixtureType.FullName}";

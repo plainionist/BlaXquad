@@ -9,7 +9,7 @@ namespace squad.Specs.Support.Scenarios;
 
 /// <summary>
 /// Test-owned lifetime and composition root for one backend-process specification. It wires together the Git
-/// workspace, the published, provider-free squad-hq CLI, and the headless UI protocol client so step definitions
+/// workspace, the built, provider-free squad-hq CLI, and the headless UI protocol client so step definitions
 /// only ever see semantic, backend-agnostic operations - never a file-system path beyond a user-supplied role
 /// name, a process handle, a protocol DTO, or any other product object graph. Implements <see cref="IDisposable"/>
 /// as an emergency-only cleanup path: normal specifications call <see cref="ShutdownAsync"/> explicitly, and
@@ -193,7 +193,7 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Launches the published, provider-free squad-hq with an explicit "--hosting" descriptor selecting the
+    /// Launches the built, provider-free squad-hq with an explicit "--hosting" descriptor selecting the
     /// test-distributed stdio hosting plug-in and the given test-owned provider fixture, completes the real
     /// "ui.ready" handshake, and returns only once the process has observably become ready. If
     /// <see cref="EnableFakeProviderControl"/> was called first, also passes its pipe name and token through
@@ -256,7 +256,7 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Launches the published, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
+    /// Launches the built, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
     /// through <see cref="CancellableChildProcess"/> instead of an ordinary process launch, so the process owns
     /// its own process group and <see cref="RequestCallerCancellation"/> can later deliver the platform's normal
     /// cancellation signal to it alone - never the test runner, and never any other concurrently running
@@ -298,7 +298,7 @@ public sealed class BackendScenario : IDisposable
     }
 
     /// <summary>
-    /// Launches the published, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
+    /// Launches the built, provider-free squad-hq exactly like <see cref="StartAsync{TProviderFactory}"/>, but
     /// returns immediately once the process starts without ever completing the "ui.ready" handshake - for the
     /// specification proving standard input closed (or a Headquarters-control shutdown requested) before readiness still
     /// terminates the process cleanly, rather than the ordinary ready-then-close sequence, and for a provider
@@ -921,7 +921,7 @@ public sealed class BackendScenario : IDisposable
 
     /// <summary>
     /// Starts "squad-hq wait-for-agent" for the given role as a separate real child process addressing this
-    /// scenario's project, using the same published, provider-free executable as the launched Headquarters instance, and returns a
+    /// scenario's project, using the same built, provider-free executable as the launched Headquarters instance, and returns a
     /// semantic handle so a specification can observe whether the command remains blocked or await its bounded
     /// completion and captured output - never the raw process itself.
     /// </summary>

@@ -1,7 +1,8 @@
 ---
 title: custom agents
-priority: 500
+priority: 6000
 ---
+
 # Analyze and Fix Custom Agent Invocation Failure
 
 We have a Copilot SDK-based multi-agent harness.

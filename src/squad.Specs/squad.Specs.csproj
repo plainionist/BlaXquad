@@ -27,6 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\squad\squad.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\squad-hq\squad-hq.csproj"
+                      ReferenceOutputAssembly="false"
+                      AdditionalProperties="IncludeCopilotSdkProvider=false;IncludePhotinoHosting=false" />
     <ProjectReference Include="..\squad.Domain\squad.Domain.csproj" />
     <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj" />
     <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj" />
@@ -36,9 +41,9 @@
     <ProjectReference Include="..\squad.Hosting.Fake\squad.Hosting.Fake.csproj" />
   </ItemGroup>
 
-  <Target Name="PublishSquadTools" BeforeTargets="VSTest">
+  <Target Name="PublishSquadTools">
     <PropertyGroup>
-      <SquadToolsDir>$(TargetDir)squad-tools</SquadToolsDir>
+      <SquadToolsDir>$([System.IO.Path]::Combine('$(TargetDir)', 'squad-tools'))</SquadToolsDir>
     </PropertyGroup>
     <RemoveDir Directories="$(SquadToolsDir)" />
     <Exec Command="dotnet publish &quot;$(SquadProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
@@ -46,22 +51,33 @@
     <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(SquadToolsDir)&quot; --nologo --verbosity quiet" />
   </Target>
 
-  <!-- Publishes a second, provider-free and hosting-free squad-hq into its own test-output directory so backend
-       specifications can prove the architectural target of running headquarters without ever loading
-       squad.AgentProvider.CopilotSdk or squad.Hosting.Photino. The production-like squad-tools publication above
-       stays unchanged. squad-hq always requires a sibling "squad" helper executable
-       (WorkspacePreparer.CheckHelperScripts), so the CLI is published alongside it here too; squad.csproj has no
-       squad.AgentProvider.CopilotSdk reference, so this does not reintroduce the Copilot provider into the
-       provider-free output. The backend suite still loads squad.AgentProvider.Fake and squad.Hosting.Stdio for
-       every launch (see BackendScenario), but always by explicit descriptor from squad.Specs' own build output,
-       never by copying either fixture into this publication. -->
-  <Target Name="PublishBackendSpecTools" BeforeTargets="VSTest">
+  <!-- Stages one framework-dependent runtime from ordinary build outputs for backend specifications. Headquarters
+       always requires a sibling "squad" helper executable, so both tools share this directory. The fake provider
+       and stdio host remain outside it and are loaded by explicit descriptor from squad.Specs' own build output. -->
+  <Target Name="StageBackendSpecTools" BeforeTargets="VSTest">
     <PropertyGroup>
-      <BackendSpecToolsDir>$(TargetDir)squad-tools-backend-spec</BackendSpecToolsDir>
+      <BackendSpecToolsDir>$([System.IO.Path]::Combine('$(TargetDir)', 'squad-tools-backend-spec'))</BackendSpecToolsDir>
+      <SquadBuildDir>$(MSBuildThisFileDirectory)..\squad\bin\$(Configuration)\$(TargetFramework)\</SquadBuildDir>
+      <SquadHqBuildDir>$(MSBuildThisFileDirectory)..\squad-hq\bin\$(Configuration)\$(TargetFramework)\</SquadHqBuildDir>
     </PropertyGroup>
     <RemoveDir Directories="$(BackendSpecToolsDir)" />
-    <Exec Command="dotnet publish &quot;$(SquadProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(BackendSpecToolsDir)&quot; --nologo --verbosity quiet" />
-    <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(BackendSpecToolsDir)&quot; --property:IncludeCopilotSdkProvider=false --property:IncludePhotinoHosting=false --nologo --verbosity quiet" />
+    <ItemGroup>
+      <BackendSpecToolFile Include="$(SquadHqBuildDir)*" />
+      <BackendSpecToolFile Include="$(SquadBuildDir)*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BackendSpecToolFile)"
+          DestinationFolder="$(BackendSpecToolsDir)" />
+  </Target>
+
+  <!-- Produces the combined provider-free and hosting-free package only for the packaging scenarios that request
+       it. Ordinary backend specifications use StageBackendSpecTools instead. -->
+  <Target Name="PublishNeutralSquadTools">
+    <PropertyGroup>
+      <NeutralSquadToolsDir>$([System.IO.Path]::Combine('$(TargetDir)', 'squad-tools-neutral'))</NeutralSquadToolsDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(NeutralSquadToolsDir)" />
+    <Exec Command="dotnet publish &quot;$(SquadProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(NeutralSquadToolsDir)&quot; --nologo --verbosity quiet" />
+    <Exec Command="dotnet publish &quot;$(squadHQProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --property:PublishDir=&quot;$(NeutralSquadToolsDir)&quot; --property:IncludeCopilotSdkProvider=false --property:IncludePhotinoHosting=false --nologo --verbosity quiet" />
   </Target>
   <!-- Publishes squad.Hosting.Stdio as its own standalone, framework-dependent artifact - complete with a real
        "squad.Hosting.Stdio.deps.json" and its own copies of every contract assembly it references
@@ -69,9 +85,9 @@
        so the hosting-selection duplicate-contract-assembly scenario deploys a layout AssemblyDependencyResolver
        genuinely resolves. Without this real deps.json, PluginLoadContext could never actually resolve the local
        duplicate contract copies beside the plug-in, so a passing scenario would prove nothing about unification. -->
-  <Target Name="PublishHostingStdioFixture" BeforeTargets="VSTest">
+  <Target Name="PublishHostingStdioFixture">
     <PropertyGroup>
-      <HostingStdioFixtureDir>$(TargetDir)hosting-fixture-duplicate-contracts</HostingStdioFixtureDir>
+      <HostingStdioFixtureDir>$([System.IO.Path]::Combine('$(TargetDir)', 'hosting-fixture-duplicate-contracts'))</HostingStdioFixtureDir>
     </PropertyGroup>
     <RemoveDir Directories="$(HostingStdioFixtureDir)" />
     <Exec Command="dotnet publish &quot;$(HostingStdioProject)&quot; --runtime $(NETCoreSdkPortableRuntimeIdentifier) --configuration $(Configuration) --self-contained false --property:PublishDir=&quot;$(HostingStdioFixtureDir)&quot; --nologo --verbosity quiet" />

@@ -1,6 +1,7 @@
 using System.Diagnostics;
-using squad.Specs.Support.Scenarios;
 using squad.AgentProvider.Fake;
+using squad.Hosting.Stdio;
+using squad.Specs.Support.Scenarios;
 
 namespace squad.Specs.StepDefinitions;
 
@@ -187,7 +188,14 @@ public sealed class HeadquartersOwnershipSteps
 
     [When("the operator attempts a duplicate launch")]
     public void WhenTheOperatorAttemptsADuplicateLaunch() =>
-        myWorkspace.RunTool("squad-hq", ["launch", myWorkspace.Root]);
+        myWorkspace.RunTool(
+            "squad-hq",
+            [
+                "launch",
+                "--provider", Descriptor(typeof(FakeAgentProviderFactory)),
+                "--hosting", Descriptor(typeof(StdioHostingFactory)),
+                myWorkspace.Root,
+            ]);
 
     [Then("the duplicate launch fails without an exception trace")]
     public void ThenTheDuplicateLaunchFailsWithoutAnExceptionTrace()
@@ -218,6 +226,9 @@ public sealed class HeadquartersOwnershipSteps
         myWorkspace.RunBackendSpecSquadHq(arguments, workingDirectory: workingDirectory);
         myWaitElapsed = stopwatch.Elapsed;
     }
+
+    private static string Descriptor(Type pluginType) =>
+        $"{pluginType.Assembly.Location};{pluginType.FullName}";
 }
 
 
