@@ -15,7 +15,7 @@ public sealed record HandoffDocument
     /// <summary>The suffix identifying a durable handoff artifact as JSON, distinct from a legacy ".handoff" file.</summary>
     public const string FileSuffix = ".handoff.json";
 
-    public required string Id { get; init; }
+    public required HandoffId Id { get; init; }
     public required SquadMemberId From { get; init; }
     public required IReadOnlyList<SquadMemberId> To { get; init; }
     public SquadMemberId? Recipient { get; init; }
@@ -43,7 +43,7 @@ public sealed record HandoffDocument
     {
         var errors = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(Id))
+        if (string.IsNullOrWhiteSpace(Id.Value))
         {
             errors.Add("missing id");
         }

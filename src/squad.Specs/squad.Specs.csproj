@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\squad.Domain\squad.Domain.csproj" />
+    <ProjectReference Include="..\squad.Handoffs\squad.Handoffs.csproj" />
     <ProjectReference Include="..\squad.AgentProvider.Abstractions\squad.AgentProvider.Abstractions.csproj" />
     <ProjectReference Include="..\squad.AgentProvider.Fake\squad.AgentProvider.Fake.csproj" />
     <ProjectReference Include="..\squad.Hosting.Abstractions\squad.Hosting.Abstractions.csproj" />

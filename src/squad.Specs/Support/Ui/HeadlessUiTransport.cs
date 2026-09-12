@@ -14,13 +14,13 @@ namespace squad.Specs.Support.Ui;
 /// </summary>
 internal sealed class HeadlessUiTransport
 {
-    private readonly Process myProcess;
+    private readonly System.Diagnostics.Process myProcess;
     private readonly TextWriter myStandardInput;
     private readonly object myLinesLock = new();
     private readonly List<string> myStdOutLines = [];
     private readonly List<string> myStdErrLines = [];
 
-    public HeadlessUiTransport(Process process, TextWriter standardInput, TextReader standardOutput, TextReader standardError)
+    public HeadlessUiTransport(System.Diagnostics.Process process, TextWriter standardInput, TextReader standardOutput, TextReader standardError)
     {
         myProcess = process;
         myStandardInput = standardInput;
