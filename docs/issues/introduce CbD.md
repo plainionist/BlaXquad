@@ -145,7 +145,7 @@ Copilot SDK attach-once, OperationLease/AbortLease, and handoff-poller pairing n
 Idempotent start/stop/dispose and expected not-started/teardown paths were left unchanged. Slice 6 remains
 pending until the architect activates it.
 
-### Slice 6: Protect application and transcript invariants
+### Slice 6: Protect application and transcript invariants [done]
 
 Audit the stateful owners in `squad.Application` and `squad.Ui.Protocol`. Add inexpensive checks that protect the
 documented authoritative state model, including:
@@ -160,6 +160,11 @@ documented authoritative state model, including:
 Place checks at natural locked mutation boundaries. Do not add full-collection scans to hot paths when an equivalent
 constant-time condition can protect the transition. Provider-originated duplicate or unknown interaction IDs and
 client-originated invalid commands remain boundary failures, not internal invariants.
+
+**Status: complete (57308aea66).** Member roster/leader consistency, streaming buffer/index pairing, non-negative
+retained character counts, protected-entry unprotect, journal monotonic sequences, and non-backward delivery/
+synchronization positions now use `Contract.Invariant`. Duplicate provider `toolCallId` values stay a boundary
+no-op, matching the carve-out for provider-originated duplicate IDs. All introduce-CbD slices are complete.
 
 ## Acceptance criteria
 
