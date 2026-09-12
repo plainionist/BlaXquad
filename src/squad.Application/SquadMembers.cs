@@ -42,9 +42,6 @@ public sealed class SquadMembers : IDisposable
         TranscriptStore transcripts,
         ISquadPublication publication)
     {
-        ArgumentNullException.ThrowIfNull(definition);
-        ArgumentNullException.ThrowIfNull(transcripts);
-        ArgumentNullException.ThrowIfNull(publication);
         Generation = generation;
         myLeader = definition.Leader;
         myPublication = publication;
@@ -138,7 +135,6 @@ public sealed class SquadMembers : IDisposable
 
     public Task MarkRoleFailedAsync(string role, Exception exception)
     {
-        ArgumentNullException.ThrowIfNull(exception);
         return RouteIgnoringUnknownRoleAsync(role, processor => processor.MarkFailedAsync(exception));
     }
 

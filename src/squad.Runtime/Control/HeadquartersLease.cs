@@ -36,7 +36,6 @@ public sealed class HeadquartersLease : IAsyncDisposable
 
     internal void SetAgentReadinessProvider(Func<string, CancellationToken, Task<bool?>> provider)
     {
-        ArgumentNullException.ThrowIfNull(provider);
         Volatile.Write(ref myAgentReadinessProvider, provider);
     }
 

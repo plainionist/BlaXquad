@@ -31,7 +31,6 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     /// </summary>
     public void Install(SquadMembers members)
     {
-        ArgumentNullException.ThrowIfNull(members);
         lock (myInstallationLock)
             myInstalled = new SquadInstallation(members.Generation, members);
         NotifyStateChanged(UiRefreshPriority.Immediate);

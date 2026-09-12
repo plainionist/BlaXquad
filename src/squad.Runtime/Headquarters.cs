@@ -56,10 +56,6 @@ public sealed class Headquarters : IAsyncDisposable
         IWorkspaceTools workspaceTools,
         HeadquartersLease headquartersLease)
     {
-        ArgumentNullException.ThrowIfNull(viewModel);
-        ArgumentNullException.ThrowIfNull(workspaceTools);
-        ArgumentNullException.ThrowIfNull(headquartersLease);
-
         return new Headquarters(
             launchPreparer,
             agentProviderFactory,

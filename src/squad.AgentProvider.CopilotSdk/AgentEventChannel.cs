@@ -36,7 +36,6 @@ internal sealed class AgentEventChannel : IAsyncDisposable
     /// </summary>
     public void Publish(AgentEvent agentEvent)
     {
-        ArgumentNullException.ThrowIfNull(agentEvent);
         if (myDisposed)
         {
             return;
@@ -63,7 +62,6 @@ internal sealed class AgentEventChannel : IAsyncDisposable
     /// </summary>
     public Task PublishAsync(AgentEvent agentEvent, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(agentEvent);
         if (myDisposed)
         {
             return Task.CompletedTask;

@@ -30,7 +30,6 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
 
     public async Task StartAsync(Func<IAgentSession, Task> sessionStarted, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(sessionStarted);
         try
         {
             var createTasks = myContext.Roles.Select(async role =>
