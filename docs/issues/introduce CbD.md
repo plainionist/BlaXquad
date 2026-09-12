@@ -66,7 +66,7 @@ precondition or invariant decisions.
 six trusted typed call paths. No `Contract` replacements were added. Untyped-boundary validation is unchanged.
 Slices 2–6 remain pending until the architect activates the next slice.
 
-### Slice 2: Standardize existing semantic preconditions
+### Slice 2: Standardize existing semantic preconditions [done]
 
 1. Replace the existing positive/non-negative range guards in `SquadViewModel` and
    `HeadquartersControlClient.WaitForAgentAsync` with `Contract.Requires`.
@@ -77,6 +77,11 @@ Slices 2–6 remain pending until the architect activates the next slice.
    them into this slice.
 5. Extend the `squad.Domain` description in `docs/Manual/modules.md` with the `Requires`/`Invariant` distinction and
    the rule against redundant non-null guards.
+
+**Status: complete (e1acae79a8).** Existing range, capability, command-emptiness, and interaction-request-variant
+guards now use `Contract.Requires`. Enum exhaustiveness and lifecycle failures were left for later slices.
+`docs/Manual/modules.md` records the Requires/Invariant distinction and the rule against redundant non-null
+guards. Slices 3–6 remain pending until the architect activates the next slice.
 
 ### Slice 3: Add foundational API preconditions
 
