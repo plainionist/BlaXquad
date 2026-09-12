@@ -105,13 +105,14 @@ public static class SquadConfigurationLoader
         // "leader" is optional: an omitted or blank value defaults to the first configured member, so there is
         // always an authoritative leader. An explicitly configured value that does not match any member is still a
         // configuration error - a plausible typo, not "no leader configured".
-        var leader = string.IsNullOrWhiteSpace(document.Leader) ? members[0].Name : document.Leader;
-        if (!members.Any(member => member.Name == leader))
+        var leader = string.IsNullOrWhiteSpace(document.Leader) ? members[0].Name.Value : document.Leader;
+        if (!members.Any(member => member.Name.Value == leader))
         {
             throw Error($"leader '{leader}' in {configFile} must match a configured member name");
         }
 
-        return new SquadConfiguration(roles, members, leader, sharedWorktreePaths, gitHistoryCommand);
+        return new SquadConfiguration(
+            roles.Select(role => new RoleId(role)).ToList(), members, new SquadMemberId(leader), sharedWorktreePaths, gitHistoryCommand);
     }
 
     private static IReadOnlyList<string> ValidateRoles(List<string>? documentRoles, string configFile, string rolesDirectory)
@@ -222,7 +223,7 @@ public static class SquadConfigurationLoader
 
             var displayName = string.IsNullOrWhiteSpace(member.DisplayName) ? DisplayNameFor(name) : member.DisplayName;
             var typedReceiveMode = receiveMode == "task" ? ReceiveMode.Task : ReceiveMode.Batch;
-            members.Add(new SquadMemberConfiguration(name, displayName, role, worktree, typedReceiveMode,
+            members.Add(new SquadMemberConfiguration(new SquadMemberId(name), displayName, new RoleId(role), worktree, typedReceiveMode,
                 new SquadAgentConfiguration(permissions, agent.Model, agent.Effort)));
         }
 

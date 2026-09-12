@@ -78,7 +78,7 @@ public sealed class LaunchPreparer
         myWorkspacePreparer.Parse(myContext);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var definition = new SquadDefinition(myContext.Members.ToArray(), new SquadMemberId(myContext.Leader));
+        var definition = new SquadDefinition(myContext.Members.ToArray(), myContext.Leader);
         return Task.FromResult(new PreparedLaunch(
             BuildBackendContext(myContext),
             definition,

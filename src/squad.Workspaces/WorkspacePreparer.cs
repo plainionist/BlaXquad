@@ -68,9 +68,9 @@ internal sealed class WorkspacePreparer
         {
             var worktreePath = member.Worktree == "master" ? ctx.WorkingDir : Path.Combine(ctx.WorktreesDir, member.Worktree);
             return new SquadMemberDefinition(
-                new SquadMemberId(member.Name),
+                member.Name,
                 member.DisplayName,
-                new RoleId(member.Role),
+                member.Role,
                 member.Worktree,
                 worktreePath,
                 member.ReceiveMode,

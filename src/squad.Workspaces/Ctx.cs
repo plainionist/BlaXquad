@@ -19,7 +19,7 @@ internal class Ctx
     public string HandoffLog { get; set; } = "";
     public bool ContinueLaunch { get; set; }
     public List<SquadMemberDefinition> Members { get; set; } = [];
-    public string Leader { get; set; } = "";
+    public SquadMemberId Leader { get; set; }
     public IReadOnlyList<string> SharedWorktreePaths { get; set; } = [];
     public IReadOnlyList<string>? GitHistoryCommand { get; set; }
 }
