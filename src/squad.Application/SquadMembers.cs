@@ -124,7 +124,7 @@ public sealed class SquadMembers : IDisposable
             return false;
         }
         lock (member.SyncRoot)
-            return member.Status == "idle" && !member.IsWorking;
+            return member.Status == SquadMemberStatus.Idle && !member.IsWorking;
     }
 
     /// <summary>Sets a role's active provider session by routing to that member's processor.</summary>
@@ -224,7 +224,7 @@ public sealed class SquadMembers : IDisposable
             roles = members.Select(member => new
             {
                 role = member.Id,
-                status = member.Status,
+                status = MapStatus(member.Status),
                 lastEventAt = member.LastEventAt,
                 error = member.Error,
                 activeTool = member.ActiveTool,
@@ -260,6 +260,21 @@ public sealed class SquadMembers : IDisposable
                 url = elicitation.Url,
             }),
         });
+
+    /// <summary>
+    /// Maps the internal <see cref="SquadMemberStatus"/> to the stable lowercase spelling every existing
+    /// dashboard, transcript, and acceptance scenario observes in <c>state.snapshot</c>. This is the one place
+    /// that boundary is crossed; nothing else in this module composes or compares the protocol string.
+    /// </summary>
+    private static string MapStatus(SquadMemberStatus status) => status switch
+    {
+        SquadMemberStatus.Starting => "starting",
+        SquadMemberStatus.Running => "running",
+        SquadMemberStatus.Idle => "idle",
+        SquadMemberStatus.Stopped => "stopped",
+        SquadMemberStatus.Error => "error",
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Unmapped squad member status."),
+    };
 
     /// <summary>
     /// Rejects a new command once this generation has closed admission, then routes it to the named member's

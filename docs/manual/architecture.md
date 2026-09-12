@@ -193,9 +193,10 @@ flowchart LR
   at shutdown.
 - **Application model** owns an ordered directory of configured members, keyed only by member identity - the only
   application-domain collection keyed that way. After routing selects a member, one per-member aggregate is the
-  sole mutable owner of that member's projected status, provider-session association, transcript, pending
-  interactions, and operation/abort/failure state; its local collections are keyed only by request or operation
-  identity, never by another member or role. Each member also owns an independent processor: a bounded, single-
+  sole mutable owner of that member's projected status (`squad.Domain`'s `SquadMemberStatus` enum), provider-session
+  association, transcript, pending interactions, and operation/abort/failure state; its local collections are keyed
+  only by request or operation identity, never by another member or role. Each member also owns an independent
+  processor: a bounded, single-
   reader mailbox that is the sole path through which that member's commands and provider events reach its
   aggregate, so one member's slow or blocked provider call can never delay another member's mailbox. That
   directory belongs to the squad generation that created it and carries its generation identity, so every command,

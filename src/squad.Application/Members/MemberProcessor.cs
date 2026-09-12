@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
+using squad.Domain;
 using squad.Ui.Abstractions;
 
 namespace squad.Application.Members;
@@ -576,7 +577,7 @@ internal sealed class MemberProcessor : IDisposable
         RemovePendingInteractions();
         lock (Aggregate.SyncRoot)
         {
-            Aggregate.Status = "error";
+            Aggregate.Status = SquadMemberStatus.Error;
             Aggregate.Error = exception.Message;
             Aggregate.IsWorking = false;
             Aggregate.ActiveTool = null;

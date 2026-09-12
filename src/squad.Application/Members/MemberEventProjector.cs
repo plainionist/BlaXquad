@@ -1,4 +1,5 @@
 using squad.AgentProvider.Abstractions.Agents;
+using squad.Domain;
 using squad.Ui.Abstractions;
 using System.Text.Json;
 
@@ -19,23 +20,23 @@ internal static class MemberEventProjector
         switch (agentEvent)
         {
             case AgentStartedEvent:
-                member.Status = "running";
+                member.Status = SquadMemberStatus.Running;
                 member.IsWorking = false;
                 transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "harness", "Session started.");
                 break;
             case AgentStoppedEvent:
-                member.Status = "stopped";
+                member.Status = SquadMemberStatus.Stopped;
                 member.IsWorking = false;
                 transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "harness", "Session stopped.");
                 break;
             case AgentErrorEvent error:
-                member.Status = "error";
+                member.Status = SquadMemberStatus.Error;
                 member.IsWorking = false;
                 member.Error = error.Message;
                 transcriptUpdate = AddTranscriptEntry(member, agentEvent.OccurredAt, "error", error.Message);
                 break;
             case AgentIdleEvent:
-                member.Status = "idle";
+                member.Status = SquadMemberStatus.Idle;
                 member.IsWorking = false;
                 member.Transcript.FinalizeAssistantEntry();
                 member.Transcript.FinalizeReasoningEntry();

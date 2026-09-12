@@ -53,7 +53,7 @@ internal sealed class MemberAggregate : IDisposable
     public string DisplayName { get; }
     /// <summary>The role this member references. Distinct from <see cref="Id"/>: multiple members may share one role.</summary>
     public RoleId Role { get; }
-    public string Status { get; internal set; } = "starting";
+    public SquadMemberStatus Status { get; internal set; } = SquadMemberStatus.Starting;
     public DateTimeOffset? LastEventAt { get; internal set; }
     public string? Error { get; internal set; }
     public string? ActiveTool { get; internal set; }

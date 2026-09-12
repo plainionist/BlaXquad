@@ -1,4 +1,5 @@
 using squad.AgentProvider.Abstractions.Agents;
+using squad.Domain;
 
 namespace squad.Application.Members;
 
@@ -10,7 +11,7 @@ internal sealed record MemberSnapshot(
     string Id,
     string DisplayName,
     string Role,
-    string Status,
+    SquadMemberStatus Status,
     DateTimeOffset? LastEventAt,
     string? Error,
     string? ActiveTool,
