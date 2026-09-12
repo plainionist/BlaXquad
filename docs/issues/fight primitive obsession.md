@@ -759,7 +759,7 @@ handoff participant JSON remain unchanged under `MemberConfiguration.feature`, `
 exactly preserved text. Config/CLI/UI still validate raw input before construction. Unset launch `Ctx.Leader` is
 `SquadMemberId?`.
 
-### Slice 17C - Enforce the worktree-target invariant
+### Slice 17C - Enforce the worktree-target invariant [done]
 
 **Task:** `enforce-worktree-target-contract`
 
@@ -774,6 +774,9 @@ diagnostics before calling the value object.
 **Acceptance:** root and linked-worktree resolution, invalid configured names, shared-worktree paths, and launch
 preparation retain their behavior under `Context.feature`, `MemberConfiguration.feature`, and
 `HeadquartersWorkspaceFailures.feature`. No type is added.
+
+**Status: complete (c874a0d13e).** `WorktreeTarget.Parse` enforces the master-vs-linked invariant with
+`Contract.Requires` and does not normalize. `SquadConfigurationLoader` still emits its existing diagnostics first.
 
 ### Slice 17D - Make interaction request IDs valid by construction
 
