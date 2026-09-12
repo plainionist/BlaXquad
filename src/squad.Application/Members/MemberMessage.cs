@@ -1,5 +1,6 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
+using squad.Domain;
 
 namespace squad.Application.Members;
 
@@ -72,7 +73,7 @@ internal sealed record SessionTerminalMessage(
 /// </summary>
 internal sealed record OperationStartingMessage(
     SquadGenerationId Generation,
-    string Member,
+    SquadMemberId Member,
     Guid OperationId,
     Action Apply,
     TaskCompletionSource Applied) : MemberMessage;
@@ -89,7 +90,7 @@ internal sealed record OperationStartingMessage(
 /// </summary>
 internal sealed record OperationOutcomeMessage(
     SquadGenerationId Generation,
-    string Member,
+    SquadMemberId Member,
     Guid OperationId,
     Action? ApplyMutation,
     bool Unconditional,

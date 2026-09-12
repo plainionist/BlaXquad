@@ -1,5 +1,6 @@
 using squad.AgentProvider.Abstractions;
 using squad.Configuration;
+using squad.Domain;
 using squad.Process;
 
 namespace squad.Workspaces;
@@ -77,11 +78,10 @@ public sealed class LaunchPreparer
         myWorkspacePreparer.Parse(myContext);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var definition = new SquadDefinition(myContext.Members.ToArray(), new SquadMemberId(myContext.Leader));
         return Task.FromResult(new PreparedLaunch(
             BuildBackendContext(myContext),
-            myContext.Members.ToArray(),
-            myContext.Leader,
-            myContext.Members.Select(member => new RoleRow(member.Member, member.WorktreeName, member.WorktreePath, member.DisplayName, member.ReceiveMode)).ToArray(),
+            definition,
             myContext.HandoffLog,
             myContext.GitHistoryCommand));
     }
@@ -116,13 +116,13 @@ public sealed class LaunchPreparer
             context.WorkingDir,
             context.ScriptDir,
             context.Members.Select(member => new AgentRoleContext(
-                member.Member,
+                member.Id.Value,
                 member.DisplayName,
                 member.WorktreePath,
-                InitialInstruction(member.Role),
-                member.Permissions,
-                member.Model,
-                member.Effort)).ToArray(),
+                InitialInstruction(member.Role.Value),
+                member.Agent.Permissions,
+                member.Agent.Model,
+                member.Agent.Effort)).ToArray(),
             environment);
     }
 

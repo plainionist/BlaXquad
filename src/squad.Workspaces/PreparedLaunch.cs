@@ -1,5 +1,5 @@
 using squad.AgentProvider.Abstractions;
-using squad.Configuration;
+using squad.Domain;
 
 namespace squad.Workspaces;
 
@@ -10,8 +10,6 @@ namespace squad.Workspaces;
 /// </summary>
 public sealed record PreparedLaunch(
     AgentBackendContext BackendContext,
-    IReadOnlyList<MemberConfigRow> Members,
-    string Leader,
-    IReadOnlyList<RoleRow> HandoffMembers,
+    SquadDefinition Definition,
     string HandoffLogPath,
     IReadOnlyList<string>? GitHistoryCommand);

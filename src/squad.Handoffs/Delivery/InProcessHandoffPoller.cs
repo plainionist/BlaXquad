@@ -1,4 +1,4 @@
-using squad.Configuration;
+using squad.Domain;
 namespace squad.Handoffs.Delivery;
 
 /// <summary>
@@ -8,7 +8,7 @@ namespace squad.Handoffs.Delivery;
 public sealed class InProcessHandoffPoller : IAsyncDisposable
 {
     private static readonly TimeSpan myPollInterval = TimeSpan.FromSeconds(1);
-    private readonly IReadOnlyList<RoleRow> myRoles;
+    private readonly IReadOnlyList<SquadMemberDefinition> myMembers;
     private readonly HandoffDeliveryService myDelivery;
     private readonly object mySyncRoot = new();
     private readonly TaskCompletionSource myFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -16,9 +16,9 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
     private Task? myPolling;
     private bool myDisposed;
 
-    public InProcessHandoffPoller(IReadOnlyList<RoleRow> roles, IRoleNotifier notifier, HandoffDeliveryLog log)
+    public InProcessHandoffPoller(IReadOnlyList<SquadMemberDefinition> members, IRoleNotifier notifier, HandoffDeliveryLog log)
     {
-        myRoles = roles;
+        myMembers = members;
         myDelivery = new HandoffDeliveryService(notifier, log);
     }
 
@@ -91,7 +91,7 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await myDelivery.ProcessOnceAsync(myRoles, cancellationToken: cancellationToken);
+                await myDelivery.ProcessOnceAsync(myMembers, cancellationToken: cancellationToken);
                 await Task.Delay(myPollInterval, cancellationToken);
             }
         }

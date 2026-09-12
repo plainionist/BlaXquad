@@ -1,4 +1,4 @@
-using squad.Configuration;
+using squad.Domain;
 
 namespace squad.Handoffs.Delivery;
 
@@ -17,18 +17,18 @@ sealed class HandoffDeliveryService
         myLog = log;
     }
 
-    public async Task ProcessOnceAsync(IReadOnlyList<RoleRow> roles, CancellationToken cancellationToken = default)
+    public async Task ProcessOnceAsync(IReadOnlyList<SquadMemberDefinition> members, CancellationToken cancellationToken = default)
     {
-        var roleMap = roles.ToDictionary(r => r.Role);
-        foreach (var (roleName, roleInfo) in roleMap)
+        var memberMap = members.ToDictionary(member => member.Id.Value);
+        foreach (var (memberId, memberInfo) in memberMap)
         {
-            var outboxDir = Path.Combine(roleInfo.WorktreePath, ".blaxquad", "handoffs", "outbox");
+            var outboxDir = Path.Combine(memberInfo.WorktreePath, ".blaxquad", "handoffs", "outbox");
             foreach (var path in HandoffQueue.HandoffFiles(outboxDir))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    await DeliverAsync(roleMap, roleName, path, cancellationToken);
+                    await DeliverAsync(memberMap, memberId, path, cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -50,42 +50,42 @@ sealed class HandoffDeliveryService
         }
     }
 
-    private async Task DeliverAsync(Dictionary<string, RoleRow> roles, string senderRole, string path, CancellationToken cancellationToken)
+    private async Task DeliverAsync(Dictionary<string, SquadMemberDefinition> members, string senderMember, string path, CancellationToken cancellationToken)
     {
         var document = HandoffJson.Read(path);
 
-        var deliveries = new List<(string Recipient, RoleRow RoleInfo)>();
+        var deliveries = new List<(string Recipient, SquadMemberDefinition MemberInfo)>();
         foreach (var recipient in document.To)
         {
-            if (!roles.TryGetValue(recipient, out var roleInfo))
+            if (!members.TryGetValue(recipient, out var memberInfo))
             {
                 throw new InvalidOperationException($"unknown recipient {recipient}");
             }
-            deliveries.Add((recipient, roleInfo));
+            deliveries.Add((recipient, memberInfo));
         }
 
         var filename = Path.GetFileName(path);
-        foreach (var (recipient, roleInfo) in deliveries)
+        foreach (var (recipient, memberInfo) in deliveries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var target = Path.Combine(roleInfo.WorktreePath, ".blaxquad", "handoffs", "inbox", "new", filename);
+            var target = Path.Combine(memberInfo.WorktreePath, ".blaxquad", "handoffs", "inbox", "new", filename);
             var delivered = document with { Recipient = recipient, EnqueuedAt = Timestamps.Now() };
             WriteRecipientArtifact(target, delivered);
         }
 
-        var sentDir = Path.Combine(roles[senderRole].WorktreePath, ".blaxquad", "handoffs", "sent");
+        var sentDir = Path.Combine(members[senderMember].WorktreePath, ".blaxquad", "handoffs", "sent");
         MoveWithCollision(path, sentDir);
         myLog.Append(["delivered", path]);
 
-        foreach (var (_, roleInfo) in deliveries)
+        foreach (var (_, memberInfo) in deliveries)
         {
             try
             {
-                await myNotifier.NotifyAsync(roleInfo.Role, cancellationToken);
+                await myNotifier.NotifyAsync(memberInfo.Id.Value, cancellationToken);
             }
             catch (Exception exception)
             {
-                myLog.Append(["notify-failed", roleInfo.Role, exception.Message]);
+                myLog.Append(["notify-failed", memberInfo.Id.Value, exception.Message]);
             }
         }
     }

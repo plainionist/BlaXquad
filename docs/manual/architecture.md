@@ -2,10 +2,10 @@
 
 ## Executive model
 
-BlaXquad is a local orchestration system for a configurable group of coding-agent roles working in one Git
-repository. A single headquarters process owns the running squad. It prepares role worktrees, starts one provider
-session per role, maintains authoritative role state, presents that state through a UI protocol, and delivers
-durable handoffs between roles.
+BlaXquad is a local orchestration system for a configurable group of uniquely named squad members, each referencing
+a reusable coding-agent role, working in one Git repository. A single headquarters process owns the running squad.
+It prepares each member's worktree, starts one provider session per member, maintains authoritative member state,
+presents that state through a UI protocol, and delivers durable handoffs between members.
 
 A separate role-facing command-line tool lets agents discover their context and manage handoff work. The two
 executables do not communicate directly. They coordinate through Git and per-worktree handoff queues.
@@ -14,10 +14,10 @@ There are three independent coordination protocols:
 
 1. An internal UI protocol between headquarters and the packaged presentation client.
 2. A local Headquarters-control protocol for readiness and shutdown.
-3. A filesystem handoff protocol for durable work exchange between roles.
+3. A filesystem handoff protocol for durable work exchange between members.
 
 There is no application database or network server. Git and handoff files are durable; provider sessions,
-interactions, projected role state, and transcript history belong to one headquarters run.
+interactions, projected member state, and transcript history belong to one headquarters run.
 
 ## C4 level 1: System context
 
@@ -107,8 +107,8 @@ backend acceptance harness is loaded the same way through an explicit descriptor
 ### Agent provider
 
 The provider adapter is loaded into the headquarters process through a provider-neutral plug-in contract. The
-default adapter connects to a child Copilot runtime and creates one logical provider session per configured role.
-One runtime generation owns the shared provider connection and every role session created from it.
+default adapter connects to a child Copilot runtime and creates one logical provider session per configured squad
+member. One runtime generation owns the shared provider connection and every member session created from it.
 
 ## Architectural contracts
 
@@ -129,8 +129,9 @@ One runtime generation owns the shared provider connection and every role sessio
 - **Handoff contract.** Validated files and atomic filesystem moves define queue state. The role tool produces and
   consumes queue entries; headquarters fans them out to recipient worktrees, archives delivery outcomes, and wakes
   active recipients.
-- **Workspace contract.** Configuration defines a squad leader role (explicit, or the first configured role by
-  default), roles, worktrees, receive modes, provider settings, and prompts. Git supplies role isolation,
+- **Workspace contract.** Configuration defines a catalog of reusable roles and the uniquely named squad members
+  that reference them, each with its own worktree, receive mode, and agent settings. The squad leader is a
+  configured member (explicit, or the first configured member by default). Git supplies member isolation,
   role-context discovery, and the commits referenced by code handoffs.
 
 ## C4 level 3: Headquarters components
@@ -316,9 +317,10 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
 
 ## State ownership and durability
 
-- **Squad configuration** is checked-in project state. It defines a leader role (explicit, or the first configured
-  role by default), the roles, and their execution settings and is read at startup; it is not dynamically watched.
-- **Source and commits** remain owned by Git. Roles work in the main checkout or dedicated worktrees. A normal launch
+- **Squad configuration** is checked-in project state. It defines a catalog of reusable roles and the uniquely
+  named squad members that reference them, each member's worktree and execution settings, and the leader member
+  (explicit, or the first configured member by default). It is read at startup; it is not dynamically watched.
+- **Source and commits** remain owned by Git. Members work in the main checkout or dedicated worktrees. A normal launch
   resets dedicated worktrees to the current `HEAD`; a continued launch preserves that worktree content unchanged.
 - **Handoff queues** are file-backed state serialized as typed JSON documents (`.handoff.json`). Filesystem moves are
   the authoritative task, batch, delivery, and completion transitions within one Headquarters run. Handoffs are

@@ -1,6 +1,7 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Application.Transcripts;
+using squad.Domain;
 
 namespace squad.Application.Members;
 
@@ -32,26 +33,26 @@ internal sealed class MemberAggregate : IDisposable
 
     internal MemberAggregate(
         SquadGenerationId generation,
-        string id,
+        SquadMemberId id,
         string displayName,
-        string role,
+        RoleId role,
         MemberTranscriptArchive transcriptArchive)
     {
         Generation = generation;
         Id = id;
         DisplayName = displayName;
         Role = role;
-        myTranscript = new MemberTranscriptState(id, transcriptArchive, myStateLock);
+        myTranscript = new MemberTranscriptState(id.Value, transcriptArchive, myStateLock);
     }
 
     /// <summary>The identity of the squad generation this member belongs to. It never outlives that generation.</summary>
     public SquadGenerationId Generation { get; }
     /// <summary>The member's unique identity, addressed as "role" at unchanged public boundaries.</summary>
-    public string Id { get; }
+    public SquadMemberId Id { get; }
     /// <summary>The member's configured presentation name.</summary>
     public string DisplayName { get; }
     /// <summary>The role this member references. Distinct from <see cref="Id"/>: multiple members may share one role.</summary>
-    public string Role { get; }
+    public RoleId Role { get; }
     public string Status { get; internal set; } = "starting";
     public DateTimeOffset? LastEventAt { get; internal set; }
     public string? Error { get; internal set; }
@@ -79,9 +80,9 @@ internal sealed class MemberAggregate : IDisposable
         lock (myStateLock)
         {
             return new MemberSnapshot(
-                Id,
+                Id.Value,
                 DisplayName,
-                Role,
+                Role.Value,
                 Status,
                 LastEventAt,
                 Error,

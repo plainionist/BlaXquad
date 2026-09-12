@@ -170,7 +170,7 @@ project from domain values when their shape is genuinely provider-, persistence-
 
 ## Implementation slices
 
-### Slice 1 - Carry one canonical squad definition through Headquarters [in progress]
+### Slice 1 - Carry one canonical squad definition through Headquarters [done]
 
 **Outcome:** Workspace preparation, provider-context projection, application construction, and handoff delivery all
 consume one immutable ordered squad definition instead of independently projecting the same configured members.

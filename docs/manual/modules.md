@@ -64,6 +64,15 @@ Locates project and worktree context, loads and validates
 `blaxquad/squad.json`, models role and agent settings, and resolves the role
 associated with the current worktree.
 
+## `squad.Domain`
+
+The dependency-free shared kernel of stable, immutable squad vocabulary consumed by every other module: `RoleId`
+and `SquadMemberId` (distinct reusable-role and unique-member identities), `AgentSettings` (normalized permissions,
+model, and effort), `SquadMemberDefinition` (one resolved member's identity, display name, role reference,
+worktree, receive mode, and agent settings), and `SquadDefinition` (the ordered member roster and leader identity),
+plus the foundational `System.Contract` guard utility. It has no project references; configuration parsing, JSON,
+filesystem, and protocol concerns stay in the modules that map external input onto these values.
+
 ## `squad.Handoffs`
 
 Provides shared file-backed handoff primitives: the typed JSON document
@@ -165,5 +174,5 @@ lifetimes. Process preparation runs once: it initializes Git state, parses role
 configuration, creates or resets worktrees, links shared paths, writes agent
 instructions, and creates runtime and handoff directories. Generation
 preparation reloads the current configuration and role prompts and builds the
-backend, member, leader, and handoff context one squad generation is created
+backend and the one ordered `SquadDefinition` a squad generation is created
 from, touching no worktree and no durable handoff queue.

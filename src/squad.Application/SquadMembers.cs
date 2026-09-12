@@ -2,6 +2,7 @@ using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Application.Members;
 using squad.Application.Transcripts;
+using squad.Domain;
 using squad.Ui.Abstractions;
 using System.Text.Json;
 
@@ -23,9 +24,9 @@ public sealed class SquadMembers : IDisposable
     // provider call for one member can never delay another member's processor, and never delays this member's own
     // provider-event or session-terminal messages either, since those are applied inline without awaiting provider
     // I/O.
-    private readonly Dictionary<string, MemberProcessor> myMembers = new(StringComparer.Ordinal);
-    private readonly List<string> myMemberOrder = [];
-    private readonly string myLeader;
+    private readonly Dictionary<SquadMemberId, MemberProcessor> myMembers = new();
+    private readonly List<SquadMemberId> myMemberOrder = [];
+    private readonly SquadMemberId myLeader;
     private readonly GenerationTranscriptArchive myTranscripts;
     private readonly ISquadPublication myPublication;
     // The one synchronization boundary for command admission and active-session selection: myAccepting and each
@@ -37,39 +38,37 @@ public sealed class SquadMembers : IDisposable
 
     public SquadMembers(
         SquadGenerationId generation,
-        IEnumerable<MemberConfiguration> members,
-        string leader,
+        SquadDefinition definition,
         TranscriptStore transcripts,
         ISquadPublication publication)
     {
-        ArgumentNullException.ThrowIfNull(members);
+        ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(transcripts);
         ArgumentNullException.ThrowIfNull(publication);
         Generation = generation;
-        myLeader = leader;
+        myLeader = definition.Leader;
         myPublication = publication;
         myTranscripts = transcripts.OpenGeneration(generation);
-        foreach (var configuration in members)
+        foreach (var member in definition.Members)
         {
-            var member = configuration.Member;
-            if (myMembers.ContainsKey(member))
+            if (myMembers.ContainsKey(member.Id))
             {
                 continue;
             }
             var aggregate = new MemberAggregate(
                 generation,
-                member,
-                configuration.DisplayName,
-                configuration.Role,
-                myTranscripts.OpenMember(member));
-            myMembers.Add(member, new MemberProcessor(
+                member.Id,
+                member.DisplayName,
+                member.Role,
+                myTranscripts.OpenMember(member.Id.Value));
+            myMembers.Add(member.Id, new MemberProcessor(
                 aggregate,
                 myAdmissionLock,
                 isAcceptingUnlocked: () => myAccepting,
                 myShutdown.Token,
                 notifyStateChanged: NotifyStateChanged,
                 transcriptChanged: PublishTranscriptUpdate));
-            myMemberOrder.Add(member);
+            myMemberOrder.Add(member.Id);
         }
     }
 
@@ -84,7 +83,7 @@ public sealed class SquadMembers : IDisposable
         // Enumerate in configured member order (myMemberOrder), not myMembers.Values, so state.snapshot.roles
         // matches blaxquad/squad.json regardless of Dictionary enumeration behavior.
         var members = myMemberOrder.Select(id => myMembers[id].Aggregate.CreateSnapshot()).ToArray();
-        return CreateSnapshot(myLeader, members);
+        return CreateSnapshot(myLeader.Value, members);
     }
 
     /// <summary>The read model published while no squad generation is installed: a leaderless, memberless squad.</summary>
@@ -111,7 +110,7 @@ public sealed class SquadMembers : IDisposable
     /// </summary>
     public bool? GetRoleReadiness(string role)
     {
-        if (!myMembers.TryGetValue(role, out var processor))
+        if (!myMembers.TryGetValue(new SquadMemberId(role), out var processor))
         {
             return null;
         }
@@ -131,7 +130,7 @@ public sealed class SquadMembers : IDisposable
     /// <summary>Sets a role's active provider session by routing to that member's processor.</summary>
     public void RegisterSession(IAgentSession session)
     {
-        if (myMembers.TryGetValue(session.Role, out var processor))
+        if (myMembers.TryGetValue(new SquadMemberId(session.Role), out var processor))
         {
             processor.SetSession(session);
         }
@@ -283,7 +282,7 @@ public sealed class SquadMembers : IDisposable
     private async Task RouteIgnoringUnknownRoleAsync(string role, Func<MemberProcessor, Task> action)
     {
         EnsureAccepting();
-        if (myMembers.TryGetValue(role, out var processor))
+        if (myMembers.TryGetValue(new SquadMemberId(role), out var processor))
         {
             await action(processor);
         }
@@ -291,7 +290,7 @@ public sealed class SquadMembers : IDisposable
 
     private MemberProcessor GetProcessor(string role)
     {
-        if (myMembers.TryGetValue(role, out var processor))
+        if (myMembers.TryGetValue(new SquadMemberId(role), out var processor))
         {
             return processor;
         }

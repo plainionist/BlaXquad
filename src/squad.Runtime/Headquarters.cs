@@ -1,7 +1,6 @@
 using squad.Hosting.Abstractions;
 using squad.AgentProvider.Abstractions;
 using squad.Application;
-using squad.Application.Members;
 using squad.Application.Transcripts;
 using squad.Runtime.Control;
 using squad.Ui.Abstractions;
@@ -241,14 +240,13 @@ public sealed class Headquarters : IAsyncDisposable
         var agentBackend = await myAgentProviderFactory.CreateAsync(prepared.BackendContext, cancellationToken);
         var members = new SquadMembers(
             SquadGenerationId.New(),
-            prepared.Members.Select(member => new MemberConfiguration(member.Member, member.DisplayName, member.Role)),
-            prepared.Leader,
+            prepared.Definition,
             myTranscripts,
             myViewModel);
         var squad = new Squad(
             members,
             agentBackend,
-            prepared.HandoffMembers,
+            prepared.Definition.Members,
             prepared.HandoffLogPath,
             myWindowHost.SessionsStartedAsync);
         mySquad = squad;

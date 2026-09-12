@@ -1,6 +1,6 @@
 using squad.AgentProvider.Abstractions;
 using squad.Application;
-using squad.Configuration;
+using squad.Domain;
 using squad.Handoffs.Delivery;
 
 namespace squad.Runtime;
@@ -28,7 +28,7 @@ internal sealed class Squad
     internal Squad(
         SquadMembers members,
         IAgentBackend agentBackend,
-        IReadOnlyList<RoleRow> handoffMembers,
+        IReadOnlyList<SquadMemberDefinition> handoffMembers,
         string handoffLogPath,
         Func<CancellationToken, Task> sessionsStarted)
     {

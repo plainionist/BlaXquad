@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\squad.Domain\squad.Domain.csproj" />
-    <ProjectReference Include="..\squad.Configuration\squad.Configuration.csproj" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
   </ItemGroup>
 

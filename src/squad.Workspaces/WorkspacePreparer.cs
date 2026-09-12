@@ -1,5 +1,6 @@
 using squad.Process;
 using squad.Configuration;
+using squad.Domain;
 
 namespace squad.Workspaces;
 
@@ -66,16 +67,14 @@ internal sealed class WorkspacePreparer
         ctx.Members = configuration.Members.Select(member =>
         {
             var worktreePath = member.Worktree == "master" ? ctx.WorkingDir : Path.Combine(ctx.WorktreesDir, member.Worktree);
-            return new MemberConfigRow(
-                member.Name,
+            return new SquadMemberDefinition(
+                new SquadMemberId(member.Name),
                 member.DisplayName,
-                member.Role,
+                new RoleId(member.Role),
                 member.Worktree,
                 worktreePath,
                 member.ReceiveMode,
-                member.Agent.Permissions,
-                member.Agent.Model,
-                member.Agent.Effort);
+                new AgentSettings(member.Agent.Permissions, member.Agent.Model, member.Agent.Effort));
         }).ToList();
         ctx.Leader = configuration.Leader;
         ctx.SharedWorktreePaths = configuration.SharedWorktreePaths;

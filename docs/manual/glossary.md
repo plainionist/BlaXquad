@@ -2,16 +2,23 @@
 
 ## Squad
 
-The configured set of roles cooperating on one target repository. Its
-checked-in definition consists of `blaxquad/squad.json`, the constitution
-prompt, and one prompt per role.
+The configured group of uniquely named squad members, each referencing a reusable role, cooperating on one target
+repository. Its checked-in definition consists of `blaxquad/squad.json`, the constitution prompt, and one prompt
+per role.
 
 ## Role
 
-A named squad responsibility configured in `blaxquad/squad.json`. A role binds
-together a unique name and worktree, a receive mode, agent settings, and a role
-prompt. Each configured worktree belongs to one role; role names may not contain
-underscores.
+A reusable, named responsibility declared in `blaxquad/squad.json`'s `roles` catalog and instructed by one role
+prompt. A role is not itself a runtime participant and owns no worktree, receive mode, or agent settings of its
+own: one or more squad members may reference the same role.
+
+## Squad member
+
+A uniquely named, configured participant declared in `blaxquad/squad.json`'s `members` array. A member binds
+together its own name, the role it references, a worktree, a receive mode, agent settings, and a display name.
+Each configured worktree belongs to one member; member names may not contain underscores. The existing `squad` CLI,
+handoff documents, and UI protocol continue to address a member through the same string fields they have always
+called "role".
 
 ## Constitution prompt
 
@@ -27,9 +34,9 @@ the prompt recursively.
 
 ## Headquarters
 
-The central process that runs and coordinates a squad. It prepares each role's
+The central process that runs and coordinates a squad. It prepares each member's
 worktree, starts its Copilot agent session, opens the desktop dashboard, moves
-handoffs between roles, and manages startup and shutdown.
+handoffs between members, and manages startup and shutdown.
 
 The user runs headquarters through the `squad-hq` executable.
 
@@ -43,17 +50,17 @@ Example: GitHub Copilot (SDK/CLI).
 ## Agent backend
 
 The adapter between headquarters and an agent provider. The current
-implementation uses the GitHub Copilot SDK, creates one agent session per role,
-and translates provider events and interaction requests into the typed runtime model.
+implementation uses the GitHub Copilot SDK, creates one agent session per squad
+member, and translates provider events and interaction requests into the typed runtime model.
 
 ## Worktree
 
-The Git checkout in which a role's agent session operates. The special
+The Git checkout in which one squad member's agent session operates. The special
 configuration value `master` uses the main checkout; any other value creates or
 uses a dedicated checkout under `.worktrees/<name>` on branch `squad-<name>`.
 
-Worktrees isolate concurrent role changes, provide role identity to the
-`squad` CLI, and hold each role's durable handoff state.
+Worktrees isolate concurrent member changes, provide role identity to the
+`squad` CLI, and hold each member's durable handoff state.
 
 ## Dashboard
 
@@ -122,13 +129,13 @@ response is sent back to the waiting agent session.
 
 ## Permission mode
 
-The role-level `agent.permissions` setting in `blaxquad/squad.json`:
+The squad member's `agent.permissions` setting in `blaxquad/squad.json`:
 
 - `prompt` is the default and presents permission requests for user approval.
 - `approveAll` automatically approves requests that do not require managed
   approval.
 
-Safe reads inside the role worktree are approved automatically in either mode.
+Safe reads inside the member's worktree are approved automatically in either mode.
 Managed approval requests still require an explicit response.
 
 ## Handoff
