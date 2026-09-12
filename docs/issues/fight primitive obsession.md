@@ -816,7 +816,7 @@ correlation under `TranscriptToolCallCorrelation.feature`, `TranscriptToolLifecy
 **Status: complete (daa5757a01).** `ToolCallId` is a sealed record with `Contract.Requires` for nonblank, exactly
 preserved opaque text. Copilot and fake adapters still wrap at their existing ingress.
 
-### Slice 18 - Type handoff priority
+### Slice 18 - Type handoff priority [done]
 
 **Task:** `type-handoff-priority`
 
@@ -848,6 +848,10 @@ and out-of-range JSON rejection are covered by `Handoffs.feature`, `TaskQueue.fe
    is still a `string` filled with `priority.ToString("D2")` after `GetInt32()`.
    **Required outcome:** Type `QueuedHandoff.Priority` as `HandoffPriority`. Wrap the independently parsed JSON
    number at observation construction. Keep Gherkin/CLI filename tokens as strings.
+
+**Status: complete (db17af3676, f8c4ae7d67).** `HandoffPriority` owns 0..99, two-digit CLI parse/format, numeric
+JSON via `ScalarJsonConverter`, and batch selection. CLI still aggregates invalid priority with other errors.
+`QueuedHandoff.Priority` is typed. JSON `priority` stays a number; filenames stay two-digit-prefixed.
 
 ### Slice 19 - Type canonical Git commit IDs
 
