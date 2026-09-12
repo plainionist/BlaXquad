@@ -1014,7 +1014,7 @@ error and no-provider-side-effect assertion. No type other than `RejectedCommand
 case string. Outline cases map at the binding boundary; the assertion switches on the enum. Raw envelopes and
 example text stay strings.
 
-### Slice 27 - Document and verify retained primitive boundaries
+### Slice 27 - Document and verify retained primitive boundaries [done]
 
 **Task:** `document-retained-string-boundaries`
 
@@ -1043,5 +1043,9 @@ The final audit must specifically confirm that:
 
 **Acceptance:** the solution builds, the complete acceptance suite passes once, the manual accurately describes
 the final boundaries, and no behavior or protocol shape changed unintentionally.
+
+**Status: complete (2b0ef5a1f9).** The retained-string rationale now lives in `docs/manual/architecture.md` with the
+final type names. Product and spec dictionaries after parse stay keyed by `SquadMemberId` /
+`InteractionRequestId` / `ToolCallId`. No new type and no protocol change.
 
 After Slice 27 is accepted, the architect deletes this issue.
