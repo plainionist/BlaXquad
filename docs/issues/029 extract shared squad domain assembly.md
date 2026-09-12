@@ -7,26 +7,26 @@ priority: 40
 
 ## Problem
 
-The stable concepts that identify a squad and its participants currently live in the modules that first needed
-them. In the current model, `RoleRow` is defined in `squad.Configuration` even though handoff delivery, workspace
-preparation, and the role-facing CLI all consume it. `MemberConfigRow` independently carries an overlapping, larger
-description during workspace preparation, while `MemberConfiguration` carries a smaller application projection.
-Other closed squad-wide concepts, such as receive mode and member status, are represented as strings at several
-boundaries.
+The `squad.Domain` assembly now provides a dependency-free shared foundation, but the stable concepts that identify a
+squad and its participants still live in the modules that first needed them. In the current model, `RoleRow` is
+defined in `squad.Configuration` even though handoff delivery, workspace preparation, and the role-facing CLI all
+consume it. `MemberConfigRow` independently carries an overlapping, larger description during workspace preparation,
+while `MemberConfiguration` carries a smaller application projection. Other closed squad-wide concepts, such as
+receive mode and member status, are represented as strings at several boundaries.
 
 This makes infrastructure assemblies appear to own product vocabulary and permits parallel representations of the
-same participant. It also leaves no dependency-free home for immutable squad concepts shared by configuration,
-workspace preparation, runtime, application state, handoff routing, and presentation.
+same participant. The dependency-free home now exists, but the immutable squad concepts shared by configuration,
+workspace preparation, runtime, application state, handoff routing, and presentation have not yet moved into it.
 
 Issue 024 established the underlying squad-member-centered model. This extraction uses that implemented model as its
 baseline and must not reopen its semantic decisions.
 
 ## Goal
 
-Introduce a dependency-free `squad.Domain` assembly containing only the stable, immutable vocabulary shared across
-the product. Move the resulting squad and member descriptors into that assembly, replace the current `RoleRow`,
-`MemberConfigRow`, and `MemberConfiguration` duplication with one canonical type, and replace closed string values
-with domain enums where the values are already authoritative and exhaustive.
+Use the dependency-free `squad.Domain` assembly for the stable, immutable vocabulary shared across the product. Move
+the resulting squad and member descriptors into that assembly, replace the current `RoleRow`, `MemberConfigRow`, and
+`MemberConfiguration` duplication with one canonical type, and replace closed string values with domain enums where
+the values are already authoritative and exhaustive.
 
 The assembly is a small shared kernel. It is not a general home for every important or widely referenced type.
 
@@ -57,11 +57,25 @@ while `SquadMembers` reconstructs its own ordered member list and leader field. 
 `task`/`batch` string, and member lifecycle status remains a mutable string projected as `starting`, `running`,
 `idle`, `stopped`, or `error`.
 
+## Current implementation status
+
+The shared foundation is complete:
+
+- `squad.Domain` exists in `squad.slnx`, targets the repository's standard .NET framework settings, and has no
+  project references;
+- each of the other 19 C# projects has one direct reference to `squad.Domain`;
+- `Contracts.cs` is currently its only C# source file and defines the shared `System.Contract` guard utility; and
+- `dotnet build squad.slnx --nologo` succeeds for all 20 projects.
+
+The domain extraction itself remains outstanding: none of the squad identity, definition, receive-mode, or status
+types below has been added yet, and the parallel member records still exist.
+
 ## Required design
 
 ### Dependency-free shared kernel
 
-Create `squad.Domain` with no project references. A type belongs there only when it:
+Keep `squad.Domain` free of project references. Except for the foundational `System.Contract` guard utility already
+present, a type belongs there only when it:
 
 - names a stable squad-wide concept rather than an adapter or workflow phase;
 - is meaningful across multiple product boundaries without reference to those boundaries;
@@ -86,7 +100,7 @@ Use the names established by issue 024. Replace the current `RoleRow`, `MemberCo
 with the one canonical member descriptor rather than moving a `Row` type unchanged. Do not retain aliases, wrappers,
 or duplicate compatibility records for internal callers.
 
-The concrete initial `squad.Domain` surface is:
+The concrete initial product-domain surface is:
 
 - `RoleId`: the identity of one reusable role definition;
 - `SquadMemberId`: the distinct operational identity of one configured squad member;
@@ -141,8 +155,9 @@ Moving them would turn `squad.Domain` into a miscellaneous shared-types assembly
 
 ### Dependency direction
 
-Configuration, workspace, application, runtime, handoff-delivery, provider-boundary, and presentation modules may
-reference `squad.Domain` when they consume the extracted values. `squad.Domain` must not reference any of them.
+Every other C# project references `squad.Domain`, allowing configuration, workspace, application, runtime,
+handoff-delivery, provider-boundary, and presentation modules to consume the extracted values directly.
+`squad.Domain` must not reference any of them.
 
 Avoid pass-through abstractions whose only purpose is hiding the new project reference. Boundary-specific DTOs may
 project from domain values when their shape is genuinely provider-, persistence-, or protocol-specific.
@@ -150,7 +165,8 @@ project from domain values when their shape is genuinely provider-, persistence-
 ## Implementation plan
 
 1. Treat the implemented issue-024 squad, role, member, addressing, and configuration semantics as the baseline.
-2. Add `squad.Domain` to the solution with no project references.
+2. Completed: add `squad.Domain` to the solution with no project references, add `Contracts.cs` as its only source
+  file, and reference it directly from every other C# project.
 3. Add `RoleId`, `SquadMemberId`, `AgentSettings`, `SquadMemberDefinition`, and `SquadDefinition` without changing
   the established post-024 semantics.
 4. Replace `MemberConfigRow`, `MemberConfiguration`, and `RoleRow` with the canonical domain values and update
@@ -166,8 +182,9 @@ project from domain values when their shape is genuinely provider-, persistence-
 
 - The implemented issue-024 semantics remain unchanged.
 - `squad.Domain` exists in the solution and has no project references.
-- Its initial product-facing surface is limited to `RoleId`, `SquadMemberId`, `ReceiveMode`, `SquadMemberStatus`,
-  `AgentSettings`, `SquadMemberDefinition`, and `SquadDefinition`.
+- Aside from the foundational `System.Contract` guard utility, its initial product-facing surface is limited to
+  `RoleId`, `SquadMemberId`, `ReceiveMode`, `SquadMemberStatus`, `AgentSettings`, `SquadMemberDefinition`, and
+  `SquadDefinition`.
 - The configured, resolved squad member has one canonical representation; no surviving `RoleRow`, `MemberConfigRow`,
   `MemberConfiguration`, or equivalent parallel row records remain.
 - Role identity and squad-member identity remain distinct according to the model established by issue 024.

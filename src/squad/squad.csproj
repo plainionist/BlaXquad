@@ -3,6 +3,8 @@
   <Import Project="..\Directory.Build.Tool.props" />
 
   <ItemGroup>
+    <ProjectReference Include="..\squad.Domain\squad.Domain.csproj"
+                      AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Configuration\squad.Configuration.csproj"
                       AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj"
