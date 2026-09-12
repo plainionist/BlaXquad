@@ -838,6 +838,17 @@ and out-of-range JSON rejection are covered by `Handoffs.feature`, `TaskQueue.fe
 `Delivery.feature`. JSON `priority` remains a number and filenames remain two-digit-prefixed. No type other than
 `HandoffPriority` is added.
 
+### Review findings (db17af3676)
+
+1. **Severity: medium.** `src/squad.Specs/Support/Mailboxes/QueuedHandoff.cs` and
+   `HandoffMailboxObserver.Parse`.
+   **Violated behavior:** Slice 18 requires the typed priority in valid semantic mailbox observations, while JSON
+   parsing stays independent of `HandoffJson`.
+   **Root cause:** `HandoffDocument.Priority` and batch selection are `HandoffPriority`, but `QueuedHandoff.Priority`
+   is still a `string` filled with `priority.ToString("D2")` after `GetInt32()`.
+   **Required outcome:** Type `QueuedHandoff.Priority` as `HandoffPriority`. Wrap the independently parsed JSON
+   number at observation construction. Keep Gherkin/CLI filename tokens as strings.
+
 ### Slice 19 - Type canonical Git commit IDs
 
 **Task:** `type-git-commit-id`
