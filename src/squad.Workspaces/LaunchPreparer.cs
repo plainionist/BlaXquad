@@ -126,7 +126,7 @@ public sealed class LaunchPreparer
             context.WorkingDir,
             context.ScriptDir,
             context.Members.Select(member => new AgentRoleContext(
-                member.Name.Value,
+                member.Name,
                 member.DisplayName,
                 ResolveWorktreePath(context, member),
                 InitialInstruction(member.Role.Value),

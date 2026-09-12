@@ -1,3 +1,4 @@
+using squad.Domain;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
@@ -17,7 +18,7 @@ public sealed class HeadquartersLease : IAsyncDisposable
     private readonly TaskCompletionSource myShutdownRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource myServerFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly string myPipeName;
-    private Func<string, CancellationToken, Task<bool?>>? myAgentReadinessProvider;
+    private Func<SquadMemberId, CancellationToken, Task<bool?>>? myAgentReadinessProvider;
     private Task? myServer;
     private bool myDisposed;
 
@@ -34,7 +35,7 @@ public sealed class HeadquartersLease : IAsyncDisposable
     internal Task ShutdownRequested { get; }
     internal Task ServerFailure { get; }
 
-    internal void SetAgentReadinessProvider(Func<string, CancellationToken, Task<bool?>> provider)
+    internal void SetAgentReadinessProvider(Func<SquadMemberId, CancellationToken, Task<bool?>> provider)
     {
         Volatile.Write(ref myAgentReadinessProvider, provider);
     }
@@ -234,7 +235,7 @@ public sealed class HeadquartersLease : IAsyncDisposable
             var provider = Volatile.Read(ref myAgentReadinessProvider);
             var readiness = provider is null
                 ? null
-                : await provider(request.Role, cancellationToken);
+                : await provider(new SquadMemberId(request.Role), cancellationToken);
             return JsonSerializer.Serialize(new
             {
                 version = 1,

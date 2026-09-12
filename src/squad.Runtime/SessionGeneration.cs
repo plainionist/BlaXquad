@@ -49,7 +49,6 @@ internal sealed class SessionGeneration
         myEventTasks.Add(ObserveSessionAsync(session, sessionCancellation, eventTask));
         return Task.CompletedTask;
     }
-
     /// <summary>
     /// Cancels event observation, retires the runtime, and drains observers while collecting failures. A failed
     /// teardown remains retryable and retains resources whose retirement did not complete.
@@ -120,7 +119,7 @@ internal sealed class SessionGeneration
         {
             await foreach (var agentEvent in session.Events(cancellationToken))
             {
-                await myMembers.EnqueueEventAsync(session.Role, agentEvent);
+                await myMembers.EnqueueEventAsync(session.MemberId, agentEvent);
             }
         }
         catch (OperationCanceledException)
@@ -155,7 +154,7 @@ internal sealed class SessionGeneration
         }
         catch (OperationCanceledException)
         {
-            failure = new OperationCanceledException($"Session '{session.Role}' was canceled.");
+            failure = new OperationCanceledException($"Session '{session.MemberId}' was canceled.");
         }
         catch (Exception exception)
         {
@@ -175,7 +174,7 @@ internal sealed class SessionGeneration
         {
             try
             {
-                await myMembers.MarkRoleFailedAsync(session.Role, failure);
+                await myMembers.MarkRoleFailedAsync(session.MemberId, failure);
             }
             catch (Exception exception) when (
                 myStoppingToken.IsCancellationRequested &&

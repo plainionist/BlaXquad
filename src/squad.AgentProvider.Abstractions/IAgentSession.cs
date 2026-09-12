@@ -1,14 +1,15 @@
 using squad.AgentProvider.Abstractions.Agents;
+using squad.Domain;
 
 namespace squad.AgentProvider.Abstractions;
 
 /// <summary>
-/// Represents one role's live provider session and its ordered event stream. Completion reports terminal provider
+/// Represents one member's live provider session and its ordered event stream. Completion reports terminal provider
 /// failure as well as normal shutdown.
 /// </summary>
 public interface IAgentSession : IAsyncDisposable
 {
-    string Role { get; }
+    SquadMemberId MemberId { get; }
     string SessionId { get; }
     /// <summary>Completes when the provider session terminates and faults when that termination is unsuccessful.</summary>
     Task Completion { get; }

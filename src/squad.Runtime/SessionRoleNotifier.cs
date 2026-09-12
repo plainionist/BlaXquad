@@ -1,4 +1,5 @@
 using squad.Application;
+using squad.Domain;
 using squad.Handoffs.Delivery;
 
 namespace squad.Runtime;
@@ -19,5 +20,5 @@ internal sealed class SessionRoleNotifier : IRoleNotifier
     }
 
     public Task NotifyAsync(string role, CancellationToken cancellationToken = default) =>
-        myMembers.SendHarnessAsync(role, myWakeMessage, cancellationToken);
+        myMembers.SendHarnessAsync(new SquadMemberId(role), myWakeMessage, cancellationToken);
 }

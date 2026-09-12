@@ -1,4 +1,5 @@
 using squad.AgentProvider.Abstractions.Agents;
+using squad.Domain;
 using squad.Ui.Abstractions;
 using System.Text.Json;
 
@@ -70,42 +71,42 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     {
         Contract.Requires(beforeIndex >= 0, "beforeIndex must not be negative.");
         Contract.Requires(maxEntries > 0, "maxEntries must be positive.");
-        return RequireInstalled(role).CreateTranscriptPage(role, beforeIndex, maxEntries);
+        return RequireInstalled(role).CreateTranscriptPage(new SquadMemberId(role), beforeIndex, maxEntries);
     }
 
     public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex)
     {
         Contract.Requires(entryIndex >= 0, "entryIndex must not be negative.");
-        return RequireInstalled(role).CreateArchivedTranscriptEntry(role, entryIndex);
+        return RequireInstalled(role).CreateArchivedTranscriptEntry(new SquadMemberId(role), entryIndex);
     }
 
     public AgentElicitationRequest GetPendingElicitation(string role, string requestId) =>
-        RequireInstalled(role).GetPendingElicitation(role, requestId);
+        RequireInstalled(role).GetPendingElicitation(new SquadMemberId(role), requestId);
 
     /// <summary>
     /// Returns the tri-state local readiness result derived purely from the installed generation's already-projected
     /// session, prompt, idle, stopped, and failed events - the only readiness source `wait-for-agent` observes.
     /// </summary>
     public Task<bool?> GetRoleReadinessAsync(string role, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Installed?.Members.GetRoleReadiness(role));
+        Task.FromResult(Installed?.Members.GetRoleReadiness(new SquadMemberId(role)));
 
     public Task SendAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
-        RouteAsync(role, members => members.SendAsync(role, prompt, cancellationToken));
+        RouteAsync(role, members => members.SendAsync(new SquadMemberId(role), prompt, cancellationToken));
 
     public Task SendHarnessAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
-        RouteAsync(role, members => members.SendHarnessAsync(role, prompt, cancellationToken));
+        RouteAsync(role, members => members.SendHarnessAsync(new SquadMemberId(role), prompt, cancellationToken));
 
     public Task AbortAsync(string role, CancellationToken cancellationToken = default) =>
-        RouteAsync(role, members => members.AbortAsync(role, cancellationToken));
+        RouteAsync(role, members => members.AbortAsync(new SquadMemberId(role), cancellationToken));
 
     public Task CompletePermissionAsync(string role, string requestId, bool approved, CancellationToken cancellationToken = default) =>
-        RouteAsync(role, members => members.CompletePermissionAsync(role, requestId, approved, cancellationToken));
+        RouteAsync(role, members => members.CompletePermissionAsync(new SquadMemberId(role), requestId, approved, cancellationToken));
 
     public Task CompleteInputAsync(string role, string requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
-        RouteAsync(role, members => members.CompleteInputAsync(role, requestId, answer, wasFreeform, cancellationToken));
+        RouteAsync(role, members => members.CompleteInputAsync(new SquadMemberId(role), requestId, answer, wasFreeform, cancellationToken));
 
     public Task CompleteElicitationAsync(string role, string requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
-        RouteAsync(role, members => members.CompleteElicitationAsync(role, requestId, action, content, cancellationToken));
+        RouteAsync(role, members => members.CompleteElicitationAsync(new SquadMemberId(role), requestId, action, content, cancellationToken));
 
     void ISquadPublication.NotifyStateChanged(SquadGenerationId generation, UiRefreshPriority priority)
     {

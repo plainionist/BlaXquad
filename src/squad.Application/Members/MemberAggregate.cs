@@ -35,13 +35,11 @@ internal sealed class MemberAggregate : IDisposable
         SquadGenerationId generation,
         SquadMemberId id,
         string displayName,
-        RoleId role,
         MemberTranscriptArchive transcriptArchive)
     {
         Generation = generation;
         Id = id;
         DisplayName = displayName;
-        Role = role;
         myTranscript = new MemberTranscriptState(id.Value, transcriptArchive, myStateLock);
     }
 
@@ -51,8 +49,6 @@ internal sealed class MemberAggregate : IDisposable
     public SquadMemberId Id { get; }
     /// <summary>The member's configured presentation name.</summary>
     public string DisplayName { get; }
-    /// <summary>The role this member references. Distinct from <see cref="Id"/>: multiple members may share one role.</summary>
-    public RoleId Role { get; }
     public SquadMemberStatus Status { get; internal set; } = SquadMemberStatus.Starting;
     public DateTimeOffset? LastEventAt { get; internal set; }
     public string? Error { get; internal set; }
@@ -80,9 +76,8 @@ internal sealed class MemberAggregate : IDisposable
         lock (myStateLock)
         {
             return new MemberSnapshot(
-                Id.Value,
+                Id,
                 DisplayName,
-                Role.Value,
                 Status,
                 LastEventAt,
                 Error,

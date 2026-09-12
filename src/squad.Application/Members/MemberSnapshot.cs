@@ -8,9 +8,8 @@ namespace squad.Application.Members;
 /// position at a single synchronization boundary for immutable snapshot publication.
 /// </summary>
 internal sealed record MemberSnapshot(
-    string Id,
+    SquadMemberId Id,
     string DisplayName,
-    string Role,
     SquadMemberStatus Status,
     DateTimeOffset? LastEventAt,
     string? Error,

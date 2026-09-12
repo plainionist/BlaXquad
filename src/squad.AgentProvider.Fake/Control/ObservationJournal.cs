@@ -1,3 +1,4 @@
+using squad.Domain;
 using System.Text.Json;
 
 namespace squad.AgentProvider.Fake.Control;
@@ -16,16 +17,16 @@ internal sealed class ObservationJournal
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(25);
 
     private readonly object myLock = new();
-    private readonly List<(string Role, string Type, string SessionId)> myObservations = [];
+    private readonly List<(SquadMemberId Role, string Type, string SessionId)> myObservations = [];
     private readonly List<string> myProtocolErrors = [];
-    private readonly Dictionary<string, string> myActiveSessionByRole = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> myLatestPromptByRole = new(StringComparer.Ordinal);
-    private readonly Dictionary<(string Role, string Kind), JsonElement> myLatestObservationByRoleAndKind = new();
-    private readonly Dictionary<(string Role, string Kind), int> myObservationCountsByRoleAndKind = new();
+    private readonly Dictionary<SquadMemberId, string> myActiveSessionByRole = new();
+    private readonly Dictionary<SquadMemberId, string> myLatestPromptByRole = new();
+    private readonly Dictionary<(SquadMemberId Role, string Kind), JsonElement> myLatestObservationByRoleAndKind = new();
+    private readonly Dictionary<(SquadMemberId Role, string Kind), int> myObservationCountsByRoleAndKind = new();
 
     /// <summary>Records a session-lifecycle notification ("session-started" or "session-disposed") for the given
     /// role and session id, marking that session as the role's active one when it started.</summary>
-    public void RecordLifecycle(string role, string type, string sessionId)
+    public void RecordLifecycle(SquadMemberId role, string type, string sessionId)
     {
         lock (myLock)
         {
@@ -38,7 +39,7 @@ internal sealed class ObservationJournal
     }
 
     /// <summary>Records the latest prompt reported for the given role.</summary>
-    public void RecordPrompt(string role, string prompt)
+    public void RecordPrompt(SquadMemberId role, string prompt)
     {
         lock (myLock)
         {
@@ -48,7 +49,7 @@ internal sealed class ObservationJournal
 
     /// <summary>Records one generic observation of the given kind for the given role, replacing any earlier one
     /// of the same kind and incrementing its running count.</summary>
-    public void RecordObservation(string role, string kind, JsonElement data)
+    public void RecordObservation(SquadMemberId role, string kind, JsonElement data)
     {
         lock (myLock)
         {
@@ -72,7 +73,7 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myActiveSessionByRole.TryGetValue(role, out sessionId!);
+            return myActiveSessionByRole.TryGetValue(new SquadMemberId(role), out sessionId!);
         }
     }
 
@@ -81,9 +82,10 @@ internal sealed class ObservationJournal
     /// been observed.</summary>
     public bool HasSessionStarted(string role)
     {
+        var memberId = new SquadMemberId(role);
         lock (myLock)
         {
-            return myObservations.Any(observation => observation.Role == role && observation.Type == "session-started");
+            return myObservations.Any(observation => observation.Role == memberId && observation.Type == "session-started");
         }
     }
 
@@ -94,7 +96,7 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myLatestObservationByRoleAndKind.ContainsKey((role, kind));
+            return myLatestObservationByRoleAndKind.ContainsKey((new SquadMemberId(role), kind));
         }
     }
 
@@ -104,7 +106,7 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myLatestPromptByRole.TryGetValue(role, out var prompt) ? prompt : null;
+            return myLatestPromptByRole.TryGetValue(new SquadMemberId(role), out var prompt) ? prompt : null;
         }
     }
 
@@ -114,7 +116,7 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
-            return myLatestObservationByRoleAndKind.TryGetValue((role, "harness-message"), out var data)
+            return myLatestObservationByRoleAndKind.TryGetValue((new SquadMemberId(role), "harness-message"), out var data)
                 ? data.GetProperty("content").GetString()
                 : null;
         }
@@ -123,12 +125,13 @@ internal sealed class ObservationJournal
     /// <summary>Waits until a lifecycle notification of the given type has been recorded for the given role.</summary>
     public async Task WaitForLifecycleAsync(string role, string type, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
+        var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
             lock (myLock)
             {
-                if (myObservations.Any(observation => observation.Role == role && observation.Type == type))
+                if (myObservations.Any(observation => observation.Role == memberId && observation.Type == type))
                 {
                     return;
                 }
@@ -145,12 +148,13 @@ internal sealed class ObservationJournal
     /// <summary>Waits until a prompt has been reported for the given role, and returns its content.</summary>
     public async Task<string> WaitForPromptAsync(string role, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
+        var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
             lock (myLock)
             {
-                if (myLatestPromptByRole.TryGetValue(role, out var prompt))
+                if (myLatestPromptByRole.TryGetValue(memberId, out var prompt))
                 {
                     return prompt;
                 }
@@ -288,12 +292,13 @@ internal sealed class ObservationJournal
     private async Task WaitForObservationCountAsync(
         string role, string kind, int minimumCount, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
+        var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
             lock (myLock)
             {
-                if (myObservationCountsByRoleAndKind.GetValueOrDefault((role, kind)) >= minimumCount)
+                if (myObservationCountsByRoleAndKind.GetValueOrDefault((memberId, kind)) >= minimumCount)
                 {
                     return;
                 }
@@ -312,12 +317,13 @@ internal sealed class ObservationJournal
     private async Task<JsonElement> WaitForObservationDataAsync(
         string role, string kind, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
+        var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
         while (true)
         {
             lock (myLock)
             {
-                if (myLatestObservationByRoleAndKind.TryGetValue((role, kind), out var data))
+                if (myLatestObservationByRoleAndKind.TryGetValue((memberId, kind), out var data))
                 {
                     return data.Clone();
                 }

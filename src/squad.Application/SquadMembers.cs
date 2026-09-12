@@ -56,7 +56,6 @@ public sealed class SquadMembers : IDisposable
                 generation,
                 member.Id,
                 member.DisplayName,
-                member.Role,
                 myTranscripts.OpenMember(member.Id.Value));
             myMembers.Add(member.Id, new MemberProcessor(
                 aggregate,
@@ -97,29 +96,29 @@ public sealed class SquadMembers : IDisposable
             .ToArray();
     }
 
-    public RoleTranscriptPage CreateTranscriptPage(string role, int beforeIndex, int maxEntries)
+    public RoleTranscriptPage CreateTranscriptPage(SquadMemberId role, int beforeIndex, int maxEntries)
     {
         Contract.Requires(beforeIndex >= 0, "beforeIndex must not be negative.");
         Contract.Requires(maxEntries > 0, "maxEntries must be positive.");
         return GetMember(role).Transcript.CreateTranscriptPage(beforeIndex, maxEntries);
     }
 
-    public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(string role, int entryIndex)
+    public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(SquadMemberId role, int entryIndex)
     {
         Contract.Requires(entryIndex >= 0, "entryIndex must not be negative.");
         return GetMember(role).Transcript.CreateArchivedTranscriptEntry(entryIndex);
     }
 
-    public AgentElicitationRequest GetPendingElicitation(string role, string requestId) =>
+    public AgentElicitationRequest GetPendingElicitation(SquadMemberId role, string requestId) =>
         GetMember(role).GetElicitation(requestId);
 
     /// <summary>
     /// Returns <see langword="null"/> for an unknown role, <see langword="false"/> when work is inadmissible, and
     /// otherwise the readiness inferred from serialized local state.
     /// </summary>
-    public bool? GetRoleReadiness(string role)
+    public bool? GetRoleReadiness(SquadMemberId role)
     {
-        if (!myMembers.TryGetValue(new SquadMemberId(role), out var processor))
+        if (!myMembers.TryGetValue(role, out var processor))
         {
             return null;
         }
@@ -143,39 +142,39 @@ public sealed class SquadMembers : IDisposable
     /// </summary>
     public void RegisterSession(IAgentSession session)
     {
-        var isKnownMember = myMembers.TryGetValue(new SquadMemberId(session.Role), out var processor);
-        Contract.Requires(isKnownMember, $"Unknown role: {session.Role}");
+        var isKnownMember = myMembers.TryGetValue(session.MemberId, out var processor);
+        Contract.Requires(isKnownMember, $"Unknown role: {session.MemberId}");
         processor!.SetSession(session);
     }
 
-    public Task MarkRoleFailedAsync(string role, Exception exception)
+    public Task MarkRoleFailedAsync(SquadMemberId role, Exception exception)
     {
         return RouteIgnoringUnknownRoleAsync(role, processor => processor.MarkFailedAsync(exception));
     }
 
-    public Task SendAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
+    public Task SendAsync(SquadMemberId role, string prompt, CancellationToken cancellationToken = default) =>
         RouteAsync(role, processor => processor.SendPromptAsync(prompt, cancellationToken));
 
-    public Task SendHarnessAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
+    public Task SendHarnessAsync(SquadMemberId role, string prompt, CancellationToken cancellationToken = default) =>
         RouteAsync(role, processor => processor.SendHarnessAsync(prompt, cancellationToken));
 
     /// <summary>
     /// Coalesces concurrent aborts for a role, cancels its active local operation, and waits for the provider abort.
     /// Events remain invalidated after a failed abort until a later abort succeeds.
     /// </summary>
-    public Task AbortAsync(string role, CancellationToken cancellationToken = default) =>
+    public Task AbortAsync(SquadMemberId role, CancellationToken cancellationToken = default) =>
         RouteAsync(role, processor => processor.AbortAsync(cancellationToken));
 
-    public Task CompletePermissionAsync(string role, string requestId, bool approved, CancellationToken cancellationToken = default) =>
+    public Task CompletePermissionAsync(SquadMemberId role, string requestId, bool approved, CancellationToken cancellationToken = default) =>
         RouteAsync(role, processor => processor.CompletePermissionAsync(requestId, new AgentPermissionResponse(approved), cancellationToken));
 
-    public Task CompleteInputAsync(string role, string requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
+    public Task CompleteInputAsync(SquadMemberId role, string requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
         RouteAsync(role, processor => processor.CompleteInputAsync(requestId, new AgentInputResponse(answer, wasFreeform), cancellationToken));
 
-    public Task CompleteElicitationAsync(string role, string requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
+    public Task CompleteElicitationAsync(SquadMemberId role, string requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
         RouteAsync(role, processor => processor.CompleteElicitationAsync(requestId, new AgentElicitationResponse(action, content), cancellationToken));
 
-    public Task EnqueueEventAsync(string role, AgentEvent agentEvent, CancellationToken cancellationToken = default) =>
+    public Task EnqueueEventAsync(SquadMemberId role, AgentEvent agentEvent, CancellationToken cancellationToken = default) =>
         RouteIgnoringUnknownRoleAsync(role, processor => processor.ApplyEventAsync(agentEvent));
 
     /// <summary>
@@ -234,7 +233,7 @@ public sealed class SquadMembers : IDisposable
             leader,
             roles = members.Select(member => new
             {
-                role = member.Id,
+                role = member.Id.Value,
                 status = MapStatus(member.Status),
                 lastEventAt = member.LastEventAt,
                 error = member.Error,
@@ -293,7 +292,7 @@ public sealed class SquadMembers : IDisposable
     /// reaches the caller as a faulted task rather than a synchronous throw, matching every other command entry
     /// point.
     /// </summary>
-    private async Task RouteAsync(string role, Func<MemberProcessor, Task> action)
+    private async Task RouteAsync(SquadMemberId role, Func<MemberProcessor, Task> action)
     {
         EnsureAccepting();
         await action(GetProcessor(role));
@@ -305,25 +304,25 @@ public sealed class SquadMembers : IDisposable
     /// no-op behavior for provider events and failures the projector could reasonably see for a role it does not
     /// recognize.
     /// </summary>
-    private async Task RouteIgnoringUnknownRoleAsync(string role, Func<MemberProcessor, Task> action)
+    private async Task RouteIgnoringUnknownRoleAsync(SquadMemberId role, Func<MemberProcessor, Task> action)
     {
         EnsureAccepting();
-        if (myMembers.TryGetValue(new SquadMemberId(role), out var processor))
+        if (myMembers.TryGetValue(role, out var processor))
         {
             await action(processor);
         }
     }
 
-    private MemberProcessor GetProcessor(string role)
+    private MemberProcessor GetProcessor(SquadMemberId role)
     {
-        if (myMembers.TryGetValue(new SquadMemberId(role), out var processor))
+        if (myMembers.TryGetValue(role, out var processor))
         {
             return processor;
         }
         throw new InvalidOperationException($"Unknown role: {role}");
     }
 
-    private MemberAggregate GetMember(string role) => GetProcessor(role).Aggregate;
+    private MemberAggregate GetMember(SquadMemberId role) => GetProcessor(role).Aggregate;
 
     private bool IsAccepting
     {

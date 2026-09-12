@@ -1,3 +1,4 @@
+using squad.Domain;
 using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -543,7 +544,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             return;
         }
 
-        myJournal.RecordLifecycle(role, type, sessionId);
+        myJournal.RecordLifecycle(new SquadMemberId(role), type, sessionId);
         await myDuplex!.SendAsync("ack", correlationId, new { type }, cancellationToken);
     }
 
@@ -570,7 +571,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             return;
         }
 
-        myJournal.RecordPrompt(role, prompt);
+        myJournal.RecordPrompt(new SquadMemberId(role), prompt);
         await myDuplex!.SendAsync("ack", correlationId, new { type = "prompt" }, cancellationToken);
     }
 
@@ -600,7 +601,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             return;
         }
 
-        myJournal.RecordObservation(role, kind, data);
+        myJournal.RecordObservation(new SquadMemberId(role), kind, data);
         await myDuplex!.SendAsync("ack", correlationId, new { type = "observe", kind }, cancellationToken);
     }
 

@@ -1,4 +1,5 @@
 using squad.AgentProvider.Abstractions;
+using squad.Domain;
 using System.Text.Json;
 using squad.AgentProvider.Fake.Control;
 
@@ -43,12 +44,12 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             }
 
-            var session = new FakeAgentSession(role.Role, myControl);
+            var session = new FakeAgentSession(role.MemberId, myControl);
             mySessions.Add(session);
             await sessionStarted(session);
             if (myControl is not null)
             {
-                await myControl.NotifySessionStartedAsync(session.Role, session.SessionId, cancellationToken);
+                await myControl.NotifySessionStartedAsync(session.MemberId.Value, session.SessionId, cancellationToken);
             }
             await session.SendHarnessAsync(role.InitialInstruction, cancellationToken);
             sessionIndex++;
@@ -105,7 +106,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
 
     private FakeAgentSession? FindSession(string role, string sessionId, out string? error)
     {
-        var session = mySessions.FirstOrDefault(candidate => candidate.Role == role && candidate.SessionId == sessionId);
+        var session = mySessions.FirstOrDefault(candidate => candidate.MemberId.Value == role && candidate.SessionId == sessionId);
         if (session is null)
         {
             error = $"No session '{sessionId}' for role '{role}' exists.";
@@ -127,7 +128,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
             await session.DisposeAsync();
             if (myControl is not null)
             {
-                await myControl.NotifySessionDisposedAsync(session.Role, session.SessionId, CancellationToken.None);
+                await myControl.NotifySessionDisposedAsync(session.MemberId.Value, session.SessionId, CancellationToken.None);
             }
         }
         if (myControl is not null)

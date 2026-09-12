@@ -10,7 +10,9 @@ static class ProviderLoader
 {
     // Must unify with the host's own copy, so it is never resolved locally even if a copy of it
     // happens to sit beside the provider assembly on disk (e.g. because it is also the host's own dependency).
-    private static readonly HashSet<string> SharedAssemblyNames = ["squad.AgentProvider.Abstractions"];
+    // squad.Domain is included because IAgentSession.MemberId is typed SquadMemberId, so it crosses the provider
+    // boundary too even though the value only ever originates from the host's own configuration.
+    private static readonly HashSet<string> SharedAssemblyNames = ["squad.AgentProvider.Abstractions", "squad.Domain"];
 
     // Keeps every provider load context reachable so it (and the assemblies it loaded) survive for the process lifetime.
     private static readonly List<PluginLoadContext> myLoadContexts = [];

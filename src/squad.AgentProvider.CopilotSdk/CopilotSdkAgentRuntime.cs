@@ -36,7 +36,7 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var session = new CopilotSdkAgentSession(
-                    role.Role,
+                    role.MemberId,
                     escalateTeardownFailure: RequestForceStop);
                 var runtimeSession = await myClient.CreateSessionAsync(role.WorktreePath, session, role.Permissions, role.Model, role.Effort, cancellationToken);
                 session.Attach(runtimeSession);
