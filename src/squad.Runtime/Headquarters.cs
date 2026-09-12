@@ -226,10 +226,7 @@ public sealed class Headquarters : IAsyncDisposable
     /// </summary>
     private async Task InstallSquadUnlockedAsync(CancellationToken cancellationToken)
     {
-        if (mySquad is not null)
-        {
-            throw new InvalidOperationException("A squad is already installed.");
-        }
+        Contract.Invariant(mySquad is null, "Installing into a non-empty active-squad slot.");
         var prepared = await myLaunchPreparer.PrepareGenerationAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         myWorkspaceTools.Configure(prepared.GitHistoryCommand);
