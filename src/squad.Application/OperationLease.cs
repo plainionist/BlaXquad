@@ -1,4 +1,4 @@
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// Holds a member's operation serialization slot until disposed. Callers register the active operation's

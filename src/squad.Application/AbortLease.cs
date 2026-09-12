@@ -1,4 +1,4 @@
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// Identifies the caller responsible for completing a member's abort while concurrent callers await the same

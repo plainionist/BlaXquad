@@ -3,7 +3,7 @@ using squad.AgentProvider.Abstractions.Agents;
 using squad.Application.Transcripts;
 using squad.Domain;
 
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// Owns every transient state transition for one squad member within its squad generation: projected agent status,

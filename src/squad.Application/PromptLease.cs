@@ -1,4 +1,4 @@
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// Holds a member's prompt serialization slot until disposed. Prompts for the same member wait for one another in

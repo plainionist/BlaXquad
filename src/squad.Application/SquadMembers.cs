@@ -1,6 +1,5 @@
 using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
-using squad.Application.Members;
 using squad.Application.Transcripts;
 using squad.Domain;
 using squad.Ui.Abstractions;

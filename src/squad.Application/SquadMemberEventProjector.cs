@@ -3,7 +3,7 @@ using squad.Domain;
 using squad.Ui.Abstractions;
 using System.Text.Json;
 
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// Projects a provider <see cref="AgentEvent"/> onto a <see cref="SquadMemberAggregate"/> and its transcript.

@@ -1,7 +1,7 @@
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Domain;
 
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// Captures one member's configured identity, presentation, projected status, pending interactions, and transcript

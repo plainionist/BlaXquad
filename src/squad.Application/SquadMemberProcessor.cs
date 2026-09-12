@@ -4,7 +4,7 @@ using squad.AgentProvider.Abstractions.Agents;
 using squad.Domain;
 using squad.Ui.Abstractions;
 
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// One member's independent, single-reader, bounded mailbox, and the sole mutable accessor of this member's

@@ -2,7 +2,7 @@ using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Domain;
 
-namespace squad.Application.Members;
+namespace squad.Application;
 
 /// <summary>
 /// The typed messages one member's <see cref="SquadMemberProcessor"/> mailbox accepts. Each message carries the
