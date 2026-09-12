@@ -43,10 +43,6 @@ public sealed record HandoffDocument
     {
         var errors = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(Id.Value))
-        {
-            errors.Add("missing id");
-        }
         if (string.IsNullOrWhiteSpace(From.Value))
         {
             errors.Add("missing from");
