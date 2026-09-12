@@ -29,6 +29,12 @@ Feature: Single-task queue
     Then the command exits with code 1
     And standard error contains "Unknown role: reviewer"
 
+  Scenario: An unsupported command-side receive mode is reported distinctly from an empty one
+    Given the "reviewer" role has an unsupported receive mode "nightly"
+    When the "reviewer" role agent runs `squad ready-for-next` from its worktree
+    Then the command exits with code 2
+    And standard error contains "INVALID_RECEIVE_MODE: nightly for role reviewer"
+
   Scenario: The highest-priority handoff is accepted first
     Given "reviewer" has these queued tasks:
       | from      | priority | task             |

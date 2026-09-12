@@ -17,8 +17,15 @@ static class DoneWithCurrent
             var role = member.Id.Value;
             if (member.ReceiveMode is null)
             {
-                Console.Error.WriteLine($"Unknown role: {role}");
-                return 1;
+                var rawReceiveMode = SquadConfig.RawReceiveMode(projectRoot, role);
+                if (string.IsNullOrEmpty(rawReceiveMode))
+                {
+                    Console.Error.WriteLine($"Unknown role: {role}");
+                    return 1;
+                }
+
+                Console.Error.WriteLine($"INVALID_RECEIVE_MODE: {rawReceiveMode} for role {role}");
+                return 2;
             }
 
             return member.ReceiveMode == ReceiveMode.Batch

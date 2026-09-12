@@ -58,6 +58,10 @@ public sealed class QueueSteps
     public void GivenTheRoleHasAnEmptyReceiveMode(string role) =>
         myWorkspace.ConfigureReceiveMode(role, "");
 
+    [Given("the {string} role has an unsupported receive mode {string}")]
+    public void GivenTheRoleHasAnUnsupportedReceiveMode(string role, string receiveMode) =>
+        myWorkspace.ConfigureReceiveMode(role, receiveMode);
+
     [When("the {string} role agent runs `squad ready-for-next` from its worktree")]
     public void WhenTheRoleAgentRunsSquadReadyForNextFromItsWorktree(string role)
     {

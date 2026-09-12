@@ -316,6 +316,20 @@ any member session starts" to `MemberConfiguration.feature`. Full suite: 196/196
   `ReceiveMode` for `Task` and `Batch`. Do not add `Unknown`, do not store the raw token on `SquadMemberDefinition`,
   and do not default invalid input to `Task`. Leave the strict launch `expected task or batch` rejection unchanged.
 
+**Status: changes applied, ready for re-review.** `SquadMemberDefinition.ReceiveMode` stays `ReceiveMode?` (the
+constraint is that the raw string may not live on the domain descriptor, not that the distinction may not be
+recovered elsewhere). Added `SquadConfig.RawReceiveMode(projectRoot, memberName)`: a command-side-adapter-only
+lookup that re-reads the configured `receiveMode` token for one member (`"task"` when omitted, the literal string
+otherwise, `""` when the member is absent), factored from the same JSON parsing `ReadMembers` already does. It is
+never attached to `SquadMemberDefinition`. `ready-for-next`/`done-with-current` now branch on it only when
+`member.ReceiveMode is null`: an empty (or missing/absent) token still yields `Unknown role: {role}` / exit 1; any
+other token yields the restored `INVALID_RECEIVE_MODE: {value} for role {role}` / exit 2. Valid `task`/`batch`
+members are unaffected and still dispatch by the enum. Added the regression scenario "An unsupported command-side
+receive mode is reported distinctly from an empty one" to `TaskQueue.feature` (plus a matching
+`the "{role}" role has an unsupported receive mode "{value}"` step) to lock in the restored exit-2 path, since it
+had no prior coverage. Full suite: 197/197 passed (one flaky timing-test failure reproduced once and did not
+reproduce on rerun; unrelated to this change, see Slice 1 history).
+
 ### Slice 4 - Type member status and preserve its protocol vocabulary
 
 **Outcome:** Mutable application state uses one closed `SquadMemberStatus` vocabulary, and the UI boundary explicitly
