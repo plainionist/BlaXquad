@@ -8,7 +8,7 @@ namespace squad.Specs.Support.Processes;
 /// starts: building <see cref="ProcessStartInfo"/>, redirected-stream capture, ANSI-stripped output normalization,
 /// tracking every process a scenario launches - including ones started outside this runner, such as through
 /// <see cref="CancellableChildProcess"/> - and bounded termination of all of them during scenario teardown.
-/// <see cref="Support.ScenarioWorkspace"/> itself still chooses published tools, working directories, and Git
+/// <see cref="Support.ScenarioWorkspace"/> itself still chooses exact tool deployments, working directories, and Git
 /// identity, and records the latest <see cref="CommandResult"/>.
 /// </summary>
 internal sealed class ScenarioProcessRunner : IDisposable

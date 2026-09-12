@@ -17,7 +17,7 @@ public sealed class HostingPackagingSteps
     [Then("the published squad-hq assembly has no compile-time dependency on a concrete hosting assembly")]
     public void ThenNoCompileTimeDependencyOnAConcreteHostingAssembly()
     {
-        var depsJsonPath = Path.Combine(AppContext.BaseDirectory, "squad-tools", "squad-hq.deps.json");
+        var depsJsonPath = Path.Combine(myWorkspace.PublishedToolsDirectory, "squad-hq.deps.json");
         Assert.That(File.Exists(depsJsonPath), Is.True, $"Expected published dependency manifest at '{depsJsonPath}'.");
         var depsJson = File.ReadAllText(depsJsonPath);
         Assert.That(depsJson, Does.Not.Contain("squad.Hosting.Photino"));
@@ -32,7 +32,7 @@ public sealed class HostingPackagingSteps
     [Then("the published squad-hq output contains the Photino hosting assembly and its dependency manifest")]
     public void ThenPublishedOutputContainsThePhotinoHostingAssemblyAndItsDependencyManifest()
     {
-        var toolsDir = Path.Combine(AppContext.BaseDirectory, "squad-tools");
+        var toolsDir = myWorkspace.PublishedToolsDirectory;
         Assert.That(File.Exists(Path.Combine(toolsDir, "squad.Hosting.Photino.dll")), Is.True);
         Assert.That(File.Exists(Path.Combine(toolsDir, "squad.Hosting.Photino.deps.json")), Is.True);
     }
@@ -40,7 +40,7 @@ public sealed class HostingPackagingSteps
     [Then("the published squad-hq output contains the Photino native runtime assets")]
     public void ThenPublishedOutputContainsThePhotinoNativeRuntimeAssets()
     {
-        var toolsDir = Path.Combine(AppContext.BaseDirectory, "squad-tools");
+        var toolsDir = myWorkspace.PublishedToolsDirectory;
         Assert.That(File.Exists(Path.Combine(toolsDir, PhotinoNativeLibraryFileName)), Is.True);
         Assert.That(File.Exists(Path.Combine(toolsDir, "Photino.NET.dll")), Is.True);
     }
@@ -48,7 +48,7 @@ public sealed class HostingPackagingSteps
     [Then("the published squad-hq output contains the Vue dashboard and window icon")]
     public void ThenPublishedOutputContainsTheVueDashboardAndWindowIcon()
     {
-        var toolsDir = Path.Combine(AppContext.BaseDirectory, "squad-tools");
+        var toolsDir = myWorkspace.PublishedToolsDirectory;
         Assert.That(File.Exists(Path.Combine(toolsDir, "ui", "index.html")), Is.True);
         Assert.That(File.Exists(Path.Combine(toolsDir, "Assets", "BlaXquad.ico")), Is.True);
     }
@@ -56,7 +56,7 @@ public sealed class HostingPackagingSteps
     [Then("the published squad-hq output contains no stdio hosting plug-in")]
     public void ThenPublishedOutputContainsNoStdioHostingPlugin()
     {
-        var toolsDir = Path.Combine(AppContext.BaseDirectory, "squad-tools");
+        var toolsDir = myWorkspace.PublishedToolsDirectory;
         Assert.That(File.Exists(Path.Combine(toolsDir, "squad.Hosting.Stdio.dll")), Is.False);
     }
 
@@ -91,7 +91,7 @@ public sealed class HostingPackagingSteps
     [Then("the published backend-spec output contains no Photino hosting assembly, dependency, runtime asset, Vue distribution, or window asset")]
     public void ThenPublishedBackendSpecOutputContainsNoPhotinoAssets()
     {
-        var backendSpecDir = Path.Combine(AppContext.BaseDirectory, "squad-tools-backend-spec");
+        var backendSpecDir = myWorkspace.NeutralPublishedToolsDirectory;
         Assert.That(File.Exists(Path.Combine(backendSpecDir, "squad.Hosting.Photino.dll")), Is.False);
         Assert.That(File.Exists(Path.Combine(backendSpecDir, "squad.Hosting.Photino.deps.json")), Is.False);
         Assert.That(File.Exists(Path.Combine(backendSpecDir, "Photino.NET.dll")), Is.False);
@@ -107,7 +107,7 @@ public sealed class HostingPackagingSteps
     [Then("the published backend-spec output contains no stdio hosting plug-in")]
     public void ThenPublishedBackendSpecOutputContainsNoStdioHostingPlugin()
     {
-        var backendSpecDir = Path.Combine(AppContext.BaseDirectory, "squad-tools-backend-spec");
+        var backendSpecDir = myWorkspace.NeutralPublishedToolsDirectory;
         Assert.That(File.Exists(Path.Combine(backendSpecDir, "squad.Hosting.Stdio.dll")), Is.False);
     }
 
