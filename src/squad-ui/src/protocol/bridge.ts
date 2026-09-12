@@ -1,5 +1,4 @@
 import {
-  PROTOCOL_VERSION,
   type ArchivedTranscriptEntry,
   type Envelope,
   type IssueListPayload,
@@ -13,7 +12,7 @@ import {
 interface HostExternal { sendMessage(message: string): void; receiveMessage(callback: (message: string) => void): void }
 
 declare global {
-  interface Window { __blaxquadHarness?: { messages: string[]; receive: (message: Envelope) => void } }
+  interface Window { __blaxquadHarness?: { messages: string[]; receive: (message: Envelope) => void; receiveRaw: (raw: string) => void } }
 }
 
 export function createBridge() {
@@ -29,7 +28,6 @@ export function createBridge() {
   const receive = (raw: string) => {
     try {
       const message = JSON.parse(raw) as Envelope
-      if (message.version !== PROTOCOL_VERSION) return errorListener('The host uses an unsupported protocol version.')
       if (message.type === 'state.snapshot') return snapshotListener(message.payload as Snapshot)
       if (message.type === 'transcript.synchronize') return transcriptSynchronizationListener(message.payload as TranscriptSynchronization)
       if (message.type === 'transcript.update') return transcriptUpdateListener(message.payload as TranscriptUpdate)
@@ -45,7 +43,7 @@ export function createBridge() {
   }
 
   if (host?.receiveMessage) host.receiveMessage(receive)
-  else window.__blaxquadHarness = { messages: [], receive: (message) => receive(JSON.stringify(message)) }
+  else window.__blaxquadHarness = { messages: [], receive: (message) => receive(JSON.stringify(message)), receiveRaw: receive }
 
   return {
     onSnapshot(listener: (snapshot: Snapshot) => void) { snapshotListener = listener },
@@ -56,8 +54,8 @@ export function createBridge() {
     onIssues(listener: (issues: IssueListPayload, requestId?: string) => void) { issuesListener = listener },
     onWorkspaceTools(listener: (snapshot: WorkspaceToolsSnapshot) => void) { workspaceToolsListener = listener },
     onError(listener: (message: string, requestId?: string) => void) { errorListener = listener },
-    send(type: string, options: Omit<Envelope, 'version' | 'type'> = {}) {
-      const message: Envelope = { version: PROTOCOL_VERSION, type, ...options }
+    send(type: string, options: Omit<Envelope, 'type'> = {}) {
+      const message: Envelope = { type, ...options }
       const serialized = JSON.stringify(message)
       if (host?.sendMessage) host.sendMessage(serialized)
       else window.__blaxquadHarness?.messages.push(serialized)

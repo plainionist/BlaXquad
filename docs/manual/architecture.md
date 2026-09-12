@@ -12,7 +12,7 @@ executables do not communicate directly. They coordinate through Git and per-wor
 
 There are three independent coordination protocols:
 
-1. A versioned UI protocol between headquarters and presentation clients.
+1. An internal UI protocol between headquarters and the packaged presentation client.
 2. A local Headquarters-control protocol for readiness and shutdown.
 3. A filesystem handoff protocol for durable work exchange between roles.
 
@@ -112,11 +112,11 @@ One runtime generation owns the shared provider connection and every role sessio
 
 ## Architectural contracts
 
-- **UI contract.** A versioned JSON protocol carries commands toward authoritative application state and carries
-  snapshots, transcript synchronization, incremental transcript updates, history pages, and errors back to the
-  client. Photino web messages are the packaged default transport for this protocol; the backend acceptance harness
-  loads a test-distributed, line-delimited-stdio transport for the same protocol through an explicit descriptor,
-  never as a supported product presentation mode.
+- **UI contract.** An internal JSON protocol shared by the packaged dashboard and Headquarters carries commands
+  toward authoritative application state and carries snapshots, transcript synchronization, incremental transcript
+  updates, history pages, and errors back to the client. Photino web messages are the packaged default transport
+  for this protocol; the backend acceptance harness loads a test-distributed, line-delimited-stdio transport for
+  the same protocol through an explicit descriptor, never as a supported product presentation mode.
 - **Headquarters-control contract.** A project-specific local named pipe accepts readiness and shutdown requests. A file
   lock establishes one headquarters owner for the project, while local metadata supports process discovery and
   stale-state cleanup.
@@ -350,8 +350,8 @@ These observations describe current consequences of the design; they are not red
   atomic move conventions. This makes handoffs durable within one Headquarters run while coupling independently
   running processes to the same filesystem schema; queues are launch-scoped rather than restart-safe, so every
   launch discards prior queue state instead of needing a dual-format reader or migration path.
-4. **Cross-language UI contract.** C# and TypeScript maintain the same versioned message shapes independently. The
-  protocol is explicit, but there is no generated shared schema.
+4. **Cross-language UI contract.** C# and TypeScript maintain the same internal message shapes independently as
+  one packaged product artifact. The protocol is explicit, but there is no generated shared schema.
 5. **In-process provider plug-ins.** Provider neutrality is enforced by contracts, but plug-ins execute inside
   headquarters. The default provider also shares one child runtime across all role sessions, creating a common
   failure domain.

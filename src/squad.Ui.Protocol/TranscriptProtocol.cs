@@ -2,7 +2,7 @@ using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
 
-/// <summary>Maps authoritative transcript models to the versioned wire payload shape consumed by the UI.</summary>
+/// <summary>Maps authoritative transcript models to the wire payload shape consumed by the UI.</summary>
 internal static class TranscriptProtocol
 {
     public static object CreateSynchronizationPayload(

@@ -120,7 +120,7 @@ inside product assemblies.
 
 ### Drive the real UI protocol without the visual UI
 
-Backend tests do not run Vue or Photino. They send and receive the same versioned JSON messages used by the dashboard
+Backend tests do not run Vue or Photino. They send and receive the same JSON messages used by the dashboard
 through `UiProtocolSession`.
 
 Frontend rendering and browser behavior remain the responsibility of focused Playwright tests. Backend Gherkin tests
@@ -440,7 +440,7 @@ The complete vertical path the black-box suite is built on:
    and the fake provider from `squad.AgentProvider.Fake.dll` selected through an explicit `--provider` descriptor.
 3. Complete the real UI-ready handshake.
 4. Let headquarters create a fake session for a configured role.
-5. Send a prompt through the real versioned UI JSON protocol.
+5. Send a prompt through the real UI JSON protocol.
 6. Observe that prompt through the fake-provider control pipe.
 7. Emit an assistant reply from the fake provider.
 8. Observe the resulting transcript protocol message.

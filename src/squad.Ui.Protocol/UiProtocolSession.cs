@@ -4,12 +4,11 @@ using squad.Ui.Abstractions;
 namespace squad.Ui.Protocol;
 
 /// <summary>
-/// Owns versioned UI message framing, command routing, event subscriptions, snapshot scheduling, and transcript
-/// recovery independently of the native window.
+/// Owns UI message framing, command routing, event subscriptions, snapshot scheduling, and transcript recovery
+/// independently of the native window.
 /// </summary>
 public sealed class UiProtocolSession : IAsyncDisposable
 {
-    private const int myProtocolVersion = 6;
     private readonly ISquadUi myUi;
     private readonly ITranscriptUi myTranscriptUi;
     private readonly Action<string> mySendSerializedMessage;
@@ -62,9 +61,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
         UiMessage message;
         try
         {
-            message = UiMessageReader.Read(
-                serializedMessage,
-                myProtocolVersion);
+            message = UiMessageReader.Read(serializedMessage);
         }
         catch (Exception exception)
         {
@@ -96,8 +93,8 @@ public sealed class UiProtocolSession : IAsyncDisposable
     private void Send(string type, object payload, string? requestId = null)
     {
         object envelope = requestId is null
-            ? new { version = myProtocolVersion, type, payload }
-            : new { version = myProtocolVersion, type, payload, requestId };
+            ? new { type, payload }
+            : new { type, payload, requestId };
         mySendSerializedMessage(JsonSerializer.Serialize(envelope));
     }
 }
