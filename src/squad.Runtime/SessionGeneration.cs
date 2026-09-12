@@ -34,6 +34,8 @@ internal sealed class SessionGeneration
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+        Contract.Invariant(myRuntime is null, "A session generation cannot start more than once.");
+        Contract.Invariant(myTeardown is null, "A session generation cannot start after retirement has begun.");
         myRuntime = await myAgentBackend.CreateRuntimeAsync(cancellationToken);
         await myRuntime.StartAsync(RegisterSessionAsync, cancellationToken);
     }

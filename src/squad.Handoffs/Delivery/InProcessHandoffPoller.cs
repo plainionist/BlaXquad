@@ -29,6 +29,9 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
         lock (mySyncRoot)
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
+            Contract.Invariant(
+                (myPolling is null) == (myPollingCancellation is null),
+                "Polling task and its cancellation source must not diverge.");
             if (myPolling is not null)
             {
                 return Task.CompletedTask;
@@ -48,6 +51,9 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
             polling = myPolling;
             pollingCancellation = myPollingCancellation;
         }
+        Contract.Invariant(
+            (polling is null) == (pollingCancellation is null),
+            "Polling task and its cancellation source must not diverge.");
         if (polling is null || pollingCancellation is null)
         {
             return;

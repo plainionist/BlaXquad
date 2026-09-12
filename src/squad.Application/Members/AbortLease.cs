@@ -9,6 +9,7 @@ internal sealed class AbortLease : IDisposable
 {
     private readonly MemberAggregate myMember;
     private readonly TaskCompletionSource myCompletion;
+    private bool myOutcomeRecorded;
     private bool myDisposed;
 
     internal AbortLease(MemberAggregate member, TaskCompletionSource completion)
@@ -20,6 +21,8 @@ internal sealed class AbortLease : IDisposable
     /// <summary>Marks the abort successful, clearing any prior failed-abort barrier for the member.</summary>
     public void Complete()
     {
+        Contract.Invariant(!myOutcomeRecorded, "An AbortLease must reach exactly one terminal outcome.");
+        myOutcomeRecorded = true;
         myMember.ClearFailedAbort();
         myCompletion.TrySetResult();
     }
@@ -27,6 +30,8 @@ internal sealed class AbortLease : IDisposable
     /// <summary>Marks the abort failed, leaving a barrier closed until a later abort for the member succeeds.</summary>
     public void Fail(Exception exception)
     {
+        Contract.Invariant(!myOutcomeRecorded, "An AbortLease must reach exactly one terminal outcome.");
+        myOutcomeRecorded = true;
         myMember.MarkFailedAbort();
         myCompletion.TrySetException(exception);
     }
@@ -37,6 +42,7 @@ internal sealed class AbortLease : IDisposable
         {
             return;
         }
+        Contract.Invariant(myOutcomeRecorded, "An AbortLease must reach a terminal outcome before release.");
         myDisposed = true;
         myMember.RemoveAbort();
     }

@@ -44,6 +44,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
 
     internal void Attach(CopilotSdkRuntimeSession runtimeSession)
     {
+        Contract.Invariant(myRuntimeSession is null, "A Copilot SDK session can be attached at most once.");
         myRuntimeSession = runtimeSession;
         myContextLimitResolution = ResolveContextLimitAsync(runtimeSession);
         myUsageRefresh = new UsageRefreshCoordinator(RefreshUsageAsync);

@@ -24,6 +24,7 @@ internal sealed class Squad
     private readonly object myRetirementLock = new();
     private Task<SquadRetirement>? myRetirement;
     private bool myHandoffStarted;
+    private bool myStarted;
 
     internal Squad(
         SquadMembers members,
@@ -58,6 +59,9 @@ internal sealed class Squad
     /// </summary>
     internal async Task StartAsync(CancellationToken cancellationToken)
     {
+        Contract.Invariant(!myStarted, "A squad cannot start more than once.");
+        Contract.Invariant(myRetirement is null, "A squad cannot start after retirement has begun.");
+        myStarted = true;
         await mySessions.StartAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await mySessionsStarted(cancellationToken);
