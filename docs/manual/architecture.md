@@ -338,6 +338,45 @@ supplies instructions, but does not directly call the tool on an agent's behalf.
 
 For the implementation-module inventory, see [Modules](modules.md).
 
+## Typed values and retained strings
+
+A string is appropriate while it represents open text or an external encoding. It is replaced with a dedicated
+type once application code already knows it represents one closed choice or one specific kind of identity. Every
+such boundary parses the incoming string once, keeps the typed value through the owning code, and formats it back
+to text only where an external representation (JSON, CLI, filesystem, or another process) requires it.
+
+Closed application choices are enums owned by the module that decides them, never re-derived from string
+comparison once parsed: `PermissionMode`, `ReceiveMode`, and `SquadMemberStatus` (`squad.Domain`); `ElicitationMode`
+and `ElicitationAction` (`squad.AgentProvider.Abstractions`, mapped from provider/wire spellings in
+`CopilotSdkClient` and `UiCommandHandler`); `TranscriptSource` (mapped from projected agent events in
+`MemberEventProjector`, formatted back to its stable lowercase spelling only in `TranscriptProtocol` and
+`TranscriptArchive`); `HandoffKind` (mapped once from the CLI's `commit`/`note` token and from persisted JSON);
+`AgentReadinessStatus` (mapped once in `HeadquartersControlClient` from the control protocol's
+`ready`/`not-ready`/`unknown-role`/`initializing` tokens, local to `squad.Runtime.Control`); and
+`RejectedCommandEffect` (`squad.Specs`, describing which provider effect a rejected UI command must never produce).
+Application-owned identities are likewise typed rather than passed as bare strings: `RoleId` and `SquadMemberId`
+(`squad.Domain`), `InteractionRequestId` and `ToolCallId` (`squad.AgentProvider.Abstractions`), and `HandoffId`,
+`HandoffPriority`, and `GitCommitId` (`squad.Handoffs`). Shutdown is an explicit `OperationCanceledException`
+carrying its existing user-facing message, not a message-text comparison, so `SessionGeneration` and every command
+path branch on exception type.
+
+Several categories of string remain deliberately untyped:
+
+| Category | Examples | Why it remains text |
+| --- | --- | --- |
+| Raw configuration | `SquadConfigurationDocument`, member/agent document DTOs, raw receive mode used for diagnostics | Input DTOs must represent missing, empty, and unsupported values before validation. |
+| UI and control wire formats | `UiMessage`, serialized envelope `type`/`role`/`requestId`, Vue protocol interfaces, Headquarters control JSON | These are stable external encodings. Parse at dispatch and format at publication; do not expose C# enum member names as the protocol. |
+| Fake-provider control protocol | Command/event kinds, raw IDs, and `JsonElement` payloads | This is a cross-process test protocol and must inject malformed or future values. Any enums belong locally to the fixture after parsing, not in `squad.Domain`. |
+| Gherkin and black-box observations | Step parameters, table headers/cells, raw JSON builders, stdout/status/operation assertions | Specs must express invalid input and assert exact public text without importing production serialization behavior. |
+| Frontend presentation state | Member-keyed Vue maps and lowercase status/source strings received from the protocol | Vue owns transient presentation and protocol reconciliation, not authoritative member identity or domain validation. TypeScript string unions may document the wire vocabulary without duplicating C# rules. |
+| Human-authored text | Prompts, transcript content, reasoning, errors, display names, task names, note messages | These values are open text, not identities or closed choices. Validate bounded fields without inventing enums. |
+| Provider/plugin vocabulary | Model, effort, tool, skill and agent names; provider/hosting assembly and type descriptors | These sets are external, extensible, or selected by plug-ins. A core enum would reject valid future values. |
+| Platform values | Filesystem paths, environment variables, process arguments/output, Git revision input and command output | The operating system, process, and Git APIs are string boundaries. Domain IDs are formatted only when entering them. |
+| CLI syntax | Option names, command-line arguments, and parser option dictionaries | Tokens are strings while parsing. Closed choices become typed immediately after successful parsing. |
+| Opaque external IDs | Provider session IDs (`IAgentSession.SessionId`) and UI request correlation IDs that are only echoed | No application invariant or cross-kind operation is performed on them; wrapping every pass-through identifier would add ceremony without preventing a current mistake. |
+| Token tables | Known tool names, shared assembly names, supported Gherkin columns, and JSON property names | These sets classify open external names or validate an external shape; they are not collections of domain entities. |
+| Test context slots | `ScenarioWorkspace.myValues` keys | This is a heterogeneous fixture property bag addressed by private constant keys, not member identity. Prefer dedicated typed fixture state when a value gains behavior, but no domain ID or enum describes the keys. |
+
 ## Architectural characteristics and pressure points
 
 These observations describe current consequences of the design; they are not redesign proposals.
