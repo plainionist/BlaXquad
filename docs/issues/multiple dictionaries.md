@@ -5,7 +5,7 @@ priority: 10
 
 identify types with multiple members of dictionaries with same key.
 example: src\squad.AgentProvider.Fake\Control\ObservationJournal.cs
-example: src\squad.Application\Members\MemberAggregate.cs
+example: src\squad.Application\SquadMemberAggregate.cs
 
 this is typically an indicator that we should rather have another type 
 encapsulating the various aspects and then only have one member with collection
@@ -31,7 +31,7 @@ boolean aspect of a dictionary entry.
 
 | Priority | Owner | Parallel state | Assessment |
 | --- | --- | --- | --- |
-| High | [`MemberAggregate`](../../src/squad.Application/Members/MemberAggregate.cs) | Four maps keyed by `InteractionRequestId`: permission, input, elicitation, and protected transcript entry | One pending member interaction is split by request kind and transcript-retention state. Consolidate. |
+| High | [`SquadMemberAggregate`](../../src/squad.Application/SquadMemberAggregate.cs) | Four maps keyed by `InteractionRequestId`: permission, input, elicitation, and protected transcript entry | One pending member interaction is split by request kind and transcript-retention state. Consolidate. |
 | High | [`CopilotSdkAgentSession`](../../src/squad.AgentProvider.CopilotSdk/CopilotSdkAgentSession.cs) | Three maps keyed by `InteractionRequestId`, each holding a typed response completion | One provider interaction registry is split by response type. Consolidate. |
 | High | [`UiDeliveryCoordinator`](../../src/squad.Ui.Protocol/UiDeliveryCoordinator.cs) | Delivered sequence, synchronized sequence, and requested recovery position keyed by `SquadMemberId` | These are phases of one member's transcript-delivery cursor. Consolidate. |
 | Medium | [`ObservationJournal`](../../src/squad.AgentProvider.Fake/Control/ObservationJournal.cs) | Active session and latest prompt keyed by `SquadMemberId`; latest value and count keyed by `(SquadMemberId, Kind)` | Both groups are per-member observation state. Consolidate into a member journal with nested observations by kind. |
@@ -42,7 +42,7 @@ boolean aspect of a dictionary entry.
 
 ### 1. Member interaction state
 
-`MemberAggregate` is the clearest production case. `MemberEventProjector` first registers a request and then records
+`SquadMemberAggregate` is the clearest production case. `SquadMemberEventProjector` first registers a request and then records
 the transcript entry protected by that request. Response handling removes the typed request, invokes the provider,
 restores the request if delivery fails, and later removes the protection. Terminal cleanup clears every request map
 and walks the protection map to unprotect transcript entries.
@@ -202,26 +202,225 @@ same rule when those fixtures next change.
 - Do not introduce a repository-wide generic state-bag abstraction. Each proposed state type belongs beside its
 	current owner and should expose transitions in that owner's vocabulary.
 
-## Suggested implementation order
+## Implementation plan
 
-1. Consolidate `MemberAggregate` and preserve interaction publication, failed-response restoration, cancellation,
-	 and transcript protection behavior.
-2. Consolidate `CopilotSdkAgentSession`; this is the provider-side counterpart but an independent change.
-3. Consolidate `UiDeliveryCoordinator`, followed by `TranscriptArchive`.
-4. Consolidate `ObservationJournal` and `RawSdkEventTrace`.
-5. Clean up the two specification fixtures opportunistically.
+Implement the following slices in order. Each numbered slice is one commit and must build and pass its focused
+acceptance scenarios before it is handed to review. No slice depends on a later slice to restore behavior or
+documentation consistency. Keep each state type beside its owner, in its own source file, and do not introduce a
+shared generic state-bag abstraction.
 
-Each step should be a behavior-preserving change. Cover production slices through the existing black-box Gherkin
-suite, especially interaction publication/cancellation, transcript synchronization/recovery, transcript retention
-and paging, and provider failure/abort behavior. Add or adjust scenarios only where the current suite does not prove
-the state-preservation invariant being moved; do not add implementation-shaped unit tests for the new state holders.
+### Slice 1: Consolidate application interaction state
+
+**Task:** `consolidate-member-interaction-state`
+
+**Logical change:** Make `SquadMemberAggregate` the atomic owner of one lifecycle object per interaction request id,
+including that interaction's protected transcript entry.
+
+**Implementation:**
+
+- Add a closed `MemberInteractionState` representation under `squad.Application`. Pending and responding variants
+  carry exactly one permission, input, or elicitation request plus its protected transcript entry index;
+  `RetainedForRetirement` carries only the protected entry index. Do not model request kind with several nullable
+  request properties or independently mutable flags.
+- Replace `myPermissions`, `myInputs`, `myElicitations`, and `myProtectedTranscriptEntries` with one
+  `Dictionary<InteractionRequestId, MemberInteractionState>`. Project pending snapshots by request kind from this
+  registry; responding and retirement-only entries are not pending.
+- Replace the projector's register/add/protect sequence with one aggregate transition. It must reject an id already
+  present under any request kind, append and protect the request's transcript entry, store the complete pending
+  state, and return the resulting `TranscriptUpdate`. Keep request-to-transcript presentation mapping in
+  `SquadMemberEventProjector`.
+- Give response handling explicit transitions: pending to responding before provider I/O; responding to removed on
+  success; responding back to the same pending variant after a recoverable provider failure; and responding to
+  removed after terminal member failure. Missing ids, wrong request kinds, duplicate responses, and late responses
+  retain the existing public diagnostic.
+- Abort and session failure remove every live interaction and unprotect every associated entry. Headquarters
+  shutdown transitions entries to `RetainedForRetirement` after provider cancellation, removing them from
+  snapshots without releasing transcript protection during generation retirement. A late operation outcome must
+  not restore a retirement-only interaction.
+- Keep identical request ids valid for different members while enforcing uniqueness across interaction kinds within
+  one member.
+
+**Acceptance:**
+
+- All scenarios in `InteractionPublicationAndOwnership.feature` and
+  `InteractionCancellationAndTranscriptRetention.feature` pass unchanged for publication, routing, response
+  validation, cancellation, shutdown, and transcript retention.
+- Add one black-box scenario, with the minimum fake-provider support needed, if necessary to make a response fail
+  recoverably: the failed response reports its provider error, the same interaction remains pending and protected,
+  and a later successful response completes it exactly once.
+- No UI protocol payload, request/response contract, or existing diagnostic changes.
+
+### Slice 2: Consolidate Copilot provider completions
+
+**Task:** `consolidate-copilot-interaction-completions`
+
+**Logical change:** Give `CopilotSdkAgentSession` one provider-side completion registry per interaction id, independent
+of the application state introduced by slice 1.
+
+**Implementation:**
+
+- Add a non-generic `PendingProviderInteraction` lifecycle abstraction and a typed implementation that retains its
+  `TaskCompletionSource<TResponse>`. The non-generic surface supports cancellation and failure; typed completion
+  validates the response kind without casts through `object` or `dynamic`.
+- Replace the three typed dictionaries with one
+  `Dictionary<InteractionRequestId, PendingProviderInteraction>`. Registration rejects duplicate ids across kinds.
+- Complete a response only when both id and response type match, then remove that registration. A wrong response
+  kind must leave the real pending completion intact and use the existing "No pending interaction" boundary
+  diagnostic.
+- Cancel, fault, abort, dispose, and backend/session-failure paths snapshot and clear the single registry once, then
+  settle each completion exactly once. The request method's `finally` removes only its own registration so it
+  cannot disturb a later entry.
+
+**Acceptance:**
+
+- Permission, input, and elicitation requests still complete with their typed responses; duplicate, late, and
+  wrong-kind responses are rejected without completing another request.
+- Abort, explicit pending-interaction cancellation, disposal, and provider failure settle every outstanding task
+  with the same cancellation token or exception behavior as before.
+- The Copilot provider builds and the provider packaging scenarios continue to pass; the provider-neutral
+  interaction scenarios remain unchanged.
+
+### Slice 3: Consolidate transcript delivery cursors
+
+**Task:** `consolidate-transcript-delivery-state`
+
+**Logical change:** Make one `TranscriptDeliveryState` own each member's durable delivered/synchronized cursors and
+transient recovery request.
+
+**Implementation:**
+
+- Replace the three member-keyed dictionaries in `UiDeliveryCoordinator` with one
+  `Dictionary<SquadMemberId, TranscriptDeliveryState>`.
+- Put monotonic delivered and synchronized sequence transitions on the state object. Synchronization advances both
+  cursors and may never precede either; an incremental delivery advances only the delivered cursor.
+- Merge repeated requested recovery positions by taking the minimum visual and announcement sequence. Consuming a
+  publish cycle clears only that transient request, preserving both durable cursors.
+- Derive queue-overflow recovery baselines and last-synchronized snapshots from the same per-member state without
+  changing lock scope, message ordering, batching limits, or wire payloads.
+
+**Acceptance:**
+
+- `StdioUiProtocol.feature` and `TranscriptSynchronizationOrder.feature` pass unchanged.
+- Initial synchronization, requested recovery, and queue-overflow recovery never regress a sequence, omit a
+  post-snapshot update, or emit an update already covered by the synchronization.
+- A consumed recovery request does not erase the member's delivered or synchronized cursor.
+
+### Slice 4: Consolidate transcript archive metadata
+
+**Task:** `consolidate-transcript-archive-state`
+
+**Logical change:** Represent each archived role and entry once while preserving the archive's storage and paging
+contract.
+
+**Implementation:**
+
+- Add `RoleArchiveState`, containing a `SortedDictionary<int, ArchivedEntryState>` and the sticky role-level
+  truncation flag, and `ArchivedEntryState`, containing retained length, total length, and content-truncated state.
+  Enforce non-negative length invariants in their construction and transitions.
+- Replace the four parallel indexes in `TranscriptArchive` with one
+  `Dictionary<SquadMemberId, RoleArchiveState>`. Append, replace, content append, read, and eviction update or remove
+  one entry state instead of coordinating composite keys.
+- Preserve oldest-first sorted eviction, sticky role truncation, per-entry truncation-marker behavior, archive file
+  names and JSON shape, missing-entry responses, locking, and disposal.
+
+**Acceptance:**
+
+- All scenarios in `TranscriptHistoryPaging.feature` and `TranscriptOversizedContent.feature` pass unchanged.
+- Paging remains gap- and duplicate-free; retained/total lengths and content/role truncation flags remain exact
+  after append, replace, streaming truncation, and eviction.
+- No archive path, persisted metadata shape, or UI protocol payload changes.
+
+### Slice 5: Consolidate fake-provider observations
+
+**Task:** `consolidate-fake-observation-state`
+
+**Logical change:** Give `ObservationJournal` one journal per member and one state object per observation kind.
+
+**Implementation:**
+
+- Add `MemberObservationJournal` with latest session id, latest prompt, and a dictionary of observation kind to
+  `ObservationState`; each observation state owns its cloned latest `JsonElement` and count.
+- Replace the four parallel dictionaries with one member-keyed dictionary. Keep the ordered lifecycle list and
+  protocol-error list journal-wide.
+- Preserve snapshot and wait semantics, cloned JSON ownership, count increments, timeout behavior, and the existing
+  rule that a disposed session remains the latest observed session.
+- Render timeout diagnostics from each member journal without dropping any currently reported lifecycle, prompt,
+  generic-observation, or protocol-error data.
+
+**Acceptance:**
+
+- Interaction, abort-ordering, startup/shutdown, session-failure, and handoff scenarios that use the fake-provider
+  control transport pass unchanged.
+- Repeated observations retain the latest value and exact count; role isolation and undisposed-session detection
+  remain unchanged.
+
+### Slice 6: Consolidate raw SDK tool trace state
+
+**Task:** `consolidate-sdk-tool-trace-state`
+
+**Logical change:** Track each SDK tool call with one trace state rather than separate payload and tool-name maps.
+
+**Implementation:**
+
+- Add `ToolTraceState` with optional tool name and previous payload, because start and payload events may arrive in
+  either order.
+- Replace `myPreviousPayloads` and `myToolNames` with one ordinal-keyed dictionary. Start and payload events create
+  or update one state; completion removes that state once after its trace record is assembled.
+- Preserve sequence assignment, trace JSON shape, payload-field handling, trace-path behavior, and all five payload
+  classifications (`first payload`, duplicate, cumulative snapshot, rewrite/non-prefix change, independent delta).
+
+**Acceptance:**
+
+- Tool start, partial result, progress, completion, and server-tool progress still produce byte-for-byte equivalent
+  normalized field values apart from timestamps.
+- Completion forgets both correlated values together, while payload-before-start and start-without-payload remain
+  valid.
+- The Copilot provider and its packaging scenarios pass without introducing a production test hook.
+
+### Slice 7: Consolidate transcript observation fixture state
+
+**Task:** `consolidate-transcript-spec-state`
+
+**Logical change:** Make `BackendScenarioSteps` store one transcript observation state per member.
+
+**Implementation:**
+
+- Add `MemberTranscriptObservationState` for paging frontier, observed page count, latest page, accumulated entries,
+  assistant-delta count, and latest synchronized sequence.
+- Replace the six member-keyed dictionaries with one member-keyed dictionary and route each step through the
+  member's state. Preserve the distinction between "not observed yet" and valid zero/default values used by current
+  diagnostics.
+
+**Acceptance:**
+
+- Transcript synchronization, paging, oversized-content, and stream-finalization feature files pass unchanged.
+- Per-member page chaining, accumulated-entry reconciliation, delta numbering, and archived-entry sequence checks
+  remain isolated when scenarios address more than one member.
+
+### Slice 8: Consolidate coexistence fixture state
+
+**Task:** `consolidate-coexistence-spec-state`
+
+**Logical change:** Make `HostCoexistenceSteps` store one scenario/exit-code lifecycle per project label.
+
+**Implementation:**
+
+- Add `ProjectObservationState` containing the required `BackendScenario` and optional exit code.
+- Replace the two label-keyed dictionaries with one ordinal-keyed dictionary. Keep duplicate/missing label behavior,
+  shared scenario ownership, and teardown responsibility unchanged.
+
+**Acceptance:**
+
+- `HeadquartersCoexistence.feature` passes unchanged.
+- Each label continues to route launch, protocol traffic, shutdown, exit-code assertions, and liveness checks only
+  to its own project.
 
 ## Done when
 
-- Each production owner above has one dictionary per domain identity and delegates correlated transitions to its
-	per-key state object.
-- Request kind, response kind, monotonic transcript sequences, and archive-length/truncation invariants remain
-	explicit and valid by construction.
-- Existing public protocol payloads, diagnostics, cancellation behavior, and transcript retention behavior remain
-	unchanged.
-- The relevant black-box Gherkin scenarios pass after every independently reviewable slice.
+- All eight slices are accepted independently and each affected owner has one dictionary per domain identity.
+- Request/response kind, interaction lifecycle, transcript sequence, archive length/truncation, observation count,
+  and per-project lifecycle invariants are valid by construction and changed only through their owning state type.
+- Existing public protocol payloads, diagnostics, cancellation behavior, transcript retention behavior, archive
+  format, and trace shape remain unchanged.
+- The relevant black-box Gherkin scenarios pass after every slice, and the stable architecture documentation still
+  accurately describes the resulting ownership boundaries.
