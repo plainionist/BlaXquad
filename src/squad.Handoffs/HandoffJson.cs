@@ -39,6 +39,10 @@ public static class HandoffJson
         {
             throw new InvalidDataException($"malformed handoff JSON in {path}: {exception.Message}", exception);
         }
+        catch (ArgumentException exception)
+        {
+            throw new InvalidDataException($"invalid handoff document in {path}: {exception.Message}", exception);
+        }
         catch (InvalidDataException exception)
         {
             throw new InvalidDataException($"invalid handoff document in {path}: {exception.Message}", exception);
