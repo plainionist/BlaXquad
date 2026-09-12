@@ -431,6 +431,10 @@ generic-observation, and protocol-error data.
   valid.
 - The Copilot provider and its packaging scenarios pass without introducing a production test hook.
 
+**Status: complete (91d863ec6a).** One ordinal `ToolTraceState` registry keyed by tool-call id owns optional tool
+name and previous payload together. Start and payload create or update that state; completion removes it once.
+Payload-before-start and start-without-payload remain valid; Classify and trace JSON shape are unchanged.
+
 ### Slice 7: Consolidate transcript observation fixture state
 
 **Task:** `consolidate-transcript-spec-state`
