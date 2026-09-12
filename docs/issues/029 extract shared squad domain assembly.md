@@ -210,6 +210,11 @@ unchanged in `state.snapshot`; handoff fan-out and wake-up still use member addr
 payload strings remain unchanged. The repository builds and the existing `MemberConfiguration`,
 `LeaderConfiguration`, `RoleOrder`, `Delivery`, and stdio UI protocol scenarios pass through the published tools.
 
+**Status: complete (aa3b069eba).** Headquarters launch carries one ordered `SquadDefinition` from resolved
+configuration into backend setup, `SquadMembers`, and handoff delivery. `PreparedLaunch` has no parallel member,
+leader, or handoff-member fields. `MemberConfigRow` and `MemberConfiguration` are gone; `RoleRow` remains for
+slice 2.
+
 ### Slice 2 - Replace the command-side role row with domain members
 
 **Outcome:** The role-facing CLI resolves, addresses, and validates configured participants using
