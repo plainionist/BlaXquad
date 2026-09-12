@@ -721,7 +721,7 @@ The following five slices run immediately after Slice 17 and before Slice 18. Th
 objects already present or introduced by completed slices. Each slice changes one value object's invariant and
 introduces no type.
 
-### Slice 17A - Make role IDs valid by construction
+### Slice 17A - Make role IDs valid by construction [done]
 
 **Task:** `enforce-role-id-contract`
 
@@ -735,6 +735,9 @@ configuration boundary, and preserve value equality, `.Value`, and `ToString()` 
 **Acceptance:** reusable role lookup, role ordering, shared-role member configuration, and startup-instruction
 composition retain their behavior under `MemberConfiguration.feature`, `RoleOrder.feature`, and
 `AgentStartupInstructions.feature`. No type is added.
+
+**Status: complete (6cd5cbfac3).** `RoleId` is a sealed record with `Contract.Requires` for nonblank, exactly
+preserved text. Configuration still validates raw role names before construction.
 
 ### Slice 17B - Make squad member IDs valid by construction
 
