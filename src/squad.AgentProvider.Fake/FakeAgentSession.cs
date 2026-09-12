@@ -210,38 +210,38 @@ internal sealed class FakeAgentSession : IAgentSession
     /// <summary>Reports, when a control transport is configured, the host's response to a permission request this
     /// session previously emitted through <see cref="Emit"/>.</summary>
     public async Task RespondToPermissionAsync(
-        string requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default)
+        InteractionRequestId requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default)
     {
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
-                MemberId.Value, SessionId, "permission-response", new { requestId, approved = response.Approved }, cancellationToken);
+                MemberId.Value, SessionId, "permission-response", new { requestId = requestId.Value, approved = response.Approved }, cancellationToken);
         }
     }
 
     /// <summary>Reports, when a control transport is configured, the host's response to an input request this
     /// session previously emitted through <see cref="Emit"/>.</summary>
     public async Task RespondToInputAsync(
-        string requestId, AgentInputResponse response, CancellationToken cancellationToken = default)
+        InteractionRequestId requestId, AgentInputResponse response, CancellationToken cancellationToken = default)
     {
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
                 MemberId.Value, SessionId, "input-response",
-                new { requestId, answer = response.Answer, wasFreeform = response.WasFreeform }, cancellationToken);
+                new { requestId = requestId.Value, answer = response.Answer, wasFreeform = response.WasFreeform }, cancellationToken);
         }
     }
 
     /// <summary>Reports, when a control transport is configured, the host's response to an elicitation request
     /// this session previously emitted through <see cref="Emit"/>.</summary>
     public async Task RespondToElicitationAsync(
-        string requestId, AgentElicitationResponse response, CancellationToken cancellationToken = default)
+        InteractionRequestId requestId, AgentElicitationResponse response, CancellationToken cancellationToken = default)
     {
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
                 MemberId.Value, SessionId, "elicitation-response",
-                new { requestId, action = response.Action, content = response.Content }, cancellationToken);
+                new { requestId = requestId.Value, action = response.Action, content = response.Content }, cancellationToken);
         }
     }
 
@@ -310,12 +310,12 @@ internal sealed class FakeAgentSession : IAgentSession
                 return null;
             case "permission-request":
                 myEvents.Publish(new AgentPermissionRequest(
-                    now, data.GetProperty("requestId").GetString()!, data.GetProperty("description").GetString()!));
+                    now, new InteractionRequestId(data.GetProperty("requestId").GetString()!), data.GetProperty("description").GetString()!));
                 return null;
             case "input-request":
                 myEvents.Publish(new AgentInputRequest(
                     now,
-                    data.GetProperty("requestId").GetString()!,
+                    new InteractionRequestId(data.GetProperty("requestId").GetString()!),
                     data.GetProperty("prompt").GetString()!,
                     GetNullableStringArray(data, "choices"),
                     !data.TryGetProperty("allowFreeform", out var allowFreeform) || allowFreeform.ValueKind != JsonValueKind.False));
@@ -323,7 +323,7 @@ internal sealed class FakeAgentSession : IAgentSession
             case "elicitation-request":
                 myEvents.Publish(new AgentElicitationRequest(
                     now,
-                    data.GetProperty("requestId").GetString()!,
+                    new InteractionRequestId(data.GetProperty("requestId").GetString()!),
                     data.GetProperty("prompt").GetString()!,
                     data.GetProperty("mode").GetString()!,
                     null,

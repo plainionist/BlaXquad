@@ -1,4 +1,5 @@
 using System.Text.Json;
+using squad.AgentProvider.Abstractions;
 using squad.Domain;
 using squad.Ui.Abstractions;
 
@@ -108,13 +109,13 @@ internal sealed class UiCommandHandler
             case "permission.respond":
                 await myUi.CompletePermissionAsync(
                     RequireMemberId(message.Role),
-                    Require(message.RequestId, "requestId"),
+                    RequireRequestId(message.RequestId),
                     RequirePayloadBoolean(message.Payload, "approved"));
                 break;
             case "input.respond":
                 await myUi.CompleteInputAsync(
                     RequireMemberId(message.Role),
-                    Require(message.RequestId, "requestId"),
+                    RequireRequestId(message.RequestId),
                     GetPayloadString(message.Payload, "answer"),
                     GetPayloadBoolean(
                         message.Payload,
@@ -123,9 +124,7 @@ internal sealed class UiCommandHandler
                 break;
             case "elicitation.respond":
                 var elicitationRole = RequireMemberId(message.Role);
-                var elicitationId = Require(
-                    message.RequestId,
-                    "requestId");
+                var elicitationId = RequireRequestId(message.RequestId);
                 var action = RequirePayloadString(
                     message.Payload,
                     "action");
@@ -180,6 +179,11 @@ internal sealed class UiCommandHandler
     /// it is dispatched to any authoritative application operation.</summary>
     private static SquadMemberId RequireMemberId(string? role) =>
         new(Require(role, "role"));
+
+    /// <summary>Validates and wraps an incoming wire requestId into an <see cref="InteractionRequestId"/> exactly
+    /// once, before it is dispatched to any authoritative application operation.</summary>
+    private static InteractionRequestId RequireRequestId(string? requestId) =>
+        new(Require(requestId, "requestId"));
 
     private static string RequirePayloadString(
         JsonElement payload,

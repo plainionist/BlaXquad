@@ -20,9 +20,9 @@ public interface IAgentSession : IAsyncDisposable
     Task SendHarnessAsync(string prompt, CancellationToken cancellationToken = default);
     /// <summary>Aborts the current operation without terminating the session, which remains available for later prompts.</summary>
     Task AbortAsync(CancellationToken cancellationToken = default);
-    Task RespondToPermissionAsync(string requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default);
-    Task RespondToInputAsync(string requestId, AgentInputResponse response, CancellationToken cancellationToken = default);
-    Task RespondToElicitationAsync(string requestId, AgentElicitationResponse response, CancellationToken cancellationToken = default);
+    Task RespondToPermissionAsync(InteractionRequestId requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default);
+    Task RespondToInputAsync(InteractionRequestId requestId, AgentInputResponse response, CancellationToken cancellationToken = default);
+    Task RespondToElicitationAsync(InteractionRequestId requestId, AgentElicitationResponse response, CancellationToken cancellationToken = default);
     /// <summary>Cancels every unresolved provider interaction without terminating the session itself.</summary>
     Task CancelPendingInteractionsAsync(CancellationToken cancellationToken = default);
 }

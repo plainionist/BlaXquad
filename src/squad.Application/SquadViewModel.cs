@@ -1,3 +1,4 @@
+using squad.AgentProvider.Abstractions;
 using squad.AgentProvider.Abstractions.Agents;
 using squad.Domain;
 using squad.Ui.Abstractions;
@@ -80,7 +81,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
         return RequireInstalled(memberId).CreateArchivedTranscriptEntry(memberId, entryIndex);
     }
 
-    public AgentElicitationRequest GetPendingElicitation(SquadMemberId memberId, string requestId) =>
+    public AgentElicitationRequest GetPendingElicitation(SquadMemberId memberId, InteractionRequestId requestId) =>
         RequireInstalled(memberId).GetPendingElicitation(memberId, requestId);
 
     /// <summary>
@@ -99,13 +100,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     public Task AbortAsync(SquadMemberId memberId, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, members => members.AbortAsync(memberId, cancellationToken));
 
-    public Task CompletePermissionAsync(SquadMemberId memberId, string requestId, bool approved, CancellationToken cancellationToken = default) =>
+    public Task CompletePermissionAsync(SquadMemberId memberId, InteractionRequestId requestId, bool approved, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, members => members.CompletePermissionAsync(memberId, requestId, approved, cancellationToken));
 
-    public Task CompleteInputAsync(SquadMemberId memberId, string requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
+    public Task CompleteInputAsync(SquadMemberId memberId, InteractionRequestId requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, members => members.CompleteInputAsync(memberId, requestId, answer, wasFreeform, cancellationToken));
 
-    public Task CompleteElicitationAsync(SquadMemberId memberId, string requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
+    public Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, members => members.CompleteElicitationAsync(memberId, requestId, action, content, cancellationToken));
 
     void ISquadPublication.NotifyStateChanged(SquadGenerationId generation, UiRefreshPriority priority)

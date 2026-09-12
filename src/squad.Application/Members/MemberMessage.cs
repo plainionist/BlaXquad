@@ -34,19 +34,19 @@ internal sealed record AbortMessage(
     TaskCompletionSource Completion) : MemberMessage;
 
 internal sealed record CompletePermissionMessage(
-    string RequestId,
+    InteractionRequestId RequestId,
     AgentPermissionResponse Response,
     CancellationToken CancellationToken,
     TaskCompletionSource Completion) : MemberMessage;
 
 internal sealed record CompleteInputMessage(
-    string RequestId,
+    InteractionRequestId RequestId,
     AgentInputResponse Response,
     CancellationToken CancellationToken,
     TaskCompletionSource Completion) : MemberMessage;
 
 internal sealed record CompleteElicitationMessage(
-    string RequestId,
+    InteractionRequestId RequestId,
     AgentElicitationResponse Response,
     CancellationToken CancellationToken,
     TaskCompletionSource Completion) : MemberMessage;

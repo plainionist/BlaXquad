@@ -17,10 +17,10 @@ internal sealed class MemberAggregate : IDisposable
     private readonly MemberTranscriptState myTranscript;
 
     private readonly object myInteractionsLock = new();
-    private readonly Dictionary<string, AgentPermissionRequest> myPermissions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AgentInputRequest> myInputs = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AgentElicitationRequest> myElicitations = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, int> myProtectedTranscriptEntries = new(StringComparer.Ordinal);
+    private readonly Dictionary<InteractionRequestId, AgentPermissionRequest> myPermissions = [];
+    private readonly Dictionary<InteractionRequestId, AgentInputRequest> myInputs = [];
+    private readonly Dictionary<InteractionRequestId, AgentElicitationRequest> myElicitations = [];
+    private readonly Dictionary<InteractionRequestId, int> myProtectedTranscriptEntries = [];
 
     private readonly SemaphoreSlim myPromptLock = new(1, 1);
     private readonly SemaphoreSlim myOperationLock = new(1, 1);
@@ -113,7 +113,7 @@ internal sealed class MemberAggregate : IDisposable
         get { lock (myInteractionsLock) return myElicitations.Values.ToArray(); }
     }
 
-    internal AgentElicitationRequest GetElicitation(string requestId)
+    internal AgentElicitationRequest GetElicitation(InteractionRequestId requestId)
     {
         lock (myInteractionsLock)
         {
@@ -131,19 +131,19 @@ internal sealed class MemberAggregate : IDisposable
 
     internal void RegisterElicitation(AgentElicitationRequest request) => Register(myElicitations, request.RequestId, request);
 
-    internal void ProtectTranscriptEntry(string requestId, int entryIndex)
+    internal void ProtectTranscriptEntry(InteractionRequestId requestId, int entryIndex)
     {
         lock (myInteractionsLock)
             myProtectedTranscriptEntries[requestId] = entryIndex;
     }
 
-    internal AgentPermissionRequest RemovePermission(string requestId) => Remove(myPermissions, requestId);
+    internal AgentPermissionRequest RemovePermission(InteractionRequestId requestId) => Remove(myPermissions, requestId);
 
-    internal AgentInputRequest RemoveInput(string requestId) => Remove(myInputs, requestId);
+    internal AgentInputRequest RemoveInput(InteractionRequestId requestId) => Remove(myInputs, requestId);
 
-    internal AgentElicitationRequest RemoveElicitation(string requestId) => Remove(myElicitations, requestId);
+    internal AgentElicitationRequest RemoveElicitation(InteractionRequestId requestId) => Remove(myElicitations, requestId);
 
-    internal int? TryRemoveProtectedTranscriptEntry(string requestId)
+    internal int? TryRemoveProtectedTranscriptEntry(InteractionRequestId requestId)
     {
         lock (myInteractionsLock)
             return myProtectedTranscriptEntries.Remove(requestId, out var entryIndex) ? entryIndex : null;
@@ -173,7 +173,7 @@ internal sealed class MemberAggregate : IDisposable
         }
     }
 
-    private void Register<TRequest>(Dictionary<string, TRequest> requests, string requestId, TRequest request)
+    private void Register<TRequest>(Dictionary<InteractionRequestId, TRequest> requests, InteractionRequestId requestId, TRequest request)
     {
         lock (myInteractionsLock)
         {
@@ -184,7 +184,7 @@ internal sealed class MemberAggregate : IDisposable
         }
     }
 
-    private TRequest Remove<TRequest>(Dictionary<string, TRequest> requests, string requestId)
+    private TRequest Remove<TRequest>(Dictionary<InteractionRequestId, TRequest> requests, InteractionRequestId requestId)
     {
         lock (myInteractionsLock)
         {

@@ -109,7 +109,7 @@ public sealed class SquadMembers : IDisposable
         return GetMember(memberId).Transcript.CreateArchivedTranscriptEntry(entryIndex);
     }
 
-    public AgentElicitationRequest GetPendingElicitation(SquadMemberId memberId, string requestId) =>
+    public AgentElicitationRequest GetPendingElicitation(SquadMemberId memberId, InteractionRequestId requestId) =>
         GetMember(memberId).GetElicitation(requestId);
 
     /// <summary>
@@ -165,13 +165,13 @@ public sealed class SquadMembers : IDisposable
     public Task AbortAsync(SquadMemberId memberId, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, processor => processor.AbortAsync(cancellationToken));
 
-    public Task CompletePermissionAsync(SquadMemberId memberId, string requestId, bool approved, CancellationToken cancellationToken = default) =>
+    public Task CompletePermissionAsync(SquadMemberId memberId, InteractionRequestId requestId, bool approved, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, processor => processor.CompletePermissionAsync(requestId, new AgentPermissionResponse(approved), cancellationToken));
 
-    public Task CompleteInputAsync(SquadMemberId memberId, string requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
+    public Task CompleteInputAsync(SquadMemberId memberId, InteractionRequestId requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, processor => processor.CompleteInputAsync(requestId, new AgentInputResponse(answer, wasFreeform), cancellationToken));
 
-    public Task CompleteElicitationAsync(SquadMemberId memberId, string requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
+    public Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, string action, JsonElement? content, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, processor => processor.CompleteElicitationAsync(requestId, new AgentElicitationResponse(action, content), cancellationToken));
 
     public Task EnqueueEventAsync(SquadMemberId memberId, AgentEvent agentEvent, CancellationToken cancellationToken = default) =>
@@ -248,13 +248,13 @@ public sealed class SquadMembers : IDisposable
             }),
             permissions = members.SelectMany(member => member.Permissions.Select(permission => new
             {
-                requestId = permission.RequestId,
+                requestId = permission.RequestId.Value,
                 role = member.Id.Value,
                 description = permission.Description,
             })),
             inputs = members.SelectMany(member => member.Inputs.Select(input => new
             {
-                requestId = input.RequestId,
+                requestId = input.RequestId.Value,
                 role = member.Id.Value,
                 prompt = input.Prompt,
                 choices = input.Choices,
@@ -262,7 +262,7 @@ public sealed class SquadMembers : IDisposable
             })),
             elicitations = members.SelectMany(member => member.Elicitations.Select(elicitation => new
             {
-                requestId = elicitation.RequestId,
+                requestId = elicitation.RequestId.Value,
                 role = member.Id.Value,
                 prompt = elicitation.Prompt,
                 mode = elicitation.Mode,

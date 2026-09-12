@@ -108,13 +108,13 @@ internal sealed class MemberProcessor : IDisposable
         }
     }
 
-    internal Task CompletePermissionAsync(string requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
+    internal Task CompletePermissionAsync(InteractionRequestId requestId, AgentPermissionResponse response, CancellationToken cancellationToken) =>
         PostAsync(completion => new CompletePermissionMessage(requestId, response, cancellationToken, completion));
 
-    internal Task CompleteInputAsync(string requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
+    internal Task CompleteInputAsync(InteractionRequestId requestId, AgentInputResponse response, CancellationToken cancellationToken) =>
         PostAsync(completion => new CompleteInputMessage(requestId, response, cancellationToken, completion));
 
-    internal Task CompleteElicitationAsync(string requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
+    internal Task CompleteElicitationAsync(InteractionRequestId requestId, AgentElicitationResponse response, CancellationToken cancellationToken) =>
         PostAsync(completion => new CompleteElicitationMessage(requestId, response, cancellationToken, completion));
 
     internal Task ApplyEventAsync(AgentEvent agentEvent) =>
@@ -300,10 +300,10 @@ internal sealed class MemberProcessor : IDisposable
 
     /// <summary>Removes the pending interaction this message replaces inline, in order, on the read loop.</summary>
     private void CompleteInteraction<TRequest>(
-        string requestId,
+        InteractionRequestId requestId,
         CancellationToken cancellationToken,
         TaskCompletionSource completion,
-        Func<string, TRequest> remove,
+        Func<InteractionRequestId, TRequest> remove,
         Action<TRequest> restore,
         Func<IAgentSession, CancellationToken, Task> respond,
         Action? publishAnswer)
@@ -405,7 +405,7 @@ internal sealed class MemberProcessor : IDisposable
 
     private async Task ExecuteCompleteInteractionAsync<TRequest>(
         Guid operationId,
-        string requestId,
+        InteractionRequestId requestId,
         TRequest request,
         CancellationToken cancellationToken,
         TaskCompletionSource completion,
@@ -618,7 +618,7 @@ internal sealed class MemberProcessor : IDisposable
         }
     }
 
-    private void UnprotectPendingTranscriptEntry(string requestId)
+    private void UnprotectPendingTranscriptEntry(InteractionRequestId requestId)
     {
         var entryIndex = Aggregate.TryRemoveProtectedTranscriptEntry(requestId);
         if (entryIndex is null)
