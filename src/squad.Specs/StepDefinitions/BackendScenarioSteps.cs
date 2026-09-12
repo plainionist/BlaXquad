@@ -17,12 +17,7 @@ public sealed class BackendScenarioSteps
     private string? myObservedHarnessMessage;
     private int? myObservedExitCode;
     private int myProtocolErrorsObserved;
-    private readonly Dictionary<SquadMemberId, int> myTranscriptPageFrontier = [];
-    private readonly Dictionary<SquadMemberId, int> myTranscriptPagesObserved = [];
-    private readonly Dictionary<SquadMemberId, TranscriptPageObservation> myLatestTranscriptPage = [];
-    private readonly Dictionary<SquadMemberId, List<TranscriptEntryObservation>> myPagedTranscriptEntries = [];
-    private readonly Dictionary<SquadMemberId, int> myAssistantDeltaCounts = [];
-    private readonly Dictionary<SquadMemberId, long> myLatestSynchronizedSequence = [];
+    private readonly Dictionary<SquadMemberId, MemberTranscriptObservationState> myTranscriptObservations = [];
     private ArchivedTranscriptEntryObservation? myLatestArchivedEntry;
     private RejectedCommandEffect? myLastRejectedCommandEffect;
 
@@ -448,8 +443,9 @@ public sealed class BackendScenarioSteps
     [When("the {string} agent emits an assistant delta with {int} characters")]
     public void WhenTheAgentEmitsAnAssistantDeltaWithCharacters(string role, int characterCount)
     {
-        var index = myAssistantDeltaCounts.GetValueOrDefault(new SquadMemberId(role));
-        myAssistantDeltaCounts[new SquadMemberId(role)] = index + 1;
+        var state = GetOrCreateTranscriptObservation(role);
+        var index = state.AssistantDeltaCount;
+        state.AssistantDeltaCount = index + 1;
         Await(myScenario.Agent(role).EmitAssistantAsync(new string('x', characterCount), isDelta: true));
 
         // Emitting across the control pipe only proves the backend accepted the event, not that the independent
@@ -548,14 +544,17 @@ public sealed class BackendScenarioSteps
         // waiting on that request's acknowledgement (the protocol has none) or its eventual response.
         Await(Task.WhenAll(contents.Rows.Select(row => myScenario.Agent(role).EmitSystemMessageAsync(row["content"]))));
 
-    private void RecordPagedEntries(string role, IReadOnlyList<TranscriptEntryObservation> entries)
+    private void RecordPagedEntries(string role, IReadOnlyList<TranscriptEntryObservation> entries) =>
+        GetOrCreateTranscriptObservation(role).PagedEntries.AddRange(entries);
+
+    private MemberTranscriptObservationState GetOrCreateTranscriptObservation(string role)
     {
         var memberId = new SquadMemberId(role);
-        if (!myPagedTranscriptEntries.TryGetValue(memberId, out var recorded))
+        if (!myTranscriptObservations.TryGetValue(memberId, out var state))
         {
-            myPagedTranscriptEntries[memberId] = recorded = [];
+            myTranscriptObservations[memberId] = state = new MemberTranscriptObservationState();
         }
-        recorded.AddRange(entries);
+        return state;
     }
 
     [Then("the transcript synchronization for role {string} reports every supported entry source with dashboard protocol fields:")]
@@ -636,43 +635,44 @@ public sealed class BackendScenarioSteps
         // index in the feature file itself - is exactly what keeps the request envelope's "beforeIndex" coordinate
         // private to this step's own bookkeeping, matching how a real reconnecting dashboard would chain a
         // "previous page" request from whatever boundary its own last-known synchronization or page reported.
-        myTranscriptPageFrontier[new SquadMemberId(role)] = synchronization.Entries[0].EntryIndex;
+        var state = GetOrCreateTranscriptObservation(role);
+        state.PageFrontier = synchronization.Entries[0].EntryIndex;
         RecordPagedEntries(role, synchronization.Entries);
-        myLatestSynchronizedSequence[new SquadMemberId(role)] = synchronization.Sequence;
+        state.LatestSynchronizedSequence = synchronization.Sequence;
     }
 
     [When("the UI-protocol client requests the previous transcript page for role {string}")]
     public void WhenTheUiProtocolClientRequestsThePreviousTranscriptPageForRole(string role)
     {
-        var memberId = new SquadMemberId(role);
-        if (!myTranscriptPageFrontier.TryGetValue(memberId, out var beforeIndex))
+        var state = GetOrCreateTranscriptObservation(role);
+        if (state.PageFrontier is not { } beforeIndex)
         {
             throw new InvalidOperationException(
                 $"No transcript synchronization or previous page has been observed yet for role '{role}' to page back from.");
         }
         myScenario.RequestTranscriptPage(role, beforeIndex);
-        var skip = myTranscriptPagesObserved.GetValueOrDefault(memberId);
+        var skip = state.PagesObserved;
         var page = Await(myScenario.WaitForTranscriptPageAsync(role, skip));
-        myTranscriptPagesObserved[memberId] = skip + 1;
-        myLatestTranscriptPage[memberId] = page;
+        state.PagesObserved = skip + 1;
+        state.LatestPage = page;
         if (page.Entries.Count > 0)
         {
-            myTranscriptPageFrontier[memberId] = page.Entries[0].EntryIndex;
+            state.PageFrontier = page.Entries[0].EntryIndex;
         }
         RecordPagedEntries(role, page.Entries);
     }
 
     [Then("the previous transcript page for role {string} contains exactly {int} entries")]
     public void ThenThePreviousTranscriptPageForRoleContainsExactlyEntries(string role, int expectedCount) =>
-        Assert.That(myLatestTranscriptPage[new SquadMemberId(role)].Entries, Has.Count.EqualTo(expectedCount));
+        Assert.That(GetOrCreateTranscriptObservation(role).LatestPage!.Entries, Has.Count.EqualTo(expectedCount));
 
     [Then("the previous transcript page for role {string} reports more history")]
     public void ThenThePreviousTranscriptPageForRoleReportsMoreHistory(string role) =>
-        Assert.That(myLatestTranscriptPage[new SquadMemberId(role)].HasMore, Is.True);
+        Assert.That(GetOrCreateTranscriptObservation(role).LatestPage!.HasMore, Is.True);
 
     [Then("the previous transcript page for role {string} reports no more history")]
     public void ThenThePreviousTranscriptPageForRoleReportsNoMoreHistory(string role) =>
-        Assert.That(myLatestTranscriptPage[new SquadMemberId(role)].HasMore, Is.False);
+        Assert.That(GetOrCreateTranscriptObservation(role).LatestPage!.HasMore, Is.False);
 
     [When("the UI-protocol client requests the archived transcript entry {int} for role {string}")]
     public void WhenTheUiProtocolClientRequestsTheArchivedTranscriptEntryForRole(int entryIndex, string role)
@@ -714,7 +714,7 @@ public sealed class BackendScenarioSteps
     {
         var entry = myLatestArchivedEntry
             ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
-        if (!myLatestSynchronizedSequence.TryGetValue(new SquadMemberId(role), out var expectedSequence))
+        if (GetOrCreateTranscriptObservation(role).LatestSynchronizedSequence is not { } expectedSequence)
         {
             throw new InvalidOperationException(
                 $"No transcript synchronization has been observed yet for role '{role}' to compare the archived entry's reported sequence against.");
@@ -793,7 +793,7 @@ public sealed class BackendScenarioSteps
         // exactly once across every synchronization and page fetched so far for this role - neither missing (an
         // introduced gap) nor repeated (an introduced duplicate) between the live synchronization and however many
         // "previous page" requests it took to page all the way back to the very first entry.
-        var observedContents = myPagedTranscriptEntries.GetValueOrDefault(new SquadMemberId(role), [])
+        var observedContents = GetOrCreateTranscriptObservation(role).PagedEntries
             .Select(entry => entry.Content)
             .Where(content => content.StartsWith("message-", StringComparison.Ordinal))
             .ToList();
