@@ -17,7 +17,8 @@ Feature: Healthy headquarters lifecycle
 
     When the operator launches Headquarters
 
-    Then Headquarters starts an agent session for role "coder"
+    Then Headquarters' launch created exactly one diagnostic log file
+    And Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
     And the "coder" agent observes a harness message
     And the "reviewer" agent observes a harness message
@@ -35,7 +36,9 @@ Feature: Healthy headquarters lifecycle
     And Headquarters disposes the agent session for role "reviewer"
     And the operator finds Headquarters unavailable for role "coder"
     And role "coder"'s durable file "notes.md" still contains "Keep this note."
+    And the launch's diagnostic log contains no warning or error record
 
     When the operator launches a new Headquarters against the same project
 
     Then the new Headquarters process reports ready
+    And the relaunch created a distinct second diagnostic log file

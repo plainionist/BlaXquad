@@ -17,14 +17,17 @@ namespace squad.Specs.StepDefinitions;
 [Binding]
 public sealed class HeadquartersLifecycleSteps
 {
+    private readonly ScenarioWorkspace myWorkspace;
     private readonly BackendScenario myScenario;
     private BackendScenario? myReplacementHeadquarters;
     private int myExitCode;
     private Task<int>? myPendingShutdown;
+    private string[] myDiagnosticLogFilesBeforeRelaunch = [];
     private readonly Dictionary<SquadMemberId, BackendScenarioCommand> myReadinessWaits = [];
 
-    public HeadquartersLifecycleSteps(BackendScenario scenario)
+    public HeadquartersLifecycleSteps(ScenarioWorkspace workspace, BackendScenario scenario)
     {
+        myWorkspace = workspace;
         myScenario = scenario;
     }
 
@@ -251,15 +254,43 @@ public sealed class HeadquartersLifecycleSteps
         Assert.That(myScenario.DurableRoleFileIsAbsent(role, relativePath), Is.True);
 
     [When("the operator launches a new Headquarters against the same project")]
-    public void WhenTheOperatorLaunchesANewHeadquartersAgainstTheSameProject() =>
+    public void WhenTheOperatorLaunchesANewHeadquartersAgainstTheSameProject()
+    {
+        // Captured before the replacement launch so the following "distinct second file" assertion can tell the
+        // relaunch's own new diagnostic log file apart from the one the first launch already created.
+        myDiagnosticLogFilesBeforeRelaunch = myWorkspace.DiagnosticLogFiles();
         // A replacement launch is a child of the same scenario owner (StartReplacementAsync targets this
         // instance's own workspace), not an independent default facade; the fake provider is again a test-setup
         // choice kept out of Gherkin.
         myReplacementHeadquarters = Await(myScenario.StartReplacementAsync<FakeAgentProviderFactory>());
+    }
 
     [Then("the new Headquarters process reports ready")]
     public void ThenTheNewHeadquartersProcessReportsReady() =>
         Assert.That(myReplacementHeadquarters!.IsReady, Is.True);
+
+    [Then("Headquarters' launch created exactly one diagnostic log file")]
+    public void ThenHeadquartersLaunchCreatedExactlyOneDiagnosticLogFile() =>
+        Assert.That(myWorkspace.DiagnosticLogFiles(), Has.Length.EqualTo(1));
+
+    [Then("the relaunch created a distinct second diagnostic log file")]
+    public void ThenTheRelaunchCreatedADistinctSecondDiagnosticLogFile()
+    {
+        var logFilesAfterRelaunch = myWorkspace.DiagnosticLogFiles();
+        Assert.Multiple(() =>
+        {
+            Assert.That(logFilesAfterRelaunch, Has.Length.EqualTo(myDiagnosticLogFilesBeforeRelaunch.Length + 1));
+            Assert.That(logFilesAfterRelaunch, Is.SupersetOf(myDiagnosticLogFilesBeforeRelaunch));
+        });
+    }
+
+    [Then("the launch's diagnostic log contains no warning or error record")]
+    public void ThenTheLaunchsDiagnosticLogContainsNoWarningOrErrorRecord()
+    {
+        var logFiles = myWorkspace.DiagnosticLogFiles();
+        Assert.That(logFiles, Has.Length.EqualTo(1));
+        Assert.That(File.ReadAllText(logFiles[0]), Is.Empty);
+    }
 
     private static void Await(Task task) => task.GetAwaiter().GetResult();
 

@@ -1,11 +1,14 @@
 using squad.Process;
 using squad.Application;
+using squad.AgentProvider.Abstractions;
 using squad.Hosting.Abstractions;
 using squad.HeadquarterTools.Issues;
 using squad.HeadquarterTools.History;
 using squad.Workspaces;
 using squad.Runtime;
 using squad.Runtime.Control;
+using squadHQ.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace squadHQ.Commands;
 
@@ -43,7 +46,6 @@ static class Launch
 
         void RunMain(string root, bool continueLaunch, ProviderDescriptor? providerDescriptor, HostingDescriptor? hostingDescriptor)
         {
-            var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var layout = ProjectLayout.Create(root);
 
             if (!HeadquartersLease.TryAcquire(layout.WorkingDir, out var headquartersLease))
@@ -51,6 +53,12 @@ static class Launch
                 Fail($"A Headquarters instance is already running for {layout.WorkingDir}.");
                 return;
             }
+
+            // The launch owns exactly one diagnostic log file, created only once the Headquarters lease is held so
+            // a rejected competing launch never creates a second one, and only before any provider/hosting plug-in
+            // is loaded or the workspace is touched, so every later launch-boundary failure is captured in it.
+            using var launchLogging = LaunchLogging.Start(layout);
+            var logger = launchLogging.Logger;
 
             Headquarters? headquarters = null;
             using var consoleCancellation = new CancellationTokenSource();
@@ -63,14 +71,37 @@ static class Launch
 
             try
             {
+                IAgentProviderFactory agentProviderFactory;
+
+                try
+                {
+                    agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(exception, "Provider selection failed.");
+                    throw;
+                }
+
                 var viewModel = new SquadViewModel();
                 var issueCatalog = new WorkspaceIssueCatalog(layout.WorkingDir);
                 var gitHistoryTool = new GitHistoryTool(layout.WorkingDir);
-                // An explicit "--hosting" descriptor and the packaged default (Photino) both load their factory at
-                // process startup through the same HostingLoader, exactly like "--provider" and its default. squad-hq
-                // has no compile-time dependency on either concrete hosting assembly.
-                var hostingRuntime = HostingLoader.Load(hostingDescriptor ?? DefaultHostingDescriptor())
-                    .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog, gitHistoryTool));
+                HostingRuntime hostingRuntime;
+
+                try
+                {
+                    // An explicit "--hosting" descriptor and the packaged default (Photino) both load their factory at
+                    // process startup through the same HostingLoader, exactly like "--provider" and its default. squad-hq
+                    // has no compile-time dependency on either concrete hosting assembly.
+                    hostingRuntime = HostingLoader.Load(hostingDescriptor ?? DefaultHostingDescriptor())
+                        .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog, gitHistoryTool));
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(exception, "Hosting selection failed.");
+                    throw;
+                }
+
                 var launchPreparer = new LaunchPreparer(layout, continueLaunch);
 
                 headquarters = Headquarters.Create(
@@ -92,20 +123,35 @@ static class Launch
                 }
                 catch (AgentBackendTerminalFailureException exception)
                 {
+                    logger.LogError(exception, "Provider failed.");
                     Fail($"{Red}Error:{Reset} Provider failed: {DescribeFailure(exception)}");
                 }
                 catch (HandoffPumpTerminalFailureException exception)
                 {
+                    logger.LogError(exception, "Handoff delivery failed.");
                     Fail($"{Red}Error:{Reset} Handoff delivery failed: {DescribeFailure(exception)}");
                 }
                 catch (WorkspacePreparationException exception)
                 {
+                    logger.LogError(exception, "Workspace preparation failed.");
                     Fail($"{Red}Error:{Reset} {exception.Message}");
                 }
                 catch (Exception exception) when (exception is not CliExitException)
                 {
+                    logger.LogError(exception, "Provider startup failed.");
                     Fail($"{Red}Error:{Reset} Provider startup failed: {DescribeFailure(exception)}");
                 }
+            }
+            catch (CliExitException)
+            {
+                // Already logged either just above (Fail() call sites) or in the provider/hosting selection catches
+                // above; rethrow unchanged so the existing standard-error text and exit code are unaffected.
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Launch failed unexpectedly.");
+                throw;
             }
             finally
             {
@@ -115,7 +161,6 @@ static class Launch
                 {
                     headquartersLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 }
-
             }
         }
     }

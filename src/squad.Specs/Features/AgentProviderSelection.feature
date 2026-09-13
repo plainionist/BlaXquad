@@ -9,12 +9,14 @@ Feature: Agent provider selection
     When the operator launches Headquarters with a provider assembly that does not exist
 
     Then the launch fails with a provider diagnostic containing "not found"
+    And the failed launch's diagnostic log records severity "Error" and contains "not found"
 
   Scenario: An incompatible provider type fails clearly
 
     When the operator launches Headquarters with an incompatible provider type
 
     Then the launch fails with a provider diagnostic containing "does not publicly implement"
+    And the failed launch's diagnostic log records severity "Error" and contains "does not publicly implement"
 
   Scenario: A duplicate --provider option fails clearly
 
@@ -27,6 +29,7 @@ Feature: Agent provider selection
     When the operator launches Headquarters with a provider whose constructor throws
 
     Then the launch fails with a provider diagnostic containing "threw during construction"
+    And the failed launch's diagnostic log records severity "Error" and contains "threw during construction"
 
   Scenario: The fake provider fixture is defined by its own module, not squad.Specs
 
