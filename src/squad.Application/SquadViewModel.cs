@@ -19,7 +19,7 @@ namespace squad.Application;
 public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
 {
     private readonly object myInstallationLock = new();
-    private SquadInstallation? myInstalled;
+    private SquadMembers? myInstalled;
     // Process-level command admission, closed once by Headquarters when the process begins releasing its
     // resources. A generation closes its own admission independently when it retires.
     private volatile bool myAccepting = true;
@@ -34,7 +34,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     public void Install(SquadMembers members)
     {
         lock (myInstallationLock)
-            myInstalled = new SquadInstallation(members.Generation, members);
+            myInstalled = members;
         NotifyStateChanged(UiRefreshPriority.Immediate);
     }
 
@@ -60,12 +60,12 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     public void BeginStopping() => myAccepting = false;
 
     public JsonElement CreateSnapshot() =>
-        Installed?.Members.CreateSnapshot() ?? SquadMembers.CreateEmptySnapshot();
+        Installed?.CreateSnapshot() ?? SquadMembers.CreateEmptySnapshot();
 
     public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole)
     {
         Contract.Requires(maxEntriesPerRole > 0, "maxEntriesPerRole must be positive.");
-        return Installed?.Members.CreateTranscriptSnapshot(maxEntriesPerRole) ?? [];
+        return Installed?.CreateTranscriptSnapshot(maxEntriesPerRole) ?? [];
     }
 
     public RoleTranscriptPage CreateTranscriptPage(SquadMemberId memberId, int beforeIndex, int maxEntries)
@@ -89,7 +89,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     /// session, prompt, idle, stopped, and failed events - the only readiness source `wait-for-agent` observes.
     /// </summary>
     public Task<bool?> GetRoleReadinessAsync(SquadMemberId memberId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Installed?.Members.GetRoleReadiness(memberId));
+        Task.FromResult(Installed?.GetRoleReadiness(memberId));
 
     public Task SendAsync(SquadMemberId memberId, string prompt, CancellationToken cancellationToken = default) =>
         RouteAsync(memberId, members => members.SendAsync(memberId, prompt, cancellationToken));
@@ -127,7 +127,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
         TranscriptChanged?.Invoke(update);
     }
 
-    private SquadInstallation? Installed
+    private SquadMembers? Installed
     {
         get { lock (myInstallationLock) return myInstalled; }
     }
@@ -144,7 +144,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     }
 
     private SquadMembers RequireInstalled(SquadMemberId memberId) =>
-        Installed?.Members ?? throw new InvalidOperationException($"Unknown role: {memberId}");
+        Installed ?? throw new InvalidOperationException($"Unknown role: {memberId}");
 
     private void EnsureAccepting()
     {

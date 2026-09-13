@@ -10,8 +10,6 @@ identify the key concepts like squad, generation, member, ...
 
 - what is the relationship and responsibility of
   - squad -> squadmembers -> squadmemberaggregate
-  - what is a "squadgenerationid"
-  - what is a "squadinstallation"
 
 anything to be moved to "domain"?
 
