@@ -9,7 +9,7 @@ namespace squad.Application;
 /// <summary>
 /// The process-lifetime UI and application port. It is created once, before any squad generation exists, and
 /// outlives every generation: the hosting layer subscribes to it for the whole process lifetime while Headquarters
-/// installs the currently active <see cref="SquadMembers"/> generation behind it.
+/// installs the currently active <see cref="Squad"/> generation behind it.
 ///
 /// Every query, command, and publication is bound to one generation: a call captures the installed generation
 /// atomically and reaches only that generation, a generation that has since been retired rejects the call exactly
@@ -19,7 +19,7 @@ namespace squad.Application;
 public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
 {
     private readonly object myInstallationLock = new();
-    private SquadMembers? myInstalled;
+    private Squad? myInstalled;
     // Process-level command admission, closed once by Headquarters when the process begins releasing its
     // resources. A generation closes its own admission independently when it retires.
     private volatile bool myAccepting = true;
@@ -31,10 +31,10 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     /// Installs a generation as the one this port publishes, replacing any generation previously installed.
     /// Headquarters serializes installation, so this is never reached concurrently for two generations.
     /// </summary>
-    public void Install(SquadMembers members)
+    public void Install(Squad squad)
     {
         lock (myInstallationLock)
-            myInstalled = members;
+            myInstalled = squad;
         NotifyStateChanged(UiRefreshPriority.Immediate);
     }
 
@@ -60,7 +60,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     public void BeginStopping() => myAccepting = false;
 
     public JsonElement CreateSnapshot() =>
-        Installed?.CreateSnapshot() ?? SquadMembers.CreateEmptySnapshot();
+        Installed?.CreateSnapshot() ?? Squad.CreateEmptySnapshot();
 
     public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole)
     {
@@ -92,22 +92,22 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
         Task.FromResult(Installed?.GetRoleReadiness(memberId));
 
     public Task SendAsync(SquadMemberId memberId, string prompt, CancellationToken cancellationToken = default) =>
-        RouteAsync(memberId, members => members.SendAsync(memberId, prompt, cancellationToken));
+        RouteAsync(memberId, squad => squad.SendAsync(memberId, prompt, cancellationToken));
 
     public Task SendHarnessAsync(string role, string prompt, CancellationToken cancellationToken = default) =>
-        RouteAsync(new SquadMemberId(role), members => members.SendHarnessAsync(new SquadMemberId(role), prompt, cancellationToken));
+        RouteAsync(new SquadMemberId(role), squad => squad.SendHarnessAsync(new SquadMemberId(role), prompt, cancellationToken));
 
     public Task AbortAsync(SquadMemberId memberId, CancellationToken cancellationToken = default) =>
-        RouteAsync(memberId, members => members.AbortAsync(memberId, cancellationToken));
+        RouteAsync(memberId, squad => squad.AbortAsync(memberId, cancellationToken));
 
     public Task CompletePermissionAsync(SquadMemberId memberId, InteractionRequestId requestId, bool approved, CancellationToken cancellationToken = default) =>
-        RouteAsync(memberId, members => members.CompletePermissionAsync(memberId, requestId, approved, cancellationToken));
+        RouteAsync(memberId, squad => squad.CompletePermissionAsync(memberId, requestId, approved, cancellationToken));
 
     public Task CompleteInputAsync(SquadMemberId memberId, InteractionRequestId requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default) =>
-        RouteAsync(memberId, members => members.CompleteInputAsync(memberId, requestId, answer, wasFreeform, cancellationToken));
+        RouteAsync(memberId, squad => squad.CompleteInputAsync(memberId, requestId, answer, wasFreeform, cancellationToken));
 
     public Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, ElicitationAction action, JsonElement? content, CancellationToken cancellationToken = default) =>
-        RouteAsync(memberId, members => members.CompleteElicitationAsync(memberId, requestId, action, content, cancellationToken));
+        RouteAsync(memberId, squad => squad.CompleteElicitationAsync(memberId, requestId, action, content, cancellationToken));
 
     void ISquadPublication.NotifyStateChanged(SquadGenerationId generation, UiRefreshPriority priority)
     {
@@ -127,7 +127,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
         TranscriptChanged?.Invoke(update);
     }
 
-    private SquadMembers? Installed
+    private Squad? Installed
     {
         get { lock (myInstallationLock) return myInstalled; }
     }
@@ -137,13 +137,13 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     /// generation that has since retired rejects the command itself, so a stale in-flight call can never reach into
     /// a torn-down generation.
     /// </summary>
-    private async Task RouteAsync(SquadMemberId memberId, Func<SquadMembers, Task> command)
+    private async Task RouteAsync(SquadMemberId memberId, Func<Squad, Task> command)
     {
         EnsureAccepting();
         await command(RequireInstalled(memberId));
     }
 
-    private SquadMembers RequireInstalled(SquadMemberId memberId) =>
+    private Squad RequireInstalled(SquadMemberId memberId) =>
         Installed ?? throw new InvalidOperationException($"Unknown role: {memberId}");
 
     private void EnsureAccepting()

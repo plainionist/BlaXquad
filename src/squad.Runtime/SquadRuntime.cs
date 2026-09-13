@@ -15,7 +15,7 @@ namespace squad.Runtime;
 internal sealed class SquadRuntime
 {
     private static readonly Task myNever = Task.Delay(Timeout.InfiniteTimeSpan);
-    private readonly SquadMembers myMembers;
+    private readonly Squad mySquad;
     private readonly IAgentBackend myAgentBackend;
     private readonly InProcessHandoffPoller myHandoffPump;
     private readonly SessionGeneration mySessions;
@@ -27,25 +27,25 @@ internal sealed class SquadRuntime
     private bool myStarted;
 
     internal SquadRuntime(
-        SquadMembers members,
+        Squad squad,
         IAgentBackend agentBackend,
         IReadOnlyList<SquadMemberDefinition> handoffMembers,
         string handoffLogPath,
         Func<CancellationToken, Task> sessionsStarted)
     {
-        myMembers = members;
+        mySquad = squad;
         myAgentBackend = agentBackend;
         myHandoffPump = new InProcessHandoffPoller(
-            handoffMembers, new SessionRoleNotifier(members), new HandoffDeliveryLog(handoffLogPath));
-        mySessions = new SessionGeneration(agentBackend, members, myStopping.Token);
+            handoffMembers, new SessionRoleNotifier(squad), new HandoffDeliveryLog(handoffLogPath));
+        mySessions = new SessionGeneration(agentBackend, squad, myStopping.Token);
         mySessionsStarted = sessionsStarted;
         BackendFailure = (agentBackend as IAgentBackendFailureSource)?.Failure ?? myNever;
     }
 
-    internal SquadGenerationId Generation => myMembers.Generation;
+    internal SquadGenerationId Generation => mySquad.Generation;
 
-    /// <summary>This generation's member directory, published by the process-lifetime UI port while installed.</summary>
-    internal SquadMembers Members => myMembers;
+    /// <summary>This generation's application model, published by the process-lifetime UI port while installed.</summary>
+    internal Squad Squad => mySquad;
 
     /// <summary>A fatal, backend-wide provider failure independent of any single member's session.</summary>
     internal Task BackendFailure { get; }
@@ -89,13 +89,13 @@ internal sealed class SquadRuntime
     {
         var failures = new List<Exception>();
         myStopping.Cancel();
-        myMembers.CloseAdmission();
+        mySquad.CloseAdmission();
         if (myHandoffStarted)
         {
             await AttemptAsync(() => myHandoffPump.StopAsync(), failures);
         }
-        await AttemptAsync(myMembers.DrainAsync, failures);
-        myMembers.Retire();
+        await AttemptAsync(mySquad.DrainAsync, failures);
+        mySquad.Retire();
         failures.AddRange(await mySessions.TeardownAsync());
         // The pump's own termination is certain once its stop has been awaited and any failure collected, so it is
         // released even when the provider runtime's retirement is not.
@@ -109,7 +109,7 @@ internal sealed class SquadRuntime
         {
             return new SquadRetirement(false, failures);
         }
-        myMembers.Dispose();
+        mySquad.Dispose();
         myStopping.Dispose();
         return SquadRetirement.Conclusive;
     }

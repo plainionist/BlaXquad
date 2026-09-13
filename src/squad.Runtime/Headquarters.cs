@@ -234,12 +234,12 @@ public sealed class Headquarters : IAsyncDisposable
         
         var agentBackend = await myAgentProviderFactory.CreateAsync(prepared.BackendContext, cancellationToken);
         
-        var members = new SquadMembers(
+        var squad = new Squad(
             prepared.Definition,
             myTranscripts,
             myViewModel);
         var squadRuntime = new SquadRuntime(
-            members,
+            squad,
             agentBackend,
             prepared.Definition.Members,
             prepared.HandoffLogPath,
@@ -251,7 +251,7 @@ public sealed class Headquarters : IAsyncDisposable
         {
             // The generation must be published before its sessions start, so an operator that reaches Headquarters
             // during startup observes a known, not-yet-ready role rather than an unknown one.
-            myViewModel.Install(members);
+            myViewModel.Install(squad);
 
             myHeadquartersLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
             cancellationToken.ThrowIfCancellationRequested();

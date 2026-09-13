@@ -12,13 +12,13 @@ namespace squad.Runtime;
 internal sealed class SessionRoleNotifier : IRoleNotifier
 {
     private const string myWakeMessage = "You have new handoff mail. If idle, run squad ready-for-next.";
-    private readonly SquadMembers myMembers;
+    private readonly Squad mySquad;
 
-    internal SessionRoleNotifier(SquadMembers members)
+    internal SessionRoleNotifier(Squad squad)
     {
-        myMembers = members;
+        mySquad = squad;
     }
 
     public Task NotifyAsync(SquadMemberId role, CancellationToken cancellationToken = default) =>
-        myMembers.SendHarnessAsync(role, myWakeMessage, cancellationToken);
+        mySquad.SendHarnessAsync(role, myWakeMessage, cancellationToken);
 }

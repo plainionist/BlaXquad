@@ -14,7 +14,7 @@ namespace squad.Application;
 /// state, and is reached only through the <see cref="SquadRuntime"/> owner that installs it: nothing outside
 /// this object holds a member processor or aggregate.
 /// </summary>
-public sealed class SquadMembers : IDisposable
+public sealed class Squad : IDisposable
 {
     private readonly CancellationTokenSource myShutdown = new();
     // The ordered member directory is the only application-domain collection keyed by member identity. Each
@@ -36,7 +36,7 @@ public sealed class SquadMembers : IDisposable
     private bool myAccepting = true;
     private volatile bool myRetired;
 
-    public SquadMembers(
+    public Squad(
         SquadDefinition definition,
         TranscriptStore transcripts,
         ISquadPublication publication)

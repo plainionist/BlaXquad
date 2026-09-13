@@ -7,13 +7,13 @@ namespace squad.Runtime;
 /// <summary>
 /// The sole owner of one backend generation's runtime handle, registered-session projection, event/completion
 /// observer tasks, and observer cancellation sources. It is created by and bound to one <see cref="SquadRuntime"/>
-/// generation - it observes and projects only into that generation's <see cref="SquadMembers"/> and dies with it.
+/// generation - it observes and projects only into that generation's <see cref="Squad"/> and dies with it.
 /// It never disposes sessions directly; session disposal is entirely the runtime owner's responsibility.
 /// </summary>
 internal sealed class SessionGeneration
 {
     private readonly IAgentBackend myAgentBackend;
-    private readonly SquadMembers myMembers;
+    private readonly Squad mySquad;
     private readonly CancellationToken myStoppingToken;
     private readonly List<Task> myEventTasks = [];
     private readonly List<CancellationTokenSource> mySessionCancellations = [];
@@ -24,11 +24,11 @@ internal sealed class SessionGeneration
 
     public SessionGeneration(
         IAgentBackend agentBackend,
-        SquadMembers members,
+        Squad squad,
         CancellationToken stoppingToken)
     {
         myAgentBackend = agentBackend;
-        myMembers = members;
+        mySquad = squad;
         myStoppingToken = stoppingToken;
     }
 
@@ -42,7 +42,7 @@ internal sealed class SessionGeneration
 
     private Task RegisterSessionAsync(IAgentSession session)
     {
-        myMembers.RegisterSession(session);
+        mySquad.RegisterSession(session);
         var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(myEventCancellation.Token);
         mySessionCancellations.Add(sessionCancellation);
         var eventTask = ObserveEventsAsync(session, sessionCancellation.Token);
@@ -119,7 +119,7 @@ internal sealed class SessionGeneration
         {
             await foreach (var agentEvent in session.Events(cancellationToken))
             {
-                await myMembers.EnqueueEventAsync(session.MemberId, agentEvent);
+                await mySquad.EnqueueEventAsync(session.MemberId, agentEvent);
             }
         }
         catch (OperationCanceledException)
@@ -171,7 +171,7 @@ internal sealed class SessionGeneration
         {
             try
             {
-                await myMembers.MarkRoleFailedAsync(session.MemberId, failure);
+                await mySquad.MarkRoleFailedAsync(session.MemberId, failure);
             }
             catch (Exception exception) when (
                 myStoppingToken.IsCancellationRequested &&
