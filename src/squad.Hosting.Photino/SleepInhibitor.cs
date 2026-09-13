@@ -126,7 +126,7 @@ sealed class SleepInhibitor : ISleepInhibitor
         try
         {
 
-            if (SetThreadExecutionState(myEsContinuous | myEsSystemRequired | myEsDisplayRequired) == 0)
+            if (SetThreadExecutionState(myEsContinuous | myEsSystemRequired) == 0)
             {
                 throw new InvalidOperationException("Could not enable Windows sleep prevention.");
             }
