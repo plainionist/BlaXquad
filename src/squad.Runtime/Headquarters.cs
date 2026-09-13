@@ -5,6 +5,7 @@ using squad.Application.Transcripts;
 using squad.Runtime.Control;
 using squad.Ui.Abstractions;
 using squad.Workspaces;
+using Microsoft.Extensions.Logging;
 using System.Runtime.ExceptionServices;
 
 namespace squad.Runtime;
@@ -29,6 +30,7 @@ public sealed class Headquarters : IAsyncDisposable
     private readonly SquadViewModel myViewModel;
     private readonly IWorkspaceTools myWorkspaceTools;
     private readonly HeadquartersLease myHeadquartersLease;
+    private readonly ILoggerFactory myLoggerFactory;
     private readonly TranscriptStore myTranscripts = new();
     // The active-squad slot. Every installation, replacement, and retirement is serialized through this gate, so
     // two generations can never overlap and a stop can never race an installation.
@@ -54,7 +56,8 @@ public sealed class Headquarters : IAsyncDisposable
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
         IWorkspaceTools workspaceTools,
-        HeadquartersLease headquartersLease)
+        HeadquartersLease headquartersLease,
+        ILoggerFactory loggerFactory)
     {
         return new Headquarters(
             launchPreparer,
@@ -63,7 +66,8 @@ public sealed class Headquarters : IAsyncDisposable
             sleepInhibitor,
             viewModel,
             workspaceTools,
-            headquartersLease);
+            headquartersLease,
+            loggerFactory);
     }
 
     private Headquarters(
@@ -73,7 +77,8 @@ public sealed class Headquarters : IAsyncDisposable
         ISleepInhibitor sleepInhibitor,
         SquadViewModel viewModel,
         IWorkspaceTools workspaceTools,
-        HeadquartersLease headquartersLease)
+        HeadquartersLease headquartersLease,
+        ILoggerFactory loggerFactory)
     {
         myLaunchPreparer = launchPreparer;
         myAgentProviderFactory = agentProviderFactory;
@@ -82,6 +87,7 @@ public sealed class Headquarters : IAsyncDisposable
         myViewModel = viewModel;
         myWorkspaceTools = workspaceTools;
         myHeadquartersLease = headquartersLease;
+        myLoggerFactory = loggerFactory;
     }
 
     /// <summary>
@@ -243,7 +249,8 @@ public sealed class Headquarters : IAsyncDisposable
             agentBackend,
             prepared.Definition.Members,
             prepared.HandoffLogPath,
-            myWindowHost.SessionsStartedAsync);
+            myWindowHost.SessionsStartedAsync,
+            myLoggerFactory);
         
         mySquadRuntime = squadRuntime;
         

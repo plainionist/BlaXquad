@@ -1,5 +1,7 @@
 using squad.AgentProvider.Abstractions;
+using squad.AgentProvider.Abstractions.Agents;
 using squad.Application;
+using Microsoft.Extensions.Logging;
 using System.Runtime.ExceptionServices;
 
 namespace squad.Runtime;
@@ -15,6 +17,7 @@ internal sealed class SessionGeneration
     private readonly IAgentBackend myAgentBackend;
     private readonly Squad mySquad;
     private readonly CancellationToken myStoppingToken;
+    private readonly ILogger myLogger;
     private readonly List<Task> myEventTasks = [];
     private readonly List<CancellationTokenSource> mySessionCancellations = [];
     private readonly CancellationTokenSource myEventCancellation = new();
@@ -25,11 +28,13 @@ internal sealed class SessionGeneration
     public SessionGeneration(
         IAgentBackend agentBackend,
         Squad squad,
-        CancellationToken stoppingToken)
+        CancellationToken stoppingToken,
+        ILogger logger)
     {
         myAgentBackend = agentBackend;
         mySquad = squad;
         myStoppingToken = stoppingToken;
+        myLogger = logger;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -130,6 +135,12 @@ internal sealed class SessionGeneration
         {
             await foreach (var agentEvent in session.Events(cancellationToken))
             {
+                if (agentEvent is AgentErrorEvent error)
+                {
+                    myLogger.LogError(
+                        "Session '{MemberId}' reported a provider error: {Message}", session.MemberId, error.Message);
+                }
+
                 await mySquad.EnqueueEventAsync(session.MemberId, agentEvent);
             }
         }
@@ -138,6 +149,8 @@ internal sealed class SessionGeneration
         }
         catch (Exception eventFailure)
         {
+            myLogger.LogError(eventFailure, "Session '{MemberId}' event stream failed unexpectedly.", session.MemberId);
+
             try
             {
                 await session.Completion;
@@ -183,6 +196,8 @@ internal sealed class SessionGeneration
 
         if (failure is not null && !myStoppingToken.IsCancellationRequested)
         {
+            myLogger.LogError(failure, "Session '{MemberId}' failed.", session.MemberId);
+
             try
             {
                 await mySquad.MarkRoleFailedAsync(session.MemberId, failure);

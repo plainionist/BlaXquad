@@ -168,6 +168,11 @@ shutdown and readiness requests, client access, and stale-state cleanup.
 Control code remains structurally separate from lifecycle coordination within
 the same assembly.
 
+Its session-observation component (`SessionGeneration`) also records a provider error event and an unexpected
+event-stream or session-completion failure - each with the member ID - into the launch-owned diagnostic log (see
+[Diagnostic log](glossary.md#diagnostic-log)) before that failure becomes the member's visible error state on the
+dashboard. Expected session cancellation during Headquarters shutdown is not recorded.
+
 ## `squad.Ui.Abstractions`
 
 Defines transport-neutral contracts and data exchanged between application

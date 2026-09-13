@@ -2,6 +2,7 @@ using squad.AgentProvider.Abstractions;
 using squad.Application;
 using squad.Domain;
 using squad.Handoffs.Delivery;
+using Microsoft.Extensions.Logging;
 
 namespace squad.Runtime;
 
@@ -31,13 +32,14 @@ internal sealed class SquadRuntime
         IAgentBackend agentBackend,
         IReadOnlyList<SquadMemberDefinition> handoffMembers,
         string handoffLogPath,
-        Func<CancellationToken, Task> sessionsStarted)
+        Func<CancellationToken, Task> sessionsStarted,
+        ILoggerFactory loggerFactory)
     {
         mySquad = squad;
         myAgentBackend = agentBackend;
         myHandoffPump = new InProcessHandoffPoller(
             handoffMembers, new SessionRoleNotifier(squad), new HandoffDeliveryLog(handoffLogPath));
-        mySessions = new SessionGeneration(agentBackend, squad, myStopping.Token);
+        mySessions = new SessionGeneration(agentBackend, squad, myStopping.Token, loggerFactory.CreateLogger<SessionGeneration>());
         mySessionsStarted = sessionsStarted;
         BackendFailure = (agentBackend as IAgentBackendFailureSource)?.Failure ?? myNever;
     }

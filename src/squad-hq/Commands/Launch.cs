@@ -111,7 +111,8 @@ static class Launch
                     hostingRuntime.SleepInhibitor,
                     viewModel,
                     gitHistoryTool,
-                    headquartersLease: headquartersLease!);
+                    headquartersLease: headquartersLease!,
+                    launchLogging.LoggerFactory);
                 headquartersLease = null;
 
                 try

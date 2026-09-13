@@ -41,6 +41,12 @@ sealed class LaunchLogging : IDisposable
     /// <summary>The launch-scoped logger every launch boundary catch clause records failures through.</summary>
     public Microsoft.Extensions.Logging.ILogger Logger { get; }
 
+    /// <summary>
+    /// The launch-owned factory passed into the runtime and hosting composition paths so typed
+    /// <see cref="ILogger{TCategoryName}"/> instances for other boundaries write into this same per-launch file.
+    /// </summary>
+    public ILoggerFactory LoggerFactory => myLoggerFactory;
+
     /// <summary>The one per-launch log file path, exposed for diagnostics only; nothing but this type writes to it.</summary>
     public string LogFilePath { get; }
 
