@@ -5,4 +5,3 @@ public interface ISleepInhibitor : IAsyncDisposable
 {
     Task StartAsync(CancellationToken cancellationToken = default);
 }
-

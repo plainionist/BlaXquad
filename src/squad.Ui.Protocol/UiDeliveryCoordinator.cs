@@ -55,9 +55,11 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
         lock (myTranscriptUpdatesLock)
         {
             myTranscriptAnnouncementJournal.Add(update);
+
             if (!myTranscriptUpdatesRequireSynchronization
                 && myTranscriptUpdates.Count == myMaxPendingTranscriptUpdates)
             {
+
                 myTranscriptUpdates.Clear();
                 myTranscriptUpdatesRequireSynchronization = true;
             }
@@ -66,6 +68,7 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
                 myTranscriptUpdates.Add(update);
             }
         }
+
         mySnapshotPublisher.Request(UiRefreshPriority.Deferred);
     }
 
@@ -78,14 +81,19 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
         {
             myTranscriptSynchronizationRequested = true;
             myInitialTranscriptSynchronizationRequested |= initial;
+
             if (positions is not null)
             {
+
                 foreach (var (memberId, position) in positions)
                 {
                     myDeliveryStates[memberId] = GetDeliveryState(memberId).WithRequestedPosition(position);
                 }
+
             }
+
         }
+
         mySnapshotPublisher.Request(UiRefreshPriority.Immediate);
     }
 
@@ -123,44 +131,60 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
             myInitialTranscriptSynchronizationRequested = false;
 
             recoveryBaselines = [];
+
             foreach (var (memberId, state) in myDeliveryStates)
             {
+
                 if (state.RequestedPosition is { } requested)
+
                 {
                     recoveryBaselines[memberId] = requested;
                 }
             }
+
             foreach (var memberId in recoveryBaselines.Keys)
             {
                 myDeliveryStates[memberId] = myDeliveryStates[memberId].ConsumingRequestedPosition();
             }
+
             lastSynchronizedSequences = [];
+
             foreach (var (memberId, state) in myDeliveryStates)
             {
+
                 if (state.SynchronizedSequence is { } synchronizedSequence)
+
                 {
                     lastSynchronizedSequences[memberId] = synchronizedSequence;
                 }
             }
+
             if (updatesRequireSynchronization)
             {
+
                 foreach (var (memberId, state) in myDeliveryStates)
                 {
+
                     if (state.DeliveredSequence is not { } sequence)
+
                     {
                         // No observed delivery for this member yet - nothing to seed an overflow baseline from,
                         // and a requested position (if any) already reflects what the member still needs.
                         continue;
                     }
+
                     if (!recoveryBaselines.TryGetValue(
                             memberId,
                             out var existing)
                         || sequence < existing.AnnouncementSequence)
                     {
+
                         recoveryBaselines[memberId] = new(sequence, sequence);
                     }
                 }
+
             }
+
         }
 
         var synchronize = updatesRequireSynchronization
@@ -187,6 +211,7 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
                 : null;
 
         mySend("state.snapshot", myUi.CreateSnapshot());
+
         if (transcriptSnapshot is not null)
         {
             mySend(
@@ -197,26 +222,32 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
                     recovery));
             lock (myTranscriptUpdatesLock)
             {
+
                 foreach (var role in transcriptSnapshot)
                 {
                     myDeliveryStates[role.MemberId] =
                         GetDeliveryState(role.MemberId).WithSynchronized(role.Sequence);
                 }
+
             }
         }
 
         var synchronizedSequences = transcriptSnapshot?.ToDictionary(
             role => role.MemberId,
             role => role.Sequence);
+
         foreach (var update in updates)
         {
+
             if (synchronizedSequences?.TryGetValue(
                     update.MemberId,
                     out var sequence) == true
                 && update.Sequence <= sequence)
             {
+
                 continue;
             }
+
             mySend(
                 "transcript.update",
                 TranscriptProtocol.CreateUpdatePayload(update));
@@ -231,5 +262,3 @@ internal sealed class UiDeliveryCoordinator : IAsyncDisposable
     private TranscriptDeliveryState GetDeliveryState(SquadMemberId memberId) =>
         myDeliveryStates.TryGetValue(memberId, out var state) ? state : TranscriptDeliveryState.Initial;
 }
-
-

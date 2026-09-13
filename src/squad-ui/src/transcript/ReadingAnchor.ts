@@ -58,15 +58,21 @@ export class ReadingAnchor {
 
   capture() {
     const viewport = this.myScroll.viewportGeometry.viewportElement()
+
     if (!viewport)
       return undefined
+
     const visible = this.myMeasurements.visibleRects(viewport)[0]
+
     if (visible)
       return { entryIndex: visible.entryIndex, offset: visible.top }
+
     if (this.myIndex.renderableCount === 0)
       return undefined
+
     const content = this.myContentElement()
     const contentTop = content
+
       ? content.getBoundingClientRect().top
         - viewport.getBoundingClientRect().top
         + viewport.scrollTop
@@ -83,10 +89,13 @@ export class ReadingAnchor {
   }
 
   resolve(anchor: ScrollAnchor | undefined) {
+
     if (!anchor)
       return undefined
+
     const entryIndex = this.myIndex.nearestRenderableEntry(anchor.entryIndex)
     return entryIndex == null
+
       ? undefined
       : { entryIndex, offset: anchor.offset }
   }
@@ -100,6 +109,7 @@ export class ReadingAnchor {
   }
 
   beginRestore(anchor: ScrollAnchor): RestoreToken {
+
     if (this.myLayoutAnchor?.entryIndex === anchor.entryIndex
       && this.myLayoutRestorationVersion != null
       && this.isActive(this.myLayoutRestorationVersion)) {
@@ -108,9 +118,11 @@ export class ReadingAnchor {
         version: this.myLayoutRestorationVersion,
       }
     }
+
     const version = ++this.myRestorationVersion
     this.myLayoutAnchor = anchor
     this.myLayoutRestorationVersion = version
+
     return { anchor, version }
   }
 
@@ -133,33 +145,47 @@ export class ReadingAnchor {
 
   async stabilize(token: RestoreToken, isCurrent: () => boolean) {
     await this.restoreAfterRender(token, isCurrent)
+
     if (!this.canContinue(token, isCurrent))
       return false
+
     await this.nextFrame()
     this.myScroll.reportGeometryChange()
+
     if (!this.canContinue(token, isCurrent))
       return false
+
     await this.nextFrame()
+
     this.myScroll.reportGeometryChange()
+
     if (!this.canContinue(token, isCurrent)
       || this.myLayoutAnchor !== token.anchor)
+
       return false
+
     this.myLayoutAnchor = undefined
+
     this.myLayoutRestorationVersion = undefined
     this.myReadingAnchor = token.anchor
     this.myUpdateWindow()
+
     await nextTick()
     this.myScroll.reportGeometryChange()
+
     if (!this.canContinue(token, isCurrent))
       return false
+
     await this.restore(token, isCurrent)
     return this.canContinue(token, isCurrent)
   }
 
   async restoreRetained(isCurrent: () => boolean) {
     const anchor = this.resolve(this.myReadingAnchor)
+
     if (!anchor)
       return false
+
     this.myPlaceWindowAround(anchor.entryIndex)
     return this.stabilize(this.beginRestore(anchor), isCurrent)
   }
@@ -167,10 +193,12 @@ export class ReadingAnchor {
   dispose() {
     this.myDisposed = true
     this.cancel()
+
     for (const [frame, resolve] of this.myFrames) {
       cancelAnimationFrame(frame)
       resolve()
     }
+
     this.myFrames.clear()
   }
 
@@ -180,62 +208,86 @@ export class ReadingAnchor {
   ) {
     await nextTick()
     this.myScroll.reportGeometryChange()
+
     if (!this.canContinue(token, isCurrent))
       return
+
     await this.nextFrame()
     this.myScroll.reportGeometryChange()
+
     if (!this.canContinue(token, isCurrent))
       return
+
     await this.restore(token, isCurrent)
     await this.nextFrame()
+
     this.myScroll.reportGeometryChange()
+
     if (!this.canContinue(token, isCurrent))
       return
+
     await this.restore(token, isCurrent)
   }
 
   private async restore(token: RestoreToken, isCurrent: () => boolean) {
+
     if (!this.canContinue(token, isCurrent))
       return
+
     const viewport = this.myScroll.viewportGeometry.viewportElement()
+
     const row = viewport
+
       ? this.myMeasurements.rectFor(token.anchor.entryIndex, viewport)
       : undefined
+
     if (!viewport || !row)
       return
+
     const desiredScrollTop = viewport.scrollTop + row.top - token.anchor.offset
+
     if (desiredScrollTop < 0) {
       this.myTopCompensation.value -= desiredScrollTop
+
       await nextTick()
       this.myScroll.reportGeometryChange()
     }
     else {
       const naturalScrollHeight =
+
         viewport.scrollHeight - this.myBottomCompensation.value
       const requiredCompensation = Math.max(
         0,
         desiredScrollTop + viewport.clientHeight - naturalScrollHeight)
+
       if (Math.abs(
         this.myBottomCompensation.value - requiredCompensation) >= 0.5) {
         this.myScroll.expectPosition(
           viewport.scrollTop
             + requiredCompensation
+
             - this.myBottomCompensation.value,
           'layout')
         this.myBottomCompensation.value = requiredCompensation
         await nextTick()
         this.myScroll.reportGeometryChange()
       }
+
     }
+
     if (!this.canContinue(token, isCurrent))
       return
+
     const renderedRow = this.myMeasurements.rectFor(
       token.anchor.entryIndex,
       viewport)
+
     if (!renderedRow)
       return
+
     this.myScroll.writePosition(
       viewport.scrollTop + renderedRow.top - token.anchor.offset)
+
     this.myReadingAnchor = token.anchor
   }
 
@@ -248,8 +300,10 @@ export class ReadingAnchor {
   }
 
   private nextFrame() {
+
     if (this.myDisposed)
       return Promise.resolve()
+
     return new Promise<void>(resolve => {
       const frame = requestAnimationFrame(() => {
         this.myFrames.delete(frame)

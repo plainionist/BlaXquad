@@ -135,11 +135,13 @@ internal sealed class UiCommandHandler
                     elicitationId,
                     action,
                     GetPayloadElement(message.Payload, "content"));
+
                 if (action == ElicitationAction.Accept && request.Mode == ElicitationMode.Url)
                 {
                     OpenExternalUrl(
                         Require(request.Url, "pending elicitation URL"));
                 }
+
                 break;
             case "issues.list":
                 var issues = await myIssueCatalog.ListIssuesAsync();
@@ -149,10 +151,12 @@ internal sealed class UiCommandHandler
                     message.RequestId);
                 break;
             case "git-history.open":
+
                 if (!myWorkspaceTools.GitHistoryAvailable)
                 {
                     throw new InvalidOperationException("Git history is not available.");
                 }
+
                 myWorkspaceTools.OpenGitHistory();
                 break;
             default:
@@ -212,14 +216,17 @@ internal sealed class UiCommandHandler
         JsonElement payload,
         string property)
     {
+
         if (payload.ValueKind != JsonValueKind.Object
             || !payload.TryGetProperty(property, out var element)
             || element.ValueKind is not (
                 JsonValueKind.True or JsonValueKind.False))
         {
+
             throw new InvalidOperationException(
                 $"The UI message is missing payload.{property}.");
         }
+
         return element.GetBoolean();
     }
 
@@ -227,33 +234,40 @@ internal sealed class UiCommandHandler
         JsonElement payload,
         string property)
     {
+
         if (payload.ValueKind != JsonValueKind.Object
             || !payload.TryGetProperty(property, out var element)
             || !element.TryGetInt32(out var value)
             || value < 0)
         {
+
             throw new InvalidOperationException(
                 $"The UI message is missing payload.{property}.");
         }
+
         return value;
     }
 
     private static IReadOnlyDictionary<SquadMemberId, TranscriptSynchronizationPosition>
         GetTranscriptSynchronizationPositions(JsonElement payload)
     {
+
         if (payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
         {
             return new Dictionary<SquadMemberId, TranscriptSynchronizationPosition>();
         }
+
         if (payload.ValueKind != JsonValueKind.Object)
         {
             throw new InvalidOperationException(
                 "The UI message contains an invalid transcript synchronization payload.");
         }
+
         if (!payload.TryGetProperty("roles", out var roles))
         {
             return new Dictionary<SquadMemberId, TranscriptSynchronizationPosition>();
         }
+
         if (roles.ValueKind != JsonValueKind.Array)
         {
             throw new InvalidOperationException(
@@ -261,16 +275,20 @@ internal sealed class UiCommandHandler
         }
 
         var positions = new Dictionary<SquadMemberId, TranscriptSynchronizationPosition>();
+
         foreach (var role in roles.EnumerateArray())
         {
+
             if (role.ValueKind != JsonValueKind.Object
                 || !role.TryGetProperty("role", out var roleName)
                 || roleName.ValueKind != JsonValueKind.String
                 || string.IsNullOrWhiteSpace(roleName.GetString()))
             {
+
                 throw new InvalidOperationException(
                     "The UI message contains an invalid transcript position.");
             }
+
             var hasLegacySequence = role.TryGetProperty(
                 "sequence",
                 out var legacySequence);
@@ -280,6 +298,7 @@ internal sealed class UiCommandHandler
             var hasAnnouncementSequence = role.TryGetProperty(
                 "announcementSequence",
                 out var announcementSequence);
+
             if ((!hasVisualSequence && !hasLegacySequence)
                 || !(hasVisualSequence ? visualSequence : legacySequence)
                     .TryGetInt64(out var visualValue)
@@ -291,13 +310,16 @@ internal sealed class UiCommandHandler
                     .TryGetInt64(out var announcementValue)
                 || announcementValue < 0)
             {
+
                 throw new InvalidOperationException(
                     "The UI message contains an invalid transcript position.");
             }
+
             positions[new SquadMemberId(roleName.GetString()!)] = new(
                 visualValue,
                 announcementValue);
         }
+
         return positions;
     }
 
@@ -321,12 +343,15 @@ internal sealed class UiCommandHandler
 
     private static void OpenExternalUrl(string url)
     {
+
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
             || uri.Scheme is not ("http" or "https"))
         {
+
             throw new InvalidOperationException(
                 "The requested URL must be an absolute HTTP or HTTPS URL.");
         }
+
         System.Diagnostics.Process.Start(
             new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri)
             {
@@ -334,6 +359,3 @@ internal sealed class UiCommandHandler
             });
     }
 }
-
-
-

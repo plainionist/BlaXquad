@@ -81,11 +81,13 @@ test('does not record blank submissions in history', async ({ page }) => {
 test('evicts the oldest entries beyond the 50-entry limit', async ({ page }) => {
   await loadSnapshot(page)
   const prompt = page.getByRole('textbox', { name: 'Message coder' })
+
   for (let index = 1; index <= 51; index++)
     await sendPrompt(page, 'Message coder', `prompt ${index}`)
 
   for (let index = 0; index < 50; index++)
     await prompt.press('ArrowUp')
+
   await expect(prompt).toHaveValue('prompt 2')
 
   await prompt.press('ArrowUp')
@@ -148,13 +150,17 @@ test('preserves an existing non-empty draft and restores it exactly after naviga
 
   await prompt.fill('unsent draft')
   await prompt.evaluate((element) => {
+
     if (!(element instanceof HTMLTextAreaElement))
       throw new Error('Expected a textarea.')
+
     element.setSelectionRange(0, 0)
   })
+
   await prompt.press('ArrowUp')
   await expect(prompt).toHaveValue('stored prompt')
   await prompt.press('ArrowDown')
+
   await expect(prompt).toHaveValue('unsent draft')
 })
 
@@ -170,11 +176,14 @@ test('editing a recalled prompt leaves history navigation and treats the edit as
   await expect(prompt).toHaveValue('second prompt!')
 
   await prompt.evaluate((element) => {
+
     if (!(element instanceof HTMLTextAreaElement))
       throw new Error('Expected a textarea.')
+
     element.setSelectionRange(0, 0)
   })
   await prompt.press('ArrowUp')
+
   await expect(prompt).toHaveValue('second prompt')
   await prompt.press('ArrowDown')
   await expect(prompt).toHaveValue('second prompt!')
@@ -188,11 +197,14 @@ test('starts history navigation when the caret is collapsed at the absolute star
   const draft = 'line one\nline two'
   await prompt.fill(draft)
   await prompt.evaluate((element) => {
+
     if (!(element instanceof HTMLTextAreaElement))
       throw new Error('Expected a textarea.')
+
     element.setSelectionRange(0, 0)
   })
   await prompt.press('ArrowUp')
+
   await expect(prompt).toHaveValue('stored prompt')
   await prompt.press('ArrowDown')
   await expect(prompt).toHaveValue(draft)
@@ -206,8 +218,10 @@ test('does not start navigation when the selection is not collapsed at the absol
   const draft = 'line one\nline two'
   await prompt.fill(draft)
   await prompt.evaluate((element) => {
+
     if (!(element instanceof HTMLTextAreaElement))
       throw new Error('Expected a textarea.')
+
     element.setSelectionRange(0, 4)
   })
   const prevented = await prompt.evaluate((element) => {
@@ -231,15 +245,20 @@ test('retains normal caret behavior for ArrowUp away from the absolute start in 
   const draft = 'line one\nline two'
   await prompt.fill(draft)
   await prompt.evaluate((element, position) => {
+
     if (!(element instanceof HTMLTextAreaElement))
       throw new Error('Expected a textarea.')
+
     element.setSelectionRange(position, position)
   }, draft.length)
   await prompt.press('ArrowUp')
+
   await expect(prompt).toHaveValue(draft)
   const caretPosition = await prompt.evaluate((element) => {
+
     if (!(element instanceof HTMLTextAreaElement))
       throw new Error('Expected a textarea.')
+
     return element.selectionStart
   })
   expect(caretPosition).toBeLessThan(draft.length)
@@ -248,6 +267,7 @@ test('retains normal caret behavior for ArrowUp away from the absolute start in 
 test('leaves modified ArrowUp events to the textarea', async ({ page }) => {
   await loadSnapshot(page)
   const prompt = page.getByRole('textbox', { name: 'Message coder' })
+
   await sendPrompt(page, 'Message coder', 'stored prompt')
 
   await prompt.fill('')

@@ -8,25 +8,34 @@ Feature: Healthy headquarters lifecycle
   through SquadApplication, a Headquarters lease object, or a lifecycle trace.
 
   Scenario: A healthy multi-role headquarters process reaches full readiness and shuts down through Headquarters control
+
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
       | reviewer |
     And role "coder" has a durable file "notes.md" containing "Keep this note."
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
     And the "coder" agent observes a harness message
     And the "reviewer" agent observes a harness message
+
     When the "coder" agent emits idle
     And the "reviewer" agent emits idle
+
     Then the operator confirms role "coder" is ready with `squad-hq wait-for-agent`
     And the operator confirms role "reviewer" is ready with `squad-hq wait-for-agent`
+
     When the operator shuts down Headquarters
+
     Then Headquarters exits with code 0
     And Headquarters disposes the agent session for role "coder"
     And Headquarters disposes the agent session for role "reviewer"
     And the operator finds Headquarters unavailable for role "coder"
     And role "coder"'s durable file "notes.md" still contains "Keep this note."
+
     When the operator launches a new Headquarters against the same project
+
     Then the new Headquarters process reports ready

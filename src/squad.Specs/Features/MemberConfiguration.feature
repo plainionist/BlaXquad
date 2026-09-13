@@ -10,9 +10,12 @@ Feature: Configure and launch reusable roles with distinct members
   starts.
 
   Scenario: Two members sharing one role start independently and both read the same role prompt
+
     Given a backend scenario configured with role "coder" shared by members "coder-a,coder-b"
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario starts squad-hq with the fake provider fixture
+
     Then the backend scenario observes a session started for member "coder-a" across the control pipe
     And the backend scenario observes a session started for member "coder-b" across the control pipe
     And the "coder-a" agent observes a harness message containing "blaxquad/roles/coder.prompt"
@@ -21,6 +24,7 @@ Feature: Configure and launch reusable roles with distinct members
     And the backend scenario observes members "coder-a,coder-b" have distinct worktrees
 
   Scenario: A duplicate member name is rejected before any member session starts
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -34,14 +38,17 @@ Feature: Configure and launch reusable roles with distinct members
       }
       """
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario attempts to start squad-hq with the fake provider fixture
     And the backend scenario waits for its rejected startup process to exit
+
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "Duplicate member 'coder'"
     And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
     And the backend scenario observes no session was ever started for member "coder"
 
   Scenario: A member referencing an undeclared role is rejected before any member session starts
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -55,8 +62,10 @@ Feature: Configure and launch reusable roles with distinct members
       }
       """
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario attempts to start squad-hq with the fake provider fixture
     And the backend scenario waits for its rejected startup process to exit
+
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "references unknown role 'reviewer'"
     And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
@@ -64,6 +73,7 @@ Feature: Configure and launch reusable roles with distinct members
     And the backend scenario observes no session was ever started for member "reviewer"
 
   Scenario: A member configured with an unsupported receive mode is rejected before any member session starts
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -76,14 +86,17 @@ Feature: Configure and launch reusable roles with distinct members
       }
       """
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario attempts to start squad-hq with the fake provider fixture
     And the backend scenario waits for its rejected startup process to exit
+
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "Invalid receive mode 'nightly' for member 'coder': expected task or batch"
     And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
     And the backend scenario observes no session was ever started for member "coder"
 
   Scenario: A member configured with an unsupported permission token is rejected before any member session starts
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -96,14 +109,17 @@ Feature: Configure and launch reusable roles with distinct members
       }
       """
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario attempts to start squad-hq with the fake provider fixture
     And the backend scenario waits for its rejected startup process to exit
+
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "Invalid permissions 'denyAll' for member 'coder': expected prompt or approveAll"
     And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
     And the backend scenario observes no session was ever started for member "coder"
 
   Scenario: A member referencing a role whose prompt file is missing is rejected before any member session starts
+
     Given a backend scenario configured with the raw configuration:
       """
       {
@@ -116,14 +132,17 @@ Feature: Configure and launch reusable roles with distinct members
       }
       """
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario attempts to start squad-hq with the fake provider fixture
     And the backend scenario waits for its rejected startup process to exit
+
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "Missing role prompt"
     And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
     And the backend scenario observes no session was ever started for member "coder"
 
   Scenario: A legacy version-1 configuration is rejected with an explicit identity-preserving migration diagnostic
+
     Given a backend scenario configured with the raw configuration:
       """
       {
@@ -134,8 +153,10 @@ Feature: Configure and launch reusable roles with distinct members
       }
       """
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario attempts to start squad-hq with the fake provider fixture
     And the backend scenario waits for its rejected startup process to exit
+
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "must declare"
     And the backend scenario observes its rejected startup's standard error containing "schemaVersion"

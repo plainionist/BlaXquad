@@ -27,8 +27,11 @@ export function useIssueCatalog(send: SendIssuesRequest) {
   }
 
   function applyIssues(payload: IssueListPayload, requestId?: string) {
+
     if (requestId == null || requestId !== pendingRequestId) return
+
     issues.value = payload.issues
+
     isLoading.value = false
     pendingRequestId = null
   }
@@ -39,9 +42,12 @@ export function useIssueCatalog(send: SendIssuesRequest) {
    * uncorrelated, general protocol failure.
    */
   function applyProtocolError(message: string, requestId?: string): boolean {
+
     if (requestId == null || requestId !== pendingRequestId) return false
+
     catalogError.value = message
     isLoading.value = false
+
     pendingRequestId = null
     return true
   }

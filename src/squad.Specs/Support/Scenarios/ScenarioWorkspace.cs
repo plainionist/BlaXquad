@@ -115,6 +115,7 @@ public sealed class ScenarioWorkspace : IDisposable
 
         var helperName = OperatingSystem.IsWindows() ? "squad.exe" : "squad";
         var helperPath = Path.Combine(destination, helperName);
+
         if (File.Exists(helperPath))
         {
             File.Delete(helperPath);
@@ -174,16 +175,17 @@ public sealed class ScenarioWorkspace : IDisposable
     private static void CopyDirectoryRecursive(string source, string destination)
     {
         Directory.CreateDirectory(destination);
+
         foreach (var file in Directory.EnumerateFiles(source))
         {
             File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
         }
+
         foreach (var directory in Directory.EnumerateDirectories(source))
         {
             CopyDirectoryRecursive(directory, Path.Combine(destination, Path.GetFileName(directory)));
         }
     }
-
 
     /// <summary>
     /// Writes a file into a role's worktree recorded by <see cref="ConfigureProject"/>, so specifications can seed
@@ -212,6 +214,7 @@ public sealed class ScenarioWorkspace : IDisposable
     public void PoisonRoleHandoffOutbox(string role)
     {
         var outboxDir = HandoffQueue.Outbox(HandoffQueue.Root(myMemberWorktrees[new SquadMemberId(role)]));
+
         if (Directory.Exists(outboxDir))
         {
             Directory.Delete(outboxDir, recursive: true);
@@ -219,6 +222,7 @@ public sealed class ScenarioWorkspace : IDisposable
 
         var brokenTarget = Path.Combine(Path.GetTempPath(), "blaxquad-specs-poisoned", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(brokenTarget);
+
         if (OperatingSystem.IsWindows())
         {
             AssertSuccessful(Run("cmd", ["/c", "mklink", "/J", outboxDir, brokenTarget]));
@@ -227,6 +231,7 @@ public sealed class ScenarioWorkspace : IDisposable
         {
             Directory.CreateSymbolicLink(outboxDir, brokenTarget);
         }
+
         Directory.Delete(brokenTarget);
     }
 
@@ -241,11 +246,13 @@ public sealed class ScenarioWorkspace : IDisposable
     public void RepairRoleHandoffOutbox(string role)
     {
         var outboxDir = HandoffQueue.Outbox(HandoffQueue.Root(myMemberWorktrees[new SquadMemberId(role)]));
+
         if ((File.GetAttributes(outboxDir) & FileAttributes.ReparsePoint) != 0)
         {
             File.SetAttributes(outboxDir, FileAttributes.Normal);
             Directory.Delete(outboxDir);
         }
+
         Directory.CreateDirectory(outboxDir);
     }
 
@@ -317,6 +324,7 @@ public sealed class ScenarioWorkspace : IDisposable
 
     public IReadOnlyDictionary<string, string> ConfigureProject(IReadOnlyList<(string Role, string? ReceiveMode)> roles, string? leader)
     {
+
         if (roles.Count == 0)
         {
             throw new ArgumentException("At least one role is required.", nameof(roles));
@@ -402,6 +410,7 @@ public sealed class ScenarioWorkspace : IDisposable
             {{membersJson}}
               ]
             }
+
             """ + "\n";
     }
 
@@ -432,6 +441,7 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     public IReadOnlyDictionary<string, string> ConfigureProjectWithSharedRole(string role, params string[] memberNames)
     {
+
         if (memberNames.Length == 0)
         {
             throw new ArgumentException("At least one member is required.", nameof(memberNames));
@@ -485,12 +495,15 @@ public sealed class ScenarioWorkspace : IDisposable
     public void WaitUntil(Func<bool> condition, string description, TimeSpan? timeout = null)
     {
         var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+
         while (DateTime.UtcNow < deadline)
         {
+
             if (condition())
             {
                 return;
             }
+
             Thread.Sleep(25);
         }
 
@@ -534,6 +547,7 @@ public sealed class ScenarioWorkspace : IDisposable
     private static IReadOnlyDictionary<string, string?>? MergeGitIdentity(
         string executable, IReadOnlyDictionary<string, string?>? environment)
     {
+
         if (executable != "git")
         {
             return environment;
@@ -546,13 +560,17 @@ public sealed class ScenarioWorkspace : IDisposable
             ["GIT_COMMITTER_NAME"] = "BlaXquad Acceptance",
             ["GIT_COMMITTER_EMAIL"] = "acceptance@example.invalid",
         };
+
         if (environment is not null)
         {
+
             foreach (var (name, value) in environment)
             {
                 merged[name] = value;
             }
+
         }
+
         return merged;
     }
 
@@ -584,14 +602,17 @@ public sealed class ScenarioWorkspace : IDisposable
 
     private static void RemoveReparsePoints(string root)
     {
+
         foreach (var path in EnumeratePaths(root).OrderByDescending(path => path.Length))
         {
+
             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
             {
                 continue;
             }
 
             File.SetAttributes(path, FileAttributes.Normal);
+
             if (Directory.Exists(path))
             {
                 Directory.Delete(path);
@@ -600,6 +621,7 @@ public sealed class ScenarioWorkspace : IDisposable
             {
                 File.Delete(path);
             }
+
         }
     }
 
@@ -610,12 +632,14 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     private static void DeleteDirectoryWithBoundedRetries(string root)
     {
+
         foreach (var path in EnumeratePaths(root))
         {
             File.SetAttributes(path, FileAttributes.Normal);
         }
 
         var deadline = DateTime.UtcNow + WorkspaceCleanupTimeout;
+
         while (true)
         {
             try
@@ -633,12 +657,15 @@ public sealed class ScenarioWorkspace : IDisposable
     private static string RepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
+
         while (current is not null)
         {
+
             if (File.Exists(Path.Combine(current.FullName, "squad.slnx")))
             {
                 return current.FullName;
             }
+
             current = current.Parent;
         }
 
@@ -650,6 +677,7 @@ public sealed class ScenarioWorkspace : IDisposable
         var key = $"{AppContext.BaseDirectory}|{target}";
         lock (ArtifactPreparationLock)
         {
+
             if (PreparedArtifactTargets.Contains(key))
             {
                 return;
@@ -668,11 +696,13 @@ public sealed class ScenarioWorkspace : IDisposable
                     "-verbosity:quiet",
                 ],
                 workingDirectory: RepositoryRootPath);
+
             if (result.ExitCode != 0)
             {
                 throw new InvalidOperationException(
                     $"Failed to prepare specification artifact '{target}':{Environment.NewLine}{result.StdErr}");
             }
+
             PreparedArtifactTargets.Add(key);
         }
     }
@@ -683,29 +713,34 @@ public sealed class ScenarioWorkspace : IDisposable
     /// </summary>
     private static string ResolveTool(string toolName, string publicationDirectoryName)
     {
+
         if (OperatingSystem.IsWindows())
         {
             toolName += ".exe";
         }
+
         return Path.Combine(AppContext.BaseDirectory, publicationDirectoryName, toolName);
     }
 
     private static IEnumerable<string> EnumeratePaths(string directory)
     {
+
         foreach (var path in Directory.EnumerateFileSystemEntries(directory))
         {
             yield return path;
+
             if (Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
             {
+
                 foreach (var child in EnumeratePaths(path))
                 {
                     yield return child;
                 }
+
             }
+
         }
     }
 
     private static void AssertSuccessful(CommandResult result) => result.EnsureSuccess();
 }
-
-

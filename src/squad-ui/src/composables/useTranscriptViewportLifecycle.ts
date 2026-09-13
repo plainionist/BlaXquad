@@ -59,14 +59,17 @@ export function useTranscriptViewportLifecycle(
     tailGuard: ScrollPositionGuard = options.scroll.positionGuard(),
   ) {
     await nextTick()
+
     if (!isCurrent(epoch))
       return
+
     if (options.following.value) {
       await options.scroll.scrollToTail(
         tailGuard,
         () => isCurrent(epoch))
       return
     }
+
     if (token)
       await options.readingAnchor.stabilize(token, () => isCurrent(epoch))
     else
@@ -75,10 +78,13 @@ export function useTranscriptViewportLifecycle(
 
   function handleGeometryBatch(batch: GeometryBatch) {
     options.scroll.reportGeometryChange()
+
     for (const change of batch.changes)
       options.index.setMeasuredHeight(change.entryIndex, change.height)
+
     const epoch = beginEpoch()
     const tailGuard = options.scroll.positionGuard()
+
     options.updateWindow()
     void correctForState(epoch, undefined, tailGuard)
   }
@@ -92,23 +98,31 @@ export function useTranscriptViewportLifecycle(
     change: ViewportChange,
     epoch: number,
   ) {
+
     if (change.widthChanged) {
       options.readingAnchor.releaseCompensation()
+
       options.measurements.clear()
       options.index.rebuild(options.entries(), options.entryIndices())
       const retained = options.readingAnchor.resolve(
         options.readingAnchor.reading)
+
       if (retained)
         options.placeWindowAround(retained.entryIndex)
+
     }
     else if (change.heightChanged && options.readingAnchor.reading) {
       options.placeWindowAround(options.readingAnchor.reading.entryIndex)
     }
+
     options.updateWindow()
     await nextTick()
+
     if (!isCurrent(epoch))
       return
+
     options.measurements.sweep()
+
     const correctionEpoch = beginEpoch()
     await correctForState(
       correctionEpoch,
@@ -119,8 +133,10 @@ export function useTranscriptViewportLifecycle(
 
   function initialize() {
     const element = options.viewport.value
+
     if (element)
       options.scroll.attach(element, handleViewportChange)
+
     options.index.rebuild(options.entries(), options.entryIndices())
     options.updateWindow()
     void nextTick().then(async () => {

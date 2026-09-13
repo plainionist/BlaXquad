@@ -31,10 +31,12 @@ public sealed class StdioUiProtocolSteps
     [When("the operator launches Headquarters with the {string} UI transport")]
     public void WhenTheOperatorLaunchesHeadquartersWithTheUiTransport(string transport)
     {
+
         if (transport != "stdio")
         {
             throw new NotSupportedException($"Only the 'stdio' UI transport is supported here, not '{transport}'.");
         }
+
         // The fake provider and its control transport are test setup, not specified behavior - kept behind this
         // binding rather than becoming a second Gherkin dialect, matching HeadquartersLifecycleSteps' own launch.
         myScenario.EnableFakeProviderControl();
@@ -45,6 +47,7 @@ public sealed class StdioUiProtocolSteps
     public void WhenAUiProtocolClientSendsUiReady()
     {
         Await(myScenario.CompleteReadyHandshakeAsync());
+
         foreach (var memberId in myScenario.ConfiguredMembers)
         {
             // Every session in this feature answers its own prompts automatically ("echo: {prompt}") across the
@@ -59,10 +62,12 @@ public sealed class StdioUiProtocolSteps
     [When("a UI-protocol client sends a {string} command for role {string} with prompt {string}")]
     public void WhenAUiProtocolClientSendsACommandForRoleWithPrompt(string type, string role, string prompt)
     {
+
         if (type != "prompt.send")
         {
             throw new NotSupportedException($"Only the 'prompt.send' command is supported here, not '{type}'.");
         }
+
         myScenario.SendPrompt(role, prompt);
     }
 
@@ -76,10 +81,12 @@ public sealed class StdioUiProtocolSteps
         // Snapshotting each configured role's synchronization count before issuing this request - and later
         // waiting for that count-plus-first one - identifies exactly the "recovery" synchronization this request
         // produced, never the initial one the "ui.ready" handshake already published.
+
         foreach (var memberId in myScenario.ConfiguredMembers)
         {
             mySynchronizationSkipByMember[memberId] = myScenario.CountTranscriptSynchronizations(memberId.Value);
         }
+
         myScenario.RequestTranscriptSynchronization();
     }
 
@@ -90,6 +97,7 @@ public sealed class StdioUiProtocolSteps
         // setup) is still running when it fires, proving nothing about the ui.ready gate. Poll continuously across
         // a bounded window generous enough to span that preparation instead, and fail the instant any line appears.
         var deadline = DateTime.UtcNow + PreReadyGraceWindow;
+
         while (DateTime.UtcNow < deadline)
         {
             Assert.That(myScenario.CapturedStandardOutput(), Is.Empty, "Protocol output appeared before \"ui.ready\" was sent.");
@@ -123,10 +131,12 @@ public sealed class StdioUiProtocolSteps
         // Guards against a race where the echoed transcript update has not yet reached stdout: wait for every
         // configured role to settle back to idle before checking every captured line's shape, rather than
         // asserting well-formedness against a possibly still-partial buffer.
+
         foreach (var memberId in myScenario.ConfiguredMembers)
         {
             Await(myScenario.WaitForRoleStatusAsync(memberId.Value, "idle"));
         }
+
         Assert.That(myScenario.EveryCapturedStandardOutputLineIsAWellFormedEnvelope(), Is.True);
     }
 
@@ -155,6 +165,7 @@ public sealed class StdioUiProtocolSteps
     {
         var issues = Await(myScenario.WaitForIssuesAsync(requestId));
         Assert.That(issues, Has.Count.EqualTo(table.Rows.Count), "Unexpected number of catalog entries.");
+
         for (var index = 0; index < table.Rows.Count; index++)
         {
             var row = table.Rows[index];

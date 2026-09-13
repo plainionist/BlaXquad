@@ -22,10 +22,12 @@ internal sealed class FakeAgentBackend(AgentBackendContext context) : IAgentBack
 
     public Task<IAgentRuntime> CreateRuntimeAsync(CancellationToken cancellationToken = default)
     {
+
         if (Environment.GetEnvironmentVariable(FakeProviderControlServer.FailBeforeRuntimeEnvironmentVariable) is not null)
         {
             throw new InvalidOperationException("fake provider failed before its runtime became available");
         }
+
         return Task.FromResult<IAgentRuntime>(new FakeAgentRuntime(context, FailBackend));
     }
 

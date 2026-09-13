@@ -18,5 +18,3 @@ public interface ISquadUi
     Task CompleteInputAsync(SquadMemberId memberId, InteractionRequestId requestId, string? answer, bool wasFreeform, CancellationToken cancellationToken = default);
     Task CompleteElicitationAsync(SquadMemberId memberId, InteractionRequestId requestId, ElicitationAction action, JsonElement? content, CancellationToken cancellationToken = default);
 }
-
-

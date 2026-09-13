@@ -16,6 +16,7 @@ public readonly record struct HandoffPriority
     public HandoffPriority(int value)
     {
         Contract.Requires(value is >= 0 and <= 99, "value must be from 0 through 99.");
+
         Value = value;
     }
 
@@ -27,6 +28,7 @@ public readonly record struct HandoffPriority
     public static HandoffPriority Parse(string text)
     {
         Contract.Requires(IsValid(text), "text must be exactly two decimal digits.");
+
         return new HandoffPriority(int.Parse(text, CultureInfo.InvariantCulture));
     }
 

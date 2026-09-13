@@ -23,6 +23,7 @@ public static class SquadConfigurationLoader
     public static SquadConfiguration Load(string configFile, string rolesDirectory)
     {
         string text;
+
         try
         {
             text = File.ReadAllText(configFile);
@@ -33,6 +34,7 @@ public static class SquadConfigurationLoader
         }
 
         JsonDocument document;
+
         try
         {
             document = JsonDocument.Parse(text);
@@ -47,6 +49,7 @@ public static class SquadConfigurationLoader
             RejectLegacySchema(document.RootElement, configFile);
 
             SquadConfigurationDocument typed;
+
             try
             {
                 typed = JsonSerializer.Deserialize<SquadConfigurationDocument>(text, myJsonOptions)
@@ -68,6 +71,7 @@ public static class SquadConfigurationLoader
     /// unchanged.</summary>
     private static void RejectLegacySchema(JsonElement root, string configFile)
     {
+
         if (root.ValueKind != JsonValueKind.Object)
         {
             throw Error("configuration must be a JSON object");
@@ -106,6 +110,7 @@ public static class SquadConfigurationLoader
         // always an authoritative leader. An explicitly configured value that does not match any member is still a
         // configuration error - a plausible typo, not "no leader configured".
         var leader = string.IsNullOrWhiteSpace(document.Leader) ? members[0].Name.Value : document.Leader;
+
         if (!members.Any(member => member.Name.Value == leader))
         {
             throw Error($"leader '{leader}' in {configFile} must match a configured member name");
@@ -117,6 +122,7 @@ public static class SquadConfigurationLoader
 
     private static IReadOnlyList<string> ValidateRoles(List<string>? documentRoles, string configFile, string rolesDirectory)
     {
+
         if (documentRoles is null || documentRoles.Count == 0)
         {
             throw Error($"configuration {configFile} requires a non-empty roles array");
@@ -124,15 +130,18 @@ public static class SquadConfigurationLoader
 
         var roles = new List<string>(documentRoles.Count);
         var names = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var role in documentRoles)
         {
             var name = Required(role, "role name");
+
             if (!names.Add(name))
             {
                 throw Error($"Duplicate role '{name}' in {configFile}");
             }
 
             var promptFile = Path.Combine(rolesDirectory, name + ".prompt");
+
             if (!File.Exists(promptFile))
             {
                 throw Error($"Missing role prompt {promptFile}");
@@ -150,6 +159,7 @@ public static class SquadConfigurationLoader
         string configFile,
         string rolesDirectory)
     {
+
         if (documentMembers is null || documentMembers.Count == 0)
         {
             throw Error($"configuration {configFile} requires a non-empty members array");
@@ -177,6 +187,7 @@ public static class SquadConfigurationLoader
             {
                 throw Error($"agent.model for member '{name}' cannot be empty");
             }
+
             if (agent.Effort is not null && string.IsNullOrWhiteSpace(agent.Effort))
             {
                 throw Error($"agent.effort for member '{name}' cannot be empty");
@@ -186,36 +197,44 @@ public static class SquadConfigurationLoader
             {
                 throw Error($"Invalid member '{name}': member names may not contain underscores");
             }
+
             if (!names.Add(name))
             {
                 throw Error($"Duplicate member '{name}' in {configFile}");
             }
+
             if (!roleNames.Contains(role))
             {
                 throw Error($"member '{name}' references unknown role '{role}' in {configFile}");
             }
+
             if (worktree.Contains('/') || worktree.Contains('\\') || worktree is "." or "..")
             {
                 throw Error($"Invalid worktree '{worktree}' for member '{name}'");
             }
+
             if (worktree != "master" && !worktrees.Add(worktree))
             {
                 throw Error($"Duplicate worktree '{worktree}' in {configFile}");
             }
+
             if (worktree == "master" && ++masterCount > 1)
             {
                 throw Error($"Duplicate worktree 'master' in {configFile}");
             }
+
             if (receiveMode is not ("task" or "batch"))
             {
                 throw Error($"Invalid receive mode '{receiveMode}' for member '{name}': expected task or batch");
             }
+
             if (permissions is not ("prompt" or "approveAll"))
             {
                 throw Error($"Invalid permissions '{permissions}' for member '{name}': expected prompt or approveAll");
             }
 
             var worktreePath = Path.GetFullPath(WorktreeTarget.Parse(worktree).ResolvePath(rootDirectory, worktreesDirectory));
+
             if (!paths.Add(worktreePath))
             {
                 throw Error($"Duplicate normalized worktree path '{worktreePath}' in {configFile}");
@@ -237,21 +256,27 @@ public static class SquadConfigurationLoader
     // how every other configured array in this file is validated.
     private static IReadOnlyList<string>? ValidateGitHistoryCommand(List<string>? configured, string configFile)
     {
+
         if (configured is null)
         {
             return null;
         }
+
         if (configured.Count == 0 || string.IsNullOrWhiteSpace(configured[0]))
         {
             throw Error($"gitHistoryCommand in {configFile} must start with a non-blank executable");
         }
+
         foreach (var item in configured)
         {
+
             if (string.IsNullOrWhiteSpace(item))
             {
                 throw Error($"gitHistoryCommand in {configFile} cannot contain a blank item");
             }
+
         }
+
         return configured;
     }
 
@@ -260,6 +285,7 @@ public static class SquadConfigurationLoader
         string rootDirectory,
         string configFile)
     {
+
         if (configuredPaths is null)
         {
             return [];
@@ -268,26 +294,32 @@ public static class SquadConfigurationLoader
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var paths = new List<string>(configuredPaths.Count);
         var normalizedPaths = new HashSet<string>(comparer);
+
         foreach (var configuredPath in configuredPaths)
         {
+
             if (string.IsNullOrWhiteSpace(configuredPath))
             {
                 throw Error($"sharedWorktreePaths in {configFile} cannot contain an empty path");
             }
+
             if (Path.IsPathFullyQualified(configuredPath))
             {
                 throw Error($"Shared worktree path '{configuredPath}' in {configFile} must be relative");
             }
 
             var fullPath = Path.GetFullPath(Path.Combine(rootDirectory, configuredPath));
+
             if (!IsWithin(rootDirectory, fullPath))
             {
                 throw Error($"Shared worktree path '{configuredPath}' in {configFile} must stay within the repository root");
             }
+
             if (!normalizedPaths.Add(fullPath))
             {
                 throw Error($"Duplicate shared worktree path '{configuredPath}' in {configFile}");
             }
+
             if (normalizedPaths.Any(path => path != fullPath && (IsWithin(path, fullPath) || IsWithin(fullPath, path))))
             {
                 throw Error($"Overlapping shared worktree path '{configuredPath}' in {configFile}");

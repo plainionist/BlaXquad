@@ -5,5 +5,3 @@ public interface IAgentBackendFailureSource
 {
     Task Failure { get; }
 }
-
-

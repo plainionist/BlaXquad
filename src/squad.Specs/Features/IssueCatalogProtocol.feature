@@ -7,22 +7,30 @@ Feature: Issue catalog protocol
   crosses the real protocol.
 
   Background:
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
+
     When the operator launches Headquarters with the "stdio" UI transport
     And a UI-protocol client sends "ui.ready"
 
   Scenario: A missing issue directory reports a successful, empty catalog
+
     When the ui requests the issue catalog with request id "req-missing"
+
     Then the issue catalog response for request id "req-missing" reports no issues
 
   Scenario: A present but empty issue directory reports a successful, empty catalog
+
     Given the issues directory exists and is empty
+
     When the ui requests the issue catalog with request id "req-empty"
+
     Then the issue catalog response for request id "req-empty" reports no issues
 
   Scenario: The catalog orders issues by ascending priority, breaks ties by filename, and lists unprioritized issues last
+
     Given an issue file "b-issue.md" with this content:
       """
       ---
@@ -62,7 +70,9 @@ Feature: Issue catalog protocol
       ---
       Body line.
       """
+
     When the ui requests the issue catalog with request id "req-order"
+
     Then the issue catalog response for request id "req-order" reports issues in this order:
       | path                            | title                  | priority |
       | docs/issues/urgent.md           | Urgent issue           | 1        |
@@ -72,6 +82,7 @@ Feature: Issue catalog protocol
       | docs/issues/no-priority.md      | No priority issue      |          |
 
   Scenario: The catalog includes only top-level Markdown files, matched case-insensitively, and excludes nested and non-Markdown siblings
+
     Given an issue file "included.md" with this content:
       """
       ---
@@ -97,13 +108,16 @@ Feature: Issue catalog protocol
       ---
       Body line.
       """
+
     When the ui requests the issue catalog with request id "req-exclusive"
+
     Then the issue catalog response for request id "req-exclusive" reports issues in this order:
       | path                    | title          | priority |
       | docs/issues/CASED.MD    | Cased issue    |          |
       | docs/issues/included.md | Included issue |          |
 
   Scenario: A document without a resolvable title falls back to its filename, independently of a valid priority
+
     Given an issue file "untitled.md" with this content:
       """
       ---
@@ -111,12 +125,15 @@ Feature: Issue catalog protocol
       ---
       Body line.
       """
+
     When the ui requests the issue catalog with request id "req-fallback"
+
     Then the issue catalog response for request id "req-fallback" reports issues in this order:
       | path                    | title       | priority |
       | docs/issues/untitled.md | untitled.md | 3        |
 
   Scenario: A response reports the normalized raw frontmatter block and the first ten preview lines including blanks
+
     Given an issue file "detailed.md" with this content:
       """
       ---
@@ -135,7 +152,9 @@ Feature: Issue catalog protocol
       Tenth line.
       Eleventh line, never previewed.
       """
+
     When the ui requests the issue catalog with request id "req-detail"
+
     Then the issue catalog response for request id "req-detail" includes an issue at path "docs/issues/detailed.md" with frontmatter:
       """
       ---
@@ -157,6 +176,7 @@ Feature: Issue catalog protocol
       | Tenth line.   |
 
   Scenario: Malformed YAML frontmatter retains the issue with fallback title and priority instead of an error
+
     Given an issue file "malformed.md" with this content:
       """
       ---
@@ -165,12 +185,15 @@ Feature: Issue catalog protocol
       ---
       Body line.
       """
+
     When the ui requests the issue catalog with request id "req-malformed"
+
     Then the issue catalog response for request id "req-malformed" reports issues in this order:
       | path                     | title        | priority |
       | docs/issues/malformed.md | malformed.md |          |
 
   Scenario: An unclosed opening frontmatter delimiter retains the whole source as frontmatter and has no preview
+
     Given an issue file "unclosed.md" with this content:
       """
       ---
@@ -178,7 +201,9 @@ Feature: Issue catalog protocol
       priority: 6
       Body line without a closing delimiter.
       """
+
     When the ui requests the issue catalog with request id "req-unclosed"
+
     Then the issue catalog response for request id "req-unclosed" reports issues in this order:
       | path                    | title       | priority |
       | docs/issues/unclosed.md | unclosed.md |          |
@@ -193,6 +218,7 @@ Feature: Issue catalog protocol
       | line |
 
   Scenario: A document without any frontmatter delimiter has empty frontmatter and previews its first ten lines
+
     Given an issue file "plain.md" with this content:
       """
       First line.
@@ -207,7 +233,9 @@ Feature: Issue catalog protocol
       Tenth line.
       Eleventh line, never previewed.
       """
+
     When the ui requests the issue catalog with request id "req-plain"
+
     Then the issue catalog response for request id "req-plain" includes an issue at path "docs/issues/plain.md" with empty frontmatter
     And that issue reports these preview lines:
       | line         |
@@ -223,6 +251,7 @@ Feature: Issue catalog protocol
       | Tenth line.  |
 
   Scenario: Re-requesting the catalog after files change during the same session reports the changed catalog
+
     Given an issue file "first.md" with this content:
       """
       ---
@@ -230,10 +259,13 @@ Feature: Issue catalog protocol
       ---
       Body line.
       """
+
     When the ui requests the issue catalog with request id "req-before"
+
     Then the issue catalog response for request id "req-before" reports issues in this order:
       | path                 | title       | priority |
       | docs/issues/first.md | First issue |          |
+
     Given an issue file "second.md" with this content:
       """
       ---
@@ -241,13 +273,18 @@ Feature: Issue catalog protocol
       ---
       Body line.
       """
+
     When the ui requests the issue catalog with request id "req-after"
+
     Then the issue catalog response for request id "req-after" reports issues in this order:
       | path                  | title        | priority |
       | docs/issues/first.md  | First issue  |          |
       | docs/issues/second.md | Second issue |          |
 
   Scenario: A genuine filesystem failure reports a correlated protocol error instead of a misleading empty catalog
+
     Given the issues directory is replaced with a plain file
+
     When the ui requests the issue catalog with request id "req-broken"
+
     Then a correlated protocol error for request id "req-broken" is reported

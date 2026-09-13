@@ -25,21 +25,26 @@ internal sealed class OperationLease : IDisposable
     public void Register(CancellationTokenSource operation)
     {
         Contract.Invariant(myOperation is null, "An OperationLease can register at most one operation.");
+
         myOperation = operation;
         myMember.RegisterOperation(operation);
     }
 
     public void Dispose()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         myDisposed = true;
+
         if (myOperation is not null)
         {
             myMember.UnregisterOperation(myOperation);
         }
+
         myOperationLock.Release();
     }
 }

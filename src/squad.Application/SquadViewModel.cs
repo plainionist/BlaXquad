@@ -47,12 +47,15 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     {
         lock (myInstallationLock)
         {
+
             if (myInstalled?.Generation != generation)
             {
                 return;
             }
+
             myInstalled = null;
         }
+
         NotifyStateChanged(UiRefreshPriority.Immediate);
     }
 
@@ -65,6 +68,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     public IReadOnlyList<RoleTranscriptSnapshot> CreateTranscriptSnapshot(int maxEntriesPerRole)
     {
         Contract.Requires(maxEntriesPerRole > 0, "maxEntriesPerRole must be positive.");
+
         return Installed?.CreateTranscriptSnapshot(maxEntriesPerRole) ?? [];
     }
 
@@ -72,12 +76,14 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
     {
         Contract.Requires(beforeIndex >= 0, "beforeIndex must not be negative.");
         Contract.Requires(maxEntries > 0, "maxEntries must be positive.");
+
         return RequireInstalled(memberId).CreateTranscriptPage(memberId, beforeIndex, maxEntries);
     }
 
     public RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(SquadMemberId memberId, int entryIndex)
     {
         Contract.Requires(entryIndex >= 0, "entryIndex must not be negative.");
+
         return RequireInstalled(memberId).CreateArchivedTranscriptEntry(memberId, entryIndex);
     }
 
@@ -111,19 +117,23 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
 
     void ISquadPublication.NotifyStateChanged(SquadGenerationId generation, UiRefreshPriority priority)
     {
+
         if (Installed?.Generation != generation)
         {
             return;
         }
+
         NotifyStateChanged(priority);
     }
 
     void ISquadPublication.PublishTranscriptUpdate(SquadGenerationId generation, TranscriptUpdate update)
     {
+
         if (Installed?.Generation != generation)
         {
             return;
         }
+
         TranscriptChanged?.Invoke(update);
     }
 
@@ -148,6 +158,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
 
     private void EnsureAccepting()
     {
+
         if (!myAccepting)
         {
             throw new OperationCanceledException("Squad is shutting down");
@@ -156,6 +167,7 @@ public sealed class SquadViewModel : ISquadUi, ITranscriptUi, ISquadPublication
 
     private void NotifyStateChanged(UiRefreshPriority priority)
     {
+
         foreach (Action<UiRefreshPriority> listener in SnapshotRequested?.GetInvocationList() ?? [])
         {
             try

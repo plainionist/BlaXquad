@@ -35,6 +35,7 @@ public static class Timestamps
         Contract.Requires(
             DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var value),
             "text must be a valid ISO-8601 instant.");
+
         return value;
     }
 
@@ -42,4 +43,3 @@ public static class Timestamps
     public static string IdNow() =>
         DateTime.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
 }
-

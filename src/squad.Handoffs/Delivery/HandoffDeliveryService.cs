@@ -20,12 +20,15 @@ sealed class HandoffDeliveryService
     public async Task ProcessOnceAsync(IReadOnlyList<SquadMemberDefinition> members, CancellationToken cancellationToken = default)
     {
         var memberMap = members.ToDictionary(member => member.Id);
+
         foreach (var (memberId, memberInfo) in memberMap)
         {
             var outboxDir = HandoffQueue.Outbox(HandoffQueue.Root(memberInfo.WorktreePath));
+
             foreach (var path in HandoffQueue.HandoffFiles(outboxDir))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
                 try
                 {
                     await DeliverAsync(memberMap, memberId, path, cancellationToken);
@@ -37,6 +40,7 @@ sealed class HandoffDeliveryService
                 catch (Exception exception)
                 {
                     myLog.Append(["error", path, exception.Message]);
+
                     try
                     {
                         Fail(path, exception.Message);
@@ -47,6 +51,7 @@ sealed class HandoffDeliveryService
                     }
                 }
             }
+
         }
     }
 
@@ -55,16 +60,20 @@ sealed class HandoffDeliveryService
         var document = HandoffJson.Read(path);
 
         var deliveries = new List<(SquadMemberId Recipient, SquadMemberDefinition MemberInfo)>();
+
         foreach (var recipient in document.To)
         {
+
             if (!members.TryGetValue(recipient, out var memberInfo))
             {
                 throw new InvalidOperationException($"unknown recipient {recipient}");
             }
+
             deliveries.Add((recipient, memberInfo));
         }
 
         var filename = Path.GetFileName(path);
+
         foreach (var (recipient, memberInfo) in deliveries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -94,10 +103,12 @@ sealed class HandoffDeliveryService
     /// overwrites an already-persisted artifact.</summary>
     private static void WriteRecipientArtifact(string target, HandoffDocument delivered)
     {
+
         if (Path.Exists(target))
         {
             return;
         }
+
         HandoffJson.Write(target, delivered);
     }
 
@@ -106,10 +117,12 @@ sealed class HandoffDeliveryService
         Directory.CreateDirectory(targetDir);
         var baseName = Path.GetFileName(source);
         var target = Path.Combine(targetDir, baseName);
+
         if (Path.Exists(target))
         {
             target = Path.Combine(targetDir, $"{Timestamps.Now()}_{baseName}");
         }
+
         File.Move(source, target);
     }
 

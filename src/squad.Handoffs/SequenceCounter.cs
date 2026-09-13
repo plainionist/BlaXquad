@@ -10,6 +10,7 @@ public static class SequenceCounter
         var lockFile = Path.Combine(handoffsStateDir, "sequence.lock");
 
         FileStream? handle = null;
+
         while (handle is null)
         {
             try
@@ -26,10 +27,12 @@ public static class SequenceCounter
         try
         {
             long last = 0;
+
             if (File.Exists(seqFile))
             {
                 long.TryParse(File.ReadAllText(seqFile).Trim(), out last);
             }
+
             var formatted = (last + 1).ToString("D6");
             File.WriteAllText(seqFile, formatted + "\n");
             return formatted;
@@ -41,6 +44,3 @@ public static class SequenceCounter
         }
     }
 }
-
-
-

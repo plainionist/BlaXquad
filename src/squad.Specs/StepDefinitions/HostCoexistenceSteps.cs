@@ -53,10 +53,12 @@ public sealed class HostCoexistenceSteps
     [When("a UI-protocol client sends a {string} command for role {string} with prompt {string} to project {string}")]
     public void WhenAUiProtocolClientSendsACommandForRoleWithPromptToProject(string type, string role, string prompt, string label)
     {
+
         if (type != "prompt.send")
         {
             throw new NotSupportedException($"Only the 'prompt.send' command is supported here, not '{type}'.");
         }
+
         myProjectsByLabel[label].Scenario.SendPrompt(role, prompt);
     }
 

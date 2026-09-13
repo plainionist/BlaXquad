@@ -52,10 +52,12 @@ public sealed record HandoffDocument
         {
             errors.Add("missing from");
         }
+
         if (To is null || To.Count == 0 || To.Any(recipient => string.IsNullOrWhiteSpace(recipient.Value)))
         {
             errors.Add("missing or empty to");
         }
+
         if (CreatedAt == default)
         {
             errors.Add("missing createdAt");
@@ -65,8 +67,10 @@ public sealed record HandoffDocument
         {
             case HandoffKind.GitHandoff:
                 ValidateVariant(errors, "git_handoff", GitHandoff, Note);
+
                 if (GitHandoff is not null)
                 {
+
                     if (string.IsNullOrWhiteSpace(GitHandoff.Task))
                     {
                         errors.Add("missing gitHandoff.task");
@@ -75,16 +79,21 @@ public sealed record HandoffDocument
                     {
                         errors.Add($"gitHandoff.task must be no longer than {MaxTextLength} characters; got {GitHandoff.Task.Length}");
                     }
+
                     if (GitHandoff.Commit is null)
                     {
                         errors.Add("missing gitHandoff.commit");
                     }
+
                 }
+
                 break;
             case HandoffKind.Note:
                 ValidateVariant(errors, "note", Note, GitHandoff);
+
                 if (Note is not null)
                 {
+
                     if (string.IsNullOrWhiteSpace(Note.Message))
                     {
                         errors.Add("missing note.message");
@@ -93,7 +102,9 @@ public sealed record HandoffDocument
                     {
                         errors.Add($"note.message must be no longer than {MaxTextLength} characters; got {Note.Message.Length}");
                     }
+
                 }
+
                 break;
             default:
                 errors.Add($"unknown handoff kind {Kind}");
@@ -108,10 +119,12 @@ public sealed record HandoffDocument
 
     private static void ValidateVariant(List<string> errors, string kindLabel, object? expected, object? unexpected)
     {
+
         if (expected is null)
         {
             errors.Add($"kind '{kindLabel}' requires its matching variant data");
         }
+
         if (unexpected is not null)
         {
             errors.Add($"kind '{kindLabel}' must not carry the other variant's data");

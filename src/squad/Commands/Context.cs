@@ -8,6 +8,7 @@ static class Context
 {
     public static int Run(string[] args)
     {
+
         if (args is ["-h" or "--help" or "help"])
         {
             Console.WriteLine("Usage: squad context [--field role | --json]");
@@ -15,6 +16,7 @@ static class Context
         }
 
         var context = Resolve();
+
         if (args.Length == 0)
         {
             Console.WriteLine($"Role: {context.Role}");
@@ -62,6 +64,3 @@ static class Context
 
     private sealed record ContextInfo(string Role, string ProjectRoot, string RoleWorktreeRoot, string SharedSourcePath);
 }
-
-
-

@@ -5,6 +5,7 @@ Feature: Handoff queues are launch-scoped, not restart-safe
   current Headquarters run only; "--continue" preserves Git worktree content, never queued mail.
 
   Scenario: A normal launch discards a stale handoff queue without delivering or waking any role
+
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
@@ -17,7 +18,9 @@ Feature: Handoff queues are launch-scoped, not restart-safe
     And role "reviewer" has a durable file ".blaxquad/handoffs/inbox/completed/50_stale_completed.handoff.json" containing "stale completed artifact"
     And role "reviewer" has a durable file ".blaxquad/handoffs/inbox/in_process/batch_20260822T120000Z_000001/50_stale_batch_item.handoff.json" containing "stale batch artifact"
     And role "coder" has a durable file ".blaxquad/handoffs/outbox/50_legacy_from_coder_to_reviewer.handoff" containing "legacy queue artifact"
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
     And "reviewer" has no new handoff
@@ -32,6 +35,7 @@ Feature: Handoff queues are launch-scoped, not restart-safe
     And role "coder"'s durable file ".blaxquad/handoffs/outbox/50_legacy_from_coder_to_reviewer.handoff" no longer exists
 
   Scenario: A continued launch also discards a stale handoff queue while preserving unrelated worktree content
+
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
@@ -40,7 +44,9 @@ Feature: Handoff queues are launch-scoped, not restart-safe
     And role "coder" has a durable file ".blaxquad/handoffs/outbox/50_stale_from_coder_to_reviewer.handoff.json" containing "stale outbox artifact"
     And role "reviewer" has a durable file ".blaxquad/handoffs/inbox/new/50_stale_new.handoff.json" containing "stale new artifact"
     And role "reviewer" has a durable file ".blaxquad/handoffs/inbox/in_process/batch_20260822T120000Z_000001/50_stale_batch_item.handoff.json" containing "stale batch artifact"
+
     When the operator launches Headquarters, continuing from durable state
+
     Then Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
     And "reviewer" has no new handoff
@@ -51,19 +57,25 @@ Feature: Handoff queues are launch-scoped, not restart-safe
     And role "reviewer"'s durable file ".blaxquad/handoffs/inbox/in_process/batch_20260822T120000Z_000001/50_stale_batch_item.handoff.json" no longer exists
 
   Scenario: A handoff created after a fresh launch still delivers, notifies, and completes normally
+
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
       | reviewer |
     And role "reviewer" has a durable file ".blaxquad/handoffs/inbox/new/50_stale_new.handoff.json" containing "stale new artifact"
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
     And "reviewer" has no new handoff
+
     Given "coder" prepares a note with priority "50" and message "Ready for review." to:
       | role     |
       | reviewer |
+
     When the "coder" role agent runs `squad handoff` from its worktree
+
     Then the sender handoff is archived as sent
     And "reviewer" has one new handoff
     And the "reviewer" agent observes the handoff wake-up message

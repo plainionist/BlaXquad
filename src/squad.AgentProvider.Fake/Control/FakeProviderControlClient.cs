@@ -40,6 +40,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
     {
         var pipeName = Environment.GetEnvironmentVariable(FakeProviderControlServer.PipeNameEnvironmentVariable);
         var token = Environment.GetEnvironmentVariable(FakeProviderControlServer.TokenEnvironmentVariable);
+
         if (string.IsNullOrEmpty(pipeName) || string.IsNullOrEmpty(token))
         {
             return null;
@@ -104,6 +105,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
             && correlationElement.ValueKind == JsonValueKind.String
             ? correlationElement.GetString()
             : null;
+
         if (string.IsNullOrEmpty(correlationId))
         {
             // No correlation id to reply under - nothing this client sends back could ever be routed to a
@@ -115,6 +117,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
             || versionElement.ValueKind != JsonValueKind.Number
             || versionElement.GetInt32() != ControlPipeDuplex.ProtocolVersion)
         {
+
             await duplex.SendAsync(
                 "protocol-error", correlationId,
                 new { message = $"Unsupported protocol version. Expected {ControlPipeDuplex.ProtocolVersion}." },
@@ -124,6 +127,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
 
         var type = envelope.TryGetProperty("type", out var typeElement) ? typeElement.GetString() : null;
         var payload = envelope.TryGetProperty("payload", out var payloadElement) ? payloadElement : default;
+
         switch (type)
         {
             case "reply":
@@ -154,6 +158,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
         var content = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("content", out var contentElement)
             ? contentElement.GetString()
             : null;
+
         if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId) || content is null)
         {
             await duplex.SendAsync(
@@ -162,11 +167,13 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
         }
 
         var error = await onReply(role, sessionId, content, cancellationToken);
+
         if (error is not null)
         {
             await duplex.SendAsync("protocol-error", correlationId, new { message = error }, cancellationToken);
             return;
         }
+
         await duplex.SendAsync("ack", correlationId, new { type = "reply" }, cancellationToken);
     }
 
@@ -186,6 +193,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
         var data = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("data", out var dataElement)
             ? dataElement
             : default;
+
         if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId) || string.IsNullOrEmpty(kind))
         {
             await duplex.SendAsync(
@@ -194,11 +202,13 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
         }
 
         var error = await onEmit(role, sessionId, kind, data, cancellationToken);
+
         if (error is not null)
         {
             await duplex.SendAsync("protocol-error", correlationId, new { message = error }, cancellationToken);
             return;
         }
+
         await duplex.SendAsync("ack", correlationId, new { type = "emit" }, cancellationToken);
     }
 
@@ -209,6 +219,7 @@ internal sealed class FakeProviderControlClient : IAsyncDisposable
         var message = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("message", out var messageElement)
             ? messageElement.GetString()
             : null;
+
         if (string.IsNullOrEmpty(message))
         {
             await duplex.SendAsync(

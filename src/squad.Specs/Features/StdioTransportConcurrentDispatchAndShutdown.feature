@@ -6,12 +6,19 @@ Feature: Stdio transport concurrent command dispatch and shutdown draining
   is requested.
 
   Scenario: A Headquarters-control shutdown drains a still in-flight prompt dispatch instead of hanging or crashing
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
+
     When the user sends "hello" to role "coder"
+
     Then the "coder" agent observes the prompt "hello"
+
     When the operator shuts down Headquarters
+
     Then Headquarters exits with code 0

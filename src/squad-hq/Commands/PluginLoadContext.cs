@@ -21,6 +21,7 @@ sealed class PluginLoadContext : AssemblyLoadContext
 
     protected override Assembly? Load(AssemblyName assemblyName)
     {
+
         if (assemblyName.Name is not null && mySharedAssemblyNames.Contains(assemblyName.Name))
         {
             return null;

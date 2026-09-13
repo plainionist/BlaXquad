@@ -7,5 +7,3 @@ public enum TranscriptAnnouncementKind
     AppendContent,
     Replace,
 }
-
-

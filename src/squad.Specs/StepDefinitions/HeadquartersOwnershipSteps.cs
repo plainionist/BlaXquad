@@ -218,10 +218,12 @@ public sealed class HeadquartersOwnershipSteps
             "--timeout",
             timeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
+
         if (projectRoot is not null)
         {
             arguments.Add(projectRoot);
         }
+
         var stopwatch = Stopwatch.StartNew();
         myWorkspace.RunBackendSpecSquadHq(arguments, workingDirectory: workingDirectory);
         myWaitElapsed = stopwatch.Elapsed;
@@ -230,7 +232,3 @@ public sealed class HeadquartersOwnershipSteps
     private static string Descriptor(Type pluginType) =>
         $"{pluginType.Assembly.Location};{pluginType.FullName}";
 }
-
-
-
-

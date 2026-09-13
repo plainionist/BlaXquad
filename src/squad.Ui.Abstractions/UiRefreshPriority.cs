@@ -8,5 +8,3 @@ public enum UiRefreshPriority
     /// <summary>Releases a pending refresh without waiting for the coalescing interval.</summary>
     Immediate,
 }
-
-

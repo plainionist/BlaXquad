@@ -19,11 +19,14 @@ const valueModel = computed({
 })
 
 const choices = computed(() => {
+
   if (props.property.oneOf)
     return props.property.oneOf.map(choice => ({
       value: choice.const,
       title: choice.title ?? String(choice.const),
+
     }))
+
   return (props.property.enum ?? []).map(value => ({
     value,
     title: String(value),
@@ -31,11 +34,14 @@ const choices = computed(() => {
 })
 
 const itemChoices = computed(() => {
+
   if (props.property.items?.oneOf)
     return props.property.items.oneOf.map(choice => ({
       value: choice.const,
       title: choice.title ?? choice.const,
+
     }))
+
   return (props.property.items?.enum ?? []).map(value => ({
     value,
     title: value,

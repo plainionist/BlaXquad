@@ -16,6 +16,7 @@ static class ProviderOption
 
         for (var i = 0; i < args.Length; i++)
         {
+
             if (args[i] != Flag)
             {
                 remaining.Add(args[i]);
@@ -41,6 +42,7 @@ static class ProviderOption
     private static ProviderDescriptor Parse(string value)
     {
         var separatorIndex = value.IndexOf(';');
+
         if (separatorIndex <= 0 || separatorIndex == value.Length - 1)
         {
             throw new CliExitException(1, $"The {Flag} value must be in the form <assemblyPath>;<typeName>, got '{value}'.");

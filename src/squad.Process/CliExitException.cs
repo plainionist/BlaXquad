@@ -8,12 +8,14 @@ public sealed class CliExitException : Exception
     public CliExitException(int exitCode, string? message = null) : base(message)
     {
         Contract.Requires(exitCode != 0, "exitCode must not be zero.");
+
         ExitCode = exitCode;
     }
 
     public CliExitException(int exitCode, string? message, Exception? innerException) : base(message, innerException)
     {
         Contract.Requires(exitCode != 0, "exitCode must not be zero.");
+
         ExitCode = exitCode;
     }
 }

@@ -157,6 +157,7 @@ test('uses renderable-row coordinates across long hidden runs', async ({ page })
     expect(Number(await transcript.getAttribute('data-projected-rows')))
       .toBeLessThan(100)
   }
+
   await assertBoundaryWindow()
   await transcript.evaluate(element => {
     element.scrollTop = 0
@@ -317,8 +318,10 @@ test('uses role-local targeted mutations for alternating large histories', async
     coder.getAttribute('data-index-rebuilds'),
     reviewer.getAttribute('data-index-rebuilds'),
   ])
+
   for (let offset = 0; offset < 100; offset++) {
     await page.evaluate(async ({ sequence }) => {
+
       for (const role of ['coder', 'reviewer']) {
         window.__blaxquadHarness?.receive({
           type: 'transcript.update',
@@ -331,6 +334,7 @@ test('uses role-local targeted mutations for alternating large histories', async
           },
         })
       }
+
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
     }, { sequence: offset + 2 })
   }
@@ -338,8 +342,10 @@ test('uses role-local targeted mutations for alternating large histories', async
   await expect(coder).toHaveAttribute('data-index-rebuilds', rebuilds[0]!)
   await expect(reviewer).toHaveAttribute('data-index-rebuilds', rebuilds[1]!)
   await expect(coder).toHaveAttribute('data-targeted-mutations', '100')
+
   await expect(reviewer).toHaveAttribute('data-targeted-mutations', '100')
   expect(await coder.locator('.transcript-line').count()).toBeLessThan(100)
+
   expect(Number(await coder.getAttribute('data-window-rows'))).toBeLessThan(100)
   expect(Number(await coder.getAttribute('data-projected-rows'))).toBeLessThan(100)
   expect(Number(await coder.getAttribute('data-measurement-count'))).toBeLessThan(100)
@@ -456,6 +462,7 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
     .filter({ hasText: 'coder' })
     .locator('.transcript')
   const measuredHeights: number[] = []
+
   for (const entryIndex of [100, 300]) {
     await transcript.evaluate((element, top) => {
       element.scrollTop = top
@@ -466,6 +473,7 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
     measuredHeights.push(
       await row.evaluate(element => element.getBoundingClientRect().height))
   }
+
   await transcript.evaluate(element => {
     element.scrollTop = element.scrollHeight
     element.dispatchEvent(new Event('scroll'))
@@ -475,10 +483,12 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
   await expect(transcript.locator('[data-entry-index="300"]')).toHaveCount(0)
   const accumulatedMeasurements = Number(
     await transcript.getAttribute('data-measurement-count'))
+
   expect(accumulatedMeasurements).toBeGreaterThan(
     await transcript.locator('.transcript-line').count())
 
   await page.evaluate(() => {
+
     for (const [sequence, entryIndex] of [[2, 100], [3, 300]]) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -497,6 +507,7 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
     }
   })
   await expect.poll(async () =>
+
     Number(await transcript.getAttribute('data-measurement-count')))
     .toBeLessThanOrEqual(await transcript.locator('.transcript-line').count())
 
@@ -506,6 +517,7 @@ test('clears measurements when a mutation batch requires rebuilding', async ({ p
       element.dispatchEvent(new Event('scroll'))
     }, targetIndex * 22)
     const row = transcript.locator(`[data-entry-index="${targetIndex}"]`)
+
     await expect(row).toBeVisible()
     expect(await row.evaluate(element => element.getBoundingClientRect().height))
       .toBeLessThan(measuredHeight)
@@ -659,7 +671,6 @@ test('preserves the viewport when an older page is prepended', async ({ page }) 
         }],
       },
     })
-
   }, entries)
 
   const transcript = page.locator('.role-panel').filter({ hasText: 'coder' }).locator('.transcript')
@@ -730,6 +741,7 @@ test('transitions atomically from a large tail to a small tail reset', async ({ 
       const ids = [...element.querySelectorAll<HTMLElement>(
         '.transcript-line[data-entry-index]')]
         .map(row => row.dataset.entryIndex)
+
       if (ids.length === 0 || new Set(ids).size !== ids.length)
         element.dataset.sawInvalidResetWindow = 'true'
     }).observe(element, { childList: true, subtree: true })
@@ -754,6 +766,7 @@ test('transitions atomically from a large tail to a small tail reset', async ({ 
   })
 
   await expect(transcript.getByText('small-999')).toBeVisible()
+
   await expect(transcript.locator('[data-entry-index]')).toHaveCount(3)
   await expect(transcript).toHaveAttribute('data-saw-invalid-reset-window', 'false')
   await expect(transcript).toHaveAttribute('data-window-rows', '3')
@@ -956,6 +969,7 @@ test('preserves the reading anchor when widening wrapped content reduces the scr
     .toBeCloseTo(anchor.offset, 0)
 
   await page.evaluate(() => {
+
     for (let offset = 0; offset < 12; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -982,6 +996,7 @@ test('preserves the reading anchor when widening wrapped content reduces the scr
     await transcript.evaluate(element => element.getBoundingClientRect().top)))
     .toBeCloseTo(anchor.offset, 0)
   await expect.poll(() => transcript.evaluate(element =>
+
     element.scrollHeight - element.scrollTop - element.clientHeight))
     .toBeGreaterThan(44)
 })
@@ -1064,11 +1079,13 @@ test('corrects thinking row geometry while following and reading', async ({ page
                 isWorking,
                 activeTool: undefined,
               }
+
             : role),
         },
       })
     }, { state: stateSnapshot, isWorking })
   }
+
   await updateWorkingState(false)
   const entries = Array.from({ length: 500 }, (_, entryIndex) => ({
     entryIndex,

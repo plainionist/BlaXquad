@@ -44,17 +44,24 @@ export function useTranscriptAnnouncements() {
       lastEntryStart: 0,
       truncated: false,
     }
+
     pending.truncated ||= truncated
+
     for (const fragment of fragments) {
       pending.truncated ||= fragment.truncated ?? false
       const sameEntry = pending.lastEntryIndex === fragment.entryIndex
+
       if (fragment.operation === 'replace' && sameEntry) {
         pending.content = pending.content.slice(0, pending.lastEntryStart)
+
       } else if (fragment.operation !== 'append-content' || !sameEntry) {
+
         if (pending.content.length > 0)
           pending.content += '\n'
+
         pending.lastEntryStart = pending.content.length
       }
+
       const content = fragment.operation === 'replace'
         && fragment.content.trim().length === 0
         ? removalMarker
@@ -62,16 +69,21 @@ export function useTranscriptAnnouncements() {
       pending.content += content
       pending.lastEntryIndex = fragment.entryIndex
     }
+
     if (pending.content.length === 0 && !pending.truncated) return
+
     if (pending.content.length > maxPendingCharacters) {
       const removedCharacters = pending.content.length - maxPendingCharacters
+
       pending.content = pending.content.slice(-maxPendingCharacters)
       pending.lastEntryStart = Math.max(
         0,
         pending.lastEntryStart - removedCharacters)
       pending.truncated = true
     }
+
     pendingAnnouncements.set(role, pending)
+
     if (!publicationTimers.has(role)) {
       publicationTimers.set(role, setTimeout(
         () => publishTranscriptAnnouncement(role),
@@ -81,23 +93,31 @@ export function useTranscriptAnnouncements() {
 
   function publishTranscriptAnnouncement(role: string) {
     publicationTimers.delete(role)
+
     const pending = pendingAnnouncements.get(role)
+
     if (!pending) return
+
     if (pending.content.trim().length === 0 && !pending.truncated)
       return
+
     pendingAnnouncements.delete(role)
+
     const prefix = pending.truncated
       ? `${omissionMarker}\n`
+
       : ''
     let item = {
       id: ++nextPublicationId,
       content: prefix + pending.content,
     }
+
     const existing = publishedAnnouncementsByRole.value[role] ?? []
     const existingCharacters = existing.reduce(
       (total, announcement) => total + announcement.content.length,
       0)
     let announcements = [...existing, item]
+
     if (announcements.length > maxPublishedItems
       || existingCharacters + item.content.length > maxPublishedCharacters) {
       const availableCharacters = Math.max(
@@ -107,8 +127,10 @@ export function useTranscriptAnnouncements() {
         ...item,
         content: `${omissionMarker}\n${pending.content.slice(-availableCharacters)}`,
       }
+
       announcements = [item]
     }
+
     publishedAnnouncementsByRole.value = {
       ...publishedAnnouncementsByRole.value,
       [role]: announcements,
@@ -116,6 +138,7 @@ export function useTranscriptAnnouncements() {
   }
 
   function dispose() {
+
     for (const timer of publicationTimers.values())
       clearTimeout(timer)
   }

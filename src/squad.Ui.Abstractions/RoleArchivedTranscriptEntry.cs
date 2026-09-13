@@ -11,5 +11,3 @@ public sealed record RoleArchivedTranscriptEntry(
     bool ContentTruncated,
     long TotalContentCharacters,
     int ArchivedPrefixCharacters);
-
-

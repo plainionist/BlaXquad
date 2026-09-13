@@ -9,6 +9,3 @@ internal readonly record struct UiMessage(
     string? Role,
     JsonElement Payload,
     string? EnvelopeError);
-
-
-

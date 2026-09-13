@@ -32,6 +32,7 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
     public SnapshotPublisher(Func<Task> publish, TimeSpan interval)
     {
         Contract.Requires(interval > TimeSpan.Zero, "interval must be positive.");
+
         myPublish = publish;
         myInterval = interval;
         myWorker = RunAsync();
@@ -43,6 +44,7 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
     /// </summary>
     public void Request(UiRefreshPriority priority)
     {
+
         if (Volatile.Read(ref myDisposed) != 0)
         {
             return;
@@ -65,20 +67,25 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
     {
         try
         {
+
             while (await myRequests.Reader.WaitToReadAsync(myShutdown.Token))
             {
                 DrainSignals();
                 var priority = Interlocked.Exchange(ref myPendingPriority, myNoRequest);
+
                 if (priority == myNoRequest)
                 {
                     continue;
                 }
+
                 if (priority == myDeferredRequest)
                 {
                     await WaitForDeferredPublicationAsync(myShutdown.Token);
                 }
+
                 await myPublish();
             }
+
         }
         catch (OperationCanceledException) when (myShutdown.IsCancellationRequested)
         {
@@ -88,10 +95,12 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
     private async Task WaitForDeferredPublicationAsync(CancellationToken cancellationToken)
     {
         var startedAt = Stopwatch.GetTimestamp();
+
         while (true)
         {
             var elapsed = Stopwatch.GetElapsedTime(startedAt);
             var remaining = myInterval - elapsed;
+
             if (remaining <= TimeSpan.Zero)
             {
                 break;
@@ -102,19 +111,23 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
             var request = myRequests.Reader.WaitToReadAsync(waitCancellation.Token).AsTask();
             var completed = await Task.WhenAny(delay, request);
             await waitCancellation.CancelAsync();
+
             if (completed == delay)
             {
                 await delay;
                 break;
             }
+
             await request;
 
             DrainSignals();
             var priority = Interlocked.Exchange(ref myPendingPriority, myNoRequest);
+
             if (priority == myImmediateRequest)
             {
                 break;
             }
+
         }
 
         DrainSignals();
@@ -123,18 +136,22 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
 
     private void UpgradePendingPriority(int requestedPriority)
     {
+
         while (true)
         {
             var currentPriority = Volatile.Read(ref myPendingPriority);
+
             if (currentPriority >= requestedPriority)
             {
                 return;
             }
+
             if (Interlocked.CompareExchange(
                     ref myPendingPriority,
                     requestedPriority,
                     currentPriority) == currentPriority)
             {
+
                 return;
             }
         }
@@ -142,6 +159,7 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
 
     private void DrainSignals()
     {
+
         while (myRequests.Reader.TryRead(out _))
         {
         }
@@ -149,10 +167,12 @@ internal sealed class SnapshotPublisher : IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+
         if (Interlocked.Exchange(ref myDisposed, 1) != 0)
         {
             return;
         }
+
         myRequests.Writer.TryComplete();
         await myShutdown.CancelAsync();
         await myWorker;

@@ -44,12 +44,15 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
             ["type"] = type,
             ["correlationId"] = correlationId,
         };
+
         if (payload is not null)
         {
             envelope["payload"] = payload;
         }
+
         var line = JsonSerializer.Serialize(envelope);
         await myWriteLock.WaitAsync(cancellationToken);
+
         try
         {
             await myWriter.WriteLineAsync(line.AsMemory(), cancellationToken);
@@ -68,6 +71,7 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
         var correlationId = Guid.NewGuid().ToString("n");
         var tcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         myPending[correlationId] = tcs;
+
         try
         {
             await SendAsync(type, correlationId, payload, cancellationToken);
@@ -90,10 +94,12 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
     /// interpret its own <see cref="SendAndAwaitAsync"/> replies consistently.</summary>
     public static void EnsureNotProtocolError(JsonElement response, string requestType)
     {
+
         if (!response.TryGetProperty("type", out var typeElement) || typeElement.GetString() != "protocol-error")
         {
             return;
         }
+
         var message = response.TryGetProperty("payload", out var payload)
             && payload.TryGetProperty("message", out var messageElement)
             ? messageElement.GetString()
@@ -103,9 +109,11 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
 
     private async Task RunDispatchLoopAsync()
     {
+
         while (true)
         {
             string? line;
+
             try
             {
                 line = await myReader.ReadLineAsync();
@@ -114,12 +122,14 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
             {
                 break;
             }
+
             if (line is null)
             {
                 break;
             }
 
             JsonElement root;
+
             try
             {
                 using var document = JsonDocument.Parse(line);
@@ -149,12 +159,15 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
 
     private void FailAllPending(Exception exception)
     {
+
         foreach (var correlationId in myPending.Keys.ToArray())
         {
+
             if (myPending.TryRemove(correlationId, out var pending))
             {
                 pending.TrySetException(exception);
             }
+
         }
     }
 
@@ -166,6 +179,7 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
         // loop afterward completes instead of deadlocking forever on its own pending read.
         await myWriter.DisposeAsync();
         await myPipe.DisposeAsync();
+
         if (myDispatchLoop is not null)
         {
             try
@@ -177,6 +191,7 @@ internal sealed class ControlPipeDuplex : IAsyncDisposable
                 // Best-effort: disposal must never fail because the dispatch loop observed a closed pipe.
             }
         }
+
         myReader.Dispose();
     }
 }

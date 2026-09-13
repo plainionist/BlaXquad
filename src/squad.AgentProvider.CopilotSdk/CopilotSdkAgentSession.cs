@@ -44,6 +44,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     internal void Attach(CopilotSdkRuntimeSession runtimeSession)
     {
         Contract.Invariant(myRuntimeSession is null, "A Copilot SDK session can be attached at most once.");
+
         myRuntimeSession = runtimeSession;
         myContextLimitResolution = ResolveContextLimitAsync(runtimeSession);
         myUsageRefresh = new UsageRefreshCoordinator(RefreshUsageAsync);
@@ -64,6 +65,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     public Task SendHarnessAsync(string prompt, CancellationToken cancellationToken = default)
     {
         EnsureActive();
+
         lock (myInteractionLock)
             myPendingHarnessMessageEchoes.Enqueue(prompt);
         Publish(new AgentHarnessMessageEvent(DateTimeOffset.UtcNow, prompt));
@@ -74,10 +76,12 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     {
         lock (myInteractionLock)
         {
+
             if (myPendingHarnessMessageEchoes.Count == 0 || !string.Equals(myPendingHarnessMessageEchoes.Peek(), content, StringComparison.Ordinal))
             {
                 return false;
             }
+
             myPendingHarnessMessageEchoes.Dequeue();
             return true;
         }
@@ -86,10 +90,12 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     /// <summary>Routes one raw SDK event through the usage refresh coordinator ahead of normal event translation.</summary>
     internal void NotifyUsageActivity(bool isIdle)
     {
+
         if (myDisposed || myFailure is not null)
         {
             return;
         }
+
         if (isIdle)
         {
             myUsageRefresh?.NotifyIdle();
@@ -104,10 +110,12 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     {
         lock (myContextUsageLock)
         {
+
             if (myDisposed || myFailure is not null)
             {
                 return;
             }
+
             myContextUsedTokens = currentTokens;
             PublishContextUsage();
         }
@@ -161,33 +169,43 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
 
     public async ValueTask DisposeAsync()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         lock (myInteractionLock)
         {
+
             if (myDisposed)
             {
                 return;
             }
+
             myDisposed = true;
         }
+
         try
         {
             CancelPendingInteractionsCore(CancellationToken.None);
+
             if (myUsageRefresh is not null)
             {
                 await myUsageRefresh.DisposeAsync();
             }
+
             await myContextLimitResolution;
+
             if (myFailure is not null)
             {
                 await myFailureTeardown.Task;
             }
+
             if (myRuntimeSession is not null)
             {
                 var disposal = myRuntimeSession.DisposeAsync().AsTask();
+
                 if (myFailure is not null)
                 {
                     await disposal.WaitAsync(myFailureTeardownTimeout);
@@ -196,7 +214,9 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
                 {
                     await disposal;
                 }
+
             }
+
         }
         finally
         {
@@ -215,10 +235,12 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
             var contextLimit = await runtimeSession.GetContextLimitAsync().ConfigureAwait(false);
             lock (myContextUsageLock)
             {
+
                 if (myDisposed || myFailure is not null || contextLimit is not > 0)
                 {
                     return;
                 }
+
                 myContextLimitTokens = contextLimit;
                 PublishContextUsage();
             }
@@ -230,7 +252,9 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
 
     private void PublishContextUsage()
     {
+
         if (myContextUsedTokens is { } usedTokens && myContextLimitTokens is { } limitTokens)
+
         {
             Publish(new AgentContextUsageEvent(DateTimeOffset.UtcNow, usedTokens, limitTokens));
         }
@@ -239,11 +263,14 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     private async Task RefreshUsageAsync(CancellationToken cancellationToken)
     {
         var runtimeSession = myRuntimeSession;
+
         if (runtimeSession is null || myDisposed || myFailure is not null)
         {
             return;
         }
+
         var usage = await runtimeSession.GetAicUsageAsync(cancellationToken);
+
         if (!myDisposed && myFailure is null)
         {
             Publish(new AgentSessionUsageEvent(DateTimeOffset.UtcNow, usage));
@@ -268,10 +295,12 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         PendingProviderInteraction[] pendingInteractions;
         lock (myInteractionLock)
         {
+
             if (myDisposed || myFailure is not null)
             {
                 return;
             }
+
             myFailure = exception;
             pendingInteractions = myPendingInteractions.Values.ToArray();
             myPendingInteractions.Clear();
@@ -280,6 +309,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         myEvents.Complete(exception);
         _ = TeardownAfterFailureAsync(teardownRuntimeSession);
         myCompletion.TrySetException(exception);
+
         foreach (var pendingInteraction in pendingInteractions)
         {
             pendingInteraction.Fail(exception);
@@ -294,10 +324,12 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     /// </summary>
     private async Task TeardownAfterFailureAsync(bool teardownRuntimeSession)
     {
+
         if (myUsageRefresh is not null)
         {
             await myUsageRefresh.DisposeAsync().ConfigureAwait(false);
         }
+
         await myContextLimitResolution.ConfigureAwait(false);
 
         if (teardownRuntimeSession)
@@ -312,6 +344,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
 
     private async Task TeardownFailedRuntimeSessionAsync()
     {
+
         if (myRuntimeSession is null)
         {
             myFailureTeardown.TrySetResult();
@@ -319,6 +352,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         }
 
         Exception abortFailure;
+
         try
         {
             using var abortCancellation = new CancellationTokenSource(myFailureTeardownTimeout);
@@ -356,14 +390,18 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
     {
         lock (myInteractionLock)
         {
+
             if (myFailure is { } failure)
+
             {
                 throw failure;
             }
+
             if (myDisposed)
             {
                 throw new ObjectDisposedException(nameof(CopilotSdkAgentSession));
             }
+
         }
     }
 
@@ -373,17 +411,23 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         var pendingInteraction = new PendingProviderInteraction.Typed<TResponse>();
         lock (myInteractionLock)
         {
+
             if (myFailure is { } failure)
+
             {
                 throw failure;
             }
+
             if (myDisposed)
             {
                 throw new ObjectDisposedException(nameof(CopilotSdkAgentSession));
             }
+
             myPendingInteractions.Add(requestId, pendingInteraction);
         }
+
         await PublishAsync(request, cancellationToken).ConfigureAwait(false);
+
         try
         {
             return await pendingInteraction.Task.WaitAsync(cancellationToken);
@@ -395,10 +439,12 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
                 // Only remove this request's own registration. A normal response, or a cancel/fault/abort/dispose
                 // path, already removed it under this same lock; guarding on reference identity means this method
                 // can never remove some unrelated, later registration that happened to reuse this request id.
+
                 if (myPendingInteractions.TryGetValue(requestId, out var current) && ReferenceEquals(current, pendingInteraction))
                 {
                     myPendingInteractions.Remove(requestId);
                 }
+
             }
         }
     }
@@ -409,17 +455,22 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         PendingProviderInteraction.Typed<TResponse> pendingInteraction;
         lock (myInteractionLock)
         {
+
             if (myFailure is { } failure)
+
             {
                 throw failure;
             }
+
             if (!myPendingInteractions.TryGetValue(requestId, out var pending) || pending is not PendingProviderInteraction.Typed<TResponse> typed)
             {
                 throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{MemberId}'.");
             }
+
             pendingInteraction = typed;
             myPendingInteractions.Remove(requestId);
         }
+
         pendingInteraction.Complete(response);
         return Task.CompletedTask;
     }
@@ -432,6 +483,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
             pendingInteractions = myPendingInteractions.Values.ToArray();
             myPendingInteractions.Clear();
         }
+
         foreach (var pendingInteraction in pendingInteractions)
         {
             pendingInteraction.Cancel(cancellationToken);
@@ -445,6 +497,7 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         Contract.Requires(
             request is AgentPermissionRequest or AgentInputRequest or AgentElicitationRequest,
             "Expected an interaction request.");
+
         return request switch
         {
             AgentPermissionRequest permission => permission.RequestId,
@@ -454,4 +507,3 @@ internal sealed class CopilotSdkAgentSession : IAgentSession
         };
     }
 }
-

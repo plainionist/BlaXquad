@@ -59,8 +59,10 @@ export class ScrollController {
     this.myLastScrollTop = viewport.scrollTop
     this.myObservedMaximum = this.viewportGeometry.naturalMaximum()
     this.viewportGeometry.observe(change => {
+
       if (this.myDisposed)
         return
+
       const clamped = this.reportGeometryChange('resize')
       onViewportChange({
         ...change,
@@ -86,12 +88,17 @@ export class ScrollController {
 
   writePosition(target: number) {
     const element = this.viewportGeometry.viewportElement()
+
     if (!element)
       return
+
     const maximum = this.viewportGeometry.naturalMaximum()
+
     const clampedTarget = Math.max(0, Math.min(target, maximum))
+
     if (Math.abs(element.scrollTop - clampedTarget) < 0.5)
       return
+
     element.scrollTop = clampedTarget
     this.expectPosition(element.scrollTop, 'self')
     this.myLastScrollTop = element.scrollTop
@@ -110,12 +117,14 @@ export class ScrollController {
   ) {
     await Promise.resolve()
     const element = this.viewportGeometry.viewportElement()
+
     if (!isCurrent()
       || !element
       || Math.abs(
         guard.position - guard.lastClassifiedPosition) >= 0.5
       || Math.abs(element.scrollTop - guard.position) >= 0.5)
       return
+
     this.writePosition(element.scrollHeight)
   }
 
@@ -140,23 +149,31 @@ export class ScrollController {
 
   reportGeometryChange(origin: 'layout' | 'resize' = 'layout') {
     const element = this.viewportGeometry.viewportElement()
+
     if (!element)
       return false
+
     const previousMaximum = this.myObservedMaximum
+
     const maximum = this.viewportGeometry.naturalMaximum()
     const position = element.scrollTop
+
     const clamped = maximum < this.myObservedMaximum - 0.5
       && this.myLastScrollTop > maximum + 0.5
       && Math.abs(position - maximum) < 0.5
+
     if (clamped) {
       const currentPositionResolved =
         this.myIntentClassifier.resolveGeometryClamp(
           maximum,
           previousMaximum,
           origin)
+
       if (!currentPositionResolved)
         this.expectPosition(position, origin)
+
     }
+
     this.myObservedMaximum = maximum
     return clamped
   }

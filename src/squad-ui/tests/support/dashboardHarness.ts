@@ -25,8 +25,10 @@ export async function deliverHostMessages(
   options: HostDeliveryOptions = {},
 ) {
   await page.evaluate(({ hostMessages, clearClientMessagesAfter }) => {
+
     for (const message of hostMessages)
       window.__blaxquadHarness?.receive(message)
+
     if (clearClientMessagesAfter)
       window.__blaxquadHarness!.messages.length = 0
   }, {
@@ -213,15 +215,18 @@ export async function loadPagedTranscriptAtReadingPosition(page: Page) {
       const ids = [...element.querySelectorAll<HTMLElement>(
         '.transcript-line[data-entry-index]')]
         .map(row => row.dataset.entryIndex)
+
       if (ids.length === 0 || new Set(ids).size !== ids.length)
         element.dataset.sawInvalidResetWindow = 'true'
     }).observe(element, { childList: true, subtree: true })
   })
+
   const anchor = transcript.locator('[data-entry-index="40"]')
   await expect(anchor).toBeVisible()
   return {
     transcript,
     anchorOffset: await anchor.evaluate((element, viewportTop) =>
+
       element.getBoundingClientRect().top - viewportTop,
     await transcript.evaluate(element => element.getBoundingClientRect().top)),
   }
@@ -232,7 +237,9 @@ export async function firstVisibleTranscriptRow(transcript: Locator) {
     const viewportTop = element.getBoundingClientRect().top
     const row = [...element.querySelectorAll<HTMLElement>('.transcript-line')]
       .find(candidate => candidate.getBoundingClientRect().bottom >= viewportTop)
+
     if (!row) throw new Error('No visible transcript row.')
+
     return {
       entryIndex: Number(row.dataset.entryIndex),
       offset: row.getBoundingClientRect().top - viewportTop,

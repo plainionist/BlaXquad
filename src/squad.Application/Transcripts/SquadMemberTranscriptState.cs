@@ -108,10 +108,12 @@ internal sealed class SquadMemberTranscriptState
             entryIndex,
             retainedEntry,
             ContentStart: contentStart));
+
         if (protect)
         {
             myProtectedTranscriptEntries.Add(entryIndex);
         }
+
         myRetainedContentCharacters += retainedEntry.Content.Length;
         EnforceRetentionLimits();
         return update with
@@ -148,16 +150,20 @@ internal sealed class SquadMemberTranscriptState
         ToolCallId toolCallId,
         string output)
     {
+
         if (!myToolTranscriptEntries.TryGetValue(toolCallId, out var tool))
         {
             return null;
         }
+
         tool = tool with { Output = output, Progress = null };
         myToolTranscriptEntries[toolCallId] = tool;
+
         if (tool.SuppressOutput)
         {
             return null;
         }
+
         return ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
     }
 
@@ -165,14 +171,17 @@ internal sealed class SquadMemberTranscriptState
         ToolCallId toolCallId,
         string progress)
     {
+
         if (!myToolTranscriptEntries.TryGetValue(toolCallId, out var tool))
         {
             return null;
         }
+
         if (tool.SuppressOutput)
         {
             return null;
         }
+
         tool = tool with { Progress = progress };
         myToolTranscriptEntries[toolCallId] = tool;
         return ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
@@ -187,20 +196,25 @@ internal sealed class SquadMemberTranscriptState
         string? displayOutputFallback,
         string? contentFallback)
     {
+
         if (!myToolTranscriptEntries.Remove(toolCallId, out var tool))
         {
             return null;
         }
+
         TranscriptUpdate? update = null;
+
         if (tool.SuppressOutput)
         {
             var content = tool.Output.Length > 0 ? tool.Output : contentFallback;
+
             if (tool.AppendLineCount && !string.IsNullOrEmpty(content))
             {
                 var lineCount = CountLines(content);
                 tool = tool with { Entry = tool.Entry with { Content = $"{tool.Entry.Content} [1..{lineCount}]" } };
                 update = ReplaceTranscriptEntry(tool.EntryIndex, tool.Entry);
             }
+
         }
         else if (tool.Output.Length == 0 && !string.IsNullOrEmpty(displayOutputFallback))
         {
@@ -212,6 +226,7 @@ internal sealed class SquadMemberTranscriptState
             tool = tool with { Progress = null };
             update = ReplaceTranscriptEntry(tool.EntryIndex, CreateToolEntry(tool));
         }
+
         myProtectedTranscriptEntries.Remove(tool.EntryIndex);
         var activeTool = myToolTranscriptEntries.Values.LastOrDefault()?.ToolName;
         EnforceRetentionLimits();
@@ -262,6 +277,7 @@ internal sealed class SquadMemberTranscriptState
         Contract.Invariant(
             myProtectedTranscriptEntries.Contains(entryIndex),
             "Unprotect target must be a currently protected transcript entry.");
+
         myProtectedTranscriptEntries.Remove(entryIndex);
         EnforceRetentionLimits();
     }
@@ -276,6 +292,7 @@ internal sealed class SquadMemberTranscriptState
         Contract.Invariant(
             (buffer is null) == (entryIndex is null),
             "A streaming buffer and its entry index must be either both present or both absent.");
+
         if (buffer is null)
         {
             buffer = new TranscriptEntryBuffer(
@@ -310,6 +327,7 @@ internal sealed class SquadMemberTranscriptState
                 ContentStart = buffer.ContentStart,
             };
         }
+
         buffer.Append(content);
         myTranscriptArchive.Apply(new TranscriptUpdate(
             myMemberId,
@@ -319,6 +337,7 @@ internal sealed class SquadMemberTranscriptState
             null,
             content));
         EnforceRetentionLimits();
+
         if (!buffer.IsTruncated)
         {
             return CreateUpdate(
@@ -331,6 +350,7 @@ internal sealed class SquadMemberTranscriptState
                     TranscriptAnnouncementKind.AppendContent,
                     content));
         }
+
         var materializedEntry = buffer.CreateEntry();
         return CreateUpdate(
             TranscriptUpdateKind.ReplaceEntry,
@@ -357,6 +377,7 @@ internal sealed class SquadMemberTranscriptState
         Contract.Invariant(
             (buffer is null) == (entryIndex is null),
             "A streaming buffer and its entry index must be either both present or both absent.");
+
         if (entryIndex is int index)
         {
             var announcement = buffer?.Matches(entry.Content) == true
@@ -368,6 +389,7 @@ internal sealed class SquadMemberTranscriptState
             var (retainedContent, contentStart) = LimitRetainedContent(entry.Content);
             var retainedEntry = entry with { Content = retainedContent };
             var localIndex = myTranscriptEntries.FindIndex(item => item.EntryIndex == index);
+
             if (localIndex >= 0)
             {
                 myRetainedContentCharacters -= myTranscriptEntries[localIndex].Entry.Content.Length;
@@ -377,6 +399,7 @@ internal sealed class SquadMemberTranscriptState
                     ContentStart: contentStart);
                 myRetainedContentCharacters += retainedEntry.Content.Length;
             }
+
             buffer = null;
             entryIndex = null;
             var update = CreateUpdate(
@@ -396,6 +419,7 @@ internal sealed class SquadMemberTranscriptState
                 ContentStart = contentStart,
             };
         }
+
         buffer = null;
         entryIndex = null;
         return AddTranscriptEntry(entry);
@@ -408,6 +432,7 @@ internal sealed class SquadMemberTranscriptState
         var (retainedContent, contentStart) = LimitRetainedContent(entry.Content);
         var retainedEntry = entry with { Content = retainedContent };
         var localIndex = myTranscriptEntries.FindIndex(item => item.EntryIndex == entryIndex);
+
         if (localIndex >= 0)
         {
             myRetainedContentCharacters -= myTranscriptEntries[localIndex].Entry.Content.Length;
@@ -417,6 +442,7 @@ internal sealed class SquadMemberTranscriptState
                 ContentStart: contentStart);
             myRetainedContentCharacters += retainedEntry.Content.Length;
         }
+
         var update = CreateUpdate(
             TranscriptUpdateKind.ReplaceEntry,
             entryIndex,
@@ -453,9 +479,11 @@ internal sealed class SquadMemberTranscriptState
         Contract.Invariant(
             (buffer is null) == (entryIndex is null),
             "A streaming buffer and its entry index must be either both present or both absent.");
+
         if (buffer is not null && entryIndex is int index)
         {
             var localIndex = myTranscriptEntries.FindIndex(item => item.EntryIndex == index);
+
             if (localIndex >= 0)
             {
                 var entry = buffer.CreateEntry();
@@ -465,7 +493,9 @@ internal sealed class SquadMemberTranscriptState
                     ContentStart: buffer.ContentStart);
                 myRetainedContentCharacters += entry.Content.Length;
             }
+
         }
+
         buffer = null;
         entryIndex = null;
         EnforceRetentionLimits();
@@ -476,6 +506,7 @@ internal sealed class SquadMemberTranscriptState
         var entries = myTranscriptEntries.ToArray();
         MaterializeStreamingEntry(entries, myAssistantEntryBuffer, myAssistantTranscriptEntryIndex);
         MaterializeStreamingEntry(entries, myReasoningEntryBuffer, myReasoningTranscriptEntryIndex);
+
         for (var index = 0; index < entries.Length; index++)
         {
             var entry = entries[index];
@@ -493,6 +524,7 @@ internal sealed class SquadMemberTranscriptState
                 HasArchivedContent = hasArchivedContent,
             };
         }
+
         return entries;
     }
 
@@ -526,10 +558,12 @@ internal sealed class SquadMemberTranscriptState
         string content)
     {
         var maximumCharacters = myRetentionOptions.MaxAnnouncementCharacters;
+
         if (content.Length <= maximumCharacters)
         {
             return new(entryIndex, kind, content);
         }
+
         return new(
             entryIndex,
             kind,
@@ -542,11 +576,14 @@ internal sealed class SquadMemberTranscriptState
         TranscriptEntryBuffer? buffer,
         int? entryIndex)
     {
+
         if (buffer is null || entryIndex is not int index)
         {
             return;
         }
+
         var localIndex = Array.FindIndex(entries, item => item.EntryIndex == index);
+
         if (localIndex >= 0)
         {
             entries[localIndex] = new IndexedTranscriptEntry(
@@ -559,25 +596,31 @@ internal sealed class SquadMemberTranscriptState
     private void EnforceRetentionLimits()
     {
         Contract.Invariant(myRetainedContentCharacters >= 0, "Retained content characters must not become negative.");
+
         while (myTranscriptEntries.Count > myRetentionOptions.MaxRetainedEntries
             || RetainedContentCharacters() > myRetentionOptions.MaxRetainedContentCharacters)
         {
+
             var removableIndex = myTranscriptEntries.FindIndex(item =>
                 item.EntryIndex != myAssistantTranscriptEntryIndex
                 && item.EntryIndex != myReasoningTranscriptEntryIndex
                 && !myProtectedTranscriptEntries.Contains(item.EntryIndex));
+
             if (removableIndex < 0)
             {
                 removableIndex = myTranscriptEntries.FindIndex(item =>
                     item.EntryIndex != myAssistantTranscriptEntryIndex
                     && item.EntryIndex != myReasoningTranscriptEntryIndex);
             }
+
             if (removableIndex < 0)
             {
                 return;
             }
+
             myRetainedContentCharacters -= myTranscriptEntries[removableIndex].Entry.Content.Length;
             Contract.Invariant(myRetainedContentCharacters >= 0, "Retained content characters must not become negative.");
+
             myTranscriptEntries.RemoveAt(removableIndex);
         }
     }
@@ -590,10 +633,12 @@ internal sealed class SquadMemberTranscriptState
     private (string Content, long ContentStart) LimitRetainedContent(string content)
     {
         var maxCharacters = myRetentionOptions.MaxRetainedEntryCharacters;
+
         if (content.Length <= maxCharacters)
         {
             return (content, 0);
         }
+
         var contentLength = Math.Max(0, maxCharacters - myArchivedContentAvailableMarker.Length);
         var retainedMarker = myArchivedContentAvailableMarker[
             ..Math.Min(myArchivedContentAvailableMarker.Length, maxCharacters)];
@@ -602,11 +647,13 @@ internal sealed class SquadMemberTranscriptState
 
     private static string MarkArchivedContentUnavailable(string content)
     {
+
         if (content.StartsWith(myArchivedContentAvailableMarker, StringComparison.Ordinal))
         {
             return myArchivedContentUnavailableMarker
                 + content[myArchivedContentAvailableMarker.Length..];
         }
+
         return myArchivedContentUnavailableMarker[
             ..Math.Min(myArchivedContentUnavailableMarker.Length, content.Length)];
     }

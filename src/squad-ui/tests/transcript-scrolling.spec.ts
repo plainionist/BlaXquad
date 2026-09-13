@@ -175,6 +175,7 @@ test('resumes following after the user scrolls back to the transcript tail', asy
   await page.waitForTimeout(50)
   await expect(transcript).toHaveAttribute('data-following', 'true')
   await page.evaluate(() => {
+
     for (let offset = 0; offset < 4; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -196,7 +197,9 @@ test('resumes following after the user scrolls back to the transcript tail', asy
   await expect(transcript.getByText('following resumed 4')).toBeVisible()
   await expect.poll(() => transcript.evaluate(element =>
     element.scrollHeight - element.scrollTop - element.clientHeight)).toBeLessThan(2)
+
   await page.evaluate(() => {
+
     for (let offset = 0; offset < 4; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -255,8 +258,10 @@ test('resumes against the updated tail when output arrives during scroll classif
 
   await transcript.evaluate(element => {
     element.addEventListener('scroll', event => {
+
       if (!event.isTrusted || element.dataset.appendedDuringClassification)
         return
+
       element.dataset.appendedDuringClassification = 'true'
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -285,11 +290,13 @@ test('resumes against the updated tail when output arrives during scroll classif
   await transcript.evaluate(() => new Promise<void>(resolve => {
     let remainingFrames = 5
     const waitForFrame = () => {
+
       if (--remainingFrames === 0)
         resolve()
       else
         requestAnimationFrame(waitForFrame)
     }
+
     requestAnimationFrame(waitForFrame)
   }))
   expect(await transcript.evaluate(element =>
@@ -299,6 +306,7 @@ test('resumes against the updated tail when output arrives during scroll classif
 
 test('consumes each expected internal scroll position once', async ({ page }) => {
   await loadSnapshot(page)
+
   const entries = Array.from({ length: 500 }, (_, entryIndex) => ({
     entryIndex,
     occurredAt: '2026-03-01T12:00:00Z',
@@ -331,6 +339,7 @@ test('consumes each expected internal scroll position once', async ({ page }) =>
     const positions: number[] = []
     const transcriptElement = document.querySelector<HTMLElement>(
       '.role-panel .transcript')
+
     for (let offset = 0; offset < 3; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -352,6 +361,7 @@ test('consumes each expected internal scroll position once', async ({ page }) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
       positions.push(transcriptElement?.scrollTop ?? 0)
     }
+
     return positions
   })
 
@@ -362,6 +372,7 @@ test('consumes each expected internal scroll position once', async ({ page }) =>
   expect(currentPosition - formerPosition).toBeGreaterThan(44)
 
   await transcript.hover()
+
   await page.mouse.wheel(0, formerPosition - currentPosition)
   await expect.poll(() => transcript.evaluate(element => element.scrollTop))
     .toBeCloseTo(formerPosition, 0)
@@ -407,8 +418,10 @@ test('keeps a newer anchor correction authoritative over deferred classification
   }))
   await transcript.evaluate((element, older) => {
     element.addEventListener('scroll', event => {
+
       if (!event.isTrusted || element.dataset.updatedDuringClassification)
         return
+
       element.dataset.updatedDuringClassification = 'true'
       window.__blaxquadHarness?.receive({
         type: 'transcript.page',
@@ -419,6 +432,7 @@ test('keeps a newer anchor correction authoritative over deferred classification
           historyTruncated: false,
         },
       })
+
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
         payload: {
@@ -481,15 +495,19 @@ test('restores the reading anchor after confirming a concurrent scroll away', as
   }))
   await transcript.evaluate((element, older) => {
     element.addEventListener('scroll', event => {
+
       if (!event.isTrusted || element.dataset.pagedDuringClassification)
         return
+
       element.dataset.pagedDuringClassification = 'true'
       const viewportTop = element.getBoundingClientRect().top
       const anchor = [...element.querySelectorAll<HTMLElement>(
         '.transcript-line[data-entry-index]')]
         .find(row => row.getBoundingClientRect().bottom > viewportTop)
+
       if (!anchor)
         throw new Error('Expected a visible reading anchor.')
+
       element.dataset.concurrentAnchorIndex = anchor.dataset.entryIndex
       element.dataset.concurrentAnchorOffset = String(
         anchor.getBoundingClientRect().top - viewportTop)
@@ -507,6 +525,7 @@ test('restores the reading anchor after confirming a concurrent scroll away', as
 
   await transcript.hover()
   await page.mouse.wheel(0, -600)
+
   await expect(transcript).toHaveAttribute('data-following', 'false')
   const anchor = await transcript.evaluate(element => ({
     entryIndex: Number(element.dataset.concurrentAnchorIndex),
@@ -522,11 +541,13 @@ test('restores the reading anchor after confirming a concurrent scroll away', as
   await transcript.evaluate(() => new Promise<void>(resolve => {
     let remainingFrames = 5
     const waitForFrame = () => {
+
       if (--remainingFrames === 0)
         resolve()
       else
         requestAnimationFrame(waitForFrame)
     }
+
     requestAnimationFrame(waitForFrame)
   }))
   expect(await transcript
@@ -569,12 +590,15 @@ test('keeps following when a tail row grows before a programmatic scroll event i
   await transcript.evaluate(element => {
     const growTail = () => {
       const tail = element.querySelector<HTMLElement>('[data-entry-index="500"]')
+
       if (!tail)
         return
+
       tail.style.minHeight = '180px'
       element.dataset.tailGrowth = 'grown'
       element.removeEventListener('scroll', growTail, true)
     }
+
     element.addEventListener('scroll', growTail, true)
   })
 
@@ -761,6 +785,7 @@ test('preserves the reading anchor when a tall tail replacement clamps the scrol
     await transcript.evaluate(element => element.getBoundingClientRect().top)))
     .toBeCloseTo(anchor.offset, 0)
   await page.evaluate(async () => {
+
     for (let offset = 0; offset < 12; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -784,6 +809,7 @@ test('preserves the reading anchor when a tall tail replacement clamps the scrol
   await expect.poll(async () => transcript
     .locator(`[data-entry-index="${anchor.entryIndex}"]`)
     .evaluate((element, viewportTop) =>
+
       element.getBoundingClientRect().top - viewportTop,
     await transcript.evaluate(element => element.getBoundingClientRect().top)))
     .toBeCloseTo(anchor.offset, 0)
@@ -798,6 +824,7 @@ test('preserves the reading anchor when a tall tail replacement clamps the scrol
     }))
   })
   await transcript.hover()
+
   await page.mouse.wheel(0, 10000)
   await expect(transcript).toHaveAttribute('data-following', 'true')
   const lastRow = transcript.locator('[data-entry-index="511"]')
@@ -841,8 +868,10 @@ test('preserves the reading anchor when a measured tail row shrinks', async ({ p
   const tail = transcript.locator('[data-entry-index="499"]')
   await expect(tail).toBeVisible()
   await tail.evaluate(element => {
+
     if (!(element instanceof HTMLElement))
       throw new Error('Expected the rendered tail row.')
+
     element.style.minHeight = '400px'
   })
   await expect.poll(() => tail.evaluate(element =>
@@ -857,14 +886,18 @@ test('preserves the reading anchor when a measured tail row shrinks', async ({ p
   const anchor = await firstVisibleTranscriptRow(transcript)
 
   await tail.evaluate(element => {
+
     if (!(element instanceof HTMLElement))
       throw new Error('Expected the rendered tail row.')
+
     element.style.minHeight = ''
   })
 
   await expect.poll(() => tail.evaluate(element =>
+
     element.getBoundingClientRect().height)).toBeLessThan(100)
   await expect(transcript).toHaveAttribute('data-following', 'false')
+
   await expect.poll(async () => transcript
     .locator(`[data-entry-index="${anchor.entryIndex}"]`)
     .evaluate((element, viewportTop) =>
@@ -873,6 +906,7 @@ test('preserves the reading anchor when a measured tail row shrinks', async ({ p
     .toBeCloseTo(anchor.offset, 0)
 
   await page.evaluate(() => {
+
     for (let offset = 0; offset < 12; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -898,6 +932,7 @@ test('preserves the reading anchor when a measured tail row shrinks', async ({ p
       element.getBoundingClientRect().top - viewportTop,
     await transcript.evaluate(element => element.getBoundingClientRect().top)))
     .toBeCloseTo(anchor.offset, 0)
+
   await expect.poll(() => transcript.evaluate(element =>
     element.scrollHeight - element.scrollTop - element.clientHeight))
     .toBeGreaterThan(44)
@@ -941,11 +976,13 @@ test('keeps a superseded layout clamp internal during anchor correction', async 
   await transcript.evaluate(() => new Promise<void>(resolve => {
     let remainingFrames = 3
     const waitForFrame = () => {
+
       if (--remainingFrames === 0)
         resolve()
       else
         requestAnimationFrame(waitForFrame)
     }
+
     requestAnimationFrame(waitForFrame)
   }))
   await expect(transcript).toHaveAttribute('data-following', 'false')
@@ -954,8 +991,10 @@ test('keeps a superseded layout clamp internal during anchor correction', async 
   await transcript.evaluate(element => {
     element.dataset.trustedCorrectionPositions = '[]'
     element.addEventListener('scroll', event => {
+
       if (!event.isTrusted)
         return
+
       const positions = JSON.parse(
         element.dataset.trustedCorrectionPositions ?? '[]') as number[]
       positions.push(element.scrollTop)
@@ -983,8 +1022,10 @@ test('keeps a superseded layout clamp internal during anchor correction', async 
   await expect.poll(() => transcript.evaluate(element => {
     const positions = JSON.parse(
       element.dataset.trustedCorrectionPositions ?? '[]') as number[]
+
     return new Set(positions.map(position => Math.round(position))).size
   })).toBeGreaterThanOrEqual(2)
+
   await expect(transcript).toHaveAttribute('data-following', 'false')
   await expect.poll(async () => transcript
     .locator(`[data-entry-index="${anchor.entryIndex}"]`)
@@ -1002,6 +1043,7 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
       __holdTranscriptFrames?: boolean
       __releaseTranscriptFrames?: () => void
     }
+
     const controlledWindow = window as ControlledWindow
     const NativeResizeObserver = window.ResizeObserver
     const nativeRequestAnimationFrame =
@@ -1012,34 +1054,46 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
     const pendingFrames = new Map<number, FrameRequestCallback>()
     let frameId = 1_000_000
     window.requestAnimationFrame = callback => {
+
       if (!controlledWindow.__holdTranscriptFrames)
         return nativeRequestAnimationFrame(callback)
+
       const id = frameId++
       pendingFrames.set(id, callback)
       return id
     }
+
     window.cancelAnimationFrame = id => {
+
       if (!pendingFrames.delete(id))
         nativeCancelAnimationFrame(id)
     }
+
     controlledWindow.__releaseTranscriptFrames = () => {
       controlledWindow.__holdTranscriptFrames = false
+
       for (const callback of pendingFrames.values())
         nativeRequestAnimationFrame(callback)
+
       pendingFrames.clear()
     }
+
     controlledWindow.__flushTranscriptResize = () => {
       controlledWindow.__delayTranscriptResize = false
+
       for (const publish of pendingCallbacks.splice(0))
         publish()
     }
+
     class ControlledResizeObserver {
       private readonly myObserver: ResizeObserver
 
       constructor(callback: ResizeObserverCallback) {
         this.myObserver = new NativeResizeObserver((entries) => {
           const publish = () =>
+
             callback(entries, this as unknown as ResizeObserver)
+
           if (controlledWindow.__delayTranscriptResize)
             pendingCallbacks.push(publish)
           else
@@ -1059,6 +1113,7 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
         this.myObserver.disconnect()
       }
     }
+
     window.ResizeObserver =
       ControlledResizeObserver as unknown as typeof ResizeObserver
   })
@@ -1087,11 +1142,14 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
   const transcript = page.locator('.role-panel')
     .filter({ hasText: 'coder' })
     .locator('.transcript')
+
   const tail = transcript.locator('[data-entry-index="499"]')
   await expect(tail).toBeVisible()
   await tail.evaluate(element => {
+
     if (!(element instanceof HTMLElement))
       throw new Error('Expected the rendered tail row.')
+
     element.style.minHeight = '600px'
   })
   await expect.poll(() => tail.evaluate(element =>
@@ -1105,11 +1163,13 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
   await transcript.evaluate(() => new Promise<void>(resolve => {
     let remainingFrames = 3
     const waitForFrame = () => {
+
       if (--remainingFrames === 0)
         resolve()
       else
         requestAnimationFrame(waitForFrame)
     }
+
     requestAnimationFrame(waitForFrame)
   }))
   await expect(transcript).toHaveAttribute('data-following', 'false')
@@ -1120,30 +1180,38 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
       __delayTranscriptResize?: boolean
       __holdTranscriptFrames?: boolean
     }
+
     controlledWindow.__delayTranscriptResize = true
     controlledWindow.__holdTranscriptFrames = true
   })
   await transcript.evaluate(element => {
     element.dataset.progressiveClampPositions = '[]'
     element.addEventListener('scroll', event => {
+
       if (!event.isTrusted)
         return
+
       const positions = JSON.parse(
         element.dataset.progressiveClampPositions ?? '[]') as number[]
       positions.push(element.scrollTop)
       element.dataset.progressiveClampPositions = JSON.stringify(positions)
       const distinctPositions = new Set(
         positions.map(position => Math.round(position)))
+
       if (distinctPositions.size === 1) {
         const tailRow = element.querySelector<HTMLElement>(
           '[data-entry-index="499"]')
+
         if (!tailRow)
           throw new Error('Expected the rendered tail row.')
+
         tailRow.style.minHeight = ''
       }
+
       if (distinctPositions.size < 2
         || element.dataset.progressiveGeometryFlushed)
         return
+
       element.dataset.progressiveGeometryFlushed =
         String(distinctPositions.size)
       queueMicrotask(() => {
@@ -1151,14 +1219,17 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
           __flushTranscriptResize?: () => void
           __releaseTranscriptFrames?: () => void
         }
+
         controlledWindow.__flushTranscriptResize?.()
         controlledWindow.__releaseTranscriptFrames?.()
       })
     })
   })
   await tail.evaluate(element => {
+
     if (!(element instanceof HTMLElement))
       throw new Error('Expected the rendered tail row.')
+
     element.style.minHeight = '250px'
   })
 
@@ -1170,6 +1241,7 @@ test('preserves reading state across overlapping progressive clamps', async ({ p
   await expect.poll(async () => transcript
     .locator(`[data-entry-index="${anchor.entryIndex}"]`)
     .evaluate((element, viewportTop) =>
+
       element.getBoundingClientRect().top - viewportTop,
     await transcript.evaluate(element => element.getBoundingClientRect().top)))
     .toBeCloseTo(anchor.offset, 0)
@@ -1214,7 +1286,9 @@ for (const scenario of [
           this.myObserver.disconnect()
         }
       }
+
       window.ResizeObserver =
+
         DeferredResizeObserver as unknown as typeof ResizeObserver
     })
     await loadSnapshot(page)
@@ -1245,8 +1319,10 @@ for (const scenario of [
     const tail = transcript.locator('[data-entry-index="499"]')
     await expect(tail).toBeVisible()
     await tail.evaluate(element => {
+
       if (!(element instanceof HTMLElement))
         throw new Error('Expected the rendered tail row.')
+
       element.style.minHeight = '600px'
     })
     await expect.poll(() => tail.evaluate(element =>
@@ -1256,16 +1332,19 @@ for (const scenario of [
       .toBeLessThan(2)
 
     await transcript.hover()
+
     if (scenario.beginReading) {
       await page.mouse.wheel(0, -700)
       await transcript.evaluate(() => new Promise<void>(resolve => {
         let remainingFrames = 3
         const waitForFrame = () => {
+
           if (--remainingFrames === 0)
             resolve()
           else
             requestAnimationFrame(waitForFrame)
         }
+
         requestAnimationFrame(waitForFrame)
       }))
       await expect(transcript).toHaveAttribute('data-following', 'false')
@@ -1274,34 +1353,44 @@ for (const scenario of [
     await transcript.evaluate(element => {
       element.dataset.mixedOriginPositions = '[]'
       element.addEventListener('scroll', event => {
+
         if (!event.isTrusted)
           return
+
         const positions = JSON.parse(
           element.dataset.mixedOriginPositions ?? '[]') as number[]
+
         positions.push(element.scrollTop)
         element.dataset.mixedOriginPositions = JSON.stringify(positions)
+
         if (element.dataset.mixedOriginCorrectionStarted)
           return
+
         element.dataset.mixedOriginCorrectionStarted = 'true'
         const tailRow = element.querySelector<HTMLElement>(
           '[data-entry-index="499"]')
+
         if (!tailRow)
           throw new Error('Expected the rendered tail row.')
+
         const viewportTop = element.getBoundingClientRect().top
         const anchor = [...element.querySelectorAll<HTMLElement>(
           '.transcript-line[data-entry-index]')]
           .find(row => row.getBoundingClientRect().bottom > viewportTop)
+
         if (anchor) {
           element.dataset.mixedOriginAnchorIndex = anchor.dataset.entryIndex
           element.dataset.mixedOriginAnchorOffset = String(
             anchor.getBoundingClientRect().top - viewportTop)
         }
+
         tailRow.style.minHeight = ''
       })
     })
 
     await page.mouse.wheel(0, scenario.userDelta)
     await expect.poll(() => tail.evaluate(element =>
+
       element.getBoundingClientRect().height)).toBeLessThan(100)
     await expect.poll(() => transcript.evaluate(element => {
       const positions = JSON.parse(
@@ -1313,6 +1402,7 @@ for (const scenario of [
 
     if (scenario.expectedFollowing === 'true') {
       await expect.poll(() => transcript.evaluate(element =>
+
         element.scrollHeight - element.scrollTop - element.clientHeight))
         .toBeLessThan(2)
     }
@@ -1322,11 +1412,13 @@ for (const scenario of [
         offset: Number(element.dataset.mixedOriginAnchorOffset),
       }))
       expect(anchor.entryIndex).not.toBeNaN()
+
       await expect.poll(async () => transcript
         .locator(`[data-entry-index="${anchor.entryIndex}"]`)
         .evaluate((element, viewportTop) =>
           element.getBoundingClientRect().top - viewportTop,
         await transcript.evaluate(element =>
+
           element.getBoundingClientRect().top)))
         .toBeCloseTo(anchor.offset, 0)
     }
@@ -1372,6 +1464,7 @@ test('preserves the reading anchor when the transcript viewport grows during scr
 
   await expect(panel.getByText('Permission required')).toHaveCount(0)
   await expect(transcript).toHaveAttribute('data-following', 'false')
+
   await expect.poll(async () => transcript
     .locator(`[data-entry-index="${anchor.entryIndex}"]`)
     .evaluate((element, viewportTop) =>
@@ -1379,6 +1472,7 @@ test('preserves the reading anchor when the transcript viewport grows during scr
     await transcript.evaluate(element => element.getBoundingClientRect().top)))
     .toBeCloseTo(anchor.offset, 0)
   await page.evaluate(() => {
+
     for (let offset = 0; offset < 8; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -1435,6 +1529,7 @@ test('stops following after a nested transcript button scrolls with the keyboard
 
   const transcript = page.locator('.role-panel').filter({ hasText: 'coder' }).locator('.transcript')
   const loadEntry = transcript.getByRole('button', { name: 'Load full entry' })
+
   await expect(loadEntry).toBeVisible()
   const tailScrollTop = await transcript.evaluate(element => element.scrollTop)
   await loadEntry.press('PageUp')
@@ -1579,6 +1674,7 @@ test('resumes following when focus navigation enters the transcript at its tail'
     element.scrollHeight - element.scrollTop - element.clientHeight)).toBeLessThan(44)
   await expect(transcript).toHaveAttribute('data-following', 'true')
   await page.evaluate(() => {
+
     for (let offset = 0; offset < 4; offset++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -1627,16 +1723,20 @@ test('stops following when text selection autoscrolls the transcript', async ({ 
 
   const transcript = page.locator('.role-panel').filter({ hasText: 'coder' }).locator('.transcript')
   const tailContent = transcript.locator('[data-entry-index="499"] .transcript-content')
+
   await expect(tailContent).toBeVisible()
   const tailScrollTop = await transcript.evaluate(element => element.scrollTop)
   const transcriptBox = await transcript.boundingBox()
   const contentBox = await tailContent.boundingBox()
+
   if (!transcriptBox || !contentBox)
     throw new Error('Expected the transcript and tail content to have layout boxes.')
+
   await page.mouse.move(contentBox.x + contentBox.width / 2, contentBox.y + contentBox.height / 2)
   await page.mouse.down()
   await page.waitForTimeout(250)
   await page.mouse.move(contentBox.x + contentBox.width / 2, transcriptBox.y - 30, { steps: 12 })
+
   await page.waitForTimeout(400)
   await page.mouse.up()
 
@@ -1701,8 +1801,10 @@ test('active selection movement cancels concurrent history anchor restoration', 
   await expect(tailContent).toBeVisible()
   const transcriptBox = await transcript.boundingBox()
   const contentBox = await tailContent.boundingBox()
+
   if (!transcriptBox || !contentBox)
     throw new Error('Expected the transcript and tail content to have layout boxes.')
+
   const selectionTailScrollTop = await transcript.evaluate(element => element.scrollTop)
   await page.mouse.move(contentBox.x + contentBox.width / 2, contentBox.y + contentBox.height / 2)
   await page.mouse.down()
@@ -1892,6 +1994,7 @@ test('keeps viewport windowing active during rapid tail streaming', async ({ pag
   const anchor = await firstVisibleTranscriptRow(transcript)
 
   await page.evaluate(async () => {
+
     for (let sequence = 2; sequence <= 21; sequence++) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',

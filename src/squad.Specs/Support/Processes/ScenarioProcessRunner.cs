@@ -26,12 +26,15 @@ internal sealed class ScenarioProcessRunner : IDisposable
     {
         var startInfo = CreateStartInfo(executable, environment, workingDirectory);
         startInfo.RedirectStandardInput = redirectStandardInput;
+
         if (arguments is not null)
         {
+
             foreach (var argument in arguments)
             {
                 startInfo.ArgumentList.Add(argument);
             }
+
         }
 
         var process = System.Diagnostics.Process.Start(startInfo)
@@ -47,6 +50,7 @@ internal sealed class ScenarioProcessRunner : IDisposable
         string workingDirectory)
     {
         var startInfo = CreateStartInfo(executable, environment, workingDirectory);
+
         foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
@@ -81,14 +85,17 @@ internal sealed class ScenarioProcessRunner : IDisposable
     /// </summary>
     public void Dispose()
     {
+
         foreach (var process in myRunningProcesses)
         {
             try
             {
+
                 if (!process.HasExited)
                 {
                     process.Kill(entireProcessTree: true);
                 }
+
                 process.WaitForExit((int)ProcessExitTimeout.TotalMilliseconds);
             }
             catch (Exception exception)
@@ -117,13 +124,17 @@ internal sealed class ScenarioProcessRunner : IDisposable
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+
         if (environment is not null)
         {
+
             foreach (var (name, value) in environment)
             {
                 startInfo.Environment[name] = value;
             }
+
         }
+
         return startInfo;
     }
 }

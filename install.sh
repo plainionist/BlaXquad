@@ -16,6 +16,7 @@ esac
 BIN_DIR="$ROOT_DIR/bin"
 
 if [ "$RID" = "linux-x64" ]; then
+
   if ! command -v ldconfig >/dev/null 2>&1 ||
     ! ldconfig -p 2>/dev/null | grep -q 'libwebkit2gtk-4\.1\.so\.0' ||
     ! ldconfig -p 2>/dev/null | grep -q 'libnotify\.so\.4'; then
@@ -26,6 +27,7 @@ Install WebKitGTK 4.1 and libnotify, then rerun this script. On Ubuntu/Debian:
 EOF
     exit 1
   fi
+
 fi
 
 rm -rf "$BIN_DIR"

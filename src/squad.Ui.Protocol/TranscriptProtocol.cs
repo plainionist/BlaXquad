@@ -158,5 +158,3 @@ internal static class TranscriptProtocol
         _ => throw new UnreachableException($"Unhandled transcript source '{source}'."),
     };
 }
-
-

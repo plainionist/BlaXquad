@@ -15,8 +15,10 @@ static class ReadyForNext
             var members = SquadConfig.ReadMembers(projectRoot);
             var member = CurrentRoleResolver.Resolve(members, roleWorktreeRoot);
             var role = member.Id.Value;
+
             if (member.ReceiveMode is null)
             {
+
                 if (string.IsNullOrEmpty(member.RawReceiveMode))
                 {
                     Console.Error.WriteLine($"Unknown role: {role}");
@@ -33,14 +35,13 @@ static class ReadyForNext
         }
         catch (CliExitException ex)
         {
+
             if (!string.IsNullOrEmpty(ex.Message))
             {
                 Console.Error.WriteLine(ex.Message);
             }
+
             return ex.ExitCode;
         }
     }
 }
-
-
-

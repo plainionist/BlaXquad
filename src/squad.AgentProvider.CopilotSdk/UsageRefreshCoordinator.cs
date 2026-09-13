@@ -30,10 +30,12 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
     /// <summary>Runs the immediate initial refresh performed once when a session is attached.</summary>
     public void RunInitialRefresh()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         myUsage.Run(myLifetime.Token);
     }
 
@@ -42,17 +44,21 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
     {
         lock (myLock)
         {
+
             if (myDisposed)
             {
                 return;
             }
+
             myDirty = true;
+
             if (!myActive)
             {
                 myActive = true;
                 myWindowCancellation = CancellationTokenSource.CreateLinkedTokenSource(myLifetime.Token);
                 myWindowLoop = RunWindowLoopAsync(myWindowCancellation.Token);
             }
+
         }
     }
 
@@ -65,15 +71,18 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
         CancellationTokenSource? windowCancellation;
         lock (myLock)
         {
+
             if (myDisposed)
             {
                 return;
             }
+
             myActive = false;
             myDirty = false;
             windowCancellation = myWindowCancellation;
             myWindowCancellation = null;
         }
+
         windowCancellation?.Cancel();
         myUsage.RunFinal(myLifetime.Token);
     }
@@ -83,10 +92,12 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
         Task? windowLoop;
         lock (myLock)
         {
+
             if (myDisposed)
             {
                 return;
             }
+
             myDisposed = true;
             myActive = false;
             myDirty = false;
@@ -114,6 +125,7 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
     {
         try
         {
+
             while (true)
             {
                 await Task.Delay(myRefreshInterval, cancellationToken).ConfigureAwait(false);
@@ -121,10 +133,12 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
                 bool shouldRefresh;
                 lock (myLock)
                 {
+
                     if (!myActive)
                     {
                         return;
                     }
+
                     shouldRefresh = myDirty;
                     myDirty = false;
                 }
@@ -135,7 +149,9 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
                     // window (e.g. an idle race) must never cancel a refresh already under way.
                     myUsage.Run(myLifetime.Token);
                 }
+
             }
+
         }
         catch (OperationCanceledException)
         {
@@ -160,10 +176,12 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
         {
             lock (myLock)
             {
+
                 if (myInFlight is not null)
                 {
                     return;
                 }
+
                 myInFlight = ExecuteLoopAsync(cancellationToken);
             }
         }
@@ -172,11 +190,13 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
         {
             lock (myLock)
             {
+
                 if (myInFlight is not null)
                 {
                     myFinalPending = true;
                     return;
                 }
+
                 myInFlight = ExecuteLoopAsync(cancellationToken);
             }
         }
@@ -188,10 +208,12 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
             {
                 current = myInFlight;
             }
+
             if (current is null)
             {
                 return;
             }
+
             try
             {
                 await current.ConfigureAwait(false);
@@ -203,6 +225,7 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
 
         private async Task ExecuteLoopAsync(CancellationToken cancellationToken)
         {
+
             while (true)
             {
                 try
@@ -217,11 +240,13 @@ internal sealed class UsageRefreshCoordinator : IAsyncDisposable
 
                 lock (myLock)
                 {
+
                     if (myFinalPending)
                     {
                         myFinalPending = false;
                         continue;
                     }
+
                     myInFlight = null;
                     return;
                 }

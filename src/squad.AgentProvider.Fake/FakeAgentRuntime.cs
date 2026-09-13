@@ -32,8 +32,10 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
         var gateAfterSessions = ReadStartupGateAfterSessions();
         var failAfterSessions = ReadFailAfterSessions();
         var sessionIndex = 0;
+
         foreach (var role in context.Roles)
         {
+
             if (gateAfterSessions == sessionIndex)
             {
                 // Blocks on the same cancellation token SquadRuntime.StartAsync was given, which
@@ -47,12 +49,15 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
             var session = new FakeAgentSession(role.MemberId, myControl);
             mySessions.Add(session);
             await sessionStarted(session);
+
             if (myControl is not null)
             {
                 await myControl.NotifySessionStartedAsync(session.MemberId.Value, session.SessionId, cancellationToken);
             }
+
             await session.SendHarnessAsync(role.InitialInstruction, cancellationToken);
             sessionIndex++;
+
             if (failAfterSessions == sessionIndex)
             {
                 // Mirrors a real provider runtime throwing partway through establishing sessions: every session
@@ -61,6 +66,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
                 // never started at all.
                 throw new InvalidOperationException($"fake provider failed after starting {sessionIndex} session(s)");
             }
+
         }
     }
 
@@ -87,10 +93,12 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
     private Task<string?> HandleReplyAsync(string role, string sessionId, string content, CancellationToken cancellationToken)
     {
         var session = FindSession(role, sessionId, out var error);
+
         if (session is null)
         {
             return Task.FromResult(error);
         }
+
         session.DeliverReply(content);
         return Task.FromResult<string?>(null);
     }
@@ -107,30 +115,37 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
     private FakeAgentSession? FindSession(string role, string sessionId, out string? error)
     {
         var session = mySessions.FirstOrDefault(candidate => candidate.MemberId.Value == role && candidate.SessionId == sessionId);
+
         if (session is null)
         {
             error = $"No session '{sessionId}' for role '{role}' exists.";
             return null;
         }
+
         if (session.IsDisposed)
         {
             error = $"Session '{sessionId}' for role '{role}' has been disposed.";
             return null;
         }
+
         error = null;
         return session;
     }
 
     public async ValueTask DisposeAsync()
     {
+
         foreach (var session in mySessions)
         {
             await session.DisposeAsync();
+
             if (myControl is not null)
             {
                 await myControl.NotifySessionDisposedAsync(session.MemberId.Value, session.SessionId, CancellationToken.None);
             }
+
         }
+
         if (myControl is not null)
         {
             await myControl.DisposeAsync();
@@ -142,6 +157,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
         // still surfaces this runtime's own retirement failure with a distinct diagnostic independent of
         // whatever primary startup or runtime failure (if any) is what triggered cleanup in the first place.
         var disposalFailureMessage = ReadDisposalFailureMessage();
+
         if (disposalFailureMessage is not null)
         {
             throw new InvalidOperationException(disposalFailureMessage);
@@ -154,4 +170,3 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
     private static string? ReadDisposalFailureMessage() =>
         Environment.GetEnvironmentVariable(FakeProviderControlServer.FailDisposalMessageEnvironmentVariable);
 }
-

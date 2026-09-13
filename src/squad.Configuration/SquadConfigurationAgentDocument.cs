@@ -8,6 +8,3 @@ internal sealed class SquadConfigurationAgentDocument
     [JsonPropertyName("model")] public string? Model { get; init; }
     [JsonPropertyName("effort")] public string? Effort { get; init; }
 }
-
-
-

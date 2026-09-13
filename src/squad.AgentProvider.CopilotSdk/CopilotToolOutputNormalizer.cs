@@ -25,15 +25,18 @@ internal sealed class CopilotToolOutputNormalizer
     {
         lock (myStateLock)
         {
+
             if (!myOutputs.TryGetValue(toolCallId, out var state))
             {
                 state = new(null, StreamingMode.Unknown);
             }
+
             if (state.Output is null)
             {
                 myOutputs[toolCallId] = state with { Output = partialOutput };
                 return partialOutput;
             }
+
             if (string.Equals(partialOutput, state.Output, StringComparison.Ordinal))
             {
                 return null;
@@ -67,4 +70,3 @@ internal sealed class CopilotToolOutputNormalizer
 
     private sealed record ToolOutputState(string? Output, StreamingMode Mode);
 }
-

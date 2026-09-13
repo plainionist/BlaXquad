@@ -11,22 +11,28 @@ public static class ProjectRoot
     public static string ResolveViaGit()
     {
         var gitRoot = GitRevParse("--show-toplevel");
+
         if (gitRoot is not null)
         {
+
             if (HasSquadConfig(gitRoot))
             {
                 return gitRoot;
             }
 
             var common = GitCommonDir();
+
             if (common is not null)
             {
                 var candidate = Path.GetDirectoryName(common)!;
+
                 if (HasSquadConfig(candidate))
                 {
                     return gitRoot;
                 }
+
             }
+
         }
 
         throw new CliExitException(1, myNotFoundMessage);
@@ -36,13 +42,16 @@ public static class ProjectRoot
     public static string ResolveProjectRoot(string worktreeRoot)
     {
         var common = GitCommonDir(worktreeRoot);
+
         if (common is not null)
         {
             var candidate = Path.GetDirectoryName(common)!;
+
             if (HasSquadConfig(candidate))
             {
                 return candidate;
             }
+
         }
 
         if (HasSquadConfig(worktreeRoot))
@@ -64,17 +73,17 @@ public static class ProjectRoot
     private static string? GitCommonDir(string? workingDir = null)
     {
         var path = GitRevParse("--git-common-dir", workingDir);
+
         if (path is null)
         {
             return null;
         }
+
         if (!Path.IsPathRooted(path))
         {
             path = workingDir is not null ? Path.GetFullPath(path, workingDir) : Path.GetFullPath(path);
         }
+
         return path;
     }
 }
-
-
-

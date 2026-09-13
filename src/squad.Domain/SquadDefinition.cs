@@ -16,6 +16,7 @@ public sealed record SquadDefinition
         Contract.Requires(
             Members.Any(member => member.Id == Leader),
             "The leader must be a member of the roster.");
+
         this.Members = Members;
         this.Leader = Leader;
     }

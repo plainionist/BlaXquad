@@ -6,5 +6,3 @@ public sealed record TranscriptAnnouncement(
     TranscriptAnnouncementKind Kind,
     string Content,
     bool Truncated = false);
-
-

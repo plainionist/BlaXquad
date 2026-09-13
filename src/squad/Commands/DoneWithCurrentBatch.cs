@@ -44,16 +44,19 @@ static class DoneWithCurrentBatch
             {
                 Fail(2, $"AMBIGUOUS_TASK_STATE: batch contains no tasks: {sourceDir}");
             }
+
             if (Path.Exists(targetDir))
             {
                 Fail(2, $"AMBIGUOUS_TASK_STATE: completed batch already exists: {targetDir}");
             }
 
             Directory.CreateDirectory(targetDir);
+
             foreach (var sourceFile in batchFiles)
             {
                 HandoffJson.Update(sourceFile, document => document with { CompletedAt = completedAt });
                 var targetFile = Path.Combine(targetDir, Path.GetFileName(sourceFile));
+
                 if (Path.Exists(targetFile))
                 {
                     Fail(2, $"AMBIGUOUS_TASK_STATE: completed batch file already exists: {targetFile}");
@@ -69,10 +72,12 @@ static class DoneWithCurrentBatch
         }
         catch (CliExitException ex)
         {
+
             if (!string.IsNullOrEmpty(ex.Message))
             {
                 Console.Error.WriteLine(ex.Message);
             }
+
             return ex.ExitCode;
         }
     }
@@ -80,13 +85,12 @@ static class DoneWithCurrentBatch
     static void Fail(int status, string headline, IReadOnlyList<string>? items = null)
     {
         var lines = new List<string> { headline };
+
         if (items is not null)
         {
             lines.AddRange(items.Select(i => $"- {i}"));
         }
+
         throw new CliExitException(status, string.Join("\n", lines));
     }
 }
-
-
-

@@ -23,6 +23,7 @@ public sealed class QueueSteps
     public void GivenRoleHasQueuedTasks(string role, DataTable tasks)
     {
         myWorkspace.Set(CurrentRoleKey, role);
+
         foreach (var row in tasks.Rows)
         {
             myTaskMailbox.QueueTask(role, row["from"], row["priority"], row["task"]);
@@ -109,6 +110,3 @@ public sealed class QueueSteps
 
     private string CurrentRole() => myWorkspace.Get<string>(CurrentRoleKey);
 }
-
-
-

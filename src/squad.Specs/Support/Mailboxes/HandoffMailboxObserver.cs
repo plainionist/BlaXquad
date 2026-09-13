@@ -78,6 +78,7 @@ public sealed class HandoffMailboxObserver
               "note": { "message": "{{message}}" },
               "createdAt": "2026-08-22T12:00:00Z"
             }
+
             """);
     }
 
@@ -98,6 +99,7 @@ public sealed class HandoffMailboxObserver
 
     private static IReadOnlyList<QueuedHandoff> ListHandoffs(string directory)
     {
+
         if (!Directory.Exists(directory))
         {
             return [];

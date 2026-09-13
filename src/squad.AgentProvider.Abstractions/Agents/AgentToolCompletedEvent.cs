@@ -7,7 +7,3 @@ public sealed record AgentToolCompletedEvent(
 	bool Succeeded,
 	string? DisplayOutputFallback = null,
 	string? ContentFallback = null) : AgentEvent(OccurredAt);
-
-
-
-

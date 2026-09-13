@@ -50,6 +50,7 @@ public sealed class HeadquartersLease : IAsyncDisposable
         Directory.CreateDirectory(stateDir);
         var lockPath = Path.Combine(stateDir, "host.lock");
         FileStream? lockFile = null;
+
         try
         {
             lockFile = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
@@ -76,18 +77,22 @@ public sealed class HeadquartersLease : IAsyncDisposable
         catch
         {
             var metadata = Path.Combine(stateDir, "host.json");
+
             try
             {
+
                 if (File.Exists(metadata))
                 {
                     File.Delete(metadata);
                 }
+
             }
             finally
             {
                 try { UnlockFile(lockFile!); } catch { }
                 lockFile!.Dispose();
             }
+
             throw;
         }
     }
@@ -95,10 +100,12 @@ public sealed class HeadquartersLease : IAsyncDisposable
     /// <summary>Removes Headquarters metadata only after acquiring the project lock, proving that the record is stale.</summary>
     internal static bool RemoveStaleMetadata(string projectRoot)
     {
+
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
         {
             return false;
         }
+
         var cleanupLease = lease!;
         using (cleanupLease)
             cleanupLease.RemoveStaleMetadata();
@@ -108,10 +115,12 @@ public sealed class HeadquartersLease : IAsyncDisposable
     /// <summary>Returns whether the project lock can be acquired momentarily, indicating that no live Headquarters instance owns it.</summary>
     internal static bool TryAcquireProbe(string projectRoot)
     {
+
         if (!TryAcquireCleanupLease(projectRoot, out var lease))
         {
             return false;
         }
+
         lease!.Dispose();
         return true;
     }
@@ -127,6 +136,7 @@ public sealed class HeadquartersLease : IAsyncDisposable
         Directory.CreateDirectory(stateDir);
         var lockPath = Path.Combine(stateDir, "host.lock");
         FileStream? lockFile = null;
+
         try
         {
             lockFile = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
@@ -149,10 +159,12 @@ public sealed class HeadquartersLease : IAsyncDisposable
     {
         var fullPath = Path.GetFullPath(projectRoot);
         var root = Path.GetPathRoot(fullPath);
+
         if (fullPath.Length > root!.Length)
         {
             fullPath = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
+
         return fullPath;
     }
 
@@ -177,9 +189,11 @@ public sealed class HeadquartersLease : IAsyncDisposable
 
     private async Task RunServerAsync(TaskCompletionSource ready)
     {
+
         while (!myShutdown.IsCancellationRequested)
         {
             var listenerCreated = false;
+
             try
             {
                 await using var pipe = new NamedPipeServerStream(myPipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
@@ -189,10 +203,12 @@ public sealed class HeadquartersLease : IAsyncDisposable
                 using var reader = new StreamReader(pipe, new UTF8Encoding(false), leaveOpen: true);
                 await using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
                 var request = ParseRequest(await reader.ReadLineAsync(myShutdown.Token));
+
                 if (request?.Command == "shutdown")
                 {
                     myShutdownRequested.TrySetResult();
                 }
+
                 await writer.WriteLineAsync(await CreateResponseAsync(request, myShutdown.Token));
             }
             catch (OperationCanceledException) when (myShutdown.IsCancellationRequested)
@@ -202,8 +218,10 @@ public sealed class HeadquartersLease : IAsyncDisposable
             }
             catch (Exception exception)
             {
+
                 if (!listenerCreated)
                 {
+
                     if (ready.Task.IsCompletedSuccessfully)
                     {
                         myServerFailure.TrySetException(exception);
@@ -212,8 +230,10 @@ public sealed class HeadquartersLease : IAsyncDisposable
                     {
                         ready.TrySetException(exception);
                     }
+
                     return;
                 }
+
             }
         }
     }
@@ -222,16 +242,20 @@ public sealed class HeadquartersLease : IAsyncDisposable
         HeadquartersControlRequest? request,
         CancellationToken cancellationToken)
     {
+
         if (request is null)
         {
             return """{"version":1,"status":"error","message":"invalid request"}""";
         }
+
         if (request.Command == "agent-status")
         {
+
             if (string.IsNullOrWhiteSpace(request.Role))
             {
                 return """{"version":1,"status":"error","message":"role is required"}""";
             }
+
             var provider = Volatile.Read(ref myAgentReadinessProvider);
             var readiness = provider is null
                 ? null
@@ -251,19 +275,23 @@ public sealed class HeadquartersLease : IAsyncDisposable
                 role = request.Role,
             });
         }
+
         return $"{{\"version\":1,\"status\":\"ok\",\"message\":\"{request.Command}\"}}";
     }
 
     private static HeadquartersControlRequest? ParseRequest(string? request)
     {
+
         if (string.IsNullOrWhiteSpace(request))
         {
             return null;
         }
+
         try
         {
             using var document = JsonDocument.Parse(request);
             var root = document.RootElement;
+
             if (root.ValueKind != JsonValueKind.Object
                 || !root.TryGetProperty("version", out var version)
                 || !version.TryGetInt32(out var versionNumber)
@@ -271,13 +299,17 @@ public sealed class HeadquartersLease : IAsyncDisposable
                 || !root.TryGetProperty("command", out var commandElement)
                 || commandElement.ValueKind != JsonValueKind.String)
             {
+
                 return null;
             }
+
             var command = commandElement.GetString();
+
             if (command is not ("ping" or "shutdown" or "agent-status"))
             {
                 return null;
             }
+
             var role = root.TryGetProperty("role", out var roleElement)
                 && roleElement.ValueKind == JsonValueKind.String
                 ? roleElement.GetString()
@@ -289,28 +321,36 @@ public sealed class HeadquartersLease : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         myDisposed = true;
         myShutdown.Cancel();
+
         try
         {
+
             if (myServer is not null)
             {
                 await myServer;
             }
+
         }
         finally
         {
             var metadata = Path.Combine(myStateDir, "host.json");
+
             try
             {
+
                 if (File.Exists(metadata))
                 {
                     File.Delete(metadata);
                 }
+
             }
             finally
             {
@@ -323,12 +363,15 @@ public sealed class HeadquartersLease : IAsyncDisposable
 
     private static void LockFile(FileStream file)
     {
+
         if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
         {
+
             if (flock((int)file.SafeFileHandle.DangerousGetHandle(), 6) != 0)
             {
                 throw new IOException("The Headquarters lock is already held.");
             }
+
             return;
         }
 
@@ -339,6 +382,7 @@ public sealed class HeadquartersLease : IAsyncDisposable
 
     internal static void UnlockFile(FileStream file)
     {
+
         if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
         {
             _ = flock((int)file.SafeFileHandle.DangerousGetHandle(), 8);

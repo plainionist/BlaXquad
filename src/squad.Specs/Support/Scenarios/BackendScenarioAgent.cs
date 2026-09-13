@@ -111,7 +111,6 @@ internal sealed class BackendScenarioAgent(FakeProviderControlServer control, st
     public Task<bool> WaitForDisposalHeldAsync(TimeSpan? timeout = null) =>
         control.WaitForDisposalHeldAsync(role, timeout, uiDiagnostics);
 
-
     /// <summary>Waits until this role's session has reported Headquarters cancelling its pending interactions (for
     /// example while stopping with a request still outstanding).</summary>
     public Task WaitForPendingInteractionsCancelledAsync(TimeSpan? timeout = null) =>

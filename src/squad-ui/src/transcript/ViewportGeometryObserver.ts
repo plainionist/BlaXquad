@@ -27,9 +27,12 @@ export class ViewportGeometryObserver {
   observe(onChange: (change: ViewportSizeChange) => void) {
     this.myResizeObserver = new ResizeObserver(changes => {
       const element = this.myViewport
+
       if (!element)
         return
+
       const previousWidth = this.myMeasuredWidth
+
       const previousHeight = this.myMeasuredHeight
       const width = element.clientWidth ?? changes[0]?.contentRect.width ?? 0
       const height = element.clientHeight ?? changes[0]?.contentRect.height ?? 0
@@ -39,6 +42,7 @@ export class ViewportGeometryObserver {
         previousHeight > 0 && Math.abs(height - previousHeight) >= 1
       this.myMeasuredWidth = width
       this.myMeasuredHeight = height
+
       if (widthChanged || heightChanged) {
         onChange({
           widthChanged,
@@ -49,12 +53,14 @@ export class ViewportGeometryObserver {
       }
     })
     const viewport = this.myViewport
+
     if (viewport)
       this.myResizeObserver.observe(viewport)
   }
 
   geometry(): ViewportGeometry {
     const element = this.myViewport
+
     return {
       scrollTop: element?.scrollTop ?? 0,
       scrollHeight: element?.scrollHeight ?? 0,
@@ -65,10 +71,13 @@ export class ViewportGeometryObserver {
 
   visibleContentRange(content: HTMLElement | null) {
     const element = this.myViewport
+
     if (!element)
       return { visibleTop: 0, visibleBottom: 0 }
+
     const contentTop = content
       ? content.getBoundingClientRect().top
+
         - element.getBoundingClientRect().top
         + element.scrollTop
       : 0

@@ -56,10 +56,12 @@ public sealed class WorkspaceToolsSteps
     {
         var path = myScenario.PathInRoot(relativePath);
         var deadline = DateTime.UtcNow + FileAppearsTimeout;
+
         while (!File.Exists(path) && DateTime.UtcNow < deadline)
         {
             Thread.Sleep(FileAppearsPollInterval);
         }
+
         Assert.That(File.Exists(path), Is.True, $"Expected file '{relativePath}' to appear in the project root.");
     }
 

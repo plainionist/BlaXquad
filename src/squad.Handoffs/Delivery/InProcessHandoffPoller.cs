@@ -32,10 +32,12 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
             Contract.Invariant(
                 (myPolling is null) == (myPollingCancellation is null),
                 "Polling task and its cancellation source must not diverge.");
+
             if (myPolling is not null)
             {
                 return Task.CompletedTask;
             }
+
             myPollingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             myPolling = PollAsync(myPollingCancellation.Token);
             return Task.CompletedTask;
@@ -51,13 +53,16 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
             polling = myPolling;
             pollingCancellation = myPollingCancellation;
         }
+
         Contract.Invariant(
             (polling is null) == (pollingCancellation is null),
             "Polling task and its cancellation source must not diverge.");
+
         if (polling is null || pollingCancellation is null)
         {
             return;
         }
+
         pollingCancellation.Cancel();
         // Only awaits normal, cooperative-cancellation completion here: a poll loop that already faulted has
         // already reported that same exception through Failure, so re-observing it here would surface it a
@@ -69,23 +74,28 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
         catch (Exception) when (myFailure.Task.IsFaulted)
         {
         }
+
         lock (mySyncRoot)
         {
+
             if (ReferenceEquals(myPolling, polling))
             {
                 myPolling = null;
                 myPollingCancellation = null;
                 pollingCancellation.Dispose();
             }
+
         }
     }
 
     public async ValueTask DisposeAsync()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         myDisposed = true;
         await StopAsync();
     }
@@ -94,12 +104,14 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
     {
         try
         {
+
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await myDelivery.ProcessOnceAsync(myMembers, cancellationToken: cancellationToken);
                 await Task.Delay(myPollInterval, cancellationToken);
             }
+
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -110,5 +122,3 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
         }
     }
 }
-
-

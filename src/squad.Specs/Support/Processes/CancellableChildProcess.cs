@@ -39,10 +39,12 @@ public static class CancellableChildProcess
         out TextReader standardOutput,
         out TextReader standardError)
     {
+
         if (OperatingSystem.IsWindows())
         {
             return WindowsProcessGroup.Start(executable, arguments, workingDirectory, environment, out standardInput, out standardOutput, out standardError);
         }
+
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
         {
             return UnixProcessGroup.Start(executable, arguments, workingDirectory, environment, out standardInput, out standardOutput, out standardError);
@@ -60,11 +62,13 @@ public static class CancellableChildProcess
     /// </summary>
     public static void SendCancellationSignal(System.Diagnostics.Process process)
     {
+
         if (OperatingSystem.IsWindows())
         {
             WindowsProcessGroup.SendCancellationSignal(process);
             return;
         }
+
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
         {
             UnixProcessGroup.SendCancellationSignal(process);
@@ -86,6 +90,7 @@ public static class CancellableChildProcess
     /// </summary>
     public static int GetExitCode(System.Diagnostics.Process process)
     {
+
         if (OperatingSystem.IsWindows())
         {
             return WindowsProcessGroup.GetExitCode(process.Id);
@@ -122,6 +127,7 @@ public static class CancellableChildProcess
             var stdinPipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
             var stdoutPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
             var stderrPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+
             try
             {
                 var startupInfo = new STARTUPINFO
@@ -144,8 +150,10 @@ public static class CancellableChildProcess
                 var creationFlags = CREATE_NEW_PROCESS_GROUP | CREATE_UNICODE_ENVIRONMENT;
 
                 var environmentPointer = Marshal.StringToHGlobalUni(environmentBlock);
+
                 try
                 {
+
                     if (!CreateProcessW(
                             null,
                             commandLine,
@@ -158,6 +166,7 @@ public static class CancellableChildProcess
                             ref startupInfo,
                             out var processInformation))
                     {
+
                         throw new InvalidOperationException(
                             $"CreateProcess failed for '{executable}' (Win32 error {Marshal.GetLastWin32Error()}).");
                     }
@@ -202,6 +211,7 @@ public static class CancellableChildProcess
             // CTRL_BREAK_EVENT can target one specific non-zero process group id - unlike CTRL_C_EVENT, which can
             // only ever be broadcast to group 0 (every process sharing the caller's console). Because the child
             // was created with CREATE_NEW_PROCESS_GROUP, its own process id is that group id.
+
             if (!NativeMethods.GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, (uint)process.Id))
             {
                 throw new InvalidOperationException(
@@ -220,18 +230,22 @@ public static class CancellableChildProcess
         public static int GetExitCode(int processId)
         {
             var handle = NativeMethods.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
+
             if (handle == IntPtr.Zero)
             {
                 throw new InvalidOperationException(
                     $"OpenProcess failed for process {processId} (Win32 error {Marshal.GetLastWin32Error()}).");
             }
+
             try
             {
+
                 if (!NativeMethods.GetExitCodeProcess(handle, out var exitCode))
                 {
                     throw new InvalidOperationException(
                         $"GetExitCodeProcess failed for process {processId} (Win32 error {Marshal.GetLastWin32Error()}).");
                 }
+
                 return unchecked((int)exitCode);
             }
             finally
@@ -250,17 +264,20 @@ public static class CancellableChildProcess
         {
             var builder = new StringBuilder();
             AppendArgument(builder, executable);
+
             foreach (var argument in arguments)
             {
                 builder.Append(' ');
                 AppendArgument(builder, argument);
             }
+
             return builder.ToString();
         }
 
         private static void AppendArgument(StringBuilder builder, string argument)
         {
             var needsQuoting = argument.Length == 0 || argument.IndexOfAny([' ', '\t', '"']) >= 0;
+
             if (!needsQuoting)
             {
                 builder.Append(argument);
@@ -269,22 +286,27 @@ public static class CancellableChildProcess
 
             builder.Append('"');
             var backslashRun = 0;
+
             foreach (var c in argument)
             {
+
                 if (c == '\\')
                 {
                     backslashRun++;
                     continue;
                 }
+
                 if (c == '"')
                 {
                     builder.Append('\\', (backslashRun * 2) + 1).Append('"');
                     backslashRun = 0;
                     continue;
                 }
+
                 builder.Append('\\', backslashRun).Append(c);
                 backslashRun = 0;
             }
+
             builder.Append('\\', backslashRun * 2).Append('"');
         }
 
@@ -296,27 +318,35 @@ public static class CancellableChildProcess
         private static string BuildEnvironmentBlock(IReadOnlyDictionary<string, string?>? overrides)
         {
             var variables = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
             foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
             {
                 variables[(string)entry.Key] = (string?)entry.Value;
             }
+
             if (overrides is not null)
             {
+
                 foreach (var (name, value) in overrides)
                 {
                     variables[name] = value;
                 }
+
             }
 
             var block = new StringBuilder();
+
             foreach (var (name, value) in variables.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
             {
+
                 if (value is null)
                 {
                     continue;
                 }
+
                 block.Append(name).Append('=').Append(value).Append('\0');
             }
+
             block.Append('\0');
             return block.ToString();
         }
@@ -412,16 +442,20 @@ public static class CancellableChildProcess
                 RedirectStandardError = true,
                 UseShellExecute = false,
             };
+
             foreach (var argument in arguments)
             {
                 startInfo.ArgumentList.Add(argument);
             }
+
             if (environment is not null)
             {
+
                 foreach (var (name, value) in environment)
                 {
                     startInfo.Environment[name] = value;
                 }
+
             }
 
             var process = System.Diagnostics.Process.Start(startInfo)
@@ -438,6 +472,7 @@ public static class CancellableChildProcess
         {
             // A negative pid targets every process in that process group, matching what a real terminal's Ctrl+C
             // delivers to the whole foreground process group rather than one single process.
+
             if (kill(-process.Id, SIGINT) != 0)
             {
                 throw new InvalidOperationException(

@@ -14,6 +14,7 @@ internal sealed record ArchivedEntryState
     {
         Contract.Requires(retainedLength >= 0, "Retained entry length must not be negative.");
         Contract.Requires(totalLength >= 0, "Total entry length must not be negative.");
+
         RetainedLength = retainedLength;
         TotalLength = totalLength;
         ContentTruncated = contentTruncated;

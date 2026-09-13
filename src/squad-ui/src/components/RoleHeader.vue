@@ -5,23 +5,30 @@ defineProps<{
   role: RoleState
   working: boolean
 }>()
-
 function formatAic(value?: number | null) { return value == null ? 'AIC unavailable' : `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} AIC` }
 function contextFill(role: RoleState) {
   const used = role.contextUsedTokens
   const limit = role.contextLimitTokens
   return used != null && limit != null && limit > 0 ? Math.min(100, Math.max(0, used / limit * 100)) : null
 }
+
 function contextTone(role: RoleState) {
   const used = role.contextUsedTokens
+
   const fill = contextFill(role)
+
   if (used == null || fill == null) return 'safe'
+
   if (fill >= 80) return 'critical'
+
   return used < 150_000 ? 'safe' : 'warning'
 }
 function formatTokensInK(value?: number | null) { return `${Math.round((value ?? 0) / 1000)}k` }
+
 function contextLabel(role: RoleState) {
+
   if (role.contextUsedTokens == null || role.contextLimitTokens == null) return 'Context usage unavailable'
+
   return `${formatTokensInK(role.contextUsedTokens)}/${formatTokensInK(role.contextLimitTokens)}`
 }
 </script>

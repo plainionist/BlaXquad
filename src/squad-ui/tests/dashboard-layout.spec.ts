@@ -102,9 +102,12 @@ for (const scenario of [
     await expect(panel).toHaveClass(
       scenario.presentsWorking ? 'role-panel is-working' : 'role-panel',
     )
+
     await expect(workingStatus).toHaveCount(scenario.presentsWorking ? 1 : 0)
+
     if (scenario.presentsWorking) {
       await expect(workingStatus).toHaveAttribute('role', 'status')
+
       await expect(workingStatus).toHaveAccessibleName('Working')
     }
   })

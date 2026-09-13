@@ -8,44 +8,63 @@ Feature: Headquarters termination on UI closure and caller cancellation
   SquadApplication, a recording window test double, or an injected caller cancellation token.
 
   Scenario: Closing standard input after readiness terminates the process cleanly
+
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
       | reviewer |
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
+
     When the operator closes Headquarters' standard input
+
     Then Headquarters exits with code 0
     And Headquarters disposes the agent session for role "coder"
     And Headquarters disposes the agent session for role "reviewer"
     And the operator finds Headquarters unavailable for role "coder"
+
     When the operator launches a new Headquarters against the same project
+
     Then the new Headquarters process reports ready
 
   Scenario: Closing standard input before the ready handshake still terminates the process cleanly
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
+
     When the operator launches Headquarters without completing the ready handshake
     And the operator closes Headquarters' standard input
+
     Then Headquarters exits with code 0
     And the operator finds Headquarters unavailable for role "coder"
+
     When the operator launches a new Headquarters against the same project
+
     Then the new Headquarters process reports ready
 
   Scenario: The platform's cancellation signal after readiness terminates the process cleanly
+
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
       | reviewer |
+
     When the operator launches a cancellable Headquarters
+
     Then Headquarters starts an agent session for role "coder"
     And Headquarters starts an agent session for role "reviewer"
+
     When the platform delivers its cancellation signal to Headquarters
+
     Then Headquarters exits with code 0
     And Headquarters disposes the agent session for role "coder"
     And Headquarters disposes the agent session for role "reviewer"
     And the operator finds Headquarters unavailable for role "coder"
+
     When the operator launches a new Headquarters against the same project
+
     Then the new Headquarters process reports ready

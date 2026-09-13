@@ -16,6 +16,7 @@ public sealed record GitCommitId
     {
         Contract.Requires(!string.IsNullOrWhiteSpace(value), "value must not be null or blank.");
         Contract.Requires(CanonicalForm.IsMatch(value), "value must be exactly ten lowercase hexadecimal characters.");
+
         Value = value;
     }
 

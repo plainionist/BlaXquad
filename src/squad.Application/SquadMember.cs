@@ -115,11 +115,14 @@ internal sealed class SquadMember : IDisposable
     {
         lock (myInteractionsLock)
         {
+
             if (myInteractions.TryGetValue(requestId, out var state) &&
                 state is MemberInteractionState.Pending<AgentElicitationRequest> pending)
             {
+
                 return pending.Request;
             }
+
             throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{Id}'.");
         }
     }
@@ -146,12 +149,15 @@ internal sealed class SquadMember : IDisposable
     {
         lock (myInteractionsLock)
         {
+
             if (myInteractions.TryGetValue(requestId, out var state) &&
                 state is MemberInteractionState.Pending<TRequest> pending)
             {
+
                 myInteractions[requestId] = new MemberInteractionState.Responding<TRequest>(pending.Request, pending.ProtectedTranscriptEntryIndex);
                 return;
             }
+
             throw new InvalidOperationException($"No pending interaction with ID '{requestId}' exists for role '{Id}'.");
         }
     }
@@ -166,10 +172,12 @@ internal sealed class SquadMember : IDisposable
     {
         lock (myInteractionsLock)
         {
+
             if (myInteractions.TryGetValue(requestId, out var state) && state.TryRestore(out var restored))
             {
                 myInteractions[requestId] = restored;
             }
+
         }
     }
 
@@ -199,10 +207,12 @@ internal sealed class SquadMember : IDisposable
     {
         lock (myInteractionsLock)
         {
+
             foreach (var (requestId, state) in myInteractions.ToArray())
             {
                 myInteractions[requestId] = new MemberInteractionState.RetainedForRetirement(state.ProtectedTranscriptEntryIndex);
             }
+
         }
     }
 
@@ -210,10 +220,12 @@ internal sealed class SquadMember : IDisposable
     {
         lock (myInteractionsLock)
         {
+
             if (myInteractions.ContainsKey(requestId))
             {
                 throw new InvalidOperationException($"Interaction '{requestId}' is already pending for role '{Id}'.");
             }
+
             var update = myTranscript.AddTranscriptEntry(entry, protect: true);
             myInteractions.Add(requestId, new MemberInteractionState.Pending<TRequest>(request, update.EntryIndex));
             return update;
@@ -284,6 +296,7 @@ internal sealed class SquadMember : IDisposable
             abort = myAbort?.Task;
             abortFailed = myFailedAbort;
         }
+
         return abort?.WaitAsync(cancellationToken) ??
             (abortFailed
                 ? Task.FromException(new InvalidOperationException($"Role '{Id}' remains cancelled because its abort failed."))
@@ -299,6 +312,7 @@ internal sealed class SquadMember : IDisposable
     {
         lock (myOperationStateLock)
         {
+
             if (myAbort is not null)
             {
                 existingAbort = myAbort.Task;
@@ -325,16 +339,19 @@ internal sealed class SquadMember : IDisposable
         lock (myOperationStateLock)
         {
             myActiveOperation = operation;
+
             if (myInvalidated)
             {
                 operation.Cancel();
             }
+
         }
     }
 
     internal void UnregisterOperation(CancellationTokenSource operation)
     {
         lock (myOperationStateLock)
+
             if (ReferenceEquals(myActiveOperation, operation))
             {
                 myActiveOperation = null;

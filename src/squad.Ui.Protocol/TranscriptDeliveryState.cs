@@ -23,6 +23,7 @@ internal sealed record TranscriptDeliveryState(
         Contract.Requires(
             DeliveredSequence is not { } previous || sequence >= previous,
             "Delivered transcript sequence must never move backward.");
+
         return this with { DeliveredSequence = sequence };
     }
 
@@ -35,6 +36,7 @@ internal sealed record TranscriptDeliveryState(
         Contract.Requires(
             SynchronizedSequence is not { } previousSynchronized || sequence >= previousSynchronized,
             "Synchronized transcript sequence must never move backward.");
+
         return this with { DeliveredSequence = sequence, SynchronizedSequence = sequence };
     }
 

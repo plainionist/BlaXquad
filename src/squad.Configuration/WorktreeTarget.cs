@@ -20,6 +20,7 @@ public sealed record WorktreeTarget
     /// of path separators, without normalizing the supplied name.</summary>
     public static WorktreeTarget Parse(string raw)
     {
+
         if (raw == "master")
         {
             return ProjectRoot;
@@ -28,6 +29,7 @@ public sealed record WorktreeTarget
         Contract.Requires(!string.IsNullOrWhiteSpace(raw), "worktree target must not be null or blank.");
         Contract.Requires(raw is not ("." or ".."), $"worktree target '{raw}' must not be '.' or '..'.");
         Contract.Requires(!raw.Contains('/') && !raw.Contains('\\'), $"worktree target '{raw}' must not contain a path separator.");
+
         return new WorktreeTarget(raw);
     }
 

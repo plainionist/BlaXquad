@@ -84,6 +84,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
     public async Task WaitForConnectionAsync(TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         using var timeoutCancellation = new CancellationTokenSource(timeout ?? DefaultTimeout);
+
         try
         {
             await myPipe.WaitForConnectionAsync(timeoutCancellation.Token);
@@ -93,6 +94,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             throw new TimeoutException(
                 $"Timed out waiting for a client to connect to the fake-provider control pipe.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
+
         myDuplex = new ControlPipeDuplex(myPipe, HandleUnsolicitedAsync);
         myDuplex.StartDispatching();
     }
@@ -391,6 +393,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
     public async Task FailBackendAsync(string message, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
         JsonElement response;
+
         try
         {
             response = await myDuplex!.SendAndAwaitAsync(
@@ -401,6 +404,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             throw new TimeoutException(
                 $"Timed out waiting for the client to acknowledge 'fail-backend'.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
+
         ControlPipeDuplex.EnsureNotProtocolError(response, "fail-backend");
     }
 
@@ -414,12 +418,14 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
     /// </summary>
     public async Task ReplyAsync(string role, string content, TimeSpan? timeout = null, Func<string>? additionalDiagnostics = null)
     {
+
         if (!myJournal.TryGetActiveSession(role, out var sessionId))
         {
             throw new InvalidOperationException($"No fake-provider session has been observed for role '{role}'.");
         }
 
         JsonElement response;
+
         try
         {
             response = await myDuplex!.SendAndAwaitAsync(
@@ -430,6 +436,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             throw new TimeoutException(
                 $"Timed out waiting for the client to acknowledge a reply for role '{role}'.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
+
         ControlPipeDuplex.EnsureNotProtocolError(response, "reply");
     }
 
@@ -443,12 +450,14 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
     /// </summary>
     private async Task EmitAsync(string role, string kind, object data, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
+
         if (!myJournal.TryGetActiveSession(role, out var sessionId))
         {
             throw new InvalidOperationException($"No fake-provider session has been observed for role '{role}'.");
         }
 
         JsonElement response;
+
         try
         {
             response = await myDuplex!.SendAndAwaitAsync(
@@ -459,6 +468,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             throw new TimeoutException(
                 $"Timed out waiting for the client to acknowledge '{kind}' for role '{role}'.\n{myJournal.DescribeDiagnostics(additionalDiagnostics)}");
         }
+
         ControlPipeDuplex.EnsureNotProtocolError(response, kind);
     }
 
@@ -491,6 +501,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             || versionElement.ValueKind != JsonValueKind.Number
             || versionElement.GetInt32() != ControlPipeDuplex.ProtocolVersion)
         {
+
             await ReplyProtocolErrorAsync(
                 correlationId, $"Unsupported protocol version. Expected {ControlPipeDuplex.ProtocolVersion}.", cancellationToken);
             return;
@@ -527,6 +538,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
             && tokenElement.ValueKind == JsonValueKind.String
             ? tokenElement.GetString()
             : null;
+
         if (!string.Equals(token, Token, StringComparison.Ordinal))
         {
             await ReplyProtocolErrorAsync(correlationId, "Invalid authentication token.", cancellationToken);
@@ -539,6 +551,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
 
     private async Task HandleObservationAsync(string type, string correlationId, JsonElement payload, CancellationToken cancellationToken)
     {
+
         if (!myAuthenticated)
         {
             await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
@@ -551,6 +564,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
         var sessionId = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("sessionId", out var sessionIdElement)
             ? sessionIdElement.GetString()
             : null;
+
         if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId))
         {
             await ReplyProtocolErrorAsync(correlationId, $"'{type}' requires a role and a session id.", cancellationToken);
@@ -563,6 +577,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
 
     private async Task HandlePromptAsync(string correlationId, JsonElement payload, CancellationToken cancellationToken)
     {
+
         if (!myAuthenticated)
         {
             await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
@@ -578,6 +593,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
         var prompt = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("prompt", out var promptElement)
             ? promptElement.GetString()
             : null;
+
         if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId) || prompt is null)
         {
             await ReplyProtocolErrorAsync(correlationId, "'prompt' requires a role, a session id, and prompt text.", cancellationToken);
@@ -590,6 +606,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
 
     private async Task HandleObserveAsync(string correlationId, JsonElement payload, CancellationToken cancellationToken)
     {
+
         if (!myAuthenticated)
         {
             await ReplyProtocolErrorAsync(correlationId, "The connection has not authenticated.", cancellationToken);
@@ -608,6 +625,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
         var data = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("data", out var dataElement)
             ? dataElement
             : default;
+
         if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(sessionId) || string.IsNullOrEmpty(kind))
         {
             await ReplyProtocolErrorAsync(correlationId, "'observe' requires a role, a session id, and a kind.", cancellationToken);
@@ -626,6 +644,7 @@ internal sealed class FakeProviderControlServer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+
         if (myDuplex is not null)
         {
             await myDuplex.DisposeAsync();

@@ -29,6 +29,7 @@ public sealed class TaskMailboxObserver
     private string? Find(string role, string state, string task)
     {
         var directory = InboxDir(HandoffQueue.Root(myWorkspace.RoleWorktreePath(role)), state);
+
         if (!Directory.Exists(directory))
         {
             return null;

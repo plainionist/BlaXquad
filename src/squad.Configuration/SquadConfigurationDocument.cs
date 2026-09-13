@@ -24,6 +24,3 @@ internal sealed class SquadConfigurationDocument
     [JsonPropertyName("gitHistoryCommand")]
     public List<string>? GitHistoryCommand { get; init; }
 }
-
-
-

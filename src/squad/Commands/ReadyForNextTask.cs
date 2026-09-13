@@ -39,6 +39,7 @@ static class ReadyForNextTask
             }
 
             var newFiles = HandoffQueue.HandoffFiles(newDir);
+
             if (newFiles.Count == 0)
             {
                 Console.Out.WriteLine("NO_TASK");
@@ -47,6 +48,7 @@ static class ReadyForNextTask
 
             var sourceFile = newFiles[0];
             var targetFile = Path.Combine(inProcessDir, Path.GetFileName(sourceFile));
+
             if (Path.Exists(targetFile))
             {
                 Fail(2, $"AMBIGUOUS_TASK_STATE: target in-process file already exists: {targetFile}");
@@ -59,10 +61,12 @@ static class ReadyForNextTask
         }
         catch (CliExitException ex)
         {
+
             if (!string.IsNullOrEmpty(ex.Message))
             {
                 Console.Error.WriteLine(ex.Message);
             }
+
             return ex.ExitCode;
         }
     }
@@ -70,13 +74,12 @@ static class ReadyForNextTask
     static void Fail(int status, string headline, IReadOnlyList<string>? items = null)
     {
         var lines = new List<string> { headline };
+
         if (items is not null)
         {
             lines.AddRange(items.Select(i => $"- {i}"));
         }
+
         throw new CliExitException(status, string.Join("\n", lines));
     }
 }
-
-
-

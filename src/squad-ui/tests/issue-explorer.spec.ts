@@ -340,17 +340,21 @@ async function panelBoxes(page: import('@playwright/test').Page) {
   const count = await panels.count()
   expect(count).toBeGreaterThan(0)
   const boxes: Box[] = []
+
   for (let index = 0; index < count; index++)
     boxes.push(await boxOf(page, `.role-panel >> nth=${index}`))
+
   return boxes
 }
 
 test('desktop and 390-pixel-wide viewports contain the toolbar, menu, flyout, and role panels without clipping or overlap', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
+
   await loadSnapshot(page)
   let viewport = page.viewportSize()!
 
   const closedPanels = await panelBoxes(page)
+
   for (const panel of closedPanels)
     containedIn(panel, viewport) // the desktop grid fits within one viewport before the toolbar is used; no outer-page scroll
 
@@ -364,15 +368,20 @@ test('desktop and 390-pixel-wide viewports contain the toolbar, menu, flyout, an
   const toolbar = await boxOf(page, '.issue-toolbar')
   const menu = await boxOf(page, '.issue-menu')
   const flyout = await boxOf(page, '.issue-flyout')
+
   for (const box of [toolbar, menu, flyout]) containedIn(box, viewport)
 
   const openPanels = await panelBoxes(page)
+
   for (const panel of openPanels)
     containedIn(panel, viewport) // opening the menu/flyout does not push the grid past the viewport either
+
   for (let index = 0; index < openPanels.length; index++) {
     expect(openPanels[index].x).toBe(closedPanels[index].x)
+
     expect(openPanels[index].width).toBe(closedPanels[index].width) // the floating menu/flyout do not widen or narrow role panels
   }
+
   expect(openPanels[0].y).toBe(openPanels[1].y) // the toolbar does not push role panels out of their row
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -380,6 +389,7 @@ test('desktop and 390-pixel-wide viewports contain the toolbar, menu, flyout, an
   const narrowToolbar = await boxOf(page, '.issue-toolbar')
   const narrowMenu = await boxOf(page, '.issue-menu')
   const narrowFlyout = await boxOf(page, '.issue-flyout')
+
   for (const box of [narrowToolbar, narrowMenu, narrowFlyout]) containedIn(box, viewport)
 
   const narrowFirstPanel = await boxOf(page, '.role-panel >> nth=0')

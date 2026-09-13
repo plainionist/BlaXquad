@@ -14,5 +14,3 @@ public sealed class CopilotSdkAgentProviderFactory : IAgentProviderFactory
         return Task.FromResult(backend);
     }
 }
-
-

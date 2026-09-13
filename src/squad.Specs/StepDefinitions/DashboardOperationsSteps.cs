@@ -72,6 +72,7 @@ public sealed class DashboardOperationsSteps
     {
         var updatesForRole = myReceivedTranscriptUpdates.Where(update => update.Role == role).ToList();
         Assert.That(updatesForRole, Has.Count.GreaterThan(1));
+
         for (var index = 1; index < updatesForRole.Count; index++)
         {
             var previous = updatesForRole[index - 1];
@@ -223,6 +224,7 @@ public sealed class DashboardOperationsSteps
     /// empty choices list or a comma-encoded value.</summary>
     private static IReadOnlyList<string>? ChoicesFromRows(Table table)
     {
+
         if (table.Header.Count != 1 || table.Header.Single() != "choice")
         {
             throw new ArgumentException("choices table must declare exactly one \"choice\" column.");
@@ -237,6 +239,7 @@ public sealed class DashboardOperationsSteps
     private static DataTableRow SingleRow(Table table, IReadOnlySet<string> supportedColumns, string tableName)
     {
         var unknownColumns = table.Header.Where(column => !supportedColumns.Contains(column)).ToList();
+
         if (unknownColumns.Count > 0)
         {
             throw new ArgumentException(
@@ -245,6 +248,7 @@ public sealed class DashboardOperationsSteps
         }
 
         var missingColumns = supportedColumns.Where(column => !table.Header.Contains(column)).ToList();
+
         if (missingColumns.Count > 0)
         {
             throw new ArgumentException($"{tableName} table must declare column(s): {string.Join(", ", missingColumns)}.");

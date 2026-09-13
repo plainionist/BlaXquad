@@ -52,6 +52,7 @@ sealed class PhotinoWindowHost : IWindowHost
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         if (myStarted)
         {
             return Task.CompletedTask;
@@ -59,20 +60,24 @@ sealed class PhotinoWindowHost : IWindowHost
 
         EnsureLinuxDisplayIsAvailable();
         var index = Path.Combine(myUiDirectory, "index.html");
+
         if (!File.Exists(index))
         {
             throw new InvalidOperationException($"Photino UI was not found at '{index}'. Build src/squad-ui before launching the Photino host.");
         }
+
         myStarted = true;
         myUiThread = new Thread(() => RunWindow(index))
         {
             IsBackground = true,
             Name = "BlaXquad Photino UI",
         };
+
         if (OperatingSystem.IsWindows())
         {
             myUiThread.SetApartmentState(ApartmentState.STA);
         }
+
         myUiThread.Start();
         return WaitForUiReadyAsync(cancellationToken);
     }
@@ -118,16 +123,19 @@ sealed class PhotinoWindowHost : IWindowHost
 
     public Task WaitForCloseAsync(CancellationToken cancellationToken = default)
     {
+
         if (myWindow is null)
         {
             throw new InvalidOperationException("Photino window has not been started.");
         }
+
         return myClosed.Task.WaitAsync(cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         lock (myStopLock)
             return myStop ??= StopCoreAsync();
     }
@@ -142,12 +150,14 @@ sealed class PhotinoWindowHost : IWindowHost
     private async Task StopCoreAsync()
     {
         mySession.DetachUiEventSources();
+
         try
         {
             await mySession.DisposeAsync();
         }
         finally
         {
+
             if (!myStarted)
             {
                 myClosed.TrySetResult();
@@ -155,14 +165,17 @@ sealed class PhotinoWindowHost : IWindowHost
             }
             else
             {
+
                 if (!myClosed.Task.IsCompleted)
                 {
                     await myWindowCreated.Task;
                     myWindow!.Close();
                 }
+
                 await myClosed.Task;
                 myUiReady.TrySetCanceled();
             }
+
         }
     }
 
@@ -180,10 +193,12 @@ sealed class PhotinoWindowHost : IWindowHost
 
     private static void EnsureLinuxDisplayIsAvailable()
     {
+
         if (OperatingSystem.IsLinux() &&
             string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) &&
             string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
         {
+
             throw new InvalidOperationException("Photino requires a graphical display. Launch from a session with DISPLAY or WAYLAND_DISPLAY configured.");
         }
     }
@@ -201,16 +216,19 @@ sealed class PhotinoWindowHost : IWindowHost
 
     private static void EnableWindowsDarkTitleBar(PhotinoWindow window)
     {
+
         if (!OperatingSystem.IsWindows())
         {
             return;
         }
 
         var enabled = 1;
+
         if (DwmSetWindowAttribute(window.WindowHandle, myUseImmersiveDarkMode, ref enabled, sizeof(int)) != 0)
         {
             _ = DwmSetWindowAttribute(window.WindowHandle, myUseImmersiveDarkModeBeforeWindows10_2004, ref enabled, sizeof(int));
         }
+
         var backgroundColor = myWindowBackgroundColor;
         _ = DwmSetWindowAttribute(window.WindowHandle, myCaptionColor, ref backgroundColor, sizeof(int));
     }
@@ -224,4 +242,3 @@ sealed class PhotinoWindowHost : IWindowHost
     private void SendSerializedMessage(string message) =>
         myWindow?.SendWebMessage(message);
 }
-

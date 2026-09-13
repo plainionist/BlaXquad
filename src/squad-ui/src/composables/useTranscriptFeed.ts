@@ -68,16 +68,21 @@ export function useTranscriptFeed(send: SendTranscriptRequest) {
       synchronization.roles.map(role => [role.role, role]))
     roles.value = roles.value.map((role) => {
       const synchronized = entriesByRole.get(role.role)
+
       if (!synchronized) return role
+
       const previousPosition = transcriptPositions[role.role]
         ?? { visualSequence: 0, announcementSequence: 0 }
+
       const hasAnnouncementInterval = synchronized.announcementAfter != null
         && synchronized.announcementThrough != null
       let announcementSequence = previousPosition.announcementSequence
+
       if (hasAnnouncementInterval) {
         const intervalCursor = synchronization.recovery
           ? announcementSequence
           : Math.max(announcementSequence, synchronized.announcementAfter!)
+
         if (synchronized.announcementThrough! > intervalCursor) {
           const fragments = synchronized.announcement?.fragments
             .filter(fragment =>
@@ -90,27 +95,33 @@ export function useTranscriptFeed(send: SendTranscriptRequest) {
               || (synchronization.recovery === true
                 && intervalCursor < synchronized.announcementAfter!))
         }
+
         announcementSequence = Math.max(
           intervalCursor,
           synchronized.announcementThrough!)
       } else {
+
         if (synchronization.recovery && synchronized.announcement)
           queueTranscriptAnnouncements(
             role.role,
             synchronized.announcement.fragments,
             synchronized.announcement.truncated)
+
         announcementSequence = Math.max(
           announcementSequence,
           synchronized.sequence)
       }
+
       transcriptPositions[role.role] = {
         visualSequence: Math.max(
           previousPosition.visualSequence,
           synchronized.sequence),
         announcementSequence,
       }
+
       if (synchronized.sequence < previousPosition.visualSequence)
         return role
+
       const {
         transcriptEntries,
         transcriptEntryIndices,
@@ -134,57 +145,78 @@ export function useTranscriptFeed(send: SendTranscriptRequest) {
   function applyTranscriptUpdate(update: TranscriptUpdate) {
     const roleIndex = roles.value.findIndex(role => role.role === update.role)
     const position = transcriptPositions[update.role]
+
     if (roleIndex < 0 || !position) {
       requestTranscriptSynchronization()
       return
     }
+
     const appliesVisualUpdate = update.sequence > position.visualSequence
     const appliesAnnouncement = update.sequence > position.announcementSequence
+
     if (!appliesVisualUpdate && !appliesAnnouncement) return
+
     if ((appliesVisualUpdate
         && update.sequence !== position.visualSequence + 1)
       || (appliesAnnouncement
         && update.sequence !== position.announcementSequence + 1))
+
       return requestTranscriptSynchronization()
 
     const role = roles.value[roleIndex]
+
     if (appliesVisualUpdate) {
       const entries = role.transcriptEntries
       const entryIndices = role.transcriptEntryIndices
+
       const entryPositions = transcriptEntryPositions.get(update.role)
       const localIndex = entryPositions?.get(update.entryIndex)
       const previousSourceLength = entries.length
       let mutationKind: TranscriptMutation['kind']
       let previouslyRenderable: boolean | undefined
+
       if (update.operation === 'append') {
+
         if (!update.entry || localIndex != null)
           return requestTranscriptSynchronization()
+
         entries.push(update.entry)
+
         entryIndices.push(update.entryIndex)
         entryPositions?.set(update.entryIndex, entries.length - 1)
         mutationKind = 'append'
+
       } else if (update.operation === 'append-content') {
+
         if (update.content == null
           || localIndex == null
           || localIndex >= entries.length)
+
           return requestTranscriptSynchronization()
+
         previouslyRenderable = isTranscriptEntryRenderable(entries[localIndex])
         entries[localIndex] = {
           ...entries[localIndex],
           content: entries[localIndex].content + update.content,
         }
+
         mutationKind = 'replace'
+
       } else if (update.operation === 'replace') {
+
         if (!update.entry
           || localIndex == null
           || localIndex >= entries.length)
+
           return requestTranscriptSynchronization()
+
         previouslyRenderable = isTranscriptEntryRenderable(entries[localIndex])
         entries[localIndex] = update.entry
         mutationKind = 'replace'
       } else {
         return requestTranscriptSynchronization()
       }
+
       recordLiveEntry(update.role, update.entryIndex)
       roles.value[roleIndex] = {
         ...role,
@@ -196,15 +228,18 @@ export function useTranscriptFeed(send: SendTranscriptRequest) {
           previousSourceLength,
           previouslyRenderable),
       }
+
       position.visualSequence = update.sequence
     }
 
     if (appliesAnnouncement) {
+
       if (update.announcement)
         queueTranscriptAnnouncements(update.role, [{
           ...update.announcement,
           sequence: update.sequence,
         }])
+
       position.announcementSequence = update.sequence
     }
   }
@@ -212,11 +247,13 @@ export function useTranscriptFeed(send: SendTranscriptRequest) {
   function applyTranscriptPage(page: TranscriptPage) {
     const roleIndex = roles.value.findIndex(role => role.role === page.role)
     const position = transcriptPositions[page.role]
+
     if (roleIndex < 0 || !position) {
       completeTranscriptPageRequest(page.role)
       requestTranscriptSynchronization()
       return
     }
+
     const role = roles.value[roleIndex]
     const {
       transcriptEntries,
@@ -236,22 +273,29 @@ export function useTranscriptFeed(send: SendTranscriptRequest) {
     const roleIndex = roles.value.findIndex(
       role => role.role === response.role)
     const position = transcriptPositions[response.role]
+
     if (roleIndex < 0
       || !position
       || position.visualSequence !== response.sequence)
       return
+
     const role = roles.value[roleIndex]
     const localIndex = transcriptEntryPositions
       .get(response.role)
       ?.get(response.entryIndex)
+
     if (localIndex == null)
       return
+
     const entries = role.transcriptEntries
     const retainedEntry = entries[localIndex]
+
     const previouslyRenderable = isTranscriptEntryRenderable(retainedEntry)
+
     entries[localIndex] = resolveArchivedTranscriptEntry(
       retainedEntry,
       response)
+
     roles.value[roleIndex] = {
       ...role,
       transcriptMutation: createTranscriptMutation(
@@ -273,7 +317,9 @@ export function useTranscriptFeed(send: SendTranscriptRequest) {
   }
 
   function requestTranscriptSynchronization() {
+
     if (transcriptSynchronizationPending) return
+
     transcriptSynchronizationPending = true
     send('transcript.synchronize', {
       payload: {

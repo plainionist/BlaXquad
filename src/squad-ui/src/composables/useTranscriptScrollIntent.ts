@@ -51,49 +51,64 @@ export function useTranscriptScrollIntent(
           chainId,
           chainStarted)
       })
+
     if (movement.origin === 'pending' || movement.origin === 'superseded')
       return
 
     if (movement.chainId != null) {
       const pending = pendingMovement
+
       if (!pending || pending.chainId !== movement.chainId)
         return
+
       pendingMovement = undefined
+
       if (movement.origin === 'external') {
         const external = movement.externalGeneration == null
           ? undefined
           : pending.events.get(movement.externalGeneration)
+
         if (external)
           await confirmPendingExternal(pending, external)
+
       }
       else {
         reconcileProvisionalMovement(pending)
       }
+
       return
     }
 
     if (movement.origin === 'external') {
       externalEpoch = options.beginEpoch()
+
       const transition = options.followState.onExternalMove(
         movement.position,
         options.scroll.viewportGeometry.realContentMaximum(
           options.anchorCompensation.value))
+
       if (options.following.value) {
         options.readingAnchor.clearReading()
+
         if (transition === 'started')
           options.readingAnchor.releaseCompensation()
+
       }
       else {
         options.readingAnchor.retain(options.readingAnchor.capture())
       }
+
     }
     else {
       options.scheduleWindowUpdate()
       return
     }
+
     options.updateWindow()
+
     if (externalEpoch != null)
       await options.correctForState(externalEpoch)
+
     options.scheduleWindowUpdate()
   }
 
@@ -114,12 +129,16 @@ export function useTranscriptScrollIntent(
     movementVersion: number,
   ) {
     let correctionEpoch = epoch
+
     while (!options.isDisposed()
       && movementVersion === pendingMovementVersion) {
       await options.correctForState(correctionEpoch)
+
       if (options.isCurrent(correctionEpoch))
         return
+
       await nextTick()
+
       correctionEpoch = options.currentEpoch()
     }
   }
@@ -154,6 +173,7 @@ export function useTranscriptScrollIntent(
       realMaximum,
       anchor: provisionalAnchor,
     }
+
     const events = continuing
       ? previous.events
       : new Map<number, ProvisionalMovement>()
@@ -168,6 +188,7 @@ export function useTranscriptScrollIntent(
           previousAnchor,
           events,
         }
+
     options.followState.suspend()
     options.readingAnchor.retain(provisionalAnchor)
     options.updateWindow()
@@ -200,10 +221,13 @@ export function useTranscriptScrollIntent(
     const transition = options.followState.onExternalMove(
       effectivePosition,
       currentMaximum)
+
     if (options.following.value) {
       options.readingAnchor.clearReading()
+
       if (transition === 'started')
         options.readingAnchor.releaseCompensation()
+
     }
     else {
       options.readingAnchor.retain(movement.anchor)

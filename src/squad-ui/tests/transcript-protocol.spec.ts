@@ -227,7 +227,6 @@ test('loads archived content for a truncated entry without accepting stale data'
   ])
   await expect(page.getByText('recent tail')).toBeVisible()
   await expect(page.getByText('stale archived content')).toHaveCount(0)
-
   await page.evaluate(() => { window.__blaxquadHarness!.messages.length = 0 })
   await page.getByRole('button', { name: 'Load full entry' }).click()
   await expect.poll(() =>

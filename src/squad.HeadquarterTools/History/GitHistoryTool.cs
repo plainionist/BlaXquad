@@ -35,11 +35,12 @@ public sealed class GitHistoryTool : IWorkspaceTools
 
     public void OpenGitHistory()
     {
+
         if (myResolvedExecutable is null)
         {
             throw new InvalidOperationException("Git history is not available.");
         }
+
         ProcessRunner.Start(myResolvedExecutable, myArguments, myWorkingDirectory);
     }
 }
-

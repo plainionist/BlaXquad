@@ -10,38 +10,48 @@ Feature: Stopping safely before and during startup
   SquadApplication or a lifecycle trace.
 
   Scenario: Shutdown requested as early as possible prevents startup from ever completing
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
     And role "coder" has a durable file "notes.md" containing "Keep this note."
+
     When the operator launches Headquarters without completing the ready handshake
     And the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
     And the operator requests shutdown as soon as it is reachable
     And the user sends "too late" to role "coder"
     And Headquarters' pending shutdown completes
+
     Then Headquarters exits with code 0
     And role "coder" was never reported ready
     And Headquarters never starts an agent session for role "coder"
     And the "coder" agent has received no prompt
     And the operator finds Headquarters unavailable for role "coder"
     And role "coder"'s durable file "notes.md" still contains "Keep this note."
+
     When the operator launches a new Headquarters against the same project
+
     Then the new Headquarters process reports ready
 
   Scenario: Shutdown requested while provider startup is paused disposes the already-started session
+
     Given `blaxquad/squad.json` configures:
       | role     |
       | coder    |
       | reviewer |
     And Headquarters' startup pauses after 1 session has started
     And role "coder" has a durable file "notes.md" containing "Keep this note."
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
     And Headquarters never starts an agent session for role "reviewer"
+
     When the operator begins waiting for role "coder" to become ready with `squad-hq wait-for-agent`
     And the operator begins shutting down Headquarters without waiting for it to exit
     And the user sends "too late" to role "reviewer"
     And Headquarters' process exits on its own
+
     Then Headquarters exits with code 0
     And role "coder" was never reported ready
     And Headquarters disposes the agent session for role "coder"
@@ -49,5 +59,7 @@ Feature: Stopping safely before and during startup
     And the "reviewer" agent has received no prompt
     And the operator finds Headquarters unavailable for role "coder"
     And role "coder"'s durable file "notes.md" still contains "Keep this note."
+
     When the operator launches a new Headquarters against the same project
+
     Then the new Headquarters process reports ready

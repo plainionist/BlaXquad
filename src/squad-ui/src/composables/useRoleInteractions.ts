@@ -13,13 +13,17 @@ function indexByRole<T extends RoleRequest>(
   requests: readonly T[],
 ): ReadonlyMap<string, readonly T[]> {
   const requestsByRole = new Map<string, T[]>()
+
   for (const request of requests) {
     const roleRequests = requestsByRole.get(request.role)
+
     if (roleRequests)
       roleRequests.push(request)
     else
       requestsByRole.set(request.role, [request])
+
   }
+
   return requestsByRole
 }
 

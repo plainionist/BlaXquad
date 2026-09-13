@@ -11,6 +11,7 @@ public static class CurrentRoleResolver
     {
         var currentRoot = Normalize(projectRoot);
         var matches = members.Where(member => Normalize(member.WorktreePath) == currentRoot).ToList();
+
         if (matches.Count == 1)
         {
             return matches[0];
@@ -30,5 +31,3 @@ public static class CurrentRoleResolver
         return OperatingSystem.IsWindows() ? fullPath.ToUpperInvariant() : fullPath;
     }
 }
-
-

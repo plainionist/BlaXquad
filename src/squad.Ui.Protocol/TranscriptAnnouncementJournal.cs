@@ -20,6 +20,7 @@ internal sealed class TranscriptAnnouncementJournal
     {
         Contract.Requires(maxEntriesPerRole > 0, "maxEntriesPerRole must be positive.");
         Contract.Requires(maxCharactersPerRole > 0, "maxCharactersPerRole must be positive.");
+
         myMaxEntriesPerRole = maxEntriesPerRole;
         myMaxCharactersPerRole = maxCharactersPerRole;
     }
@@ -28,6 +29,7 @@ internal sealed class TranscriptAnnouncementJournal
     {
         lock (myStateLock)
         {
+
             if (!myRoles.TryGetValue(update.MemberId, out var journal))
             {
                 journal = new RoleJournal();
@@ -37,23 +39,30 @@ internal sealed class TranscriptAnnouncementJournal
             Contract.Invariant(
                 update.Sequence > journal.LastSequence,
                 "Transcript announcement sequence must increase monotonically per role.");
+
             journal.LastSequence = update.Sequence;
 
             journal.Entries.Enqueue(new JournalEntry(update.Sequence, update.Announcement));
             journal.CharacterCount += update.Announcement?.Content.Length ?? 0;
+
             while (journal.Entries.Count > myMaxEntriesPerRole
                 || journal.CharacterCount > myMaxCharactersPerRole)
             {
+
                 var removed = journal.Entries.Dequeue();
                 journal.CharacterCount -= removed.Announcement?.Content.Length ?? 0;
+
                 if (removed.Announcement is not null)
                 {
                     journal.AnnouncementDiscardedThroughSequence = removed.Sequence;
                 }
+
             }
+
             Contract.Invariant(
                 journal.CharacterCount >= 0,
                 "Retained announcement character count must not become negative.");
+
         }
     }
 
@@ -69,6 +78,7 @@ internal sealed class TranscriptAnnouncementJournal
     {
         lock (myStateLock)
         {
+
             if (!myRoles.TryGetValue(memberId, out var journal))
             {
                 return new(afterSequence, throughSequence, [], false);

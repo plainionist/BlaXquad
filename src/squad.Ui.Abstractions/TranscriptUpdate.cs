@@ -35,6 +35,7 @@ public sealed record TranscriptUpdate
         Contract.Requires(
             Kind == TranscriptUpdateKind.AppendContent || Entry is not null,
             "AppendEntry and ReplaceEntry updates must supply Entry.");
+
         this.MemberId = MemberId;
         this.Sequence = Sequence;
         this.Kind = Kind;
@@ -46,5 +47,3 @@ public sealed record TranscriptUpdate
         this.Announcement = Announcement;
     }
 }
-
-

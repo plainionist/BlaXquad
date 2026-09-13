@@ -11,5 +11,3 @@ public sealed record SquadMemberConfiguration(
     WorktreeTarget WorktreeTarget,
     ReceiveMode ReceiveMode,
     AgentSettings Agent);
-
-

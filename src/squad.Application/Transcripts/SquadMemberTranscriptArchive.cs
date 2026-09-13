@@ -33,10 +33,12 @@ internal sealed class SquadMemberTranscriptArchive
 
     internal void Apply(TranscriptUpdate update)
     {
+
         if (!myGeneration.IsLive)
         {
             return;
         }
+
         myStore.Archive.Apply(update);
     }
 

@@ -79,6 +79,7 @@ public sealed class BackendScenario : IDisposable
                 { "name": "{{role}}", "role": "{{role}}", "worktree": "master", "agent": {} }
               ]
             }
+
             """ + "\n");
         myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
         myConfiguredMembers.Add(new SquadMemberId(role));
@@ -136,10 +137,12 @@ public sealed class BackendScenario : IDisposable
     {
         myWorkspace.InitializeGitRepository();
         myWorkspace.WriteFile("blaxquad/constitution.prompt", "Follow the project constitution.\n");
+
         foreach (var role in rolesWithPrompts)
         {
             myWorkspace.WriteFile($"blaxquad/roles/{role}.prompt", $"Act as the {role}.\n");
         }
+
         myWorkspace.WriteFile("blaxquad/squad.json", squadJson);
     }
 
@@ -183,11 +186,13 @@ public sealed class BackendScenario : IDisposable
     /// exposing its generated name.</summary>
     public bool HasTemporaryTranscriptHistory()
     {
+
         if (myIsolatedTempDirectory is null)
         {
             throw new InvalidOperationException(
                 "The scenario's temporary directory was never isolated; call IsolateTemporaryDirectory() before starting the process.");
         }
+
         return Directory.Exists(myIsolatedTempDirectory)
             && Directory.GetDirectories(myIsolatedTempDirectory, "blaxquad-transcript-history-*").Length > 0;
     }
@@ -211,35 +216,45 @@ public sealed class BackendScenario : IDisposable
         var descriptor = DescriptorFor(typeof(TProviderFactory));
         var hostingDescriptor = myHostingDescriptorOverride ?? DefaultHostingDescriptor;
         var environmentOverrides = new Dictionary<string, string?>();
+
         if (myControl is not null)
         {
             environmentOverrides[FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName;
             environmentOverrides[FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token;
         }
+
         if (myIsolatedTempDirectory is not null)
         {
             environmentOverrides["TEMP"] = myIsolatedTempDirectory;
             environmentOverrides["TMP"] = myIsolatedTempDirectory;
             environmentOverrides["TMPDIR"] = myIsolatedTempDirectory;
         }
+
         if (myStartupGateAfterSessions is { } gateAfterSessions)
+
         {
             environmentOverrides[FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable] =
                 gateAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+
         if (myFailProviderBeforeRuntime)
         {
             environmentOverrides[FakeProviderControlServer.FailBeforeRuntimeEnvironmentVariable] = "true";
         }
+
         if (myFailProviderAfterSessions is { } failAfterSessions)
+
         {
             environmentOverrides[FakeProviderControlServer.FailAfterSessionsEnvironmentVariable] =
                 failAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+
         if (myFailProviderDisposalMessage is { } failDisposalMessage)
+
         {
             environmentOverrides[FakeProviderControlServer.FailDisposalMessageEnvironmentVariable] = failDisposalMessage;
         }
+
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         IReadOnlyList<string> launchArguments = continueLaunch
             ? ["launch", "--continue", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root]
@@ -267,6 +282,7 @@ public sealed class BackendScenario : IDisposable
     public async Task StartCancellableAsync<TProviderFactory>(TimeSpan? timeout = null)
         where TProviderFactory : squad.AgentProvider.Abstractions.IAgentProviderFactory
     {
+
         if (!CancellableChildProcess.CanDeliverIsolatedSignal)
         {
             throw new PlatformNotSupportedException(
@@ -276,6 +292,7 @@ public sealed class BackendScenario : IDisposable
         var descriptor = DescriptorFor(typeof(TProviderFactory));
         var hostingDescriptor = myHostingDescriptorOverride ?? DefaultHostingDescriptor;
         var environmentOverrides = new Dictionary<string, string?>();
+
         if (myControl is not null)
         {
             environmentOverrides[FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName;
@@ -316,29 +333,38 @@ public sealed class BackendScenario : IDisposable
         var descriptor = DescriptorFor(typeof(TProviderFactory));
         var hostingDescriptor = myHostingDescriptorOverride ?? DefaultHostingDescriptor;
         var environmentOverrides = new Dictionary<string, string?>();
+
         if (myControl is not null)
         {
             environmentOverrides[FakeProviderControlServer.PipeNameEnvironmentVariable] = myControl.PipeName;
             environmentOverrides[FakeProviderControlServer.TokenEnvironmentVariable] = myControl.Token;
         }
+
         if (myStartupGateAfterSessions is { } gateAfterSessions)
+
         {
             environmentOverrides[FakeProviderControlServer.StartupGateAfterSessionsEnvironmentVariable] =
                 gateAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+
         if (myFailProviderBeforeRuntime)
         {
             environmentOverrides[FakeProviderControlServer.FailBeforeRuntimeEnvironmentVariable] = "true";
         }
+
         if (myFailProviderAfterSessions is { } failAfterSessions)
+
         {
             environmentOverrides[FakeProviderControlServer.FailAfterSessionsEnvironmentVariable] =
                 failAfterSessions.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+
         if (myFailProviderDisposalMessage is { } failDisposalMessage)
+
         {
             environmentOverrides[FakeProviderControlServer.FailDisposalMessageEnvironmentVariable] = failDisposalMessage;
         }
+
         IReadOnlyDictionary<string, string?>? environment = environmentOverrides.Count == 0 ? null : environmentOverrides;
         IReadOnlyList<string> launchArguments = ["launch", "--provider", descriptor, "--hosting", hostingDescriptor, myWorkspace.Root];
         myProcess = myWorkspace.StartProcess(
@@ -374,10 +400,12 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public void RequestCallerCancellation()
     {
+
         if (myProcess is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
         }
+
         CancellableChildProcess.SendCancellationSignal(myProcess);
     }
 
@@ -388,12 +416,14 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public Task<int> WaitForProcessExitAsync(TimeSpan? timeout = null)
     {
+
         if (myProcess is null || myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
         }
 
         var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
+
         if (!myProcess.WaitForExit(deadlineMilliseconds))
         {
             throw new TimeoutException(
@@ -415,24 +445,29 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public async Task<string> WaitForStandardErrorContainingAsync(string text, TimeSpan? timeout = null)
     {
+
         if (myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
         }
 
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             var captured = myUi.CapturedStandardError();
+
             if (captured.Contains(text, StringComparison.Ordinal))
             {
                 return captured;
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for standard error to contain '{text}'.\n{myUi.DescribeDiagnostics(DescribeControlDiagnostics())}");
             }
+
             await Task.Delay(TimeSpan.FromMilliseconds(25));
         }
     }
@@ -443,6 +478,7 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public Task WaitForRoleStatusAsync(string role, string status, TimeSpan? timeout = null)
     {
+
         if (myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
@@ -474,6 +510,7 @@ public sealed class BackendScenario : IDisposable
     /// interface uses, never a shortcut into the provider.</summary>
     public void SendPrompt(string role, string prompt)
     {
+
         if (myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
@@ -541,6 +578,7 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public Task WaitForTranscriptAsync(string role, string content, TimeSpan? timeout = null)
     {
+
         if (myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
@@ -624,6 +662,7 @@ public sealed class BackendScenario : IDisposable
     public void RemoveIssuesDirectory()
     {
         var path = myWorkspace.PathInWorkspace("docs", "issues");
+
         if (Directory.Exists(path))
         {
             Directory.Delete(path, recursive: true);
@@ -640,10 +679,12 @@ public sealed class BackendScenario : IDisposable
     public void ReplaceIssuesDirectoryWithFile()
     {
         var path = myWorkspace.PathInWorkspace("docs", "issues");
+
         if (Directory.Exists(path))
         {
             Directory.Delete(path, recursive: true);
         }
+
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "not a directory");
     }
@@ -695,7 +736,6 @@ public sealed class BackendScenario : IDisposable
     public Task<IReadOnlyList<TranscriptEntryObservation>> WaitForReconciledTranscriptAsync(
         string role, Func<IReadOnlyList<TranscriptEntryObservation>, bool> matches, TimeSpan? timeout = null) =>
         RequireUi().WaitForReconciledTranscriptAsync(role, matches, timeout, DescribeControlDiagnostics());
-
 
     /// <summary>Waits until a "state.snapshot" message reports the given role at the given AI-credit usage.</summary>
     public Task WaitForRoleUsageAsync(string role, decimal aicUsed, TimeSpan? timeout = null) =>
@@ -783,6 +823,7 @@ public sealed class BackendScenario : IDisposable
     private async Task WaitForControlConnectionOrProcessExitAsync(TimeSpan? timeout)
     {
         var connect = myControl!.WaitForConnectionAsync(timeout, DescribeUiDiagnostics());
+
         if (myProcess is null)
         {
             await connect;
@@ -791,6 +832,7 @@ public sealed class BackendScenario : IDisposable
 
         var processExited = myProcess.WaitForExitAsync();
         var completed = await Task.WhenAny(connect, processExited);
+
         if (completed == processExited)
         {
             // The process has already retired without any client ever attempting to connect - nothing further
@@ -881,6 +923,7 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public Task<int> ShutdownAsync(TimeSpan? timeout = null)
     {
+
         if (myProcess is null || myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
@@ -889,6 +932,7 @@ public sealed class BackendScenario : IDisposable
         myWorkspace.RunBackendSpecSquadHq(["shutdown", myWorkspace.Root]);
 
         var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
+
         if (!myProcess.WaitForExit(deadlineMilliseconds))
         {
             throw new TimeoutException(
@@ -910,6 +954,7 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public Task RequestShutdownWithoutWaitingForExit()
     {
+
         if (myProcess is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
@@ -1120,30 +1165,36 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public async Task<int> RequestShutdownAsSoonAsReachableAsync(TimeSpan? timeout = null)
     {
+
         if (myProcess is null || myUi is null)
         {
             throw new InvalidOperationException("The backend process has not been started.");
         }
 
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             var attempt = myWorkspace.StartProcess(myWorkspace.BackendSpecSquadHqExecutablePath, ["shutdown", myWorkspace.Root]);
 
             var remaining = deadline - DateTime.UtcNow;
+
             if (remaining > TimeSpan.Zero)
             {
                 await WaitForEitherExitAsync(attempt, myProcess, remaining);
             }
+
             if (myProcess.WaitForExit(0))
             {
                 break;
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for the backend process to exit after repeatedly requesting shutdown.\n{myUi.DescribeDiagnostics(DescribeControlDiagnostics())}");
             }
+
             // This attempt's own process has already finished (most likely because the Headquarters-control endpoint
             // was not reachable yet) but the launched process is still running - retry with a fresh attempt.
         }
@@ -1155,6 +1206,7 @@ public sealed class BackendScenario : IDisposable
     private static async Task WaitForEitherExitAsync(System.Diagnostics.Process first, System.Diagnostics.Process second, TimeSpan timeout)
     {
         using var cancellation = new CancellationTokenSource(timeout);
+
         try
         {
             await Task.WhenAny(first.WaitForExitAsync(cancellation.Token), second.WaitForExitAsync(cancellation.Token));
@@ -1232,13 +1284,16 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public void Terminate(TimeSpan? timeout = null)
     {
+
         if (myProcess is not { HasExited: false } process)
+
         {
             throw new InvalidOperationException("The backend process has not been started, or has already exited.");
         }
 
         process.Kill(entireProcessTree: true);
         var deadlineMilliseconds = (int)(timeout ?? DefaultTimeout).TotalMilliseconds;
+
         if (!process.WaitForExit(deadlineMilliseconds))
         {
             throw new TimeoutException(
@@ -1264,10 +1319,12 @@ public sealed class BackendScenario : IDisposable
     /// </summary>
     public void Dispose()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         myDisposed = true;
 
         foreach (var child in myChildren)
@@ -1285,6 +1342,7 @@ public sealed class BackendScenario : IDisposable
         }
 
         if (myProcess is { HasExited: false } process)
+
         {
             try
             {
@@ -1297,11 +1355,13 @@ public sealed class BackendScenario : IDisposable
 
             try
             {
+
                 if (!process.WaitForExit((int)ShutdownGracePeriod.TotalMilliseconds))
                 {
                     process.Kill(entireProcessTree: true);
                     process.WaitForExit((int)DefaultTimeout.TotalMilliseconds);
                 }
+
             }
             catch (Exception exception)
             {
@@ -1321,16 +1381,19 @@ public sealed class BackendScenario : IDisposable
 
     private void DisposeControl()
     {
+
         if (myControl is null)
         {
             return;
         }
 
         var undisposed = myControl.DescribeUndisposedSessions();
+
         if (undisposed is not null)
         {
             Console.Error.WriteLine($"BackendScenario cleanup: sessions started but never disposed:\n{undisposed}");
         }
+
         myControl.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

@@ -17,10 +17,12 @@ internal static class TranscriptProtocol
 {
     public static bool IsTranscriptUpdate(JsonElement element, string role, string content)
     {
+
         if (!IsType(element, "transcript.update"))
         {
             return false;
         }
+
         var payload = GetPayload(element);
         return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role
             && payload.TryGetProperty("entry", out var entry)
@@ -31,56 +33,71 @@ internal static class TranscriptProtocol
 
     public static bool IsMatchingTranscriptEntryUpdate(JsonElement element, string role, string source, string? content)
     {
+
         if (!IsType(element, "transcript.update"))
         {
             return false;
         }
+
         var payload = GetPayload(element);
+
         if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role)
         {
             return false;
         }
+
         if (!payload.TryGetProperty("entry", out var entry) || entry.ValueKind != JsonValueKind.Object)
         {
             return false;
         }
+
         if (!entry.TryGetProperty("source", out var sourceElement) || sourceElement.GetString() != source)
         {
             return false;
         }
+
         return content is null
             || (entry.TryGetProperty("content", out var contentElement) && contentElement.GetString() == content);
     }
 
     public static bool IsMatchingTranscriptOperationUpdate(JsonElement element, string role, string operation, string? content)
     {
+
         if (!IsType(element, "transcript.update"))
         {
             return false;
         }
+
         var payload = GetPayload(element);
+
         if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role)
         {
             return false;
         }
+
         if (!payload.TryGetProperty("operation", out var operationElement) || operationElement.GetString() != operation)
         {
             return false;
         }
+
         return content is null || ResolveTranscriptUpdateContent(payload) == content;
     }
 
     public static string? ResolveTranscriptUpdateContent(JsonElement payload)
     {
+
         if (payload.TryGetProperty("entry", out var entry) && entry.ValueKind == JsonValueKind.Object
             && entry.TryGetProperty("content", out var entryContentElement) && entryContentElement.ValueKind == JsonValueKind.String)
         {
+
             return entryContentElement.GetString();
         }
+
         if (payload.TryGetProperty("content", out var contentElement) && contentElement.ValueKind == JsonValueKind.String)
         {
             return contentElement.GetString();
         }
+
         return null;
     }
 
@@ -129,23 +146,29 @@ internal static class TranscriptProtocol
         JsonElement element, string role, out IReadOnlyList<TranscriptEntryObservation> entries)
     {
         entries = [];
+
         if (!IsType(element, "transcript.synchronize"))
         {
             return false;
         }
+
         if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var roleElement in roles.EnumerateArray())
         {
+
             if (!roleElement.TryGetProperty("role", out var name) || name.GetString() != role)
             {
                 continue;
             }
+
             entries = ParseTranscriptEntries(roleElement);
             return true;
         }
+
         return false;
     }
 
@@ -158,41 +181,55 @@ internal static class TranscriptProtocol
     {
         entries = [];
         JsonElement? latestSynchronization = null;
+
         foreach (var line in stdOutLines)
         {
             using var document = JsonDocument.Parse(line);
+
             if (TryGetTranscriptSynchronizationEntries(document.RootElement, role, out _))
             {
                 latestSynchronization = document.RootElement.Clone();
             }
+
         }
+
         if (latestSynchronization is not { } synchronization)
+
         {
             return false;
         }
+
         TryGetTranscriptSynchronizationEntries(synchronization, role, out var seededEntries);
         var highWaterMark = GetRoleSynchronizationSequence(synchronization, role);
 
         var reconciled = new SortedDictionary<int, (string Source, string Content)>();
+
         foreach (var entry in seededEntries)
         {
             reconciled[entry.EntryIndex] = (entry.Source, entry.Content);
         }
+
         foreach (var line in stdOutLines)
         {
             using var document = JsonDocument.Parse(line);
             var element = document.RootElement;
+
             if (!IsType(element, "transcript.update"))
             {
                 continue;
             }
+
             var payload = GetPayload(element);
+
             if (!payload.TryGetProperty("role", out var roleElement) || roleElement.GetString() != role
                 || payload.GetProperty("sequence").GetInt64() <= highWaterMark)
             {
+
                 continue;
             }
+
             var entryIndex = payload.GetProperty("entryIndex").GetInt32();
+
             switch (payload.GetProperty("operation").GetString())
             {
                 case "append":
@@ -201,24 +238,30 @@ internal static class TranscriptProtocol
                     reconciled[entryIndex] = (entry.GetProperty("source").GetString()!, entry.GetProperty("content").GetString()!);
                     break;
                 case "append-content":
+
                     if (reconciled.TryGetValue(entryIndex, out var existing))
                     {
                         reconciled[entryIndex] = (existing.Source, existing.Content + payload.GetProperty("content").GetString());
                     }
+
                     break;
             }
         }
+
         entries = reconciled.Select(pair => new TranscriptEntryObservation(pair.Key, pair.Value.Source, pair.Value.Content)).ToList();
         return true;
     }
 
     public static IReadOnlyList<TranscriptEntryObservation> ParseTranscriptEntries(JsonElement roleElement)
     {
+
         if (!roleElement.TryGetProperty("entries", out var entriesElement) || entriesElement.ValueKind != JsonValueKind.Array)
         {
             return [];
         }
+
         var entries = new List<TranscriptEntryObservation>();
+
         foreach (var entry in entriesElement.EnumerateArray())
         {
             var entryIndex = entry.GetProperty("entryIndex").GetInt32();
@@ -230,41 +273,51 @@ internal static class TranscriptProtocol
                 : "";
             entries.Add(new TranscriptEntryObservation(entryIndex, source, content));
         }
+
         return entries;
     }
 
     public static long GetRoleSynchronizationSequence(JsonElement element, string role)
     {
+
         if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
         {
             return 0;
         }
+
         foreach (var roleElement in roles.EnumerateArray())
         {
+
             if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role)
             {
                 return roleElement.TryGetProperty("sequence", out var sequenceElement) ? sequenceElement.GetInt64() : 0;
             }
+
         }
+
         return 0;
     }
 
     public static bool IsTranscriptPageForRole(JsonElement element, string role)
     {
+
         if (!IsType(element, "transcript.page"))
         {
             return false;
         }
+
         var payload = GetPayload(element);
         return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role;
     }
 
     public static bool IsArchivedEntryForRoleAndIndex(JsonElement element, string role, int entryIndex)
     {
+
         if (!IsType(element, "transcript.entry"))
         {
             return false;
         }
+
         var payload = GetPayload(element);
         return payload.TryGetProperty("role", out var roleElement) && roleElement.GetString() == role
             && payload.TryGetProperty("entryIndex", out var entryIndexElement) && entryIndexElement.GetInt32() == entryIndex;

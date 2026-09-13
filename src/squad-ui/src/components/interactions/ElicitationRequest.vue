@@ -22,7 +22,9 @@ function isRequired(name: string) {
 }
 
 function urlHost(value?: string) {
+
   if (!value) return ''
+
   try { return new URL(value).host }
   catch { return 'Invalid URL' }
 }

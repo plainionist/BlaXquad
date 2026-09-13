@@ -9,16 +9,22 @@ export class FollowState {
 
   onExternalMove(position: number, realMaximum: number): FollowTransition {
     const next = position >= Math.max(0, realMaximum) - 44
+
     if (next === this.myFollowing.value)
       return 'unchanged'
+
     this.myFollowing.value = next
+
     return next ? 'started' : 'stopped'
   }
 
   suspend(): FollowTransition {
+
     if (!this.myFollowing.value)
       return 'unchanged'
+
     this.myFollowing.value = false
+
     return 'stopped'
   }
 

@@ -46,11 +46,13 @@ export class TranscriptIndex {
     this.myEntryIds = [...entryIds]
     this.mySourcePositions = entryIds.map((_, index) => index)
     this.myEntryPositions.clear()
+
     for (let index = 0; index < entryIds.length; index++)
       this.myEntryPositions.set(entryIds[index], index)
 
     this.myRenderableIndex.rebuild(
       entryIds.map((_, index) => isRenderable(entries[index]) ? 1 : 0))
+
     this.myRenderableCount = this.myRenderableIndex.total()
 
     this.myHeights = entryIds.map((entryIndex, index) =>
@@ -80,6 +82,7 @@ export class TranscriptIndex {
     mutation: TranscriptMutation | undefined,
     mutationIsSingular: boolean,
   ) {
+
     if (mutationIsSingular
       && mutation?.kind === 'append'
       && mutation.entryIndex === entryIds[entryIds.length - 1]
@@ -99,9 +102,12 @@ export class TranscriptIndex {
           : 0,
         renderable,
       )
+
       if (renderable)
         this.myRenderableCount++
+
       this.myTargetedMutationCount.value++
+
       return
     }
 
@@ -114,15 +120,21 @@ export class TranscriptIndex {
       const entryIndex = mutation.entryIndex!
       const position = this.myEntryPositions.get(entryIndex)!
       const renderable = isRenderable(entries[sourceIndex])
+
       if (renderable !== mutation.previouslyRenderable) {
         this.myRenderableCount += renderable ? 1 : -1
+
         this.myRenderableIndex.addDelta(position, renderable ? 1 : -1)
       }
+
       this.updateHeight(position, renderable ? this.estimatedHeight(position) : 0)
       const next = this.nextRenderablePosition(position)
+
       if (next != null)
         this.updateHeight(next, this.estimatedHeight(next))
+
       this.myTargetedMutationCount.value++
+
       this.myRevision.value++
       return
     }
@@ -132,11 +144,15 @@ export class TranscriptIndex {
 
   setMeasuredHeight(entryIndex: number, height: number) {
     const position = this.myEntryPositions.get(entryIndex)
+
     if (position == null || !this.isRenderableAt(position))
       return false
+
     const effectiveHeight = height + this.separationHeight(position)
+
     if (this.myHeights[position] === effectiveHeight)
       return false
+
     this.updateHeight(position, effectiveHeight)
     return true
   }
@@ -171,8 +187,10 @@ export class TranscriptIndex {
   }
 
   positionForRank(rank: number) {
+
     if (!Number.isInteger(rank) || rank < 0 || rank >= this.myRenderableCount)
       throw new RangeError(`Invalid renderable transcript rank: ${rank}.`)
+
     return this.myRenderableIndex.firstPositionWhosePrefixReaches(
       rank + 1,
       0,
@@ -184,8 +202,10 @@ export class TranscriptIndex {
   }
 
   rankAtOffset(offset: number) {
+
     if (this.myRenderableCount === 0)
       return 0
+
     const position = this.myHeightIndex.lastPositionWithPrefixAtMost(offset)
     return Math.max(
       0,
@@ -214,20 +234,29 @@ export class TranscriptIndex {
 
   nearestRenderableEntry(entryIndex: number) {
     const position = this.myEntryPositions.get(entryIndex)
+
     if (position != null && this.isRenderableAt(position))
       return entryIndex
+
     if (this.myRenderableCount === 0)
       return undefined
+
     let nearest = this.myEntryIds[this.positionForRank(0)]
+
     let distance = Math.abs(nearest - entryIndex)
+
     for (let rank = 1; rank < this.myRenderableCount; rank++) {
       const candidate = this.myEntryIds[this.positionForRank(rank)]
+
       const candidateDistance = Math.abs(candidate - entryIndex)
+
       if (candidateDistance < distance) {
         nearest = candidate
         distance = candidateDistance
       }
+
     }
+
     return nearest
   }
 
@@ -235,6 +264,7 @@ export class TranscriptIndex {
     const sourceIndex = this.mySourcePositions[position]
     const previousPosition = this.previousRenderablePosition(position)
     const previousEntry = previousPosition >= 0
+
       ? this.myEntries[this.mySourcePositions[previousPosition]]
       : undefined
     return projectEntry(
@@ -261,8 +291,10 @@ export class TranscriptIndex {
 
   private estimatedHeight(position: number) {
     const sourceIndex = this.mySourcePositions[position]
+
     if (!isRenderable(this.myEntries[sourceIndex]))
       return 0
+
     return this.estimatedHeightForEntry(
       this.myEntryIds[position],
       sourceIndex,
@@ -275,6 +307,7 @@ export class TranscriptIndex {
     previousPosition: number,
   ) {
     return (this.myMeasuredHeightFor(entryIndex) ?? estimatedRowHeight)
+
       + this.separationHeightForSource(sourceIndex, previousPosition)
   }
 
@@ -286,19 +319,24 @@ export class TranscriptIndex {
 
   private separationHeightForSource(sourceIndex: number, previousPosition: number) {
     const previousRenderable = this.previousRenderablePosition(previousPosition + 1)
+
     if (previousRenderable < 0)
       return 0
+
     const previousSource = this.mySourcePositions[previousRenderable]
     return categoryFor(this.myEntries[sourceIndex]?.source ?? 'system')
       === categoryFor(this.myEntries[previousSource]?.source ?? 'system')
       ? 0
+
       : estimatedRowHeight
   }
 
   private updateHeight(position: number, height: number) {
     const previous = this.myHeights[position]
+
     if (previous == null || previous === height)
       return
+
     this.myHeights[position] = height
     this.myHeightIndex.addDelta(position, height - previous)
     this.myRevision.value++

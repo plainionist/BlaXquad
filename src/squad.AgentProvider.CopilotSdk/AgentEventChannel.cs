@@ -36,6 +36,7 @@ internal sealed class AgentEventChannel : IAsyncDisposable
     /// </summary>
     public void Publish(AgentEvent agentEvent)
     {
+
         if (myDisposed)
         {
             return;
@@ -62,6 +63,7 @@ internal sealed class AgentEventChannel : IAsyncDisposable
     /// </summary>
     public Task PublishAsync(AgentEvent agentEvent, CancellationToken cancellationToken = default)
     {
+
         if (myDisposed)
         {
             return Task.CompletedTask;
@@ -85,6 +87,7 @@ internal sealed class AgentEventChannel : IAsyncDisposable
 
     private async Task PublishAsyncCore(AgentEvent agentEvent, CancellationToken cancellationToken, bool gateAlreadyAcquired)
     {
+
         if (!gateAlreadyAcquired)
         {
             await myWriteGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -92,6 +95,7 @@ internal sealed class AgentEventChannel : IAsyncDisposable
 
         try
         {
+
             if (myChannel.Writer.TryWrite(agentEvent))
             {
                 return;
@@ -124,9 +128,11 @@ internal sealed class AgentEventChannel : IAsyncDisposable
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myDisposalCts.Token);
         var writeTask = myChannel.Writer.WriteAsync(agentEvent, linkedCts.Token).AsTask();
         var timeoutTask = Task.Delay(myWriteTimeout, timeoutCts.Token);
+
         try
         {
             var completedTask = await Task.WhenAny(writeTask, timeoutTask).ConfigureAwait(false);
+
             if (completedTask == timeoutTask)
             {
                 linkedCts.Cancel();
@@ -156,6 +162,7 @@ internal sealed class AgentEventChannel : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+
         if (myDisposed)
         {
             return ValueTask.CompletedTask;
@@ -170,6 +177,7 @@ internal sealed class AgentEventChannel : IAsyncDisposable
 
     private void FailTerminal(Exception exception)
     {
+
         if (myDisposed || myChannel.Reader.Completion.IsCompleted)
         {
             return;

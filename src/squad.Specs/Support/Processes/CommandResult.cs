@@ -14,6 +14,7 @@ public sealed record CommandResult(
 {
     public void EnsureSuccess()
     {
+
         if (ExitCode == 0)
         {
             return;
@@ -31,6 +32,3 @@ public sealed record CommandResult(
             """);
     }
 }
-
-
-

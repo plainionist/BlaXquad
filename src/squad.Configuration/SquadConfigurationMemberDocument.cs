@@ -11,5 +11,3 @@ internal sealed class SquadConfigurationMemberDocument
     [JsonPropertyName("receiveMode")] public string? ReceiveMode { get; init; }
     [JsonPropertyName("agent")] public SquadConfigurationAgentDocument? Agent { get; init; }
 }
-
-

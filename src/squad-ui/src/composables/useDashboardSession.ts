@@ -82,7 +82,9 @@ export function useDashboardSession() {
   bridge.onIssues(applyIssues)
   bridge.onWorkspaceTools((snapshot) => { gitHistoryAvailable.value = snapshot.gitHistoryAvailable })
   bridge.onError((message, requestId) => {
+
     if (applyCatalogProtocolError(message, requestId)) return
+
     protocolError.value = message
   })
 
@@ -138,22 +140,29 @@ export function useDashboardSession() {
 
   function sendPrompt(role: string) {
     const prompt = promptFor(role).trim()
+
     if (!prompt) return
+
     bridge.send('prompt.send', { role, payload: { prompt } })
     recordPromptSubmission(role, prompt)
+
     clearPrompt(role)
   }
 
   function recallOlderPrompt(role: string): boolean {
     const recalled = recallOlderPromptHistory(role, promptFor(role))
+
     if (recalled === null) return false
+
     updatePrompt(role, recalled)
     return true
   }
 
   function recallNewerPrompt(role: string): boolean {
     const recalled = recallNewerPromptHistory(role)
+
     if (recalled === null) return false
+
     updatePrompt(role, recalled)
     return true
   }
@@ -163,7 +172,9 @@ export function useDashboardSession() {
   }
 
   function openGitHistory() {
+
     if (!gitHistoryAvailable.value) return
+
     bridge.send('git-history.open')
   }
 
@@ -173,6 +184,7 @@ export function useDashboardSession() {
 
   onMounted(() => bridge.send('ui.ready'))
   const focusRole = useFocusedRoleAbort(cancelRole)
+
   onUnmounted(() => {
     disposeTranscriptFeed()
     bridge.dispose()

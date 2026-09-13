@@ -26,12 +26,14 @@ static class PluginLoader
         PluginLoaderDiagnostics diagnostics)
         where TContract : class
     {
+
         if (!File.Exists(assemblyPath))
         {
             throw diagnostics.AssemblyNotFound(assemblyPath);
         }
 
         Assembly assembly;
+
         try
         {
             var context = new PluginLoadContext(assemblyPath, sharedAssemblyNames);
@@ -44,12 +46,14 @@ static class PluginLoader
         }
 
         var type = assembly.GetType(typeName, throwOnError: false);
+
         if (type is null || !type.IsPublic || !type.IsClass || type.IsAbstract || !typeof(TContract).IsAssignableFrom(type))
         {
             throw diagnostics.TypeIncompatible(typeName, assemblyPath);
         }
 
         var constructor = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, binder: null, Type.EmptyTypes, modifiers: null);
+
         if (constructor is null)
         {
             throw diagnostics.MissingConstructor(typeName);

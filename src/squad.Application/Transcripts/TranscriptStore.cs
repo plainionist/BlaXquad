@@ -57,10 +57,12 @@ public sealed class TranscriptStore : IDisposable
 
     private SquadMemberPublicationIdentity GetIdentity(SquadMemberId member)
     {
+
         if (!myPublicationIdentities.TryGetValue(member, out var identity))
         {
             myPublicationIdentities[member] = identity = new SquadMemberPublicationIdentity();
         }
+
         return identity;
     }
 

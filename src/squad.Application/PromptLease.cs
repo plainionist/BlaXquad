@@ -16,10 +16,12 @@ internal sealed class PromptLease : IDisposable
 
     public void Dispose()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         myDisposed = true;
         myPromptLock.Release();
     }

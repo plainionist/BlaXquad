@@ -200,8 +200,10 @@ test('preserves IME composition and same-tick free-form submission', async ({ pa
   const sharedRequestFreeform = coderPanel.getByPlaceholder('Type a response')
 
   await freeform.evaluate((element) => {
+
     if (!(element instanceof HTMLInputElement) || !element.form)
       throw new Error('Expected a free-form input inside a form.')
+
     element.dispatchEvent(new CompositionEvent('compositionstart', {
       bubbles: true,
     }))
@@ -224,9 +226,12 @@ test('preserves IME composition and same-tick free-form submission', async ({ pa
   })
 
   await freeform.evaluate((element) => {
+
     if (!(element instanceof HTMLInputElement) || !element.form)
       throw new Error('Expected a free-form input inside a form.')
+
     element.value = 'committed'
+
     element.dispatchEvent(new CompositionEvent('compositionend', {
       bubbles: true,
       data: 'committed',
@@ -243,11 +248,14 @@ test('preserves IME composition and same-tick free-form submission', async ({ pa
   })
 
   await freeform.evaluate((element, otherInput) => {
+
     if (!(element instanceof HTMLInputElement)
       || !(otherInput instanceof HTMLInputElement)
       || !otherInput.form)
       throw new Error('Expected free-form inputs inside forms.')
+
     element.value = 'shared same tick'
+
     element.dispatchEvent(new InputEvent('input', {
       bubbles: true,
       data: 'shared same tick',

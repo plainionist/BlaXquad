@@ -9,9 +9,11 @@ internal static class UiMessageReader
     {
         using var document = JsonDocument.Parse(serializedMessage);
         var envelope = document.RootElement;
+
         if (!envelope.TryGetProperty("type", out var type)
             || type.ValueKind != JsonValueKind.String)
         {
+
             return new(
                 null,
                 null,
@@ -38,6 +40,3 @@ internal static class UiMessageReader
             ? element.GetString()
             : null;
 }
-
-
-

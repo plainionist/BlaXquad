@@ -344,10 +344,12 @@ public sealed class BackendScenarioSteps
         {
             Assert.That(response.RequestId, Is.EqualTo(requestId));
             Assert.That(response.Action, Is.EqualTo(action));
+
             if (formValue.Length > 0)
             {
                 Assert.That(response.Content?.GetProperty("answer").GetString(), Is.EqualTo(formValue));
             }
+
         });
     }
 
@@ -460,6 +462,7 @@ public sealed class BackendScenarioSteps
         // timeout accounts for the extra time genuinely needed to encode, transmit, and project content this
         // size end to end.
         var timeout = TimeSpan.FromSeconds(60);
+
         if (index == 0)
         {
             Await(myScenario.WaitForTranscriptUpdateAsync(role, "assistant", content: null, timeout));
@@ -488,6 +491,7 @@ public sealed class BackendScenarioSteps
         // Sequentially awaiting each emit (rather than firing them concurrently) guarantees "message-{i}" lands at
         // increasing entry indices in publication order - required for the paging assertions that follow to
         // combine synchronization and page entries by their genuine, deterministic content.
+
         for (var index = 0; index < count; index++)
         {
             Await(myScenario.Agent(role).EmitSystemMessageAsync($"message-{index}"));
@@ -498,6 +502,7 @@ public sealed class BackendScenarioSteps
         // here for the dashboard protocol to report the very last message of this burst proves every one of them
         // has actually been applied before a later step requests a synchronization, so that request observes this
         // burst's true final boundary rather than an arbitrary, still-catching-up partial state.
+
         if (count > 0)
         {
             Await(myScenario.WaitForTranscriptUpdateAsync(role, "system", $"message-{count - 1}"));
@@ -508,6 +513,7 @@ public sealed class BackendScenarioSteps
     public void WhenTheAgentEmitsSystemMessagesWithCharactersEach(string role, int count, int characterCount)
     {
         var content = new string('x', characterCount);
+
         for (var index = 0; index < count; index++)
         {
             Await(myScenario.Agent(role).EmitSystemMessageAsync(content));
@@ -521,6 +527,7 @@ public sealed class BackendScenarioSteps
         // entry or synchronization, so that request observes this burst's true final boundary rather than an
         // arbitrary, still-catching-up partial state. A generous explicit timeout accounts for the extra time
         // genuinely needed to encode, transmit, and project a burst of entries this size end to end.
+
         if (count > 0)
         {
             Await(myScenario.WaitForTranscriptUpdateAsync(
@@ -550,10 +557,12 @@ public sealed class BackendScenarioSteps
     private MemberTranscriptObservationState GetOrCreateTranscriptObservation(string role)
     {
         var memberId = new SquadMemberId(role);
+
         if (!myTranscriptObservations.TryGetValue(memberId, out var state))
         {
             myTranscriptObservations[memberId] = state = new MemberTranscriptObservationState();
         }
+
         return state;
     }
 
@@ -573,6 +582,7 @@ public sealed class BackendScenarioSteps
         Assert.That(synchronization.Sequence, Is.GreaterThan(0), "The synchronization message must report a real sequence.");
 
         var entryIndices = synchronization.Entries.Select(entry => entry.EntryIndex).ToList();
+
         for (var index = 1; index < entryIndices.Count; index++)
         {
             Assert.That(entryIndices[index], Is.GreaterThan(entryIndices[index - 1]),
@@ -645,20 +655,25 @@ public sealed class BackendScenarioSteps
     public void WhenTheUiProtocolClientRequestsThePreviousTranscriptPageForRole(string role)
     {
         var state = GetOrCreateTranscriptObservation(role);
+
         if (state.PageFrontier is not { } beforeIndex)
+
         {
             throw new InvalidOperationException(
                 $"No transcript synchronization or previous page has been observed yet for role '{role}' to page back from.");
         }
+
         myScenario.RequestTranscriptPage(role, beforeIndex);
         var skip = state.PagesObserved;
         var page = Await(myScenario.WaitForTranscriptPageAsync(role, skip));
         state.PagesObserved = skip + 1;
         state.LatestPage = page;
+
         if (page.Entries.Count > 0)
         {
             state.PageFrontier = page.Entries[0].EntryIndex;
         }
+
         RecordPagedEntries(role, page.Entries);
     }
 
@@ -714,11 +729,14 @@ public sealed class BackendScenarioSteps
     {
         var entry = myLatestArchivedEntry
             ?? throw new InvalidOperationException("No archived transcript entry has been requested yet.");
+
         if (GetOrCreateTranscriptObservation(role).LatestSynchronizedSequence is not { } expectedSequence)
+
         {
             throw new InvalidOperationException(
                 $"No transcript synchronization has been observed yet for role '{role}' to compare the archived entry's reported sequence against.");
         }
+
         Assert.Multiple(() =>
         {
             Assert.That(entry.Content, Is.Null);
@@ -932,6 +950,7 @@ public sealed class BackendScenarioSteps
     /// rather than an empty choices list or a comma-encoded value.</summary>
     private static IReadOnlyList<string>? ChoicesFromRows(Table table)
     {
+
         if (table.Header.Count != 1 || table.Header.Single() != "choice")
         {
             throw new ArgumentException("choices table must declare exactly one \"choice\" column.");
@@ -949,6 +968,7 @@ public sealed class BackendScenarioSteps
     private static DataTableRow SingleRow(Table table, IReadOnlySet<string> supportedColumns, string tableName)
     {
         var unknownColumns = table.Header.Where(column => !supportedColumns.Contains(column)).ToList();
+
         if (unknownColumns.Count > 0)
         {
             throw new ArgumentException(
@@ -957,6 +977,7 @@ public sealed class BackendScenarioSteps
         }
 
         var missingColumns = supportedColumns.Where(column => !table.Header.Contains(column)).ToList();
+
         if (missingColumns.Count > 0)
         {
             throw new ArgumentException($"{tableName} table must declare column(s): {string.Join(", ", missingColumns)}.");

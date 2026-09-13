@@ -47,6 +47,7 @@ export function useTranscriptMutationUpdates(
     clearMeasurements: boolean,
     invalidateMeasurement: number | undefined,
   ) {
+
     if (clearMeasurements
       || (mutationIsSingular
         && mutation?.kind === 'replace'
@@ -54,6 +55,7 @@ export function useTranscriptMutationUpdates(
       options.measurements.resetRows()
       return
     }
+
     if (invalidateMeasurement != null)
       options.measurements.invalidate(invalidateMeasurement)
   }
@@ -93,8 +95,10 @@ export function useTranscriptMutationUpdates(
         : undefined
 
       try {
+
         if (plan.suspendFollowing)
           options.followState.suspend()
+
         if (plan.clearCompensation)
           options.readingAnchor.releaseCompensation()
 
@@ -120,30 +124,39 @@ export function useTranscriptMutationUpdates(
 
         if (plan.reduceCompensationAfterAppend) {
           const growth = options.index.totalHeight() - indexedHeightBefore
+
           if (Math.min(compensationBefore, growth) > 0
             && options.viewport.value) {
             options.scroll.expectPosition(
               options.viewport.value.scrollTop,
               'layout')
           }
+
           options.readingAnchor.reduceCompensationBy(growth)
         }
 
         const resolvedAnchor = options.readingAnchor.resolve(
           plan.requestedAnchor)
+
         if (resolvedAnchor)
           options.readingAnchor.retain(resolvedAnchor)
+
         let restoreToken = resolvedAnchor
+
           ? options.readingAnchor.beginRestore(resolvedAnchor)
           : undefined
+
         if (plan.requestedAnchor && !resolvedAnchor)
           options.readingAnchor.clearReading()
+
         if (restoreToken)
           options.placeWindowAround(restoreToken.anchor.entryIndex)
 
         await nextTick()
+
         if (!options.isCurrent(epoch))
           return
+
         if (options.measurements.sweep())
           return
 
@@ -151,24 +164,34 @@ export function useTranscriptMutationUpdates(
           && layoutTransaction
           && options.scroll.wasClamped(layoutTransaction)) {
           const element = options.viewport.value
+
           if (element)
             options.scroll.expectPosition(element.scrollTop, 'layout')
+
           const anchor = options.readingAnchor.resolve(
             layoutTransaction.anchor)
+
           if (anchor) {
             options.readingAnchor.retain(anchor)
+
             restoreToken = options.readingAnchor.beginRestore(anchor)
+
             options.placeWindowAround(anchor.entryIndex)
           }
+
         }
 
         await options.correctForState(epoch, restoreToken, tailGuard)
+
         if (options.isCurrent(epoch))
           options.updateWindow()
+
       }
       finally {
+
         if (layoutTransaction)
           options.scroll.finishLayoutTransaction(layoutTransaction)
+
       }
     },
   )

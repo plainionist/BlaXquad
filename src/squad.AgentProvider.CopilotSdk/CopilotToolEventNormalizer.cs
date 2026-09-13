@@ -27,6 +27,7 @@ internal sealed class CopilotToolEventNormalizer
     public bool TryPublish(SessionEvent sessionEvent)
     {
         var occurredAt = DateTimeOffset.UtcNow;
+
         switch (sessionEvent)
         {
             case ToolExecutionStartEvent start:
@@ -46,6 +47,7 @@ internal sealed class CopilotToolEventNormalizer
                 var normalizedOutput = myOutputNormalizer.Apply(
                     partialToolCallId,
                     partial.Data.PartialOutput);
+
                 if (normalizedOutput is not null)
                 {
                     myAgentSession.Publish(new AgentToolOutputChangedEvent(
@@ -53,6 +55,7 @@ internal sealed class CopilotToolEventNormalizer
                         partialToolCallId,
                         normalizedOutput));
                 }
+
                 return true;
             case ToolExecutionProgressEvent progress:
                 myAgentSession.Publish(new AgentToolProgressEvent(
@@ -105,5 +108,3 @@ internal sealed class CopilotToolEventNormalizer
         }
     }
 }
-
-

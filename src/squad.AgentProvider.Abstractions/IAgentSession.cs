@@ -26,4 +26,3 @@ public interface IAgentSession : IAsyncDisposable
     /// <summary>Cancels every unresolved provider interaction without terminating the session itself.</summary>
     Task CancelPendingInteractionsAsync(CancellationToken cancellationToken = default);
 }
-

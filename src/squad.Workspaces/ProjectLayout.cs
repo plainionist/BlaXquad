@@ -16,6 +16,7 @@ public record ProjectLayout(
     public static ProjectLayout Create(string workingDirArg)
     {
         Contract.Requires(!string.IsNullOrWhiteSpace(workingDirArg), "workingDirArg must not be blank.");
+
         var workingDir = Path.GetFullPath(workingDirArg);
         var scriptDir = AppContext.BaseDirectory.TrimEnd('/', '\\');
         var packDir = Path.Combine(workingDir, "blaxquad");
@@ -33,5 +34,3 @@ public record ProjectLayout(
             Path.Combine(stateDir, "handoff-delivery.log"));
     }
 }
-
-

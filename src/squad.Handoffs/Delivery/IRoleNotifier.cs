@@ -7,5 +7,3 @@ public interface IRoleNotifier
 {
     Task NotifyAsync(SquadMemberId role, CancellationToken cancellationToken = default);
 }
-
-

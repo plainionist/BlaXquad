@@ -46,10 +46,12 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
             {
                 RawSdkEventTrace.Record(sessionEvent);
                 agentSession.NotifyUsageActivity(isIdle: sessionEvent is SessionIdleEvent);
+
                 if (!toolEvents.TryPublish(sessionEvent))
                 {
                     PublishEvent(sessionEvent, agentSession);
                 }
+
             },
             OnPermissionRequest = (request, _) => HandlePermissionRequestAsync(agentSession, permissions, workingDirectory, request),
             OnUserInputRequest = (request, _) => HandleUserInputRequestAsync(agentSession, request),
@@ -66,10 +68,12 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
 
     private static async Task<PermissionDecision> HandlePermissionRequestAsync(CopilotSdkAgentSession agentSession, squad.Domain.PermissionMode permissions, string workingDirectory, PermissionRequest request)
     {
+
         if (permissions == squad.Domain.PermissionMode.ApproveAll && request.ManagedApprovalRequired is not true)
         {
             return PermissionDecision.ApproveOnce();
         }
+
         if (ShouldApproveWorkspaceRead(workingDirectory, request))
         {
             return PermissionDecision.ApproveOnce();
@@ -83,7 +87,9 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
 
     private static bool ShouldApproveWorkspaceRead(string workingDirectory, PermissionRequest request)
     {
+
         if (request.ManagedApprovalRequired is true || request is not PermissionRequestRead { Path: { Length: > 0 } path })
+
         {
             return false;
         }
@@ -147,23 +153,29 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
 
     private static IDictionary<string, object>? ToSdkElicitationContent(JsonElement? content)
     {
+
         if (content is not { ValueKind: JsonValueKind.Object } value)
+
         {
             return null;
         }
+
         return JsonSerializer.Deserialize<Dictionary<string, object>>(value.GetRawText());
     }
 
     private static void PublishEvent(SessionEvent sessionEvent, CopilotSdkAgentSession agentSession)
     {
         var occurredAt = DateTimeOffset.UtcNow;
+
         switch (sessionEvent)
         {
             case UserMessageEvent { Data.Content: { } content }:
+
                 if (!agentSession.TryConsumeHarnessMessageEcho(content))
                 {
                     agentSession.Publish(new AgentUserMessageEvent(occurredAt, content));
                 }
+
                 break;
             case AssistantMessageDeltaEvent { Data.DeltaContent: { } content }:
                 agentSession.Publish(new AgentAssistantMessageEvent(occurredAt, content, true));
@@ -231,6 +243,7 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
 
     private static void PublishDiscoveredSkills(SessionEvent sessionEvent, CopilotSdkAgentSession agentSession, DateTimeOffset occurredAt)
     {
+
         if (GetProperty(sessionEvent, "Data") is null || GetProperty(GetProperty(sessionEvent, "Data")!, "Skills") is not IEnumerable skills)
         {
             return;
@@ -239,16 +252,19 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
         foreach (var skill in skills)
         {
             var path = GetProperty(skill, "Path") as string;
+
             if (!string.IsNullOrWhiteSpace(path))
             {
                 agentSession.Publish(new AgentSystemMessageEvent(occurredAt, $"Discovered {path}"));
             }
+
         }
     }
 
     private static void PublishSkillInvocation(SessionEvent sessionEvent, CopilotSdkAgentSession agentSession, DateTimeOffset occurredAt)
     {
         var name = GetProperty(GetProperty(sessionEvent, "Data"), "Name") as string;
+
         if (!string.IsNullOrWhiteSpace(name))
         {
             agentSession.Publish(new AgentSkillInvokedEvent(occurredAt, name));
@@ -258,5 +274,3 @@ internal sealed class CopilotSdkClient : IAsyncDisposable
     private static object? GetProperty(object? value, string name) => value?.GetType().GetProperty(name)?.GetValue(value);
 
 }
-
-

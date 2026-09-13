@@ -45,11 +45,13 @@ static class Launch
         {
             var agentProviderFactory = ProviderLoader.Load(providerDescriptor ?? DefaultProviderDescriptor());
             var layout = ProjectLayout.Create(root);
+
             if (!HeadquartersLease.TryAcquire(layout.WorkingDir, out var headquartersLease))
             {
                 Fail($"A Headquarters instance is already running for {layout.WorkingDir}.");
                 return;
             }
+
             Headquarters? headquarters = null;
             using var consoleCancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler? cancelHandler = (_, eventArgs) =>
@@ -80,6 +82,7 @@ static class Launch
                     gitHistoryTool,
                     headquartersLease: headquartersLease!);
                 headquartersLease = null;
+
                 try
                 {
                     headquarters.RunAsync(consoleCancellation.Token).GetAwaiter().GetResult();
@@ -107,10 +110,12 @@ static class Launch
             finally
             {
                 Console.CancelKeyPress -= cancelHandler;
+
                 if (headquarters is null && headquartersLease is not null)
                 {
                     headquartersLease.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 }
+
             }
         }
     }
@@ -125,6 +130,3 @@ static class Launch
     private static HostingDescriptor DefaultHostingDescriptor() =>
         new(Path.Combine(AppContext.BaseDirectory, DefaultHostingAssemblyName), DefaultHostingTypeName);
 }
-
-
-

@@ -444,6 +444,7 @@ test('preserves announcement whitespace and represents empty replacements', asyn
   await expect(latestAnnouncement(announcer)).toHaveText('Hello world')
 
   await page.evaluate(() => {
+
     for (const [sequence, content] of [[5, '\n'], [6, 'next']] as const) {
       window.__blaxquadHarness?.receive({
         type: 'transcript.update',
@@ -558,6 +559,7 @@ test('preserves announcement whitespace and represents empty replacements', asyn
 
 test('retains sustained announcement batches in publication order', async ({ page }) => {
   await loadSnapshot(page)
+
   for (const [sequence, content] of [[2, 'one'], [3, ' two'], [4, ' three']] as const) {
     await page.evaluate(({ sequence, content }) => {
       window.__blaxquadHarness?.receive({
@@ -576,6 +578,7 @@ test('retains sustained announcement batches in publication order', async ({ pag
         },
       })
     }, { sequence, content })
+
     await page.waitForTimeout(100)
   }
 

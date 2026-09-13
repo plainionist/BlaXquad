@@ -31,10 +31,12 @@ public static class HandoffQueue
     /// <summary>Returns handoff files in stable name order, or an empty list when the directory does not exist.</summary>
     public static IReadOnlyList<string> HandoffFiles(string dir)
     {
+
         if (!Directory.Exists(dir))
         {
             return Array.Empty<string>();
         }
+
         return Directory.EnumerateFiles(dir)
             .Where(f => f.EndsWith(HandoffDocument.FileSuffix, StringComparison.Ordinal))
             .OrderBy(Path.GetFileName, StringComparer.Ordinal)
@@ -44,10 +46,12 @@ public static class HandoffQueue
     /// <summary>Returns batch directories in stable name order, or an empty list when the directory does not exist.</summary>
     public static IReadOnlyList<string> BatchDirs(string dir)
     {
+
         if (!Directory.Exists(dir))
         {
             return Array.Empty<string>();
         }
+
         return Directory.EnumerateDirectories(dir)
             .Where(d => Path.GetFileName(d).StartsWith("batch_", StringComparison.Ordinal))
             .OrderBy(Path.GetFileName, StringComparer.Ordinal)
@@ -62,10 +66,12 @@ public static class HandoffQueue
         output.WriteLine($"FROM: {document.From}");
         output.WriteLine($"TYPE: {TypeLabel(document.Kind)}");
         output.WriteLine($"PRIORITY: {document.Priority}");
+
         if (document.Kind == HandoffKind.GitHandoff)
         {
             output.WriteLine($"TASK_NAME: {document.GitHandoff!.Task}");
         }
+
         output.WriteLine("PAYLOAD:");
         output.WriteLine(document.RenderPayload());
     }
@@ -74,6 +80,7 @@ public static class HandoffQueue
     public static void PrintBatch(TextWriter output, string batchDir)
     {
         var files = HandoffFiles(batchDir);
+
         if (files.Count == 0)
         {
             throw new CliExitException(2, $"AMBIGUOUS_TASK_STATE: batch contains no tasks: {batchDir}");
@@ -83,6 +90,7 @@ public static class HandoffQueue
         output.WriteLine($"BATCH: {batchDir}");
         output.WriteLine($"COUNT: {files.Count}");
         output.WriteLine($"PRIORITY: {firstPriority}");
+
         for (var i = 0; i < files.Count; i++)
         {
             output.WriteLine();

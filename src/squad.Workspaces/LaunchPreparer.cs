@@ -46,6 +46,7 @@ public sealed class LaunchPreparer
     public async Task PrepareProcessAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         if (!ExecutableLocator.Exists("git"))
         {
             throw new WorkspacePreparationException("'git' is required but not installed.");
@@ -100,15 +101,19 @@ public sealed class LaunchPreparer
     {
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var environment = new Dictionary<string, string>(comparer);
+
         foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
         {
+
             if (entry.Key is string key && entry.Value is not null)
             {
                 environment[key] = entry.Value.ToString()!;
             }
+
         }
 
         var existingPath = environment.TryGetValue("PATH", out var pathValue) ? pathValue : string.Empty;
+
         if (string.IsNullOrEmpty(existingPath))
         {
             environment["PATH"] = context.ScriptDir;
@@ -116,10 +121,12 @@ public sealed class LaunchPreparer
         else
         {
             var parts = existingPath.Split(Path.PathSeparator);
+
             if (!parts.Contains(context.ScriptDir, comparer))
             {
                 environment["PATH"] = string.Join(Path.PathSeparator, context.ScriptDir, existingPath);
             }
+
         }
 
         return new AgentBackendContext(

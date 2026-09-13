@@ -40,6 +40,7 @@ internal sealed class TranscriptArchive : IDisposable
             ObjectDisposedException.ThrowIf(myDisposed, this);
             var role = GetRole(update.MemberId);
             var path = GetContentPath(update.MemberId, update.EntryIndex);
+
             switch (update.Kind)
             {
                 case TranscriptUpdateKind.AppendEntry:
@@ -47,10 +48,12 @@ internal sealed class TranscriptArchive : IDisposable
                     WriteEntry(update.MemberId, update.EntryIndex, update.Entry!);
                     var state = CreateEntryState(update.Entry!, myOptions.MaxArchivedEntryCharacters);
                     role.Entries[update.EntryIndex] = state;
+
                     if (state.ContentTruncated)
                     {
                         role.MarkTruncated();
                     }
+
                     break;
                 case TranscriptUpdateKind.AppendContent:
                     AppendContent(path, role, update.EntryIndex, update.Content!);
@@ -58,6 +61,7 @@ internal sealed class TranscriptArchive : IDisposable
                 default:
                     throw new ArgumentOutOfRangeException(nameof(update.Kind));
             }
+
             EnforceLimits(update.MemberId, role);
         }
     }
@@ -70,10 +74,12 @@ internal sealed class TranscriptArchive : IDisposable
         lock (myStateLock)
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
+
             if (!myRoles.TryGetValue(memberId, out var role))
             {
                 return [];
             }
+
             return role.Entries.Keys
                 .Where(index => index < beforeIndex)
                 .TakeLast(maxEntries)
@@ -97,9 +103,11 @@ internal sealed class TranscriptArchive : IDisposable
         lock (myStateLock)
         {
             ObjectDisposedException.ThrowIf(myDisposed, this);
+
             if (!myRoles.TryGetValue(memberId, out var role)
                 || !role.Entries.TryGetValue(entryIndex, out var state))
             {
+
                 return new RoleArchivedTranscriptEntry(
                     memberId,
                     sequence,
@@ -109,6 +117,7 @@ internal sealed class TranscriptArchive : IDisposable
                     0,
                     0);
             }
+
             return new RoleArchivedTranscriptEntry(
                 memberId,
                 sequence,
@@ -139,24 +148,30 @@ internal sealed class TranscriptArchive : IDisposable
     {
         lock (myStateLock)
         {
+
             if (myDisposed)
             {
                 return;
             }
+
             myDisposed = true;
+
             if (Directory.Exists(myDirectory))
             {
                 Directory.Delete(myDirectory, recursive: true);
             }
+
         }
     }
 
     private RoleArchiveState GetRole(SquadMemberId memberId)
     {
+
         if (!myRoles.TryGetValue(memberId, out var role))
         {
             myRoles[memberId] = role = new RoleArchiveState();
         }
+
         return role;
     }
 
@@ -181,17 +196,22 @@ internal sealed class TranscriptArchive : IDisposable
         int entryIndex,
         string content)
     {
+
         if (!role.Entries.TryGetValue(entryIndex, out var state))
         {
             return;
         }
+
         state = state.WithAddedTotalLength(content.Length);
+
         if (state.ContentTruncated)
         {
             role.Entries[entryIndex] = state;
             return;
         }
+
         var maxCharacters = myOptions.MaxArchivedEntryCharacters;
+
         if (content.Length <= maxCharacters - state.RetainedLength)
         {
             WritePrivateText(path, content, append: true);
@@ -201,10 +221,12 @@ internal sealed class TranscriptArchive : IDisposable
 
         var retained = File.ReadAllText(path);
         var contentLimit = Math.Max(0, maxCharacters - myTruncationMarker.Length);
+
         if (retained.Length < contentLimit)
         {
             retained += content[..Math.Min(content.Length, contentLimit - retained.Length)];
         }
+
         var marker = myTruncationMarker[..Math.Min(myTruncationMarker.Length, maxCharacters)];
         WritePrivateText(path, retained[..Math.Min(retained.Length, contentLimit)] + marker, append: false);
         role.Entries[entryIndex] = state.WithRetainedLength(maxCharacters).WithContentTruncated();
@@ -223,9 +245,11 @@ internal sealed class TranscriptArchive : IDisposable
     private void EnforceLimits(SquadMemberId memberId, RoleArchiveState role)
     {
         var totalCharacters = role.Entries.Values.Sum(state => state.RetainedLength);
+
         while (role.Entries.Count > myOptions.MaxArchivedEntries
             || totalCharacters > myOptions.MaxArchivedContentCharacters)
         {
+
             var oldest = role.Entries.First();
             File.Delete(GetMetadataPath(memberId, oldest.Key));
             File.Delete(GetContentPath(memberId, oldest.Key));
@@ -293,14 +317,17 @@ internal sealed class TranscriptArchive : IDisposable
 
     private static string LimitContent(string content, int maxCharacters)
     {
+
         if (content.Length <= maxCharacters)
         {
             return content;
         }
+
         if (maxCharacters <= myTruncationMarker.Length)
         {
             return myTruncationMarker[..maxCharacters];
         }
+
         var contentLength = Math.Max(0, maxCharacters - myTruncationMarker.Length);
         return content[..contentLength] + myTruncationMarker;
     }
@@ -313,6 +340,7 @@ internal sealed class TranscriptArchive : IDisposable
 
     private static void CreatePrivateDirectory(string path)
     {
+
         if (OperatingSystem.IsWindows())
         {
             Directory.CreateDirectory(path);
@@ -325,8 +353,10 @@ internal sealed class TranscriptArchive : IDisposable
 
     private static void WritePrivateText(string path, string content, bool append)
     {
+
         if (OperatingSystem.IsWindows())
         {
+
             if (append)
             {
                 File.AppendAllText(path, content);
@@ -335,6 +365,7 @@ internal sealed class TranscriptArchive : IDisposable
             {
                 File.WriteAllText(path, content);
             }
+
             return;
         }
 

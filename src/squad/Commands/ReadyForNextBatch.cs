@@ -39,6 +39,7 @@ static class ReadyForNextBatch
             }
 
             var newFiles = HandoffQueue.HandoffFiles(newDir);
+
             if (newFiles.Count == 0)
             {
                 Console.Out.WriteLine("NO_TASK");
@@ -50,9 +51,11 @@ static class ReadyForNextBatch
             var selectedFiles = newFiles.Where(f => HandoffJson.Read(f).Priority == batchPriority).ToList();
 
             Directory.CreateDirectory(batchDir);
+
             foreach (var sourceFile in selectedFiles)
             {
                 var targetFile = Path.Combine(batchDir, Path.GetFileName(sourceFile));
+
                 if (Path.Exists(targetFile))
                 {
                     Fail(2, $"AMBIGUOUS_TASK_STATE: target batch file already exists: {targetFile}");
@@ -72,10 +75,12 @@ static class ReadyForNextBatch
         }
         catch (CliExitException ex)
         {
+
             if (!string.IsNullOrEmpty(ex.Message))
             {
                 Console.Error.WriteLine(ex.Message);
             }
+
             return ex.ExitCode;
         }
     }
@@ -83,13 +88,16 @@ static class ReadyForNextBatch
     static string NewBatchDir(string inProcessDir)
     {
         var suffix = 1;
+
         while (true)
         {
             var dir = Path.Combine(inProcessDir, $"batch_{Timestamps.IdNow()}_{suffix:D6}");
+
             if (!Path.Exists(dir))
             {
                 return dir;
             }
+
             suffix++;
         }
     }
@@ -97,13 +105,12 @@ static class ReadyForNextBatch
     static void Fail(int status, string headline, IReadOnlyList<string>? items = null)
     {
         var lines = new List<string> { headline };
+
         if (items is not null)
         {
             lines.AddRange(items.Select(i => $"- {i}"));
         }
+
         throw new CliExitException(status, string.Join("\n", lines));
     }
 }
-
-
-

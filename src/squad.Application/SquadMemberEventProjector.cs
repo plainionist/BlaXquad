@@ -17,6 +17,7 @@ internal static class SquadMemberEventProjector
         member.EventCount++;
         member.LastEventAt = agentEvent.OccurredAt;
         TranscriptUpdate? transcriptUpdate = null;
+
         switch (agentEvent)
         {
             case AgentStartedEvent:
@@ -76,14 +77,18 @@ internal static class SquadMemberEventProjector
                 break;
             case AgentToolStartedEvent tool:
                 member.IsWorking = true;
+
                 if (IsSubagentPlumbingTool(tool.ToolName) ||
                     tool.ToolName.Equals("skill", StringComparison.OrdinalIgnoreCase))
                 {
+
                     break;
                 }
+
                 var isRead = tool.IsRead || IsReadTool(tool.ToolName);
                 var suppressOutput = isRead;
                 var toolDescription = isRead ? DescribeRead(tool) : DescribeToolStart(tool);
+
                 if (!string.IsNullOrWhiteSpace(toolDescription))
                 {
                     transcriptUpdate = member.Transcript.StartTool(
@@ -97,17 +102,20 @@ internal static class SquadMemberEventProjector
                             toolDescription));
                     member.ActiveTool = tool.ToolName;
                 }
+
                 break;
             case AgentToolCompletedEvent tool:
                 var completion = member.Transcript.CompleteTool(
                     tool.ToolCallId,
                     tool.DisplayOutputFallback,
                     tool.ContentFallback);
+
                 if (completion is not null)
                 {
                     transcriptUpdate = completion.Update;
                     member.ActiveTool = completion.ActiveTool;
                 }
+
                 break;
             case AgentToolOutputChangedEvent output:
                 member.IsWorking = true;
@@ -124,10 +132,12 @@ internal static class SquadMemberEventProjector
             case AgentSessionConfigurationEvent configuration:
                 member.Model = configuration.Model;
                 member.Effort = configuration.Effort;
+
                 if (member.ContextLimitTokens is null or <= 0)
                 {
                     member.ContextLimitTokens = GetModelContextWindowLimit(member.Model, 0);
                 }
+
                 break;
             case AgentSessionModelChangedEvent model:
                 member.Model = model.Model;
@@ -160,24 +170,29 @@ internal static class SquadMemberEventProjector
                     new TranscriptEntry(elicitation.OccurredAt, TranscriptSource.Harness, elicitation.Prompt));
                 break;
         }
+
         return transcriptUpdate;
     }
 
     private static TranscriptUpdate ApplyAssistantMessage(SquadMember member, AgentAssistantMessageEvent message)
     {
+
         if (message.IsDelta)
         {
             return member.Transcript.AppendAssistantEntry(message.OccurredAt, message.Content);
         }
+
         return member.Transcript.CompleteAssistantEntry(message.OccurredAt, message.Content);
     }
 
     private static TranscriptUpdate ApplyReasoning(SquadMember member, AgentReasoningEvent reasoning)
     {
+
         if (reasoning.IsDelta)
         {
             return member.Transcript.AppendReasoningEntry(reasoning.OccurredAt, reasoning.Content);
         }
+
         return member.Transcript.CompleteReasoningEntry(reasoning.OccurredAt, reasoning.Content);
     }
 
@@ -227,26 +242,33 @@ internal static class SquadMemberEventProjector
 
     private static string? DescribeToolStart(AgentToolStartedEvent tool)
     {
+
         if (string.IsNullOrWhiteSpace(tool.Arguments))
         {
             return tool.ToolName;
         }
+
         if (TryParseToolArguments(tool.Arguments, out var arguments))
         {
+
             if (arguments.ValueKind is JsonValueKind.Object &&
                 arguments.TryGetProperty("command", out var command) &&
                 command.ValueKind is JsonValueKind.String &&
                 !string.IsNullOrWhiteSpace(command.GetString()))
             {
+
                 var cmd = command.GetString()!;
+
                 if (tool.ToolName.Contains(cmd, StringComparison.Ordinal))
                 {
                     return tool.ToolName;
                 }
+
                 if (KnownShellRunners.Contains(tool.ToolName))
                 {
                     return $"{tool.ToolName} {cmd}";
                 }
+
                 return cmd;
             }
 
@@ -257,11 +279,14 @@ internal static class SquadMemberEventProjector
                 pathProp.ValueKind is JsonValueKind.String &&
                 !string.IsNullOrWhiteSpace(pathProp.GetString()))
             {
+
                 var path = pathProp.GetString()!;
                 var fileName = Path.GetFileName(path);
+
                 if (tool.ToolName.Contains(path, StringComparison.Ordinal) ||
                     (!string.IsNullOrEmpty(fileName) && tool.ToolName.Contains(fileName, StringComparison.Ordinal)))
                 {
+
                     return tool.ToolName;
                 }
 
@@ -282,19 +307,24 @@ internal static class SquadMemberEventProjector
 
     private static string DescribeRead(AgentToolStartedEvent tool)
     {
+
         if (string.IsNullOrWhiteSpace(tool.Arguments))
         {
             return tool.ToolName;
         }
+
         if (!TryParseToolArguments(tool.Arguments, out var arguments))
         {
             return tool.ToolName;
         }
+
         var path = ReadPath(arguments);
+
         if (string.IsNullOrWhiteSpace(path))
         {
             return tool.ToolName;
         }
+
         var fullPath = Path.IsPathFullyQualified(path) || string.IsNullOrWhiteSpace(tool.WorkingDirectory)
             ? path
             : Path.GetFullPath(path, tool.WorkingDirectory);
@@ -311,16 +341,19 @@ internal static class SquadMemberEventProjector
     {
         startLine = 0;
         endLine = 0;
+
         if (arguments.ValueKind is not JsonValueKind.Object)
         {
             return false;
         }
+
         if (arguments.TryGetProperty("view_range", out var range) &&
             range.ValueKind is JsonValueKind.Array &&
             range.GetArrayLength() == 2 &&
             range[0].TryGetInt32(out startLine) &&
             range[1].TryGetInt32(out endLine))
         {
+
             return true;
         }
 
@@ -330,40 +363,52 @@ internal static class SquadMemberEventProjector
 
     private static bool TryReadLine(JsonElement arguments, string[] names, out int line)
     {
+
         foreach (var name in names)
         {
+
             if (arguments.TryGetProperty(name, out var value) && value.TryGetInt32(out line))
             {
                 return true;
             }
+
         }
+
         line = 0;
         return false;
     }
 
     private static string? ReadPath(JsonElement arguments)
     {
+
         if (arguments.ValueKind is not JsonValueKind.Object)
         {
             return null;
         }
+
         foreach (var propertyName in new[] { "path", "filePath", "file_path", "filename" })
+
         {
+
             if (arguments.TryGetProperty(propertyName, out var property) && property.ValueKind is JsonValueKind.String)
             {
                 return property.GetString();
             }
+
         }
+
         return null;
     }
 
     private static bool TryParseToolArguments(string? arguments, out JsonElement value)
     {
+
         if (string.IsNullOrWhiteSpace(arguments))
         {
             value = default;
             return false;
         }
+
         try
         {
             using var document = JsonDocument.Parse(arguments);
@@ -388,28 +433,35 @@ internal static class SquadMemberEventProjector
     private static long GetModelContextWindowLimit(string? model, long reportedLimit)
     {
         var knownLimit = GetKnownModelLimit(model);
+
         if (knownLimit > 0)
         {
             return Math.Max(knownLimit, reportedLimit);
         }
+
         return reportedLimit > 0 ? reportedLimit : 128000;
     }
 
     private static long GetKnownModelLimit(string? model)
     {
+
         if (string.IsNullOrWhiteSpace(model))
         {
             return 0;
         }
+
         var lower = model.ToLowerInvariant();
+
         if (lower.Contains("claude"))
         {
             return 200000;
         }
+
         if (lower.Contains("gpt-4o") || lower.Contains("gpt-4.5") || lower.Contains("o1") || lower.Contains("o3"))
         {
             return 128000;
         }
+
         return 128000;
     }
 }

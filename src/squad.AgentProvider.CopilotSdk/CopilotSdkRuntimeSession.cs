@@ -86,12 +86,15 @@ internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
 
     private static JsonElement? GetProperty(JsonElement element, params string[] propertyPath)
     {
+
         foreach (var propertyName in propertyPath)
         {
+
             if (element.ValueKind is not JsonValueKind.Object || !element.TryGetProperty(propertyName, out element))
             {
                 return null;
             }
+
         }
 
         return element;
@@ -100,5 +103,3 @@ internal sealed class CopilotSdkRuntimeSession : IAsyncDisposable
     private static long? TryGetInt64(JsonElement element, string propertyName) =>
         element.TryGetProperty(propertyName, out var property) && property.TryGetInt64(out var value) ? value : null;
 }
-
-

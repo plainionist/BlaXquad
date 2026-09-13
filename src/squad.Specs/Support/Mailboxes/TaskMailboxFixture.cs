@@ -39,6 +39,7 @@ public sealed class TaskMailboxFixture
     {
         mySequence++;
         var batchName = $"batch_20260822T120000Z_{mySequence:D6}";
+
         foreach (var item in items)
         {
             Write(role, "in_process", item.Sender, item.Priority, item.Task, batchName);
@@ -76,6 +77,7 @@ public sealed class TaskMailboxFixture
               "createdAt": "2026-08-22T12:00:00Z",
               "enqueuedAt": "2026-08-22T12:00:00Z"
             }
+
             """;
         var root = HandoffQueue.Root(myWorkspace.RoleWorktreePath(role));
         var stateDir = InboxDir(root, state);

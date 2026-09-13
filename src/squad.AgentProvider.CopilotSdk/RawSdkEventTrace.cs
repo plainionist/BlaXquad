@@ -19,6 +19,7 @@ internal static class RawSdkEventTrace
     public static void Record(SessionEvent sessionEvent)
     {
         var tracePath = Environment.GetEnvironmentVariable(TracePathVariable);
+
         if (string.IsNullOrWhiteSpace(tracePath))
         {
             return;
@@ -28,10 +29,12 @@ internal static class RawSdkEventTrace
         {
             try
             {
+
                 if (!TryDescribe(sessionEvent, out var description))
                 {
                     return;
                 }
+
                 var payloads = description.Payloads
                     .Select(payload => DescribePayload(description.ToolCallId, payload))
                     .ToArray();
@@ -47,15 +50,19 @@ internal static class RawSdkEventTrace
                     payloads,
                 };
                 var directory = Path.GetDirectoryName(Path.GetFullPath(tracePath));
+
                 if (!string.IsNullOrEmpty(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
+
                 File.AppendAllText(tracePath, JsonSerializer.Serialize(record) + Environment.NewLine);
+
                 if (sessionEvent is ToolExecutionCompleteEvent && description.ToolCallId is not null)
                 {
                     myToolTraces.Remove(description.ToolCallId);
                 }
+
             }
             catch (Exception exception)
             {
@@ -88,14 +95,19 @@ internal static class RawSdkEventTrace
                 return true;
             case ToolExecutionCompleteEvent complete:
                 var payloads = new List<Payload>();
+
                 if (complete.Data.Result?.Content is { } content)
+
                 {
                     payloads.Add(new("content", content));
                 }
+
                 if (complete.Data.Result?.DetailedContent is { } detailedContent)
+
                 {
                     payloads.Add(new("detailedContent", detailedContent));
                 }
+
                 description = new(
                     "tool.execution_complete",
                     complete.Data.ToolCallId,
@@ -120,10 +132,12 @@ internal static class RawSdkEventTrace
         var trace = toolCallId is not null ? GetOrCreateTrace(toolCallId) : null;
         var previous = trace?.PreviousPayload;
         var (relationship, appendedContent) = Classify(previous, payload.Content);
+
         if (trace is not null)
         {
             trace.PreviousPayload = payload.Content;
         }
+
         return new
         {
             field = payload.Field,
@@ -136,22 +150,27 @@ internal static class RawSdkEventTrace
 
     private static (string Relationship, string? AppendedContent) Classify(string? previous, string current)
     {
+
         if (previous is null)
         {
             return ("first payload", null);
         }
+
         if (string.Equals(previous, current, StringComparison.Ordinal))
         {
             return ("exact duplicate", "");
         }
+
         if (current.StartsWith(previous, StringComparison.Ordinal))
         {
             return ("cumulative snapshot", current[previous.Length..]);
         }
+
         if (previous.StartsWith(current, StringComparison.Ordinal))
         {
             return ("rewrite/non-prefix change", null);
         }
+
         return ("independent delta", null);
     }
 
@@ -160,10 +179,12 @@ internal static class RawSdkEventTrace
 
     private static ToolTraceState GetOrCreateTrace(string toolCallId)
     {
+
         if (!myToolTraces.TryGetValue(toolCallId, out var trace))
         {
             myToolTraces[toolCallId] = trace = new ToolTraceState();
         }
+
         return trace;
     }
 
@@ -178,5 +199,3 @@ internal static class RawSdkEventTrace
 
     private sealed record Payload(string Field, string Content);
 }
-
-

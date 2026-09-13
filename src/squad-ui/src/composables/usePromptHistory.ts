@@ -17,12 +17,18 @@ export function usePromptHistory() {
   }
 
   function recordSubmission(role: string, prompt: string) {
+
     if (!prompt) return
+
     const history = historyByRole.value[role] ?? []
+
     history.unshift(prompt)
+
     if (history.length > MAX_ENTRIES_PER_ROLE)
       history.length = MAX_ENTRIES_PER_ROLE
+
     historyByRole.value[role] = history
+
     resetNavigation(role)
   }
 
@@ -36,28 +42,39 @@ export function usePromptHistory() {
 
   function recallOlder(role: string, currentDraft: string): string | null {
     const history = historyByRole.value[role] ?? []
+
     if (history.length === 0) return null
+
     const currentIndex = navigationIndexByRole.value[role] ?? null
+
     if (currentIndex === null) {
       preservedDraftByRole.value[role] = currentDraft
       navigationIndexByRole.value[role] = 0
       return history[0]
     }
+
     const nextIndex = currentIndex + 1
+
     if (nextIndex >= history.length) return null
+
     navigationIndexByRole.value[role] = nextIndex
+
     return history[nextIndex]
   }
 
   function recallNewer(role: string): string | null {
     const currentIndex = navigationIndexByRole.value[role] ?? null
+
     if (currentIndex === null) return null
+
     const nextIndex = currentIndex - 1
+
     if (nextIndex < 0) {
       const draft = preservedDraftByRole.value[role] ?? ''
       resetNavigation(role)
       return draft
     }
+
     navigationIndexByRole.value[role] = nextIndex
     return historyByRole.value[role]?.[nextIndex] ?? null
   }

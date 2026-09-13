@@ -16,6 +16,7 @@ internal sealed class HeadquartersCleanupLease : IDisposable
     public void RemoveStaleMetadata()
     {
         var metadata = Path.Combine(myStateDir, "host.json");
+
         if (File.Exists(metadata))
         {
             File.Delete(metadata);
@@ -24,14 +25,15 @@ internal sealed class HeadquartersCleanupLease : IDisposable
 
     public void Dispose()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         myDisposed = true;
+
         try { HeadquartersLease.UnlockFile(myLockFile); } catch (Exception) { }
         myLockFile.Dispose();
     }
 }
-
-

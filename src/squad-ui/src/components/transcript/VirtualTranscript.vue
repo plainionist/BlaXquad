@@ -137,27 +137,41 @@ const hasVisibleEntries = computed(() => {
   return transcriptIndex.renderableCount > 0
 })
 const lastVisibleCategory = computed(() => {
+
   void transcriptIndex.revision.value
+
   if (transcriptIndex.renderableCount === 0)
+
     return 'system'
+
   const position = transcriptIndex.positionForRank(
     transcriptIndex.renderableCount - 1)
   const sourceIndex = transcriptIndex.sourceIndexAt(position)
+
   return categoryFor(props.entries[sourceIndex]?.source ?? 'system')
 })
 async function scrollToEnd() {
   const epoch = beginEpoch()
+
   const element = viewport.value
+
   if (!element)
+
     return
+
   const maximum = scrollController.viewportGeometry.realContentMaximum(
     anchorCompensation.value)
   followState.onExternalMove(maximum, maximum)
+
   readingAnchor.clearReading()
+
   readingAnchor.releaseCompensation()
   await nextTick()
+
   if (!isCurrent(epoch))
+
     return
+
   scrollController.writePosition(element.scrollHeight)
   updateWindow()
   scheduleWindowUpdate()

@@ -41,10 +41,12 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
                 var runtimeSession = await myClient.CreateSessionAsync(role.WorktreePath, session, role.Permissions, role.Model, role.Effort, cancellationToken);
                 session.Attach(runtimeSession);
                 session.Publish(new AgentSessionConfigurationEvent(DateTimeOffset.UtcNow, role.Model, role.Effort));
+
                 lock (mySessions)
                 {
                     mySessions.Add(session);
                 }
+
                 return (role, session);
             }).ToArray();
 
@@ -74,6 +76,7 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
     /// </summary>
     public async ValueTask DisposeAsync()
     {
+
         if (myDisposed)
         {
             return;
@@ -83,19 +86,23 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
         CopilotSdkAgentSession[] sessions;
         lock (mySessions)
             sessions = [.. mySessions];
+
         for (var index = sessions.Length - 1; index >= 0; index--)
         {
             var session = sessions[index];
             bool alreadyRetired;
             lock (mySessions)
                 alreadyRetired = myRetiredSessions.Contains(session);
+
             if (alreadyRetired)
             {
                 continue;
             }
+
             try
             {
                 await session.DisposeAsync();
+
                 lock (mySessions)
                     myRetiredSessions.Add(session);
             }
@@ -110,6 +117,7 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
             Task? forceStop;
             lock (myLifecycleLock)
                 forceStop = myForceStop;
+
             if (forceStop is not null)
             {
                 try
@@ -146,11 +154,13 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
                     failures.Add(exception);
                 }
             }
+
         }
 
         // Client disposal is not gated on stop succeeding: a faulted force-stop task is cached and would fault the
         // same way on every retry, which must not leave the client owned forever with no remaining work that can
         // succeed. Attempt client disposal regardless of the stop outcome, same as before this handle existed.
+
         if (!myClientDisposed)
         {
             try
@@ -174,6 +184,7 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
             mySessions.Clear();
             myRetiredSessions.Clear();
         }
+
         myDisposed = true;
     }
 
@@ -191,6 +202,7 @@ internal sealed class CopilotSdkAgentRuntime : IAgentRuntime
         CopilotSdkAgentSession[] sessions;
         lock (mySessions)
             sessions = [.. mySessions];
+
         foreach (var session in sessions)
         {
             session.FailFromBackend(runtimeFailure);

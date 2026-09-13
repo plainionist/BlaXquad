@@ -9,5 +9,3 @@ public interface IAgentBackend : IAsyncDisposable
     /// <summary>Creates a new runtime generation without reusing resources from an earlier generation.</summary>
     Task<IAgentRuntime> CreateRuntimeAsync(CancellationToken cancellationToken = default);
 }
-
-

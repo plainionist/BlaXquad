@@ -23,16 +23,20 @@ public sealed class WorkspaceIssueCatalog : IIssueCatalog
 
     public async Task<IReadOnlyList<IssueDescriptor>> ListIssuesAsync(CancellationToken cancellationToken = default)
     {
+
         if (!Directory.Exists(myIssuesDirectory))
         {
+
             if (File.Exists(myIssuesDirectory))
             {
                 throw new IOException($"'{myIssuesDirectory}' must be a directory.");
             }
+
             return [];
         }
 
         var descriptors = new List<IssueDescriptor>();
+
         foreach (var filePath in EnumerateIssueFiles())
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -49,32 +53,41 @@ public sealed class WorkspaceIssueCatalog : IIssueCatalog
     /// </summary>
     private IEnumerable<string> EnumerateIssueFiles()
     {
+
         foreach (var entryPath in Directory.EnumerateFileSystemEntries(myIssuesDirectory, "*", SearchOption.TopDirectoryOnly))
         {
+
             if (!string.Equals(Path.GetExtension(entryPath), MarkdownExtension, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
+
             var attributes = File.GetAttributes(entryPath);
+
             if (attributes.HasFlag(FileAttributes.Directory))
             {
                 continue;
             }
+
             if (attributes.HasFlag(FileAttributes.ReparsePoint)
                 && !IsWithinIssuesDirectory(File.ResolveLinkTarget(entryPath, returnFinalTarget: true)?.FullName))
             {
+
                 continue;
             }
+
             yield return entryPath;
         }
     }
 
     private bool IsWithinIssuesDirectory(string? fullPath)
     {
+
         if (fullPath is null)
         {
             return false;
         }
+
         var relative = Path.GetRelativePath(myIssuesDirectory, fullPath);
         return relative != ".."
             && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)

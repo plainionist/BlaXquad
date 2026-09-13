@@ -10,5 +10,3 @@ internal sealed record TranscriptRecoveryAnnouncement(
     long ThroughSequence,
     IReadOnlyList<SequencedTranscriptAnnouncement> Fragments,
     bool Truncated);
-
-

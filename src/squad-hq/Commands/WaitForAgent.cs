@@ -9,10 +9,12 @@ internal static class WaitForAgent
 
     public static int Run(string[] args)
     {
+
         if (!TryParse(args, out var role, out var timeout, out var projectRoot))
         {
             return 1;
         }
+
         try
         {
             HeadquartersControlClient.WaitForAgentAsync(projectRoot, role, timeout).GetAwaiter().GetResult();
@@ -42,22 +44,28 @@ internal static class WaitForAgent
         for (var index = 0; index < args.Length; index++)
         {
             var argument = args[index];
+
             if (argument is "-h" or "--help")
             {
                 WriteUsage();
                 return false;
             }
+
             if (argument is "--role" or "-role")
             {
+
                 if (++index >= args.Length || string.IsNullOrWhiteSpace(args[index]))
                 {
                     return UsageError("The role option requires a value.");
                 }
+
                 role = args[index];
                 continue;
             }
+
             if (argument == "--timeout")
             {
+
                 if (++index >= args.Length
                     || !double.TryParse(
                         args[index],
@@ -68,26 +76,32 @@ internal static class WaitForAgent
                     || seconds <= 0
                     || seconds > TimeSpan.MaxValue.TotalSeconds)
                 {
+
                     return UsageError("The timeout must be a positive number of seconds.");
                 }
+
                 timeout = TimeSpan.FromSeconds(seconds);
                 continue;
             }
+
             if (argument.StartsWith('-'))
             {
                 return UsageError($"Unknown option: {argument}");
             }
+
             if (role.Length == 0)
             {
                 role = argument;
                 continue;
             }
+
             if (!projectRootSpecified)
             {
                 projectRoot = Path.GetFullPath(argument);
                 projectRootSpecified = true;
                 continue;
             }
+
             return UsageError($"Unexpected argument: {argument}");
         }
 
@@ -95,6 +109,7 @@ internal static class WaitForAgent
         {
             return UsageError("A role is required.");
         }
+
         projectRoot = projectRootSpecified
             ? Path.GetFullPath(projectRoot)
             : ProjectRootResolver.ResolveViaGit();
@@ -113,6 +128,3 @@ internal static class WaitForAgent
             "Usage: squad-hq wait-for-agent <role> [--timeout <positive-seconds>] [project-root]\n"
             + "Blocks until the role can receive a prompt. The project is inferred from the current Git checkout when omitted.");
 }
-
-
-

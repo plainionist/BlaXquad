@@ -9,5 +9,3 @@ public sealed record RoleTranscriptSnapshot(
     IReadOnlyList<IndexedTranscriptEntry> Entries,
     bool HasMore,
     bool HistoryTruncated);
-
-

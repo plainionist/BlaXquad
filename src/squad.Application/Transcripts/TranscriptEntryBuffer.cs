@@ -40,16 +40,19 @@ internal sealed class TranscriptEntryBuffer
     internal void Append(string content)
     {
         myTotalLength += content.Length;
+
         foreach (var character in content)
         {
             myContentHash ^= character;
             myContentHash *= 1099511628211;
         }
+
         if (myTruncated)
         {
             AppendToTail(content);
             return;
         }
+
         if (content.Length <= myMaxCharacters - myContent.Length)
         {
             myContent.Append(content);
@@ -66,37 +69,45 @@ internal sealed class TranscriptEntryBuffer
 
     internal TranscriptEntry CreateEntry()
     {
+
         if (!myTruncated)
         {
             return new TranscriptEntry(OccurredAt, Source, myContent.ToString());
         }
+
         var content = new StringBuilder(myMaxCharacters);
         content.Append(myTruncationMarker.AsSpan(
             0,
             Math.Min(myTruncationMarker.Length, myMaxCharacters)));
+
         if (myTail is not null)
         {
             var firstLength = Math.Min(myTailLength, myTail.Length - myTailStart);
             content.Append(myTail.AsSpan(myTailStart, firstLength));
             content.Append(myTail.AsSpan(0, myTailLength - firstLength));
         }
+
         return new TranscriptEntry(OccurredAt, Source, content.ToString());
     }
 
     private void AppendToTail(string content)
     {
+
         if (myTail is null || myTail.Length == 0)
         {
             return;
         }
+
         foreach (var character in content)
         {
+
             if (myTailLength < myTail.Length)
             {
                 myTail[(myTailStart + myTailLength) % myTail.Length] = character;
                 myTailLength++;
                 continue;
             }
+
             myTail[myTailStart] = character;
             myTailStart = (myTailStart + 1) % myTail.Length;
         }
@@ -105,13 +116,13 @@ internal sealed class TranscriptEntryBuffer
     private static ulong ComputeHash(string content)
     {
         var hash = 14695981039346656037UL;
+
         foreach (var character in content)
         {
             hash ^= character;
             hash *= 1099511628211;
         }
+
         return hash;
     }
 }
-
-

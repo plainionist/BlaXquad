@@ -9,6 +9,7 @@ Feature: Configured squad leader
   independent of configured member order.
 
   Scenario: An omitted leader defaults to the first configured member
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -20,11 +21,14 @@ Feature: Configured squad leader
         ]
       }
       """
+
     When the backend scenario starts squad-hq with the fake provider fixture
+
     Then the backend scenario observes state.snapshot leader as "coder-b"
     And the backend scenario observes state.snapshot roles reported in order "coder-b,coder-a"
 
   Scenario: A blank leader defaults to the first configured member
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -37,10 +41,13 @@ Feature: Configured squad leader
         ]
       }
       """
+
     When the backend scenario starts squad-hq with the fake provider fixture
+
     Then the backend scenario observes state.snapshot leader as "coder-b"
 
   Scenario: An explicit leader naming a declared role instead of a member is rejected before any member session starts
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -54,8 +61,10 @@ Feature: Configured squad leader
       }
       """
     And the backend scenario has enabled the fake-provider control transport
+
     When the backend scenario attempts to start squad-hq with the fake provider fixture
     And the backend scenario waits for its rejected startup process to exit
+
     Then the backend scenario observes its rejected startup exited with a non-zero code
     And the backend scenario observes its rejected startup's standard error containing "leader 'coder'"
     And the backend scenario observes its rejected startup's standard error does not contain "Unhandled exception"
@@ -63,6 +72,7 @@ Feature: Configured squad leader
     And the backend scenario observes no session was ever started for member "coder-b"
 
   Scenario: A valid leader naming a member other than the first is published in state.snapshot independent of member order
+
     Given a backend scenario configured with roles "coder" and the raw configuration:
       """
       {
@@ -75,6 +85,8 @@ Feature: Configured squad leader
         ]
       }
       """
+
     When the backend scenario starts squad-hq with the fake provider fixture
+
     Then the backend scenario observes state.snapshot leader as "coder-b"
     And the backend scenario observes state.snapshot roles reported in order "coder-a,coder-b"

@@ -77,7 +77,9 @@ internal sealed class HeadlessUiTransport
     private void Drain(TextReader reader, List<string> destination) =>
         Task.Run(async () =>
         {
+
             while (await reader.ReadLineAsync() is { } line)
+
             {
                 lock (myLinesLock)
                 {

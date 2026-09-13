@@ -28,10 +28,12 @@ internal sealed class ObservationJournal
         lock (myLock)
         {
             myObservations.Add((memberId, type, sessionId));
+
             if (type == "session-started")
             {
                 GetMember(memberId).ActiveSessionId = sessionId;
             }
+
         }
     }
 
@@ -51,6 +53,7 @@ internal sealed class ObservationJournal
         lock (myLock)
         {
             var member = GetMember(memberId);
+
             if (member.Observations.TryGetValue(kind, out var state))
             {
                 state.Record(data.Clone());
@@ -59,6 +62,7 @@ internal sealed class ObservationJournal
             {
                 member.Observations[kind] = new ObservationState(data.Clone());
             }
+
         }
     }
 
@@ -77,11 +81,13 @@ internal sealed class ObservationJournal
     {
         lock (myLock)
         {
+
             if (myMembers.TryGetValue(new SquadMemberId(role), out var member) && member.ActiveSessionId is not null)
             {
                 sessionId = member.ActiveSessionId;
                 return true;
             }
+
             sessionId = null!;
             return false;
         }
@@ -139,20 +145,25 @@ internal sealed class ObservationJournal
     {
         var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             lock (myLock)
             {
+
                 if (myObservations.Any(observation => observation.MemberId == memberId && observation.Type == type))
                 {
                     return;
                 }
+
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for role '{role}' to report '{type}' across the fake-provider control pipe.\n{DescribeDiagnostics(additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -162,20 +173,25 @@ internal sealed class ObservationJournal
     {
         var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             lock (myLock)
             {
+
                 if (myMembers.TryGetValue(memberId, out var member) && member.LatestPrompt is not null)
                 {
                     return member.LatestPrompt;
                 }
+
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for role '{role}' to report a prompt across the fake-provider control pipe.\n{DescribeDiagnostics(additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -187,18 +203,22 @@ internal sealed class ObservationJournal
     public async Task<string> WaitForPromptAsync(string role, Func<string, bool> matches, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             var prompt = LatestPrompt(role);
+
             if (prompt is not null && matches(prompt))
             {
                 return prompt;
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for role '{role}' to report a matching prompt across the fake-provider control pipe.\n{DescribeDiagnostics(additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -219,18 +239,22 @@ internal sealed class ObservationJournal
         string role, Func<string, bool> matches, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             var content = LatestHarnessMessage(role);
+
             if (content is not null && matches(content))
             {
                 return content;
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for role '{role}' to report a matching harness message across the fake-provider control pipe.\n{DescribeDiagnostics(additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -306,22 +330,27 @@ internal sealed class ObservationJournal
     {
         var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             lock (myLock)
             {
+
                 if (myMembers.TryGetValue(memberId, out var member)
                     && member.Observations.TryGetValue(kind, out var state)
                     && state.Count >= minimumCount)
                 {
+
                     return;
                 }
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for role '{role}' to report at least {minimumCount} '{kind}' observations across the fake-provider control pipe.\n{DescribeDiagnostics(additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -333,21 +362,26 @@ internal sealed class ObservationJournal
     {
         var memberId = new SquadMemberId(role);
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             lock (myLock)
             {
+
                 if (myMembers.TryGetValue(memberId, out var member)
                     && member.Observations.TryGetValue(kind, out var state))
                 {
+
                     return state.Data.Clone();
                 }
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for role '{role}' to report '{kind}' across the fake-provider control pipe.\n{DescribeDiagnostics(additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -424,10 +458,12 @@ internal sealed class ObservationJournal
     /// <summary>Returns this role's member journal, creating an empty one on first use.</summary>
     private MemberObservationJournal GetMember(SquadMemberId memberId)
     {
+
         if (!myMembers.TryGetValue(memberId, out var member))
         {
             myMembers[memberId] = member = new MemberObservationJournal();
         }
+
         return member;
     }
 }

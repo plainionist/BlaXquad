@@ -311,10 +311,12 @@ public sealed class HeadlessUiClient
             $"an issues.list response for request '{requestId}'",
             timeout,
             additionalDiagnostics);
+
         if (!GetPayload(element).TryGetProperty("issues", out var issues) || issues.ValueKind != JsonValueKind.Array)
         {
             return [];
         }
+
         return issues.EnumerateArray().Select(ParseIssueDescriptor).ToList();
     }
 
@@ -407,19 +409,23 @@ public sealed class HeadlessUiClient
         Func<string>? additionalDiagnostics = null)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             var stdOut = myTransport.CopyStdOutLines();
+
             if (TranscriptProtocol.TryReconcileTranscript(stdOut, role, out var reconciled) && matches(reconciled))
             {
                 return reconciled;
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException(
                     $"Timed out waiting for a reconciled transcript synchronization for role '{role}' matching the expected entries.\n" +
                     DescribeDiagnostics(stdOut, additionalDiagnostics));
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -547,18 +553,22 @@ public sealed class HeadlessUiClient
     private void SendEnvelope(string type, string? role = null, object? payload = null, string? requestId = null)
     {
         var envelope = new Dictionary<string, object?> { ["type"] = type };
+
         if (role is not null)
         {
             envelope["role"] = role;
         }
+
         if (requestId is not null)
         {
             envelope["requestId"] = requestId;
         }
+
         if (payload is not null)
         {
             envelope["payload"] = payload;
         }
+
         myTransport.WriteLine(JsonSerializer.Serialize(envelope));
     }
 
@@ -573,27 +583,35 @@ public sealed class HeadlessUiClient
         Func<JsonElement, bool> predicate, string description, TimeSpan? timeout, Func<string>? additionalDiagnostics, int skip = 0)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             var stdOut = myTransport.CopyStdOutLines();
             var remainingToSkip = skip;
+
             foreach (var line in stdOut)
             {
                 using var document = JsonDocument.Parse(line);
+
                 if (predicate(document.RootElement))
                 {
+
                     if (remainingToSkip > 0)
                     {
                         remainingToSkip--;
                         continue;
                     }
+
                     return document.RootElement.Clone();
                 }
+
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException($"Timed out waiting for {description}.\n{DescribeDiagnostics(stdOut, additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -606,26 +624,34 @@ public sealed class HeadlessUiClient
         Func<JsonElement, bool> predicate, string description, TimeSpan? timeout, Func<string>? additionalDiagnostics)
     {
         var deadline = DateTime.UtcNow + (timeout ?? DefaultTimeout);
+
         while (true)
         {
             var stdOut = myTransport.CopyStdOutLines();
             JsonElement? latestSnapshot = null;
+
             foreach (var line in stdOut)
             {
                 using var document = JsonDocument.Parse(line);
+
                 if (IsStateSnapshot(document.RootElement))
                 {
                     latestSnapshot = document.RootElement.Clone();
                 }
+
             }
+
             if (latestSnapshot is { } snapshot && predicate(snapshot))
+
             {
                 return snapshot;
             }
+
             if (DateTime.UtcNow >= deadline)
             {
                 throw new TimeoutException($"Timed out waiting for {description}.\n{DescribeDiagnostics(stdOut, additionalDiagnostics)}");
             }
+
             await Task.Delay(PollInterval);
         }
     }
@@ -636,14 +662,18 @@ public sealed class HeadlessUiClient
     private static string SummarizeUiState(IReadOnlyList<string> stdOutLines)
     {
         string? lastSnapshot = null;
+
         foreach (var line in stdOutLines)
         {
             using var document = JsonDocument.Parse(line);
+
             if (IsStateSnapshot(document.RootElement))
             {
                 lastSnapshot = line;
             }
+
         }
+
         return lastSnapshot ?? "(no state.snapshot message observed)";
     }
 
@@ -653,54 +683,70 @@ public sealed class HeadlessUiClient
 
     private static IReadOnlyList<string> RoleNamesInOrder(JsonElement element)
     {
+
         if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
         {
             return [];
         }
+
         var names = new List<string>();
+
         foreach (var roleElement in roles.EnumerateArray())
         {
+
             if (roleElement.TryGetProperty("role", out var name) && name.ValueKind == JsonValueKind.String)
             {
                 names.Add(name.GetString()!);
             }
+
         }
+
         return names;
     }
 
     private static bool RoleHasStatus(JsonElement element, string role, string status)
     {
+
         if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var roleElement in roles.EnumerateArray())
         {
+
             if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role
                 && roleElement.TryGetProperty("status", out var statusElement) && statusElement.GetString() == status)
             {
+
                 return true;
             }
         }
+
         return false;
     }
 
     private static bool RoleHasAicUsed(JsonElement element, string role, decimal aicUsed)
     {
+
         if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var roleElement in roles.EnumerateArray())
         {
+
             if (roleElement.TryGetProperty("role", out var name) && name.GetString() == role
                 && roleElement.TryGetProperty("aicUsed", out var aicUsedElement)
                 && aicUsedElement.ValueKind == JsonValueKind.Number
                 && aicUsedElement.GetDecimal() == aicUsed)
             {
+
                 return true;
             }
         }
+
         return false;
     }
 
@@ -710,39 +756,52 @@ public sealed class HeadlessUiClient
     private static bool RoleHasUsageSnapshot(
         JsonElement element, string role, bool isWorking, long contextUsedTokens, long contextLimitTokens, decimal aicUsed)
     {
+
         if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var roleElement in roles.EnumerateArray())
         {
+
             if (!roleElement.TryGetProperty("role", out var name) || name.GetString() != role)
             {
                 continue;
             }
+
             if (!roleElement.TryGetProperty("isWorking", out var isWorkingElement)
                 || isWorkingElement.ValueKind != JsonValueKind.True && isWorkingElement.ValueKind != JsonValueKind.False
                 || isWorkingElement.GetBoolean() != isWorking)
             {
+
                 return false;
             }
+
             if (!roleElement.TryGetProperty("contextUsedTokens", out var used)
                 || used.ValueKind != JsonValueKind.Number || used.GetInt64() != contextUsedTokens)
             {
+
                 return false;
             }
+
             if (!roleElement.TryGetProperty("contextLimitTokens", out var limit)
                 || limit.ValueKind != JsonValueKind.Number || limit.GetInt64() != contextLimitTokens)
             {
+
                 return false;
             }
+
             if (!roleElement.TryGetProperty("aicUsed", out var aic)
                 || aic.ValueKind != JsonValueKind.Number || aic.GetDecimal() != aicUsed)
             {
+
                 return false;
             }
+
             return true;
         }
+
         return false;
     }
 
@@ -750,82 +809,104 @@ public sealed class HeadlessUiClient
     /// when <paramref name="activeTool"/> is null - against no active tool at all.</summary>
     private static bool RoleHasActiveTool(JsonElement element, string role, string? activeTool)
     {
+
         if (!GetPayload(element).TryGetProperty("roles", out var roles) || roles.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var roleElement in roles.EnumerateArray())
         {
+
             if (!roleElement.TryGetProperty("role", out var name) || name.GetString() != role)
             {
                 continue;
             }
+
             var observedActiveTool = roleElement.TryGetProperty("activeTool", out var activeToolElement)
                 && activeToolElement.ValueKind == JsonValueKind.String
                 ? activeToolElement.GetString()
                 : null;
             return observedActiveTool == activeTool;
         }
+
         return false;
     }
 
     private static bool HasPendingPermission(JsonElement element, string role, string requestId, string description)
     {
+
         if (!GetPayload(element).TryGetProperty("permissions", out var permissions) || permissions.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var permission in permissions.EnumerateArray())
         {
+
             if (MatchesRoleAndRequestId(permission, role, requestId)
                 && permission.TryGetProperty("description", out var descriptionElement)
                 && descriptionElement.GetString() == description)
             {
+
                 return true;
             }
         }
+
         return false;
     }
 
     private static bool HasPendingPermissionWithId(JsonElement element, string role, string requestId)
     {
+
         if (!GetPayload(element).TryGetProperty("permissions", out var permissions) || permissions.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var permission in permissions.EnumerateArray())
         {
+
             if (MatchesRoleAndRequestId(permission, role, requestId))
             {
                 return true;
             }
+
         }
+
         return false;
     }
 
     private static bool HasPendingInput(
         JsonElement element, string role, string requestId, string prompt, IReadOnlyList<string>? choices, bool allowFreeform)
     {
+
         if (!GetPayload(element).TryGetProperty("inputs", out var inputs) || inputs.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var input in inputs.EnumerateArray())
         {
+
             if (!MatchesRoleAndRequestId(input, role, requestId)
                 || !input.TryGetProperty("prompt", out var promptElement)
                 || promptElement.GetString() != prompt
                 || !input.TryGetProperty("allowFreeform", out var allowFreeformElement)
                 || allowFreeformElement.GetBoolean() != allowFreeform)
             {
+
                 continue;
             }
+
             if (!MatchesChoices(input, choices))
             {
                 continue;
             }
+
             return true;
         }
+
         return false;
     }
 
@@ -833,35 +914,43 @@ public sealed class HeadlessUiClient
     {
         var hasChoicesProperty = input.TryGetProperty("choices", out var choicesElement)
             && choicesElement.ValueKind == JsonValueKind.Array;
+
         if (choices is null)
         {
             return !hasChoicesProperty || choicesElement.GetArrayLength() == 0;
         }
+
         if (!hasChoicesProperty)
         {
             return false;
         }
+
         return choicesElement.EnumerateArray().Select(entry => entry.GetString()).SequenceEqual(choices);
     }
 
     private static bool HasPendingElicitation(
         JsonElement element, string role, string requestId, string prompt, string mode, string? url)
     {
+
         if (!GetPayload(element).TryGetProperty("elicitations", out var elicitations) || elicitations.ValueKind != JsonValueKind.Array)
         {
             return false;
         }
+
         foreach (var elicitation in elicitations.EnumerateArray())
         {
+
             if (MatchesRoleAndRequestId(elicitation, role, requestId)
                 && elicitation.TryGetProperty("prompt", out var promptElement) && promptElement.GetString() == prompt
                 && elicitation.TryGetProperty("mode", out var modeElement) && modeElement.GetString() == mode
                 && elicitation.TryGetProperty("url", out var urlElement)
                 && (url is null ? urlElement.ValueKind == JsonValueKind.Null : urlElement.GetString() == url))
             {
+
                 return true;
             }
         }
+
         return false;
     }
 

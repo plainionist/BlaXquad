@@ -39,6 +39,7 @@ static class DoneWithCurrentTask
             var targetFile = Path.Combine(completedDir, Path.GetFileName(sourceFile));
 
             HandoffJson.Update(sourceFile, document => document with { CompletedAt = Timestamps.NowOffset() });
+
             if (Path.Exists(targetFile))
             {
                 Fail(2, $"AMBIGUOUS_TASK_STATE: completed file already exists: {targetFile}");
@@ -50,10 +51,12 @@ static class DoneWithCurrentTask
         }
         catch (CliExitException ex)
         {
+
             if (!string.IsNullOrEmpty(ex.Message))
             {
                 Console.Error.WriteLine(ex.Message);
             }
+
             return ex.ExitCode;
         }
     }
@@ -61,13 +64,12 @@ static class DoneWithCurrentTask
     static void Fail(int status, string headline, IReadOnlyList<string>? items = null)
     {
         var lines = new List<string> { headline };
+
         if (items is not null)
         {
             lines.AddRange(items.Select(i => $"- {i}"));
         }
+
         throw new CliExitException(status, string.Join("\n", lines));
     }
 }
-
-
-

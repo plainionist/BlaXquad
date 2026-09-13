@@ -20,10 +20,12 @@ try
 }
 catch (CliExitException exception)
 {
+
     if (!string.IsNullOrEmpty(exception.Message))
     {
         Console.Error.WriteLine(exception.Message);
     }
+
     return exception.ExitCode;
 }
 
@@ -33,6 +35,3 @@ static int Unknown(string command)
     Console.Error.WriteLine("Usage: squad-hq <command> [args...]");
     return 1;
 }
-
-
-

@@ -1,14 +1,18 @@
 export interface TranscriptEntry { occurredAt: string; source: string; content: string; hasArchivedContent?: boolean; contentStart?: number }
+
 export interface IndexedTranscriptEntry extends TranscriptEntry { entryIndex: number }
+
 export interface TranscriptAnnouncement {
   entryIndex: number
   operation: 'append' | 'append-content' | 'replace'
   content: string
   truncated?: boolean
 }
+
 export interface SequencedTranscriptAnnouncement extends TranscriptAnnouncement {
   sequence: number
 }
+
 export interface TranscriptMutation {
   generation: number
   kind: 'reset' | 'append' | 'replace' | 'merge'
@@ -83,8 +87,11 @@ export interface TranscriptUpdate {
 }
 
 export interface Permission { requestId: string; role: string; description: string }
+
 export interface InputRequest { requestId: string; role: string; prompt: string; choices?: string[]; allowFreeform: boolean }
+
 export interface ElicitationChoice { const: string | number; title?: string }
+
 export interface ElicitationProperty {
   type?: 'string' | 'number' | 'integer' | 'boolean' | 'array'
   title?: string
@@ -100,12 +107,15 @@ export interface ElicitationProperty {
   minItems?: number
   maxItems?: number
 }
+
 export interface ElicitationSchema {
   type?: 'object'
   properties?: Record<string, ElicitationProperty>
   required?: string[]
 }
+
 export interface Elicitation { requestId: string; role: string; prompt: string; mode: string; requestedSchema?: ElicitationSchema; url?: string }
+
 export interface Snapshot { leader: string; roles: RoleSnapshot[]; permissions: Permission[]; inputs: InputRequest[]; elicitations: Elicitation[] }
 
 export interface IssueDescriptor {
@@ -115,6 +125,7 @@ export interface IssueDescriptor {
   frontmatter: string
   previewLines: string[]
 }
+
 export interface IssueListPayload { issues: IssueDescriptor[] }
 
 export interface WorkspaceToolsSnapshot { gitHistoryAvailable: boolean }

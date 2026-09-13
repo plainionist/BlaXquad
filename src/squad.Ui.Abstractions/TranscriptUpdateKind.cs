@@ -7,5 +7,3 @@ public enum TranscriptUpdateKind
     AppendContent,
     ReplaceEntry,
 }
-
-

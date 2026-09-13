@@ -18,6 +18,7 @@ static class HostingOption
 
         for (var i = 0; i < args.Length; i++)
         {
+
             if (args[i] != Flag)
             {
                 remaining.Add(args[i]);
@@ -43,6 +44,7 @@ static class HostingOption
     private static HostingDescriptor Parse(string value)
     {
         var separatorIndex = value.IndexOf(';');
+
         if (separatorIndex <= 0 || separatorIndex == value.Length - 1)
         {
             throw new CliExitException(1, $"The {Flag} value must be in the form <assemblyPath>;<typeName>, got '{value}'.");

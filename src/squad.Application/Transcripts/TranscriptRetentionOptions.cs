@@ -33,6 +33,7 @@ internal sealed record TranscriptRetentionOptions
         Contract.Requires(
             MaxArchivedEntryCharacters <= MaxArchivedContentCharacters,
             "MaxArchivedEntryCharacters must not exceed MaxArchivedContentCharacters.");
+
         this.MaxRetainedEntries = MaxRetainedEntries;
         this.MaxRetainedContentCharacters = MaxRetainedContentCharacters;
         this.MaxRetainedEntryCharacters = MaxRetainedEntryCharacters;
@@ -42,5 +43,3 @@ internal sealed record TranscriptRetentionOptions
         this.MaxAnnouncementCharacters = MaxAnnouncementCharacters;
     }
 }
-
-

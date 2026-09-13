@@ -24,5 +24,3 @@ internal class Ctx
     public IReadOnlyList<string> SharedWorktreePaths { get; set; } = [];
     public IReadOnlyList<string>? GitHistoryCommand { get; set; }
 }
-
-

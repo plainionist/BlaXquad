@@ -10,6 +10,7 @@ public sealed record SquadMemberId
     public SquadMemberId(string value)
     {
         Contract.Requires(!string.IsNullOrWhiteSpace(value), "value must not be null or blank.");
+
         Value = value;
     }
 

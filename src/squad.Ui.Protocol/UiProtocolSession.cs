@@ -24,6 +24,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
     {
         myUi = ui;
         Contract.Requires(ui is ITranscriptUi, "The Photino UI must support incremental transcripts.");
+
         myTranscriptUi = (ITranscriptUi)ui;
         mySendSerializedMessage = sendSerializedMessage;
         myDeliveryCoordinator = new(myUi, myTranscriptUi, (type, payload) => Send(type, payload));
@@ -59,6 +60,7 @@ public sealed class UiProtocolSession : IAsyncDisposable
     public async Task ReceiveMessageAsync(string serializedMessage)
     {
         UiMessage message;
+
         try
         {
             message = UiMessageReader.Read(serializedMessage);
@@ -68,11 +70,13 @@ public sealed class UiProtocolSession : IAsyncDisposable
             PublishError(exception.Message, null);
             return;
         }
+
         if (message.EnvelopeError is not null)
         {
             PublishError(message.EnvelopeError, null);
             return;
         }
+
         try
         {
             await myCommandHandler.HandleAsync(message);

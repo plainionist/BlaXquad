@@ -122,16 +122,19 @@ public sealed class HandoffSteps
     {
         myWorkspace.Set(SenderRoleKey, role);
         var args = new List<string> { "commit", "--to", RecipientsFrom(recipients), "--task", task };
+
         if (priority is not null)
         {
             args.Add("--priority");
             args.Add(priority);
         }
+
         if (revision is not null)
         {
             args.Add("--commit");
             args.Add(revision);
         }
+
         myWorkspace.Set(PendingArgsKey, args);
     }
 

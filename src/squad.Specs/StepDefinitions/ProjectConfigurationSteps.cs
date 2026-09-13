@@ -25,6 +25,7 @@ public sealed class ProjectConfigurationSteps
     public void GivenBlaxquadSquadJsonConfigures(Table table)
     {
         var unknownColumns = table.Header.Where(column => !SupportedColumns.Contains(column)).ToList();
+
         if (unknownColumns.Count > 0)
         {
             throw new ArgumentException(
@@ -41,10 +42,12 @@ public sealed class ProjectConfigurationSteps
         var roles = table.Rows.Select((row, index) =>
         {
             var role = row["role"];
+
             if (string.IsNullOrWhiteSpace(role))
             {
                 throw new ArgumentException($"Project configuration table row {index + 1} has an empty \"role\".");
             }
+
             var receiveMode = declaresReceiveMode ? row["receive mode"] : null;
             return (Role: role, ReceiveMode: receiveMode);
         }).ToArray();

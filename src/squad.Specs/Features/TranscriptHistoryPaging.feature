@@ -10,32 +10,47 @@ Feature: Transcript history paging
   transcript storage directly.
 
   Background:
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
     And Headquarters' temporary transcript directory is isolated
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
 
   Scenario: Live synchronization stays bounded and every older entry pages back without gaps or duplicates
+
     When the "coder" agent emits 700 system messages
     And the user requests a fresh transcript synchronization for role "coder"
+
     Then the transcript synchronization for role "coder" contains exactly 500 entries
+
     When the UI-protocol client requests the previous transcript page for role "coder"
+
     Then the previous transcript page for role "coder" contains exactly 200 entries
     And the previous transcript page for role "coder" reports more history
+
     When the UI-protocol client requests the previous transcript page for role "coder"
+
     Then the previous transcript page for role "coder" reports no more history
     And the combined transcript history observed for role "coder" contains message 0 through message 699 exactly once
 
   Scenario: An entry evicted from live retention remains available in the archive
+
     When the "coder" agent emits 700 system messages
     And the UI-protocol client requests the archived transcript entry 0 for role "coder"
+
     Then the archived transcript entry has content "Session started."
 
   Scenario: Temporary transcript history is removed once the process shuts down cleanly
+
     When the "coder" agent emits a system message "seed"
+
     Then Headquarters' temporary transcript history exists
+
     When the operator shuts down Headquarters
+
     Then Headquarters exits with code 0
     And Headquarters' temporary transcript history no longer exists

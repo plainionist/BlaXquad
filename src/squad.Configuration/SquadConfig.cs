@@ -20,6 +20,7 @@ public static class SquadConfig
     public static IReadOnlyList<SquadConfigMember> ReadMembers(string projectRoot)
     {
         var list = new List<SquadConfigMember>();
+
         foreach (var memberElem in EnumerateMemberElements(projectRoot))
         {
             var name = memberElem.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
@@ -38,6 +39,7 @@ public static class SquadConfig
 
             list.Add(new SquadConfigMember(new SquadMemberId(name), worktreePath, receiveMode, rawReceiveMode));
         }
+
         return list;
     }
 
@@ -53,6 +55,7 @@ public static class SquadConfig
     static List<JsonElement> EnumerateMemberElements(string projectRoot)
     {
         var configFile = Path.Combine(projectRoot, "blaxquad", "squad.json");
+
         if (!File.Exists(configFile))
         {
             return [];
@@ -62,6 +65,7 @@ public static class SquadConfig
         {
             using var stream = File.OpenRead(configFile);
             using var doc = JsonDocument.Parse(stream);
+
             if (!doc.RootElement.TryGetProperty("members", out var membersElement) || membersElement.ValueKind != JsonValueKind.Array)
             {
                 return [];
@@ -75,5 +79,3 @@ public static class SquadConfig
         }
     }
 }
-
-

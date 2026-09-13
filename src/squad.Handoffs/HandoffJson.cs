@@ -56,6 +56,7 @@ public static class HandoffJson
         var directory = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(directory);
         var temporary = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+
         try
         {
             File.WriteAllText(temporary, JsonSerializer.Serialize(document, Options));
@@ -63,10 +64,12 @@ public static class HandoffJson
         }
         finally
         {
+
             if (File.Exists(temporary))
             {
                 File.Delete(temporary);
             }
+
         }
     }
 

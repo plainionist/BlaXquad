@@ -1,4 +1,5 @@
 Feature: UI protocol validation
+
   squad-hq validates every UI command against its JSON envelope contract - independently of whether the command
   originates from the visual Photino window or the headless stdio transport these specifications drive through the
   real, separately launched process. An invalid envelope produces the documented "protocol.error" message, is
@@ -6,17 +7,22 @@ Feature: UI protocol validation
   serving later, valid commands.
 
   Background:
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
 
   Scenario Outline: An invalid UI message is rejected before reaching the role's session
+
     When a UI-protocol client sends the invalid "<case>" envelope:
       """
       <envelope>
       """
+
     Then a UI-protocol client observes the protocol error "<expected error>"
     And no provider-side command was invoked for the rejected message
     And a UI-protocol client's later command still succeeds
@@ -34,7 +40,9 @@ Feature: UI protocol validation
       | malformed JSON                    | {                                                                                                         | Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. LineNumber: 0 \| BytePositionInLine: 1. |
 
   Scenario: A prompt sent to an unknown role is reported as a protocol error without disturbing the process
+
     When a UI-protocol client sends a prompt to the unknown role "not-a-configured-role"
+
     Then a UI-protocol client observes the protocol error "Unknown role: not-a-configured-role"
     And no provider-side command was invoked for the rejected message
     And a UI-protocol client's later command still succeeds

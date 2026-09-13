@@ -12,10 +12,12 @@ public static class ExecutableLocator
     /// a shell-free process start happens to prefer.</summary>
     public static string? Resolve(string command)
     {
+
         if (string.IsNullOrWhiteSpace(command))
         {
             return null;
         }
+
         var extensions = OperatingSystem.IsWindows()
             ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
                 .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -29,16 +31,20 @@ public static class ExecutableLocator
 
         foreach (var directory in directories)
         {
+
             foreach (var extension in extensions)
             {
                 var candidate = Path.Combine(directory, Path.HasExtension(name) ? name : name + extension);
+
                 if (File.Exists(candidate))
                 {
                     return Path.GetFullPath(candidate);
                 }
+
             }
+
         }
+
         return null;
     }
 }
-

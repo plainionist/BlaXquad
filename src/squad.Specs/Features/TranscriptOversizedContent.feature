@@ -9,29 +9,41 @@ Feature: Transcript oversized content
   storage directly.
 
   Background:
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
 
   Scenario: An oversized transcript entry remains bounded in memory while its full content stays available in the archive
+
     When the "coder" agent emits a system message with 300000 characters
+
     Then the transcript update for role "coder" reports archived content beyond the 250000 character retained bound
+
     When the UI-protocol client requests the archived transcript entry 2 for role "coder"
+
     Then the archived transcript entry has 300000 characters and is not truncated
 
   Scenario: An oversized transcript announcement is explicitly reported as truncated
+
     When the "coder" agent emits a system message with 20000 characters
+
     Then the transcript update for role "coder" reports a truncated announcement of 16384 characters
 
   Scenario: Archived streaming content beyond the storage limit is explicitly reported as truncated
+
     When the "coder" agent emits an assistant delta with 1200000 characters
     And the "coder" agent emits an assistant delta with 1200000 characters
     And the UI-protocol client requests the archived transcript entry 2 for role "coder"
+
     Then the archived transcript entry is truncated with 2400000 total characters at the 2000000 character archive bound
 
   Scenario: An entry that has rotated out of the archive is reported as unavailable while newer archived entries remain available
+
     # Entry 0 is the automatic "Session started." system entry and entry 1 is the automatic initial-instruction
     # harness entry every fresh role session publishes first, so this burst of system messages, each sized at the
     # production per-entry archive bound, itself occupies entries 2 through 16. Their combined 30,000,000 archived
@@ -46,18 +58,27 @@ Feature: Transcript oversized content
     # the newest 4 entries (13 through 16) remain, exactly filling that bound. Paging back from that live boundary
     # must therefore surface exactly the remaining archived entries older than it (7 through 12) and report no
     # further history, since the rotated-out entries below 7 are gone from the archive entirely.
+
     When the "coder" agent emits 15 system messages with 2000000 characters each
     And the user requests a fresh transcript synchronization for role "coder"
+
     Then the transcript synchronization for role "coder" contains exactly 4 entries
+
     When the UI-protocol client requests the archived transcript entry 2 for role "coder"
+
     Then the archived transcript entry is unavailable for role "coder"
+
     When the UI-protocol client requests the archived transcript entry 16 for role "coder"
+
     Then the archived transcript entry has 2000000 characters and is not truncated
+
     When the UI-protocol client requests the previous transcript page for role "coder"
+
     Then the previous transcript page for role "coder" contains exactly 6 entries
     And the previous transcript page for role "coder" reports no more history
 
   Scenario: Synchronization reports a still-live entry's rotated archive content as no longer available
+
     # An assistant delta that is never finalized keeps streaming - its retained entry stays pinned in live
     # retention indefinitely, exempt from the ordinary oldest-first live eviction that would otherwise apply once
     # enough later entries accumulate - while the archive holds no such exemption and evicts its backing content
@@ -65,7 +86,9 @@ Feature: Transcript oversized content
     # own archived content out from under it despite it staying live the entire time, and a synchronization taken
     # afterward must report that reversal explicitly rather than continuing to claim the earlier content is still
     # available in transcript history.
+
     When the "coder" agent emits an assistant delta with 260000 characters
     And the "coder" agent emits 15 system messages with 2000000 characters each
     And the user requests a fresh transcript synchronization for role "coder"
+
     Then the transcript synchronization for role "coder" reports "assistant" content that is no longer available

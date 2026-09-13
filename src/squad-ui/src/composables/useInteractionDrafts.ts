@@ -28,22 +28,31 @@ export function useInteractionDrafts() {
   }
 
   function initializeElicitations(elicitations: readonly Elicitation[]) {
+
     for (const elicitation of elicitations) {
+
       if (elicitationValues.value[elicitation.requestId])
         continue
+
       const values: Record<string, unknown> = {}
+
       for (const [name, property] of Object.entries(
         elicitation.requestedSchema?.properties ?? {},
       )) {
+
         if (property.default !== undefined)
           values[name] = property.default
         else if (property.type === 'boolean')
+
           values[name] = false
         else if (property.type === 'array')
+
           values[name] = []
         else
           values[name] = ''
+
       }
+
       elicitationValues.value[elicitation.requestId] = values
     }
   }

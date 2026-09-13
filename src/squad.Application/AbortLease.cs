@@ -22,6 +22,7 @@ internal sealed class AbortLease : IDisposable
     public void Complete()
     {
         Contract.Invariant(!myOutcomeRecorded, "An AbortLease must reach exactly one terminal outcome.");
+
         myOutcomeRecorded = true;
         myMember.ClearFailedAbort();
         myCompletion.TrySetResult();
@@ -31,6 +32,7 @@ internal sealed class AbortLease : IDisposable
     public void Fail(Exception exception)
     {
         Contract.Invariant(!myOutcomeRecorded, "An AbortLease must reach exactly one terminal outcome.");
+
         myOutcomeRecorded = true;
         myMember.MarkFailedAbort();
         myCompletion.TrySetException(exception);
@@ -38,11 +40,14 @@ internal sealed class AbortLease : IDisposable
 
     public void Dispose()
     {
+
         if (myDisposed)
         {
             return;
         }
+
         Contract.Invariant(myOutcomeRecorded, "An AbortLease must reach a terminal outcome before release.");
+
         myDisposed = true;
         myMember.RemoveAbort();
     }

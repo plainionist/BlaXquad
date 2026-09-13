@@ -47,19 +47,26 @@ const {
 const rolePanels = new Map<string, InstanceType<typeof RolePanel>>()
 
 function setRolePanelRef(roleName: string, instance: unknown) {
+
   if (instance) rolePanels.set(roleName, instance as InstanceType<typeof RolePanel>)
   else rolePanels.delete(roleName)
 }
 
 const targetRoleName = computed(() => {
+
   const configuredLeader = leader.value
+
   if (!configuredLeader) return null
+
   return roles.value.some(role => role.role === configuredLeader) ? configuredLeader : null
 })
 
 function playIssue(path: string) {
+
   const target = targetRoleName.value
+
   if (!target) return
+
   updatePrompt(target, `process this issue: "${path}"`)
   rolePanels.get(target)?.focusPrompt()
 }

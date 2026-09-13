@@ -78,6 +78,7 @@ internal sealed class FakeAgentSession : IAgentSession
         // can prove the host itself remains well-behaved under a still-outstanding prompt, without this fixture
         // manufacturing an unrealistic, uncancelable wait no real provider would exhibit.
         string content;
+
         try
         {
             content = await pendingReply.Task.WaitAsync(cancellationToken);
@@ -93,6 +94,7 @@ internal sealed class FakeAgentSession : IAgentSession
             mySendCanceledBeforeDisposal = true;
             throw;
         }
+
         myEvents.Publish(new AgentAssistantMessageEvent(DateTimeOffset.UtcNow, content, IsDelta: false));
         myEvents.Publish(new AgentIdleEvent(DateTimeOffset.UtcNow));
     }
@@ -111,17 +113,21 @@ internal sealed class FakeAgentSession : IAgentSession
     /// host-authored message, exactly once.</summary>
     public async Task SendHarnessAsync(string prompt, CancellationToken cancellationToken = default)
     {
+
         if (myRejectNextHarness)
         {
             myRejectNextHarness = false;
+
             if (myControl is not null)
             {
                 await myControl.NotifyObservationAsync(MemberId.Value, SessionId, "harness-rejected", new { content = prompt }, cancellationToken);
             }
+
             throw new InvalidOperationException("The fake provider rejected this harness send.");
         }
 
         myEvents.Publish(new AgentHarnessMessageEvent(DateTimeOffset.UtcNow, prompt));
+
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(MemberId.Value, SessionId, "harness-message", new { content = prompt }, cancellationToken);
@@ -150,12 +156,14 @@ internal sealed class FakeAgentSession : IAgentSession
     /// outcome.</summary>
     public async Task AbortAsync(CancellationToken cancellationToken = default)
     {
+
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(MemberId.Value, SessionId, "abort", new { }, cancellationToken);
         }
 
         var failureMessage = Interlocked.Exchange(ref myNextAbortFailureMessage, null);
+
         if (failureMessage is not null)
         {
             throw new InvalidOperationException(failureMessage);
@@ -165,6 +173,7 @@ internal sealed class FakeAgentSession : IAgentSession
         // "fail pending abort" control - which resolves through this same field - can still find and resolve the
         // very instance this call is awaiting, then clears it (only if a newer arming has not since replaced it).
         var pendingAbort = myPendingAbort;
+
         if (pendingAbort is not null)
         {
             try
@@ -222,6 +231,7 @@ internal sealed class FakeAgentSession : IAgentSession
     public async Task RespondToPermissionAsync(
         InteractionRequestId requestId, AgentPermissionResponse response, CancellationToken cancellationToken = default)
     {
+
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
@@ -232,6 +242,7 @@ internal sealed class FakeAgentSession : IAgentSession
         // response" control - which resolves through this same field - can still find and resolve the very
         // instance this call is awaiting, then clears it (only if a newer arming has not since replaced it).
         var pendingResponse = myPendingPermissionResponse;
+
         if (pendingResponse is not null)
         {
             try
@@ -260,6 +271,7 @@ internal sealed class FakeAgentSession : IAgentSession
     public async Task RespondToInputAsync(
         InteractionRequestId requestId, AgentInputResponse response, CancellationToken cancellationToken = default)
     {
+
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
@@ -273,6 +285,7 @@ internal sealed class FakeAgentSession : IAgentSession
     public async Task RespondToElicitationAsync(
         InteractionRequestId requestId, AgentElicitationResponse response, CancellationToken cancellationToken = default)
     {
+
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(
@@ -285,6 +298,7 @@ internal sealed class FakeAgentSession : IAgentSession
     /// interactions (for example while stopping with a request still outstanding).</summary>
     public async Task CancelPendingInteractionsAsync(CancellationToken cancellationToken = default)
     {
+
         if (myControl is not null)
         {
             await myControl.NotifyObservationAsync(MemberId.Value, SessionId, "pending-interactions-cancelled", new { }, cancellationToken);
@@ -300,6 +314,7 @@ internal sealed class FakeAgentSession : IAgentSession
     public string? Emit(string kind, JsonElement data)
     {
         var now = DateTimeOffset.UtcNow;
+
         switch (kind)
         {
             case "reasoning":
@@ -457,10 +472,12 @@ internal sealed class FakeAgentSession : IAgentSession
 
     private static IReadOnlyList<string>? GetNullableStringArray(JsonElement data, string name)
     {
+
         if (!data.TryGetProperty(name, out var element) || element.ValueKind != JsonValueKind.Array)
         {
             return null;
         }
+
         return element.EnumerateArray().Select(item => item.GetString()!).ToList();
     }
 
@@ -473,13 +490,16 @@ internal sealed class FakeAgentSession : IAgentSession
         // its canceled outcome, giving a scenario a direct causal proof of drain-before-dispose ordering instead
         // of one built on control-pipe message arrival order.
         var pendingDisposal = myPendingDisposal;
+
         if (pendingDisposal is not null)
         {
+
             if (myControl is not null)
             {
                 await myControl.NotifyObservationAsync(
                     MemberId.Value, SessionId, "disposal-held", new { sendCanceledBeforeDisposal = mySendCanceledBeforeDisposal }, CancellationToken.None);
             }
+
             await pendingDisposal.Task;
         }
 
@@ -490,8 +510,3 @@ internal sealed class FakeAgentSession : IAgentSession
         await myEvents.DisposeAsync();
     }
 }
-
-
-
-
-

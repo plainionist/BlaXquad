@@ -13,4 +13,3 @@ public interface ITranscriptUi
     RoleTranscriptPage CreateTranscriptPage(SquadMemberId memberId, int beforeIndex, int maxEntries);
     RoleArchivedTranscriptEntry CreateArchivedTranscriptEntry(SquadMemberId memberId, int entryIndex);
 }
-

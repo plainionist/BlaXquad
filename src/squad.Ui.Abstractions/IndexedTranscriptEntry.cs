@@ -6,5 +6,3 @@ public sealed record IndexedTranscriptEntry(
     TranscriptEntry Entry,
     bool HasArchivedContent = false,
     long ContentStart = 0);
-
-

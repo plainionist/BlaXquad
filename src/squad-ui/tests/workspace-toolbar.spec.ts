@@ -75,6 +75,7 @@ test('the toolbar, issue menu, preview, and role panels remain contained at desk
     expect(rect).not.toBeNull()
     return rect!
   }
+
   function containedIn(rect: { x: number, y: number, width: number, height: number }, viewport: { width: number, height: number }) {
     expect(rect.x).toBeGreaterThanOrEqual(0)
     expect(rect.y).toBeGreaterThanOrEqual(0)

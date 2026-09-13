@@ -44,9 +44,11 @@ export function useVirtualWindow(options: UseVirtualWindowOptions) {
   const visibleEntries = computed(() => {
     void options.index.revision.value
     const entries = []
+
     for (let rank = windowStart.value; rank < windowEnd.value; rank++)
       entries.push(options.index.projectAt(
         options.index.positionForRank(rank)))
+
     return entries
   })
 
@@ -74,9 +76,12 @@ export function useVirtualWindow(options: UseVirtualWindowOptions) {
   }
 
   function applyWindow(range: WindowRange | undefined) {
+
     if (!range)
       return
+
     windowStart.value = range.start
+
     windowEnd.value = range.end
   }
 
@@ -89,18 +94,23 @@ export function useVirtualWindow(options: UseVirtualWindowOptions) {
 
   function updateWindow() {
     const element = options.viewport.value
+
     if (!element || options.index.renderableCount === 0) {
       applyWindow({ start: 0, end: 0 })
       return
     }
+
     const layout = options.layoutAnchor()
+
     if (layout && options.index.positionOf(layout.entryIndex) != null) {
       placeWindowAround(layout.entryIndex)
       return
     }
+
     const retained = options.retainedAnchor()
     const retainedRect = retained
       ? options.measuredRowFor(retained.entryIndex, element)
+
       : undefined
     const anchoredWindow = retained && retainedRect
       ? forVisibleAnchor(options.index, {
@@ -110,10 +120,12 @@ export function useVirtualWindow(options: UseVirtualWindowOptions) {
           viewportHeight: element.clientHeight,
         }, options.overscan)
       : undefined
+
     if (anchoredWindow) {
       applyWindow(anchoredWindow)
       return
     }
+
     applyWindow(forOffset(
       options.index,
       options.scrollGeometry.visibleContentRange(options.content.value),
@@ -130,8 +142,10 @@ export function useVirtualWindow(options: UseVirtualWindowOptions) {
   }
 
   function scheduleWindowUpdate() {
+
     if (scheduledFrame !== undefined || disposed)
       return
+
     scheduledFrame = requestAnimationFrame(() => {
       scheduledFrame = undefined
       updateWindow()
@@ -141,6 +155,7 @@ export function useVirtualWindow(options: UseVirtualWindowOptions) {
 
   function dispose() {
     disposed = true
+
     if (scheduledFrame !== undefined)
       cancelAnimationFrame(scheduledFrame)
   }

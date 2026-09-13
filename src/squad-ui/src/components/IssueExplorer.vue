@@ -23,6 +23,7 @@ const selectedPath = ref<string | null>(null)
 const selectedIssue = computed(
   () => props.issues.find(issue => issue.path === selectedPath.value) ?? null,
 )
+
 const previewText = computed(
   () => selectedIssue.value?.previewLines.join('\n') ?? '',
 )
@@ -43,18 +44,23 @@ async function copyPath(issue: IssueDescriptor) {
 }
 
 function play(issue: IssueDescriptor) {
+
   if (!props.hasTargetRole) return
+
   emit('play', issue.path)
+
   close()
 }
 
 function toggle() {
+
   if (isOpen.value) close()
   else open()
 }
 
 function open() {
   isOpen.value = true
+
   selectedPath.value = null
   copyAnnouncement.value = ''
   copyFailed.value = false
@@ -76,13 +82,18 @@ function select(path: string) {
 }
 
 function handlePointerDown(event: PointerEvent) {
+
   if (!isOpen.value) return
+
   if (root.value?.contains(event.target as Node)) return
+
   close()
 }
 
 function handleKeyDown(event: KeyboardEvent) {
+
   if (!isOpen.value || event.key !== 'Escape') return
+
   event.preventDefault()
   closeAndRefocusTrigger()
 }

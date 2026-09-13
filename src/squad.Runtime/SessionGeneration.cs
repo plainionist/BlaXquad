@@ -36,6 +36,7 @@ internal sealed class SessionGeneration
     {
         Contract.Invariant(myRuntime is null, "A session generation cannot start more than once.");
         Contract.Invariant(myTeardown is null, "A session generation cannot start after retirement has begun.");
+
         myRuntime = await myAgentBackend.CreateRuntimeAsync(cancellationToken);
         await myRuntime.StartAsync(RegisterSessionAsync, cancellationToken);
     }
@@ -49,6 +50,7 @@ internal sealed class SessionGeneration
         myEventTasks.Add(ObserveSessionAsync(session, sessionCancellation, eventTask));
         return Task.CompletedTask;
     }
+
     /// <summary>
     /// Cancels event observation, retires the runtime, and drains observers while collecting failures. A failed
     /// teardown remains retryable and retains resources whose retirement did not complete.
@@ -59,16 +61,20 @@ internal sealed class SessionGeneration
         lock (myTeardownLock)
             current = myTeardown ??= TeardownCoreAsync();
         var failures = await current;
+
         if (failures.Count > 0)
         {
             lock (myTeardownLock)
             {
+
                 if (myTeardown == current)
                 {
                     myTeardown = null;
                 }
+
             }
         }
+
         return failures;
     }
 
@@ -76,6 +82,7 @@ internal sealed class SessionGeneration
     {
         var failures = new List<Exception>();
         myEventCancellation.Cancel();
+
         if (myRuntime is not null)
         {
             try
@@ -88,6 +95,7 @@ internal sealed class SessionGeneration
                 failures.Add(exception);
             }
         }
+
         if (failures.Count == 0)
         {
             try
@@ -99,14 +107,17 @@ internal sealed class SessionGeneration
                 failures.Add(exception);
             }
         }
+
         if (failures.Count > 0)
         {
             return failures;
         }
+
         foreach (var sessionCancellation in mySessionCancellations)
         {
             sessionCancellation.Dispose();
         }
+
         mySessionCancellations.Clear();
         myEventTasks.Clear();
         myEventCancellation.Dispose();
@@ -135,6 +146,7 @@ internal sealed class SessionGeneration
             {
                 return;
             }
+
             ExceptionDispatchInfo.Capture(eventFailure).Throw();
         }
     }
@@ -145,6 +157,7 @@ internal sealed class SessionGeneration
         Task eventTask)
     {
         Exception? failure = null;
+
         try
         {
             await session.Completion;
@@ -159,6 +172,7 @@ internal sealed class SessionGeneration
         }
 
         sessionCancellation.Cancel();
+
         try
         {
             await eventTask;

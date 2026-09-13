@@ -8,65 +8,96 @@ Feature: Transcript file-read summaries without content leakage
   pipe.
 
   Background:
+
     Given `blaxquad/squad.json` configures:
       | role  |
       | coder |
+
     When the operator launches Headquarters
+
     Then Headquarters starts an agent session for role "coder"
 
   Scenario: An otherwise-unknown tool explicitly kinded as a read shows its path without leaking file contents
+
     When the "coder" agent starts tool call "R1" named "custom_fetch_resource" for path "src/App.cs" explicitly kinded as a read
+
     Then the dashboard receives a transcript update for role "coder" with source "read" and content "src/App.cs"
+
     When the user requests a fresh transcript synchronization for role "coder"
+
     Then the transcript synchronization for role "coder" includes exactly these entries:
       | source | content    |
       | read   | src/App.cs |
+
     When the operator shuts down Headquarters
+
     Then Headquarters exits with code 0
 
   Scenario: Path-only file reads show their path without leaking file contents
+
     When the "coder" agent starts tool call "R1" named "read_file" for path "src/App.cs"
+
     Then the dashboard receives a transcript update for role "coder" with source "read" and content "src/App.cs"
+
     When the "coder" agent starts tool call "R2" named "view_file" for path "src/Main.cs"
+
     Then the dashboard receives a transcript update for role "coder" with source "read" and content "src/Main.cs"
+
     When the user requests a fresh transcript synchronization for role "coder"
+
     Then the transcript synchronization for role "coder" includes exactly these entries:
       | source | content     |
       | read   | src/App.cs  |
       | read   | src/Main.cs |
+
     When the operator shuts down Headquarters
+
     Then Headquarters exits with code 0
 
   Scenario: A ranged file read shows the requested range without leaking file contents or completion payload
+
     When the "coder" agent starts tool call "R" named "view" with arguments:
       """
       {"path":"C:\\work\\src\\Main.cs","view_range":[100,1000]}
       """
+
     Then the dashboard receives a transcript update for role "coder" with source "read"
+
     When the "coder" agent emits tool output "file contents" for tool call "R"
     And the "coder" agent completes tool call "R" named "view" with detailed output "diff --git"
     And the "coder" agent starts tool call "B" named "dotnet build"
     And the "coder" agent emits tool output "Build succeeded" for tool call "B"
+
     Then the dashboard receives a transcript update for role "coder" with source "tool" and content "dotnet build\nBuild succeeded"
+
     When the user requests a fresh transcript synchronization for role "coder"
     # A single literal backslash in the actual path requires two literal backslash characters in this data-table
     # cell - Reqnroll's own table parsing unescapes "\\" to "\" before this step sees the cell, exactly as the
     # docstring above needs "\\" to embed one real backslash in the JSON text production echoes back.
+
     Then the transcript synchronization for role "coder" includes exactly these entries:
       | source | content                            |
       | read   | C:\\work\\src\\Main.cs [100..1000] |
       | tool   | dotnet build\nBuild succeeded       |
+
     When the operator shuts down Headquarters
+
     Then Headquarters exits with code 0
 
   Scenario: A whole-file read shows its derived line count without leaking file contents
+
     When the "coder" agent starts tool call "R" named "view" for path "C:\work\src\Main.cs"
+
     Then the dashboard receives a transcript update for role "coder" with source "read"
+
     When the "coder" agent completes tool call "R" named "view" with display output "diff --git" and content "first\nsecond\nthird"
+
     Then the reconciled transcript for role "coder" contains each of these entries exactly once:
       | source | content                     |
       | read   | C:\\work\\src\\Main.cs [1..3] |
     And the transcript for role "coder" does not contain "first" within 2 seconds
     And the transcript for role "coder" does not contain "diff --git" within 2 seconds
+
     When the operator shuts down Headquarters
+
     Then Headquarters exits with code 0

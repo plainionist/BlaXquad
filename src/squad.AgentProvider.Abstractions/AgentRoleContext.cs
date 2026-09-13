@@ -11,5 +11,3 @@ public sealed record AgentRoleContext(
     PermissionMode Permissions,
     string? Model,
     string? Effort);
-
-

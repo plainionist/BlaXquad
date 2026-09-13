@@ -6,5 +6,3 @@ public sealed record AgentBackendContext(
     string ScriptDirectory,
     IReadOnlyList<AgentRoleContext> Roles,
     IReadOnlyDictionary<string, string> Environment);
-
-

@@ -37,19 +37,25 @@ export class RowMeasurements {
     this.myObserver = new ResizeObserver(changes => {
       const measurements: GeometryChange[] = []
       let auxiliaryChanged = false
+
       for (const change of changes) {
         const entryIndex = this.myElementEntryIndices.get(change.target)
         const height =
           change.borderBoxSize[0]?.blockSize ?? change.contentRect.height
+
         if (entryIndex != null
           && !this.myInvalidatedEntries.has(entryIndex)
           && this.remember(entryIndex, height))
           measurements.push({ entryIndex, height })
+
         const auxiliaryKey = this.myElementAuxiliaryKeys.get(change.target)
+
         if (auxiliaryKey != null
           && this.rememberAuxiliary(auxiliaryKey, height))
           auxiliaryChanged = true
+
       }
+
       this.publish(measurements, auxiliaryChanged)
     })
   }
@@ -60,10 +66,13 @@ export class RowMeasurements {
 
   observe(entryIndex: number, element: Element | null) {
     const previous = this.myElements.get(entryIndex)
+
     if (previous && previous !== element)
       this.myObserver.unobserve(previous)
+
     if (element instanceof HTMLElement) {
       this.myInvalidatedEntries.delete(entryIndex)
+
       this.myElements.set(entryIndex, element)
       this.myElementEntryIndices.set(element, entryIndex)
       this.myObserver.observe(element)
@@ -76,10 +85,13 @@ export class RowMeasurements {
 
   observeAuxiliary(key: string, element: Element | null) {
     const previous = this.myAuxiliaryElements.get(key)
+
     if (previous && previous !== element)
       this.myObserver.unobserve(previous)
+
     if (element instanceof HTMLElement) {
       this.myAuxiliaryElements.set(key, element)
+
       this.myElementAuxiliaryKeys.set(element, key)
       this.myObserver.observe(element)
       this.publish(
@@ -88,8 +100,10 @@ export class RowMeasurements {
     }
     else {
       this.myAuxiliaryElements.delete(key)
+
       if (this.myAuxiliaryHeights.delete(key))
         queueMicrotask(() => this.publish([], true))
+
     }
   }
 
@@ -98,26 +112,35 @@ export class RowMeasurements {
   }
 
   invalidate(entryIndex: number) {
+
     if (!this.myHeights.delete(entryIndex))
       return
+
     this.myCount.value = this.myHeights.size
   }
 
   clear() {
+
     if (this.myHeights.size === 0)
       return
+
     this.myHeights.clear()
+
     for (const entryIndex of this.myElements.keys())
       this.myInvalidatedEntries.add(entryIndex)
+
     this.myCount.value = 0
   }
 
   resetRows() {
+
     for (const element of this.myElements.values())
       this.myObserver.unobserve(element)
+
     this.myElements.clear()
     this.myElementEntryIndices = new WeakMap<Element, number>()
     this.myHeights.clear()
+
     this.myInvalidatedEntries.clear()
     this.myCount.value = 0
   }
@@ -125,24 +148,34 @@ export class RowMeasurements {
   sweep() {
     const measurements: GeometryChange[] = []
     let auxiliaryChanged = false
+
     for (const [entryIndex, element] of this.myElements) {
       this.myInvalidatedEntries.delete(entryIndex)
+
       const height = element.getBoundingClientRect().height
+
       if (this.remember(entryIndex, height))
         measurements.push({ entryIndex, height })
+
     }
+
     for (const [key, element] of this.myAuxiliaryElements)
+
       if (this.rememberAuxiliary(key, element.getBoundingClientRect().height))
         auxiliaryChanged = true
+
     this.publish(measurements, auxiliaryChanged)
     return measurements.length > 0 || auxiliaryChanged
   }
 
   rectFor(entryIndex: number, viewport: HTMLElement) {
     const element = this.myElements.get(entryIndex)
+
     if (!element)
       return undefined
+
     const viewportTop = viewport.getBoundingClientRect().top
+
     const rect = element.getBoundingClientRect()
     return {
       entryIndex,
@@ -154,6 +187,7 @@ export class RowMeasurements {
   visibleRects(viewport: HTMLElement) {
     const viewportTop = viewport.getBoundingClientRect().top
     const rows: RelativeRowRect[] = []
+
     for (const [entryIndex, element] of this.myElements) {
       const rect = element.getBoundingClientRect()
       const row = {
@@ -161,9 +195,12 @@ export class RowMeasurements {
         top: rect.top - viewportTop,
         bottom: rect.bottom - viewportTop,
       }
+
       if (row.bottom >= 0 && row.top <= viewport.clientHeight)
         rows.push(row)
+
     }
+
     return rows.sort((left, right) => left.top - right.top)
   }
 
@@ -171,6 +208,7 @@ export class RowMeasurements {
     this.myDisposed = true
     this.myOnGeometryBatch = undefined
     this.myObserver.disconnect()
+
     this.myElements.clear()
     this.myAuxiliaryElements.clear()
     this.myHeights.clear()
@@ -180,23 +218,29 @@ export class RowMeasurements {
   }
 
   private remember(entryIndex: number, height: number) {
+
     if (this.myHeights.get(entryIndex) === height)
       return false
+
     this.myHeights.set(entryIndex, height)
     this.myCount.value = this.myHeights.size
     return true
   }
 
   private rememberAuxiliary(key: string, height: number) {
+
     if (this.myAuxiliaryHeights.get(key) === height)
       return false
+
     this.myAuxiliaryHeights.set(key, height)
     return true
   }
 
   private publish(changes: GeometryChange[], auxiliaryChanged = false) {
+
     if (this.myDisposed || (changes.length === 0 && !auxiliaryChanged))
       return
+
     this.myOnGeometryBatch?.({
       revision: ++this.myRevision,
       changes,

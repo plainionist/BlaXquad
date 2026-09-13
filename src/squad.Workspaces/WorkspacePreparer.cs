@@ -12,6 +12,7 @@ internal sealed class WorkspacePreparer
 {
     public async Task InitializeGitRepoAsync(Ctx ctx, CancellationToken cancellationToken)
     {
+
         if (Directory.Exists(Path.Combine(ctx.WorkingDir, ".git")) || File.Exists(Path.Combine(ctx.WorkingDir, ".git")))
         {
             return;
@@ -45,16 +46,19 @@ internal sealed class WorkspacePreparer
 
     public void Parse(Ctx ctx)
     {
+
         if (!File.Exists(ctx.ConfigFile))
         {
             throw new WorkspacePreparationException($"Config not found at {ctx.ConfigFile}");
         }
+
         if (!File.Exists(ctx.ConstitutionFile))
         {
             throw new WorkspacePreparationException($"Constitution prompt not found at {ctx.ConstitutionFile}");
         }
 
         SquadConfiguration configuration;
+
         try
         {
             configuration = SquadConfigurationLoader.Load(ctx.ConfigFile, ctx.RolesDir);
@@ -72,28 +76,36 @@ internal sealed class WorkspacePreparer
 
     public void PrepareWorkspace(Ctx ctx)
     {
+
         foreach (var dir in new[] { ctx.StateDir, ctx.WorktreesDir })
+
         {
             Directory.CreateDirectory(dir);
         }
+
         CheckHelperScripts(ctx);
     }
 
     public async Task PrepareWorktreesAsync(Ctx ctx, CancellationToken cancellationToken)
     {
+
         foreach (var row in ctx.Members)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
             if (row.WorktreeTarget.IsProjectRoot)
             {
                 continue;
             }
+
             var worktreePath = row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir);
             var gitPath = Path.Combine(worktreePath, ".git");
+
             if (Directory.Exists(gitPath) || File.Exists(gitPath))
             {
                 continue;
             }
+
             await RunAsync("git", ["-C", ctx.WorkingDir, "worktree", "add", "--force", "-B", $"squad-{row.WorktreeTarget.Name}", worktreePath, "HEAD"], cancellationToken);
         }
     }
@@ -107,20 +119,25 @@ internal sealed class WorkspacePreparer
     public async Task PrepareConfiguredWorktreesForLaunchAsync(Ctx ctx, bool continueLaunch, CancellationToken cancellationToken)
     {
         await PrepareWorktreesAsync(ctx, cancellationToken);
+
         if (!continueLaunch)
         {
             var head = (await ProcessRunner.RunCheckedAsync("git", ["-C", ctx.WorkingDir, "rev-parse", "HEAD"], cancellationToken: cancellationToken)).StdOut.Trim();
+
             foreach (var row in ctx.Members)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
                 if (row.WorktreeTarget.IsProjectRoot)
                 {
                     continue;
                 }
+
                 var worktreePath = row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir);
                 await RunAsync("git", ["-C", worktreePath, "checkout", "-B", $"squad-{row.WorktreeTarget.Name}", head, "--force"], cancellationToken);
                 await RunAsync("git", ["-C", worktreePath, "reset", "--hard", head], cancellationToken);
             }
+
         }
 
         ClearConfiguredHandoffs(ctx, cancellationToken);
@@ -130,13 +147,16 @@ internal sealed class WorkspacePreparer
 
     private void PrepareSharedWorktreePaths(Ctx ctx, CancellationToken cancellationToken)
     {
+
         foreach (var sharedPath in ctx.SharedWorktreePaths)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var source = Path.Combine(ctx.WorkingDir, sharedPath);
             Directory.CreateDirectory(source);
+
             foreach (var row in ctx.Members)
             {
+
                 if (row.WorktreeTarget.IsProjectRoot)
                 {
                     continue;
@@ -145,13 +165,16 @@ internal sealed class WorkspacePreparer
                 var target = Path.Combine(row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir), sharedPath);
                 ReplaceWithSharedDirectoryLink(source, target);
             }
+
         }
     }
 
     private void ReplaceWithSharedDirectoryLink(string source, string target)
     {
+
         if (Path.Exists(target))
         {
+
             if (IsDirectoryLink(target))
             {
                 Directory.Delete(target);
@@ -165,9 +188,11 @@ internal sealed class WorkspacePreparer
                 throw new WorkspacePreparationException(
                     $"Cannot replace non-empty shared worktree path {target}; move its contents to {source} before launching");
             }
+
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+
         if (OperatingSystem.IsWindows())
         {
             Run("cmd", "/c", "mklink", "/J", target, source);
@@ -183,10 +208,12 @@ internal sealed class WorkspacePreparer
 
     public void PrepareHandoffDirs(Ctx ctx)
     {
+
         foreach (var row in ctx.Members)
         {
             var worktreePath = row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir);
             var root = HandoffQueue.Root(worktreePath);
+
             foreach (var dir in new[]
             {
                 HandoffQueue.Outbox(root),
@@ -196,6 +223,7 @@ internal sealed class WorkspacePreparer
                 HandoffQueue.InProcessInbox(root),
                 HandoffQueue.CompletedInbox(root),
             })
+
             {
                 Directory.CreateDirectory(dir);
             }
@@ -209,32 +237,40 @@ internal sealed class WorkspacePreparer
     private static void ClearConfiguredHandoffs(Ctx ctx, CancellationToken cancellationToken)
     {
         var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
         foreach (var worktreePath in ctx.Members.Select(row => row.WorktreeTarget.ResolvePath(ctx.WorkingDir, ctx.WorktreesDir)).Distinct(pathComparer))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handoffDirectory = HandoffQueue.Root(worktreePath);
+
             if (Directory.Exists(handoffDirectory))
             {
                 Directory.Delete(handoffDirectory, recursive: true);
             }
+
         }
     }
 
     private void CheckHelperScripts(Ctx ctx)
     {
+
         foreach (var helper in new[] { "squad" })
+
         {
             var path = SiblingTool.Resolve(ctx.ScriptDir, helper);
+
             if (!IsExecutable(path))
             {
                 throw new WorkspacePreparationException($"Required helper script not found or not executable: {path}");
             }
+
         }
     }
 
     private void EnsureInitialGitignore(Ctx ctx)
     {
         var gitignore = Path.Combine(ctx.WorkingDir, ".gitignore");
+
         if (!File.Exists(gitignore))
         {
             File.WriteAllText(gitignore, ".blaxquad/\n.worktrees/\n");
@@ -249,11 +285,14 @@ internal sealed class WorkspacePreparer
     private static void EnsureInFile(string file, string pattern)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+
         if (!File.Exists(file))
         {
             File.WriteAllText(file, "");
         }
+
         var lines = new HashSet<string>(File.ReadAllLines(file));
+
         if (!lines.Contains(pattern))
         {
             File.AppendAllText(file, pattern + "\n");
@@ -264,6 +303,7 @@ internal sealed class WorkspacePreparer
     {
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         var temporary = target + $".tmp.{Guid.NewGuid():N}";
+
         try
         {
             File.WriteAllText(temporary, content);
@@ -271,10 +311,12 @@ internal sealed class WorkspacePreparer
         }
         finally
         {
+
             if (File.Exists(temporary))
             {
                 File.Delete(temporary);
             }
+
         }
     }
 
@@ -286,14 +328,17 @@ internal sealed class WorkspacePreparer
 
     private bool IsExecutable(string path)
     {
+
         if (!File.Exists(path))
         {
             return false;
         }
+
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
         {
             return true;
         }
+
         return (File.GetUnixFileMode(path) & UnixFileMode.UserExecute) != 0;
     }
 }

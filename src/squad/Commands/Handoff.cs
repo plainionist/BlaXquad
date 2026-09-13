@@ -26,6 +26,7 @@ static class Handoff
 
     public static int Run(string[] args)
     {
+
         if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
         {
             Console.WriteLine(UsageText);
@@ -34,6 +35,7 @@ static class Handoff
 
         var intent = args[0];
         var kind = ParseKind(intent);
+
         if (kind is null)
         {
             Console.Error.WriteLine($"Unknown handoff command '{intent}'.");
@@ -43,6 +45,7 @@ static class Handoff
         }
 
         var rest = args[1..];
+
         if (rest.Length > 0 && rest[0] is "-h" or "--help")
         {
             Console.WriteLine(kind == HandoffKind.GitHandoff ? CommitUsage : NoteUsage);
@@ -68,10 +71,12 @@ static class Handoff
         }
         catch (CliExitException ex)
         {
+
             if (!string.IsNullOrEmpty(ex.Message))
             {
                 Console.Error.WriteLine(ex.Message);
             }
+
             return ex.ExitCode;
         }
     }
@@ -100,6 +105,7 @@ static class Handoff
         {
             errors.Add("Missing required option '--to'.");
         }
+
         if (string.IsNullOrWhiteSpace(task))
         {
             errors.Add("Missing required option '--task'.");
@@ -108,26 +114,32 @@ static class Handoff
         {
             errors.Add($"Option '--task' must be no longer than 80 characters; got {task.Length}.");
         }
+
         if (!HandoffPriority.IsValid(priority))
         {
             errors.Add($"Option '--priority' must be two digits from 00 to 99; got '{priority}'.");
         }
 
         string? canonicalCommit = null;
+
         if (errors.Count == 0)
         {
+
             if (!explicitRevision)
             {
                 var dirtyError = CheckClean(roleWorktreeRoot);
+
                 if (dirtyError is not null)
                 {
                     errors.Add(dirtyError);
                 }
+
             }
 
             if (errors.Count == 0)
             {
                 var (canonical, commitError) = ResolveCommit(revision ?? "HEAD", explicitRevision, roleWorktreeRoot);
+
                 if (commitError is not null)
                 {
                     errors.Add(commitError);
@@ -136,7 +148,9 @@ static class Handoff
                 {
                     canonicalCommit = canonical;
                 }
+
             }
+
         }
 
         if (errors.Count > 0)
@@ -164,6 +178,7 @@ static class Handoff
         {
             errors.Add("Missing required option '--to'.");
         }
+
         if (string.IsNullOrWhiteSpace(message))
         {
             errors.Add("Missing required option '--message'.");
@@ -172,6 +187,7 @@ static class Handoff
         {
             errors.Add($"Option '--message' must be no longer than 80 characters; got {message.Length}.");
         }
+
         if (!HandoffPriority.IsValid(priority))
         {
             errors.Add($"Option '--priority' must be two digits from 00 to 99; got '{priority}'.");
@@ -193,10 +209,12 @@ static class Handoff
         Console.Error.WriteLine("HANDOFF INVALID");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Errors:");
+
         foreach (var error in errors)
         {
             Console.Error.WriteLine($"- {error}");
         }
+
         Console.Error.WriteLine();
         Console.Error.WriteLine(usage);
         return 2;
@@ -212,6 +230,7 @@ static class Handoff
         for (var i = 0; i < args.Length; i++)
         {
             var arg = args[i];
+
             if (!arg.StartsWith("--", StringComparison.Ordinal))
             {
                 errors.Add($"Unexpected argument '{arg}'.");
@@ -225,16 +244,19 @@ static class Handoff
             }
 
             var value = args[++i];
+
             if (!allowed.Contains(arg))
             {
                 errors.Add($"Option '{arg}' is not valid for '{intent}'.");
                 continue;
             }
+
             if (options.ContainsKey(arg))
             {
                 errors.Add($"Duplicate option '{arg}'.");
                 continue;
             }
+
             options[arg] = value;
         }
 
@@ -243,6 +265,7 @@ static class Handoff
 
     static (List<string> recipients, List<string> errors) ValidateRecipients(string? to, IReadOnlyList<SquadConfigMember> members)
     {
+
         if (string.IsNullOrWhiteSpace(to))
         {
             return ([], []);
@@ -251,26 +274,33 @@ static class Handoff
         var recipients = to.Split(',');
         var errors = new List<string>();
         var seen = new HashSet<string>();
+
         foreach (var recipient in recipients)
         {
+
             if (string.IsNullOrWhiteSpace(recipient))
             {
                 errors.Add("Option '--to' contains an empty recipient.");
             }
+
             if (recipient.Contains('_'))
             {
                 errors.Add($"Recipient role '{recipient}' is invalid; role names may not contain underscores.");
             }
+
             if (seen.Contains(recipient))
             {
                 errors.Add($"Duplicate recipient '{recipient}'.");
             }
+
             if (!string.IsNullOrWhiteSpace(recipient) && !SquadConfig.MemberKnown(members, recipient))
             {
                 errors.Add($"Unknown recipient role '{recipient}'.");
             }
+
             seen.Add(recipient);
         }
+
         return (recipients.ToList(), errors);
     }
 
@@ -279,11 +309,13 @@ static class Handoff
     static string? CheckClean(string workingDir)
     {
         var status = ProcessRunner.Run("git", ["status", "--porcelain"], workingDir);
+
         if (status.ExitCode == 0 && !string.IsNullOrWhiteSpace(status.StdOut))
         {
             return "Worktree has uncommitted changes; commit them before handing off HEAD, " +
                 "or hand off an explicit '--commit' revision.";
         }
+
         return null;
     }
 
@@ -293,6 +325,7 @@ static class Handoff
     {
         var label = explicitRevision ? $"Option '--commit' value '{revision}'" : "HEAD";
         var verify = ProcessRunner.Run("git", ["rev-parse", "--verify", "--quiet", revision + "^{commit}"], workingDir);
+
         if (verify.ExitCode != 0 || string.IsNullOrWhiteSpace(verify.StdOut))
         {
             return (null, $"{label} must resolve to exactly one Git commit.");

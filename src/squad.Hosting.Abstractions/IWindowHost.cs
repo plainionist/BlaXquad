@@ -12,5 +12,3 @@ public interface IWindowHost : IAsyncDisposable
     Task WaitForCloseAsync(CancellationToken cancellationToken = default);
     Task StopAsync(CancellationToken cancellationToken = default);
 }
-
-

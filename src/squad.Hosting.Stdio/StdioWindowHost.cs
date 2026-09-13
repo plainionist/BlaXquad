@@ -48,10 +48,12 @@ sealed class StdioWindowHost : IWindowHost
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         if (myStarted)
         {
             return Task.CompletedTask;
         }
+
         myStarted = true;
 
         mySession.AttachUiEventSources();
@@ -68,6 +70,7 @@ sealed class StdioWindowHost : IWindowHost
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
         lock (myStopLock)
             return myStop ??= StopCoreAsync();
     }
@@ -78,9 +81,11 @@ sealed class StdioWindowHost : IWindowHost
     {
         try
         {
+
             while (!myPumpCancellation.IsCancellationRequested)
             {
                 string? line;
+
                 try
                 {
                     line = await Console.In.ReadLineAsync(myPumpCancellation.Token);
@@ -96,17 +101,20 @@ sealed class StdioWindowHost : IWindowHost
                     // this task and go unobserved.
                     break;
                 }
+
                 if (line is null)
                 {
                     // End of standard input: treat exactly like the native window being closed.
                     break;
                 }
+
                 // A stop may already be in progress: Console.In's cancellation token does not interrupt a read
                 // already in progress, so a line can still arrive after Cancel() was called. DispatchCommand
                 // re-checks cancellation under the same lock StopCoreAsync uses to snapshot dispatched commands,
                 // so such a late line is never admitted once a stop has started.
                 DispatchCommand(line);
             }
+
         }
         finally
         {
@@ -125,10 +133,12 @@ sealed class StdioWindowHost : IWindowHost
     {
         lock (myDispatchedCommandsLock)
         {
+
             if (myPumpCancellation.IsCancellationRequested)
             {
                 return;
             }
+
             var task = mySession.ReceiveMessageAsync(line);
             myDispatchedCommands.Add(task);
             _ = ObserveDispatchedCommandAsync(task);
@@ -162,11 +172,13 @@ sealed class StdioWindowHost : IWindowHost
             ? Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
             : new TaskCompletionSource().Task;
         await Task.WhenAny(myUiReady.Task, myClosed.Task, cancellation);
+
         if (myUiReady.Task.IsCompleted)
         {
             await myUiReady.Task;
             return;
         }
+
         // Neither cancellation nor EOF may leave startup hanging: surface cancellation, otherwise let a close
         // signal that arrived before "ui.ready" complete startup so shutdown can proceed without another line.
         cancellationToken.ThrowIfCancellationRequested();
@@ -184,11 +196,14 @@ sealed class StdioWindowHost : IWindowHost
             myPumpCancellation.Cancel();
             pending = [.. myDispatchedCommands];
         }
+
         if (pending.Length > 0)
         {
             await Task.WhenAll(pending);
         }
+
         mySession.DetachUiEventSources();
+
         try
         {
             await mySession.DisposeAsync();

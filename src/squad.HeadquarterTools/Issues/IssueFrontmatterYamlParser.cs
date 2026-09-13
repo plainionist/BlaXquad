@@ -15,12 +15,14 @@ internal static class IssueFrontmatterYamlParser
 
     public static IssueYamlFields Parse(string yamlContent)
     {
+
         if (string.IsNullOrWhiteSpace(yamlContent))
         {
             return new IssueYamlFields(null, null);
         }
 
         Dictionary<string, object>? fields;
+
         try
         {
             fields = myDeserializer.Deserialize<Dictionary<string, object>>(yamlContent);
@@ -29,6 +31,7 @@ internal static class IssueFrontmatterYamlParser
         {
             return new IssueYamlFields(null, null);
         }
+
         if (fields is null)
         {
             return new IssueYamlFields(null, null);
@@ -39,23 +42,28 @@ internal static class IssueFrontmatterYamlParser
 
     private static string? ResolveTitle(IReadOnlyDictionary<string, object> fields)
     {
+
         if (!fields.TryGetValue("title", out var value)
             || value is null
             || value is IDictionary<object, object>
             || value is List<object>)
         {
+
             return null;
         }
+
         var text = Convert.ToString(value, CultureInfo.InvariantCulture);
         return string.IsNullOrEmpty(text) ? null : text;
     }
 
     private static int? ResolvePriority(IReadOnlyDictionary<string, object> fields)
     {
+
         if (!fields.TryGetValue("priority", out var value) || value is null)
         {
             return null;
         }
+
         return value switch
         {
             int intValue => intValue,

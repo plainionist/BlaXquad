@@ -28,14 +28,23 @@ export function createBridge() {
   const receive = (raw: string) => {
     try {
       const message = JSON.parse(raw) as Envelope
+
       if (message.type === 'state.snapshot') return snapshotListener(message.payload as Snapshot)
+
       if (message.type === 'transcript.synchronize') return transcriptSynchronizationListener(message.payload as TranscriptSynchronization)
+
       if (message.type === 'transcript.update') return transcriptUpdateListener(message.payload as TranscriptUpdate)
+
       if (message.type === 'transcript.page') return transcriptPageListener(message.payload as TranscriptPage)
+
       if (message.type === 'transcript.entry') return archivedTranscriptEntryListener(message.payload as ArchivedTranscriptEntry)
+
       if (message.type === 'issues.list') return issuesListener(message.payload as IssueListPayload, message.requestId)
+
       if (message.type === 'workspace-tools.snapshot') return workspaceToolsListener(message.payload as WorkspaceToolsSnapshot)
+
       if (message.type === 'protocol.error') return errorListener((message.payload as { message?: string })?.message ?? 'The host rejected a message.', message.requestId)
+
       errorListener(`Unknown host message '${message.type}'.`)
     } catch {
       errorListener('The host sent malformed protocol data.')
@@ -57,9 +66,15 @@ export function createBridge() {
     send(type: string, options: Omit<Envelope, 'type'> = {}) {
       const message: Envelope = { type, ...options }
       const serialized = JSON.stringify(message)
+
       if (host?.sendMessage) host.sendMessage(serialized)
       else window.__blaxquadHarness?.messages.push(serialized)
     },
-    dispose() { if (!host?.sendMessage) delete window.__blaxquadHarness },
+
+    dispose() {
+
+      if (!host?.sendMessage) delete window.__blaxquadHarness
+    },
+
   }
 }

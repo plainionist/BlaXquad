@@ -35,23 +35,32 @@ function caretCollapsedAtStart() {
 }
 
 function onArrowUp(event: KeyboardEvent) {
+
   if (event.isComposing) return
+
   if (!props.historyNavigating && promptModel.value !== '' && !caretCollapsedAtStart())
+
     return
+
   if (props.recallOlderPrompt(props.role)) event.preventDefault()
 }
 
 function onArrowDown(event: KeyboardEvent) {
+
   if (event.isComposing) return
+
   if (!props.historyNavigating) return
+
   if (props.recallNewerPrompt(props.role)) event.preventDefault()
 }
 
 function onInput() {
+
   if (props.historyNavigating) props.exitHistoryNavigation(props.role)
 }
 
 defineExpose({ focusPrompt })
+
 </script>
 
 <template>

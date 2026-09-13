@@ -14,6 +14,7 @@ export function resolveArchivedEntry(
   displayedEntry: TranscriptEntry,
   response: ArchivedTranscriptEntry,
 ): TranscriptEntry {
+
   if (!response.entry) {
     const content = displayedEntry.content.includes(
       archivedContentAvailableMarker)
@@ -37,6 +38,7 @@ export function resolveArchivedEntry(
   }
 
   const retainedStart = displayedEntry.contentStart ?? 0
+
   const retainedTailLength = Math.max(
     0,
     response.totalContentCharacters - retainedStart)
