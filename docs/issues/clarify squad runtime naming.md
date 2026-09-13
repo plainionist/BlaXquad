@@ -38,9 +38,9 @@ namespaces.
 
 ## Implementation plan
 
-### Slice 1 - Name the runtime coordinator `SquadRuntime`
+### Slice 1 - Name the runtime coordinator `SquadRuntime` [done]
 
-**Status:** In progress
+**Status:** complete (fe435edcc6)
 
 **Outcome:** `squad.Runtime.SquadRuntime` unambiguously names the owner and lifecycle coordinator for one squad
 generation.
@@ -62,6 +62,12 @@ generation.
 - `Headquarters` still owns at most one coordinator and performs the same installation, startup, replacement, and
   retirement sequence.
 - `dotnet build squad.slnx` succeeds and the unchanged black-box `squad.Specs` suite passes.
+
+**Status: complete (fe435edcc6).** `squad.Runtime.Squad` and its file are now `SquadRuntime`. Headquarters field and
+local `mySquad`/`squad` are `mySquadRuntime`/`squadRuntime`; operation names such as `ReplaceSquadAsync` are
+retained. `SessionGeneration`, FakeAgentRuntime commentary, glossary lifecycle-owner wording, and test-strategy
+internal examples now name the coordinator `SquadRuntime`. `SquadMembers` remains the application-model name.
+Naming-only; no specification changes.
 
 ### Slice 2 - Name the application model `Squad`
 
