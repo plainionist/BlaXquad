@@ -107,33 +107,8 @@ Acceptance criteria:
 - The same failure still produces the pre-existing standard-error text and exit code.
 - A clean shutdown produces no warning/error record, and a rejected competing launch creates no extra log file.
 
-### Slice 1 review findings (f8ba27ba17)
-
-1. **Severity: high.** `src/squad.Specs/Features/AgentProviderSelection.feature`,
-	`src/squad.Specs/Features/HeadquartersLifecycle.feature`,
-	`src/squad.Specs/Features/HeadquartersOwnership.feature`,
-	`src/squad.Specs/StepDefinitions/HeadquartersLifecycleSteps.cs`,
-	`src/squad.Specs/StepDefinitions/HeadquartersOwnershipSteps.cs`,
-	`src/squad.Specs/StepDefinitions/ProviderSelectionSteps.cs`,
-	`src/squad.Specs/Support/Scenarios/ScenarioWorkspace.cs`.
-	**Violated behavior:** This issue has an explicit exception from `docs/manual/test-strategy.md`: do not add or
-	modify tests or scenarios. Slice 1 must be validated by running the existing affected Gherkin features, not by
-	extending them.
-	**Root cause:** The handed-off commit adds diagnostic-log assertions, step definitions, and shared workspace
-	helpers. That matches a superseded Slice 1 draft, not the current issue.
-	**Required outcome:** Remove every test and scenario change from Slice 1. Keep the `squad-hq` logging
-	implementation. Re-validate by building `squad.slnx` and running the existing, unmodified affected Gherkin
-	features.
-
-2. **Severity: medium.** `docs/manual/glossary.md`; `docs/manual/modules.md` (`squad-hq`).
-	**Violated behavior:** Each slice includes its implementation and a directly affected manual update, leaving a
-	releasable intermediate state. `.blaxquad/host.lock`, `.blaxquad/host.json`, and the handoff queues are already
-	documented; the new per-launch log file is the same kind of on-disk contract.
-	**Root cause:** The commit creates `<project-root>/.blaxquad/logs/` files but does not document their location,
-	naming, or Warning-minimum diagnostic policy.
-	**Required outcome:** Update the directly affected manual pages so one successful launch owns one log file under
-	`.blaxquad/logs/`, named from UTC start time plus process ID, with UTC timestamp, severity, category, message,
-	and exception details at Warning and above. Do not document later slices' error boundaries yet.
+**Status:** complete in 8721ff8c0e. Review findings on f8ba27ba17 are resolved (no test/scenario changes;
+diagnostic log documented). Slices 2-4 remain.
 
 ## Slice 2: Provider and member-session errors before UI projection
 
