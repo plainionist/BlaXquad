@@ -1,6 +1,6 @@
 ---
 title: Separate logical code blocks with empty lines
-priority: 5
+priority: 30
 ---
 
 # Separate logical code blocks with empty lines
