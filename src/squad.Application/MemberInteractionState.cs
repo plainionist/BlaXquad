@@ -2,7 +2,7 @@ namespace squad.Application;
 
 /// <summary>
 /// One member's pending or in-flight interaction, keyed only by <see cref="InteractionRequestId"/> in
-/// <see cref="SquadMemberAggregate"/>. Every request kind - permission, input, and elicitation - shares this same
+/// <see cref="SquadMember"/>. Every request kind - permission, input, and elicitation - shares this same
 /// per-request lifecycle: registered while awaiting a local decision (<see cref="Pending{TRequest}"/>), transitioned
 /// while a provider response is in flight (<see cref="Responding{TRequest}"/>), and, only across headquarters
 /// shutdown, retained solely to keep its transcript entry protected through the generation's retirement

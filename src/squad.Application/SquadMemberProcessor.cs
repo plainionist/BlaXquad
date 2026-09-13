@@ -8,7 +8,7 @@ namespace squad.Application;
 
 /// <summary>
 /// One member's independent, single-reader, bounded mailbox, and the sole mutable accessor of this member's
-/// <see cref="SquadMemberAggregate"/> - no other type ever reads or writes it. A provider-event or session-terminal
+/// <see cref="SquadMember"/> - no other type ever reads or writes it. A provider-event or session-terminal
 /// message never awaits provider I/O, so the read loop applies it inline, in order. A prompt, abort, or
 /// interaction-response message removes any pending interaction it replaces inline on the read loop, then runs its
 /// provider I/O detached from the loop - so a slow or blocked provider call for this member can never delay this
@@ -47,7 +47,7 @@ internal sealed class SquadMemberProcessor : IDisposable
     private readonly Task myLoop;
 
     internal SquadMemberProcessor(
-        SquadMemberAggregate aggregate,
+        SquadMember aggregate,
         object admissionLock,
         Func<bool> isAcceptingUnlocked,
         CancellationToken shutdownToken,
@@ -67,7 +67,7 @@ internal sealed class SquadMemberProcessor : IDisposable
     /// This member's authoritative domain state. Exposed for read-only snapshot and query composition; every
     /// mutation of it happens inside this processor, reached only through the members below.
     /// </summary>
-    internal SquadMemberAggregate Aggregate { get; }
+    internal SquadMember Aggregate { get; }
 
     internal Task SendPromptAsync(string prompt, CancellationToken cancellationToken) =>
         PostAsync(completion => new SendPromptMessage(PromptKind.Prompt, prompt, cancellationToken, completion));

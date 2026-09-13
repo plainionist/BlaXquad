@@ -12,7 +12,7 @@ namespace squad.Application;
 /// coordination, and terminal failure. It is the sole mutable owner of that state, and every local collection below
 /// is keyed only by request or operation identity - never by another member or role.
 /// </summary>
-internal sealed class SquadMemberAggregate : IDisposable
+internal sealed class SquadMember : IDisposable
 {
     private readonly object myStateLock = new();
     private readonly SquadMemberTranscriptState myTranscript;
@@ -29,7 +29,7 @@ internal sealed class SquadMemberAggregate : IDisposable
     private bool myFailedAbort;
     private bool myFailed;
 
-    internal SquadMemberAggregate(
+    internal SquadMember(
         SquadGenerationId generation,
         SquadMemberId id,
         string displayName,

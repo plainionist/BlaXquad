@@ -20,7 +20,7 @@ timing, persistence, or any other behavior.
 ## Current-state analysis
 
 The domain model already has the right distinction: `RoleId` represents the reusable prompt-backed role, while
-`SquadMemberId`, `SquadMemberDefinition`, `SquadMemberAggregate`, `SquadMemberProcessor`, and `SquadMembers` represent
+`SquadMemberId`, `SquadMemberDefinition`, `SquadMember`, `SquadMemberProcessor`, and `SquadMembers` represent
 configured and running participants. Most remaining inconsistencies are older names around that member-owned model.
 
 The current branch also already contains acceptance coverage for two members referencing one role in
