@@ -14,6 +14,7 @@
 - Do not put default implementations in interfaces. Every interface member must be explicitly implemented by each implementation.
 - Do not add unnecessary `global::` qualifiers to namespace references.
 - Always use curly braces for all control structures, even if they contain a single statement.
+- Separate logical code blocks with a single empty line.
 
 ## Design
 

@@ -227,10 +227,13 @@ public sealed class Headquarters : IAsyncDisposable
     private async Task InstallSquadUnlockedAsync(CancellationToken cancellationToken)
     {
         Contract.Invariant(mySquad is null, "Installing into a non-empty active-squad slot.");
+
         var prepared = await myLaunchPreparer.PrepareGenerationAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         myWorkspaceTools.Configure(prepared.GitHistoryCommand);
+        
         var agentBackend = await myAgentProviderFactory.CreateAsync(prepared.BackendContext, cancellationToken);
+        
         var members = new SquadMembers(
             prepared.Definition,
             myTranscripts,
@@ -241,16 +244,21 @@ public sealed class Headquarters : IAsyncDisposable
             prepared.Definition.Members,
             prepared.HandoffLogPath,
             myWindowHost.SessionsStartedAsync);
+        
         mySquad = squad;
+        
         try
         {
             // The generation must be published before its sessions start, so an operator that reaches Headquarters
             // during startup observes a known, not-yet-ready role rather than an unknown one.
             myViewModel.Install(members);
+
             myHeadquartersLease.SetAgentReadinessProvider(myViewModel.GetRoleReadinessAsync);
             cancellationToken.ThrowIfCancellationRequested();
+            
             await EnsureWindowStartedAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
+            
             await squad.StartAsync(cancellationToken);
         }
         catch
