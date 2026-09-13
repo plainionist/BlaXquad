@@ -47,14 +47,14 @@ internal sealed class SquadMemberProcessor : IDisposable
     private readonly Task myLoop;
 
     internal SquadMemberProcessor(
-        SquadMember aggregate,
+        SquadMember member,
         object admissionLock,
         Func<bool> isAcceptingUnlocked,
         CancellationToken shutdownToken,
         Action<bool> notifyStateChanged,
         Action<TranscriptUpdate> transcriptChanged)
     {
-        Aggregate = aggregate;
+        Member = member;
         myAdmissionLock = admissionLock;
         myIsAcceptingUnlocked = isAcceptingUnlocked;
         myShutdownToken = shutdownToken;
@@ -67,7 +67,7 @@ internal sealed class SquadMemberProcessor : IDisposable
     /// This member's authoritative domain state. Exposed for read-only snapshot and query composition; every
     /// mutation of it happens inside this processor, reached only through the members below.
     /// </summary>
-    internal SquadMember Aggregate { get; }
+    internal SquadMember Member { get; }
 
     internal Task SendPromptAsync(string prompt, CancellationToken cancellationToken) =>
         PostAsync(completion => new SendPromptMessage(PromptKind.Prompt, prompt, cancellationToken, completion));
@@ -82,7 +82,7 @@ internal sealed class SquadMemberProcessor : IDisposable
     /// </summary>
     internal async Task AbortAsync(CancellationToken cancellationToken)
     {
-        var lease = Aggregate.TryBeginAbort(out var existingAbort);
+        var lease = Member.TryBeginAbort(out var existingAbort);
         if (lease is null)
         {
             await existingAbort!.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -125,9 +125,9 @@ internal sealed class SquadMemberProcessor : IDisposable
         lock (myAdmissionLock)
         {
             Contract.Requires(
-                Aggregate.Session is null || Aggregate.Session.Completion.IsCompleted,
-                $"Role '{Aggregate.Id}' already has a live provider session.");
-            Aggregate.Session = session;
+                Member.Session is null || Member.Session.Completion.IsCompleted,
+                $"Role '{Member.Id}' already has a live provider session.");
+            Member.Session = session;
         }
     }
 
@@ -136,12 +136,12 @@ internal sealed class SquadMemberProcessor : IDisposable
     {
         IAgentSession? session;
         lock (myAdmissionLock)
-            session = Aggregate.Session;
+            session = Member.Session;
         if (session is not null && !session.Completion.IsCompleted)
         {
             await session.CancelPendingInteractionsAsync().ConfigureAwait(false);
         }
-        Aggregate.ClearInteractions();
+        Member.ClearInteractions();
         myNotifyStateChanged(true);
     }
 
@@ -176,7 +176,7 @@ internal sealed class SquadMemberProcessor : IDisposable
         await myLoop.ConfigureAwait(false);
     }
 
-    public void Dispose() => Aggregate.Dispose();
+    public void Dispose() => Member.Dispose();
 
     private async Task PostAsync(Func<TaskCompletionSource, SquadMemberMessage> createMessage)
     {
@@ -223,7 +223,7 @@ internal sealed class SquadMemberProcessor : IDisposable
                         publishAnswer: null);
                     break;
                 case OperationStartingMessage starting:
-                    if (starting.Generation == Aggregate.Generation && starting.OperationId == myActiveOperationId)
+                    if (starting.Generation == Member.Generation && starting.OperationId == myActiveOperationId)
                     {
                         starting.Apply();
                     }
@@ -231,7 +231,7 @@ internal sealed class SquadMemberProcessor : IDisposable
                     break;
                 case OperationOutcomeMessage outcome:
                     if (outcome.ApplyMutation is not null
-                        && (outcome.Unconditional || (outcome.Generation == Aggregate.Generation && outcome.OperationId == myActiveOperationId)))
+                        && (outcome.Unconditional || (outcome.Generation == Member.Generation && outcome.OperationId == myActiveOperationId)))
                     {
                         outcome.ApplyMutation();
                     }
@@ -301,7 +301,7 @@ internal sealed class SquadMemberProcessor : IDisposable
     {
         try
         {
-            Aggregate.BeginResponding<TRequest>(requestId);
+            Member.BeginResponding<TRequest>(requestId);
         }
         catch (Exception exception)
         {
@@ -318,9 +318,9 @@ internal sealed class SquadMemberProcessor : IDisposable
         using var lifetimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, myShutdownToken);
         try
         {
-            using var promptLease = await Aggregate.AcquirePromptLeaseAsync(lifetimeCancellation.Token).ConfigureAwait(false);
+            using var promptLease = await Member.AcquirePromptLeaseAsync(lifetimeCancellation.Token).ConfigureAwait(false);
             EnsureRoleAvailable();
-            await Aggregate.WaitForAbortAsync(lifetimeCancellation.Token).ConfigureAwait(false);
+            await Member.WaitForAbortAsync(lifetimeCancellation.Token).ConfigureAwait(false);
 
             // Resumes event admission and marks this member working before this operation ever competes for the
             // operation slot below - mirroring this member's original timing for the two mutations, so a stale
@@ -328,14 +328,14 @@ internal sealed class SquadMemberProcessor : IDisposable
             // operation's own token the instant it registers for that slot.
             await PostOperationStartingAsync(operationId, () =>
             {
-                Aggregate.ResumeEvents();
+                Member.ResumeEvents();
                 SetWorking();
             }).ConfigureAwait(false);
 
             EnsureAccepting();
             if (!TryCaptureSession(out var session))
             {
-                throw new InvalidOperationException($"Unknown role: {Aggregate.Id}");
+                throw new InvalidOperationException($"Unknown role: {Member.Id}");
             }
             using var operationLease = await AcquireOperationAsync(lifetimeCancellation).ConfigureAwait(false);
 
@@ -368,7 +368,7 @@ internal sealed class SquadMemberProcessor : IDisposable
             EnsureAccepting();
             if (!TryCaptureSession(out var session))
             {
-                throw new InvalidOperationException($"Unknown role: {Aggregate.Id}");
+                throw new InvalidOperationException($"Unknown role: {Member.Id}");
             }
             using var operationLease = await AcquireOperationAsync(lifetimeCancellation).ConfigureAwait(false);
             await session.CancelPendingInteractionsAsync(CancellationToken.None).ConfigureAwait(false);
@@ -408,7 +408,7 @@ internal sealed class SquadMemberProcessor : IDisposable
             EnsureAccepting();
             if (!TryCaptureSession(out var session))
             {
-                throw new InvalidOperationException($"Unknown role: {Aggregate.Id}");
+                throw new InvalidOperationException($"Unknown role: {Member.Id}");
             }
             using var operationLease = await AcquireOperationAsync(lifetimeCancellation).ConfigureAwait(false);
             await respond(session, lifetimeCancellation.Token).ConfigureAwait(false);
@@ -427,9 +427,9 @@ internal sealed class SquadMemberProcessor : IDisposable
                     publishAnswer?.Invoke();
                     UnprotectPendingTranscriptEntry(requestId);
                 }
-                else if (!Aggregate.IsFailed)
+                else if (!Member.IsFailed)
                 {
-                    Aggregate.RestorePending(requestId);
+                    Member.RestorePending(requestId);
                 }
                 else
                 {
@@ -463,7 +463,7 @@ internal sealed class SquadMemberProcessor : IDisposable
     /// </summary>
     private async Task<OperationLease> AcquireOperationAsync(CancellationTokenSource lifetimeCancellation)
     {
-        var operationLease = await Aggregate.AcquireOperationLeaseAsync(lifetimeCancellation.Token).ConfigureAwait(false);
+        var operationLease = await Member.AcquireOperationLeaseAsync(lifetimeCancellation.Token).ConfigureAwait(false);
         try
         {
             EnsureAccepting();
@@ -490,13 +490,13 @@ internal sealed class SquadMemberProcessor : IDisposable
     {
         var applied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await myMailbox.Writer.WriteAsync(
-            new OperationStartingMessage(Aggregate.Generation, Aggregate.Id, operationId, mutation, applied)).ConfigureAwait(false);
+            new OperationStartingMessage(Member.Generation, Member.Id, operationId, mutation, applied)).ConfigureAwait(false);
         await applied.Task.ConfigureAwait(false);
     }
 
     private Task PostOutcomeAsync(Guid operationId, Action? applyMutation, Action resolveCompletion, bool unconditional = false) =>
         myMailbox.Writer.WriteAsync(
-            new OperationOutcomeMessage(Aggregate.Generation, Aggregate.Id, operationId, applyMutation, unconditional, resolveCompletion)).AsTask();
+            new OperationOutcomeMessage(Member.Generation, Member.Id, operationId, applyMutation, unconditional, resolveCompletion)).AsTask();
 
     /// <summary>
     /// Atomically checks admission and captures this member's current non-terminal session under
@@ -507,7 +507,7 @@ internal sealed class SquadMemberProcessor : IDisposable
     {
         lock (myAdmissionLock)
         {
-            if (myIsAcceptingUnlocked() && Aggregate.Session is { } candidate && !candidate.Completion.IsCompleted)
+            if (myIsAcceptingUnlocked() && Member.Session is { } candidate && !candidate.Completion.IsCompleted)
             {
                 session = candidate;
                 return true;
@@ -528,24 +528,24 @@ internal sealed class SquadMemberProcessor : IDisposable
 
     private void EnsureRoleAvailable()
     {
-        if (!Aggregate.IsFailed)
+        if (!Member.IsFailed)
         {
             return;
         }
-        lock (Aggregate.SyncRoot)
-            throw new InvalidOperationException($"Role '{Aggregate.Id}' is unavailable: {Aggregate.Error}");
+        lock (Member.SyncRoot)
+            throw new InvalidOperationException($"Role '{Member.Id}' is unavailable: {Member.Error}");
     }
 
     private void ApplyProjectedEvent(AgentEvent agentEvent)
     {
-        if (Aggregate.IsFailed || ShouldIgnoreEvent(agentEvent))
+        if (Member.IsFailed || ShouldIgnoreEvent(agentEvent))
         {
             return;
         }
         TranscriptUpdate? transcriptUpdate;
-        lock (Aggregate.SyncRoot)
+        lock (Member.SyncRoot)
         {
-            transcriptUpdate = SquadMemberEventProjector.Project(Aggregate, agentEvent);
+            transcriptUpdate = SquadMemberEventProjector.Project(Member, agentEvent);
             if (transcriptUpdate is not null)
             {
                 myTranscriptChanged(transcriptUpdate);
@@ -561,60 +561,60 @@ internal sealed class SquadMemberProcessor : IDisposable
         {
             return false;
         }
-        return Aggregate.IsInvalidated;
+        return Member.IsInvalidated;
     }
 
     private void MarkFailedCore(Exception exception)
     {
-        Aggregate.MarkFailed();
+        Member.MarkFailed();
         RemovePendingInteractions();
-        lock (Aggregate.SyncRoot)
+        lock (Member.SyncRoot)
         {
-            Aggregate.Status = SquadMemberStatus.Error;
-            Aggregate.Error = exception.Message;
-            Aggregate.IsWorking = false;
-            Aggregate.ActiveTool = null;
+            Member.Status = SquadMemberStatus.Error;
+            Member.Error = exception.Message;
+            Member.IsWorking = false;
+            Member.ActiveTool = null;
         }
         myNotifyStateChanged(true);
     }
 
     private void SetWorking()
     {
-        lock (Aggregate.SyncRoot)
+        lock (Member.SyncRoot)
         {
-            Aggregate.IsWorking = true;
-            Aggregate.ActiveTool = null;
+            Member.IsWorking = true;
+            Member.ActiveTool = null;
         }
         myNotifyStateChanged(true);
     }
 
     private void SetIdle()
     {
-        lock (Aggregate.SyncRoot)
+        lock (Member.SyncRoot)
         {
-            Aggregate.IsWorking = false;
-            Aggregate.ActiveTool = null;
+            Member.IsWorking = false;
+            Member.ActiveTool = null;
         }
     }
 
     private void RemovePendingInteractions()
     {
-        foreach (var entryIndex in Aggregate.RemoveAllInteractions())
+        foreach (var entryIndex in Member.RemoveAllInteractions())
         {
-            lock (Aggregate.SyncRoot)
-                Aggregate.Transcript.UnprotectTranscriptEntry(entryIndex);
+            lock (Member.SyncRoot)
+                Member.Transcript.UnprotectTranscriptEntry(entryIndex);
         }
     }
 
     private void UnprotectPendingTranscriptEntry(InteractionRequestId requestId)
     {
-        var entryIndex = Aggregate.TryRemoveProtectedTranscriptEntry(requestId);
+        var entryIndex = Member.TryRemoveProtectedTranscriptEntry(requestId);
         if (entryIndex is null)
         {
             return;
         }
-        lock (Aggregate.SyncRoot)
-            Aggregate.Transcript.UnprotectTranscriptEntry(entryIndex.Value);
+        lock (Member.SyncRoot)
+            Member.Transcript.UnprotectTranscriptEntry(entryIndex.Value);
     }
 
     /// <summary>
@@ -629,9 +629,9 @@ internal sealed class SquadMemberProcessor : IDisposable
         {
             return;
         }
-        lock (Aggregate.SyncRoot)
+        lock (Member.SyncRoot)
         {
-            var transcriptUpdate = Aggregate.Transcript.AddTranscriptEntry(new TranscriptEntry(DateTimeOffset.UtcNow, TranscriptSource.User, response.Answer));
+            var transcriptUpdate = Member.Transcript.AddTranscriptEntry(new TranscriptEntry(DateTimeOffset.UtcNow, TranscriptSource.User, response.Answer));
             myTranscriptChanged(transcriptUpdate);
         }
     }
