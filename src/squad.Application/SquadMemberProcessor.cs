@@ -35,9 +35,6 @@ internal sealed class SquadMemberProcessor : IDisposable
     // stops and later disposes every member - observes the same task instead of posting a second sentinel.
     private Task? myRetirement;
 
-    // The identity of the squad generation this processor belongs to, shared by every member of that generation
-    // and carried on every start/outcome message so a mutation captured before retirement is rejected.
-    private readonly SquadGenerationId myGeneration;
     // Read and written only by the read loop itself - assigned the instant a message dispatches a new operation -
     // so no lock is needed and no start or outcome message can ever race its own staleness check.
     private Guid myActiveOperationId = Guid.Empty;
@@ -58,7 +55,6 @@ internal sealed class SquadMemberProcessor : IDisposable
         Action<TranscriptUpdate> transcriptChanged)
     {
         Aggregate = aggregate;
-        myGeneration = aggregate.Generation;
         myAdmissionLock = admissionLock;
         myIsAcceptingUnlocked = isAcceptingUnlocked;
         myShutdownToken = shutdownToken;
@@ -227,7 +223,7 @@ internal sealed class SquadMemberProcessor : IDisposable
                         publishAnswer: null);
                     break;
                 case OperationStartingMessage starting:
-                    if (starting.Generation == myGeneration && starting.OperationId == myActiveOperationId)
+                    if (starting.Generation == Aggregate.Generation && starting.OperationId == myActiveOperationId)
                     {
                         starting.Apply();
                     }
@@ -235,7 +231,7 @@ internal sealed class SquadMemberProcessor : IDisposable
                     break;
                 case OperationOutcomeMessage outcome:
                     if (outcome.ApplyMutation is not null
-                        && (outcome.Unconditional || (outcome.Generation == myGeneration && outcome.OperationId == myActiveOperationId)))
+                        && (outcome.Unconditional || (outcome.Generation == Aggregate.Generation && outcome.OperationId == myActiveOperationId)))
                     {
                         outcome.ApplyMutation();
                     }
@@ -494,13 +490,13 @@ internal sealed class SquadMemberProcessor : IDisposable
     {
         var applied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await myMailbox.Writer.WriteAsync(
-            new OperationStartingMessage(myGeneration, Aggregate.Id, operationId, mutation, applied)).ConfigureAwait(false);
+            new OperationStartingMessage(Aggregate.Generation, Aggregate.Id, operationId, mutation, applied)).ConfigureAwait(false);
         await applied.Task.ConfigureAwait(false);
     }
 
     private Task PostOutcomeAsync(Guid operationId, Action? applyMutation, Action resolveCompletion, bool unconditional = false) =>
         myMailbox.Writer.WriteAsync(
-            new OperationOutcomeMessage(myGeneration, Aggregate.Id, operationId, applyMutation, unconditional, resolveCompletion)).AsTask();
+            new OperationOutcomeMessage(Aggregate.Generation, Aggregate.Id, operationId, applyMutation, unconditional, resolveCompletion)).AsTask();
 
     /// <summary>
     /// Atomically checks admission and captures this member's current non-terminal session under
