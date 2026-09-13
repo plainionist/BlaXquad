@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type {
   Elicitation,
   InputRequest,
@@ -53,8 +53,19 @@ const emit = defineEmits<{
 
 const transcript = ref<InstanceType<typeof VirtualTranscript> | null>(null)
 const composer = ref<InstanceType<typeof PromptComposer> | null>(null)
+const dismissedError = ref<string | undefined>()
 const working = computed(() =>
   props.role.isWorking || props.role.status !== 'idle')
+const visibleError = computed(() =>
+  props.role.error === dismissedError.value ? undefined : props.role.error)
+
+watch(() => props.role.error, () => {
+  dismissedError.value = undefined
+})
+
+function dismissRoleError() {
+  dismissedError.value = props.role.error
+}
 
 function scrollTranscriptToEnd() {
   transcript.value?.scrollToEnd()
@@ -71,7 +82,10 @@ defineExpose({ focusPrompt })
   <article class="role-panel" :class="{ 'is-working': working }" @focusin="emit('focus')">
     <RoleHeader :role="role" :working="working" />
 
-    <p v-if="role.error" class="role-error" role="alert">{{ role.error }}</p>
+    <p v-if="visibleError" class="role-error" role="alert">
+      {{ visibleError }}
+      <button class="dismiss" type="button" aria-label="Dismiss role error" title="Dismiss" @click="dismissRoleError">x</button>
+    </p>
 
     <div class="console-frame">
       <VirtualTranscript

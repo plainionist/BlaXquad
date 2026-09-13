@@ -37,6 +37,49 @@ test('shows a prominent activity marker beside the working agent', async ({ page
   await expect(reviewerPanel.getByRole('status', { name: 'Working' })).toHaveCount(0)
 })
 
+test('dismisses a role error after it has been read', async ({ page }) => {
+  await loadRoleSnapshots(page, [
+    roleSnapshot('agent', {
+      status: 'error',
+      error: 'Runtime disconnected.',
+    }),
+  ])
+
+  const panel = page.locator('.role-panel')
+  const error = panel.getByRole('alert')
+  await expect(error).toContainText('Runtime disconnected.')
+
+  await panel.getByRole('button', { name: 'Dismiss role error' }).click()
+
+  await expect(error).toHaveCount(0)
+
+  const publishError = async (message?: string) => {
+    await page.evaluate((errorMessage) => {
+      window.__blaxquadHarness?.receive({
+        type: 'state.snapshot',
+        payload: {
+          leader: 'agent',
+          roles: [{
+            role: 'agent',
+            status: errorMessage ? 'error' : 'idle',
+            error: errorMessage,
+            isWorking: false,
+            eventCount: 1,
+          }],
+          permissions: [],
+          inputs: [],
+          elicitations: [],
+        },
+      })
+    }, message)
+  }
+
+  await publishError()
+  await expect(panel).toHaveClass('role-panel')
+  await publishError('Runtime disconnected.')
+  await expect(error).toContainText('Runtime disconnected.')
+})
+
 for (const scenario of [
   { name: 'idle', status: 'idle', isWorking: false, presentsWorking: false },
   { name: 'running', status: 'running', isWorking: false, presentsWorking: true },
