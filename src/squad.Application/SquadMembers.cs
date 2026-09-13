@@ -20,7 +20,7 @@ public sealed class SquadMembers : IDisposable
     // The ordered member directory is the only application-domain collection keyed by member identity. Each
     // member's processor is its aggregate's sole mutable accessor - the sole path through which a prompt, harness,
     // abort, interaction-response, provider-event, or session-terminal message reaches that member's SquadMember,
-    // reached here only through processor.Aggregate for read-only snapshot and query composition. A slow or blocked
+    // reached here only through processor.Member for read-only snapshot and query composition. A slow or blocked
     // provider call for one member can never delay another member's processor, and never delays this member's own
     // provider-event or session-terminal messages either, since those are applied inline without awaiting provider
     // I/O.
@@ -48,25 +48,25 @@ public sealed class SquadMembers : IDisposable
 
         myTranscripts = transcripts.OpenGeneration(Generation);
 
-        foreach (var member in definition.Members)
+        foreach (var memberDefinition in definition.Members)
         {
-            if (myMembers.ContainsKey(member.Id))
+            if (myMembers.ContainsKey(memberDefinition.Id))
             {
                 continue;
             }
-            var aggregate = new SquadMember(
+            var member = new SquadMember(
                 Generation,
-                member.Id,
-                member.DisplayName,
-                myTranscripts.OpenMember(member.Id));
-            myMembers.Add(member.Id, new SquadMemberProcessor(
-                aggregate,
+                memberDefinition.Id,
+                memberDefinition.DisplayName,
+                myTranscripts.OpenMember(memberDefinition.Id));
+            myMembers.Add(memberDefinition.Id, new SquadMemberProcessor(
+                member,
                 myAdmissionLock,
                 isAcceptingUnlocked: () => myAccepting,
                 myShutdown.Token,
                 notifyStateChanged: NotifyStateChanged,
                 transcriptChanged: PublishTranscriptUpdate));
-            myMemberOrder.Add(member.Id);
+            myMemberOrder.Add(memberDefinition.Id);
         }
         Contract.Invariant(myMemberOrder.Count == myMembers.Count, "Member order must track every configured member exactly once.");
         Contract.Invariant(myMembers.ContainsKey(myLeader), "The leader must be one of this generation's configured members.");
@@ -82,7 +82,7 @@ public sealed class SquadMembers : IDisposable
     {
         // Enumerate in configured member order (myMemberOrder), not myMembers.Values, so state.snapshot.roles
         // matches blaxquad/squad.json regardless of Dictionary enumeration behavior.
-        var members = myMemberOrder.Select(id => myMembers[id].Aggregate.CreateSnapshot()).ToArray();
+        var members = myMemberOrder.Select(id => myMembers[id].Member.CreateSnapshot()).ToArray();
         return CreateSnapshot(myLeader.Value, members);
     }
 
@@ -93,7 +93,7 @@ public sealed class SquadMembers : IDisposable
     {
         Contract.Requires(maxEntriesPerRole > 0, "maxEntriesPerRole must be positive.");
         return myMemberOrder
-            .Select(id => myMembers[id].Aggregate)
+            .Select(id => myMembers[id].Member)
             .Select(member => member.Transcript.CreateTranscriptSnapshot(maxEntriesPerRole))
             .ToArray();
     }
@@ -124,7 +124,7 @@ public sealed class SquadMembers : IDisposable
         {
             return null;
         }
-        var member = processor.Aggregate;
+        var member = processor.Member;
         if (!IsAccepting)
         {
             return false;
@@ -329,7 +329,7 @@ public sealed class SquadMembers : IDisposable
         throw new InvalidOperationException($"Unknown role: {memberId}");
     }
 
-    private SquadMember GetMember(SquadMemberId memberId) => GetProcessor(memberId).Aggregate;
+    private SquadMember GetMember(SquadMemberId memberId) => GetProcessor(memberId).Member;
 
     private bool IsAccepting
     {
