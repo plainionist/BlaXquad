@@ -132,7 +132,7 @@ Acceptance criteria:
 	continue running exactly as today.
 - Expected session cancellation during Headquarters shutdown adds no warning/error record.
 
-**Status:** complete in f7952d8710. Slices 3-4 remain.
+**Status:** complete in f7952d8710.
 
 ## Slice 3: Recoverable handoff delivery failures
 
@@ -155,6 +155,8 @@ Acceptance criteria:
 	while the scan continues and existing failed-artifact behavior is unchanged.
 - A notification failure is logged as a warning with recipient context without undoing the completed delivery.
 - A successful delivery adds no warning/error entry.
+
+**Status:** complete in 2720b67245. Slice 4 remains.
 
 ## Slice 4: Errors shown in the existing UI alert
 
