@@ -11,6 +11,12 @@ identify the key concepts like squad, generation, member, ...
 - what is the relationship and responsibility of
   - squad -> squadmembers -> squadmemberaggregate
 
+- what is SessionGeneration"
+- IAgentBackend, IAgentRuntime
+- dont we have one "session" for each squad member?
+
+==> i need kind of an ER diagram showing ownership and cardinalities
+
 anything to be moved to "domain"?
 
 once cleared, draw domain model diagram
