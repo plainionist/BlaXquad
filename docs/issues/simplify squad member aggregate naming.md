@@ -55,8 +55,7 @@ Acceptance criteria:
 - The processor remains the sole mutation path, and member state, locking, mailbox ordering, routing, snapshots,
   transcripts, lifecycle, diagnostics, and protocol shapes are unchanged.
 - No new tests or specification edits are introduced for this naming-only change; `dotnet build squad.slnx
-  --disable-build-servers --nologo` and `dotnet test src\squad.Specs\squad.Specs.csproj --no-restore
-  --disable-build-servers --nologo --verbosity minimal` pass.
+  --nologo` and `dotnet test src\squad.Specs\squad.Specs.csproj --no-restore --nologo --verbosity minimal` pass.
 
 ## Acceptance criteria
 
