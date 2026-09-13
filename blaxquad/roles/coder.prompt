@@ -19,8 +19,8 @@ You are the coder. Implement the architect's plan and resolve the reviewer's fin
    - Derive the impact set from the assigned behavior, changed files, their direct callers or consumers, and the
      existing scenarios or browser specs that exercise those boundaries.
    - Run the new or changed test first, then the smallest set of existing tests that could disprove the change.
-   - For backend scenarios, combine all impacted feature or scenario name filters into one `dotnet test` invocation;
-     every invocation republishes the black-box test tools, so do not run one command per scenario.
+   - For backend scenarios, combine all impacted feature or scenario name filters into one repository test-wrapper
+     invocation; every invocation republishes the black-box test tools, so do not run one command per scenario.
    - For frontend behavior, run the impacted Playwright spec files or test-title filter in one invocation.
    - Do not use a subagent for routine impact analysis or test execution. Use a read-only exploration subagent only if
      the behavior crosses unfamiliar modules and a quick local search cannot identify the owning tests.
@@ -35,19 +35,14 @@ You are the coder. Implement the architect's plan and resolve the reviewer's fin
 
 ## Rules
 
-- Build .NET projects with `dotnet build` and run .NET tests with `dotnet test`; do not use `dotnet publish`.
+- Build .NET projects with `dotnet build`. Load and follow the `run-dotnet-tests` skill for every .NET test run, use
+  `./run-tests.ps1`, and never invoke `dotnet test` directly. Do not use `dotnet publish`.
 - Run at most one build or test command at a time.
-- Set `MSBUILDDISABLENODEREUSE` only when there is a concrete reason.
-- Launch builds and tests with synchronous execution and an initial wait sized to cover the expected duration; use
-  the maximum supported initial wait for a run of the full `squad.Specs` suite. If the command outlives the wait and
-  continues in the background, retain and read the same shell handle until it completes. Never start a replacement
-  while the original may still be running.
-- Retain each build or test's execution handle and, when available, root PID. Monitor, wait for, cancel, or terminate
-  only that invocation and its descendants. Never rediscover it by enumerating machine-wide processes or searching
-  by process name, including `dotnet`, `msbuild`, or `squad-hq`.
+- Keep MSBuild node reuse enabled for tests. Never set `MSBUILDDISABLENODEREUSE` when running the test wrapper.
+- Trust the test wrapper's exit code and `TEST_RESULT` line. On success, do not read its log. On failure, inspect only
+  the relevant parts of the reported log.
+- Never infer test completion by enumerating machine-wide processes or searching by process name, including `dotnet`,
+  MSBuild, or `testhost`. Reusable build nodes may intentionally remain alive after the wrapper returns.
+- Launch direct build commands with synchronous execution. If a build continues in the background, retain and read
+  the same shell handle until it completes. Never start a replacement while the original may still be running.
 - Never terminate `squad-hq` or any process outside the tracked process tree.
-- If both the execution handle and root PID are lost, treat the invocation as potentially running and stop validation.
-  Do not start a replacement, use another command as a lock or completion probe, or infer completion from elapsed time
-  or an unrelated result. Do not claim success or hand off for review. Send the architect a `squad handoff note` that
-  names the untracked command and says its result is unknown. Resume only after the operator supplies a fresh,
-  confirmed-safe execution context; never manufacture that confirmation.
