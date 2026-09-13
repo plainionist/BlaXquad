@@ -94,7 +94,7 @@ static class Launch
                     // process startup through the same HostingLoader, exactly like "--provider" and its default. squad-hq
                     // has no compile-time dependency on either concrete hosting assembly.
                     hostingRuntime = HostingLoader.Load(hostingDescriptor ?? DefaultHostingDescriptor())
-                        .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog, gitHistoryTool));
+                        .Create(new HostingContext(layout.WorkingDir, viewModel, issueCatalog, gitHistoryTool, launchLogging.LoggerFactory));
                 }
                 catch (Exception exception)
                 {

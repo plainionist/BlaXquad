@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- UiProtocolSession requests a typed ILogger from the launch-owned factory carried in HostingContext, so
+         every backend failure that opens the general UI error alert is logged immediately before it is sent. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\squad.Domain\squad.Domain.csproj" />
     <ProjectReference Include="..\squad.Ui.Abstractions\squad.Ui.Abstractions.csproj" />
   </ItemGroup>

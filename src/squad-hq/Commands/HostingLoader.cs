@@ -16,8 +16,17 @@ static class HostingLoader
     // squad.Domain is included for the same reason: ISquadUi's member-command signatures now take SquadMemberId,
     // so a hosting plug-in that calls those methods (e.g. from squad.Ui.Protocol's UiCommandHandler) must resolve
     // SquadMemberId to the host's own type identity, not a private copy loaded into the plug-in's load context.
+    // Microsoft.Extensions.Logging.Abstractions is included because HostingContext.LoggerFactory carries the
+    // launch-owned ILoggerFactory across this same boundary, so a plug-in that calls CreateLogger<T>() on it must
+    // resolve ILoggerFactory to the host's own type identity too.
     private static readonly HashSet<string> SharedAssemblyNames =
-        ["squad.Hosting.Abstractions", "squad.Ui.Abstractions", "squad.AgentProvider.Abstractions", "squad.Domain"];
+        [
+            "squad.Hosting.Abstractions",
+            "squad.Ui.Abstractions",
+            "squad.AgentProvider.Abstractions",
+            "squad.Domain",
+            "Microsoft.Extensions.Logging.Abstractions",
+        ];
 
     // Keeps every hosting load context reachable so it (and the assemblies it loaded) survive for the process lifetime.
     // Kept separate from ProviderLoader's own list so provider and hosting plug-ins never share a load context.

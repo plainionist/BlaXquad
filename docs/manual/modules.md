@@ -113,7 +113,10 @@ Defines the narrow platform-hosting contracts for the desktop window lifecycle
 and system sleep inhibition, plus the `IHostingFactory` runtime-loading contract
 (`HostingContext` in, `HostingRuntime` out) that `squad-hq` uses to load a
 hosting adapter from an explicit `--hosting <assemblyPath>;<typeName>`
-descriptor, mirroring how it already loads agent providers.
+descriptor, mirroring how it already loads agent providers. `HostingContext`
+also carries the launch-owned `ILoggerFactory`, so every hosting adapter can
+build a typed logger for its `UiProtocolSession` without depending on a
+concrete logging framework.
 
 ## `squad.Hosting.Stdio`
 
@@ -192,7 +195,15 @@ availability and perform its own launch.
 
 Owns the internal JSON protocol between Headquarters and dashboard: envelope
 validation, command routing, snapshot publication, transcript sequencing and
-journaling, synchronization, recovery, and protocol errors.
+journaling, synchronization, recovery, and protocol errors. Every backend
+failure that opens the general, dismissible UI error alert - a malformed
+envelope, an unknown message type, or a failed command - is recorded at
+`Error` level, including the original exception when one exists, immediately
+before the unchanged alert is sent to the UI (see
+[glossary.md#diagnostic-log](glossary.md#diagnostic-log)). A provider or
+member-session failure remains logged once, through `squad.Runtime`'s
+`SessionGeneration` (see that module above), not again here while its
+snapshot is delivered.
 
 ## `squad.Workspaces`
 

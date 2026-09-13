@@ -3,6 +3,7 @@ using squad.Ui.Abstractions;
 using squad.Ui.Protocol;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Photino.NET;
 
 namespace squad.Hosting.Photino;
@@ -34,7 +35,7 @@ sealed class PhotinoWindowHost : IWindowHost
     private Thread? myUiThread;
     private bool myStarted;
 
-    public PhotinoWindowHost(ISquadUi ui, IIssueCatalog issueCatalog, IWorkspaceTools workspaceTools, string workspaceDirectory)
+    public PhotinoWindowHost(ISquadUi ui, IIssueCatalog issueCatalog, IWorkspaceTools workspaceTools, string workspaceDirectory, ILoggerFactory loggerFactory)
     {
         myUiDirectory = Path.Combine(AppContext.BaseDirectory, "ui");
         myTitle = CreateTitle(workspaceDirectory);
@@ -43,7 +44,8 @@ sealed class PhotinoWindowHost : IWindowHost
             issueCatalog,
             workspaceTools,
             SendSerializedMessage,
-            () => myUiReady.TrySetResult());
+            () => myUiReady.TrySetResult(),
+            loggerFactory.CreateLogger<UiProtocolSession>());
     }
 
     private static string CreateTitle(string workspaceDirectory) =>

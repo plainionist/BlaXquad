@@ -160,15 +160,7 @@ internal sealed class UiCommandHandler
                 myWorkspaceTools.OpenGitHistory();
                 break;
             default:
-                mySend(
-                    "protocol.error",
-                    new
-                    {
-                        message =
-                            $"Unknown UI message type '{message.Type}'.",
-                    },
-                    null);
-                break;
+                throw new InvalidOperationException($"Unknown UI message type '{message.Type}'.");
         }
     }
 

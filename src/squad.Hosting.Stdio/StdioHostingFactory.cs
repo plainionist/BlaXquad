@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using squad.Hosting.Abstractions;
 
 namespace squad.Hosting.Stdio;
@@ -11,5 +12,7 @@ public sealed class StdioHostingFactory : IHostingFactory
     public string Name => "stdio";
 
     public HostingRuntime Create(HostingContext context) =>
-        new(new StdioWindowHost(context.Ui, context.IssueCatalog, context.WorkspaceTools), new NoOpSleepInhibitor());
+        new(
+            new StdioWindowHost(context.Ui, context.IssueCatalog, context.WorkspaceTools, context.LoggerFactory),
+            new NoOpSleepInhibitor());
 }

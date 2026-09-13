@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using squad.Ui.Abstractions;
 
 namespace squad.Ui.Protocol;
@@ -14,19 +15,22 @@ public sealed class UiProtocolSession : IAsyncDisposable
     private readonly Action<string> mySendSerializedMessage;
     private readonly UiCommandHandler myCommandHandler;
     private readonly UiDeliveryCoordinator myDeliveryCoordinator;
+    private readonly ILogger myLogger;
 
     public UiProtocolSession(
         ISquadUi ui,
         IIssueCatalog issueCatalog,
         IWorkspaceTools workspaceTools,
         Action<string> sendSerializedMessage,
-        Action signalUiReady)
+        Action signalUiReady,
+        ILogger logger)
     {
         myUi = ui;
         Contract.Requires(ui is ITranscriptUi, "The Photino UI must support incremental transcripts.");
 
         myTranscriptUi = (ITranscriptUi)ui;
         mySendSerializedMessage = sendSerializedMessage;
+        myLogger = logger;
         myDeliveryCoordinator = new(myUi, myTranscriptUi, (type, payload) => Send(type, payload));
         myCommandHandler = new(
             myUi,
@@ -67,13 +71,13 @@ public sealed class UiProtocolSession : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            PublishError(exception.Message, null);
+            PublishError(exception.Message, null, exception);
             return;
         }
 
         if (message.EnvelopeError is not null)
         {
-            PublishError(message.EnvelopeError, null);
+            PublishError(message.EnvelopeError, null, null);
             return;
         }
 
@@ -85,14 +89,20 @@ public sealed class UiProtocolSession : IAsyncDisposable
         {
             // A correlated request (one carrying a requestId, such as "issues.list") echoes that ID on failure so
             // the UI can resolve its own loading state without treating an unrelated protocol failure as its own.
-            PublishError(exception.Message, message.RequestId);
+            PublishError(exception.Message, message.RequestId, exception);
         }
     }
 
     public ValueTask DisposeAsync() => myDeliveryCoordinator.DisposeAsync();
 
-    private void PublishError(string message, string? requestId) =>
+    /// <summary>The single chokepoint every backend failure that opens the general, dismissible UI error alert
+    /// passes through. Logs the same message at <c>Error</c> level - including the original exception when one
+    /// exists - immediately before the unchanged alert is sent to the UI.</summary>
+    private void PublishError(string message, string? requestId, Exception? exception)
+    {
+        myLogger.LogError(exception, "{Message}", message);
         Send("protocol.error", new { message }, requestId);
+    }
 
     private void Send(string type, object payload, string? requestId = null)
     {

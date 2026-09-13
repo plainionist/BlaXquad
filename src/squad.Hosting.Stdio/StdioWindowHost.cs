@@ -1,6 +1,7 @@
 using squad.Hosting.Abstractions;
 using squad.Ui.Abstractions;
 using squad.Ui.Protocol;
+using Microsoft.Extensions.Logging;
 
 namespace squad.Hosting.Stdio;
 
@@ -35,14 +36,15 @@ sealed class StdioWindowHost : IWindowHost
     private Task? myStop;
     private bool myStarted;
 
-    public StdioWindowHost(ISquadUi ui, IIssueCatalog issueCatalog, IWorkspaceTools workspaceTools)
+    public StdioWindowHost(ISquadUi ui, IIssueCatalog issueCatalog, IWorkspaceTools workspaceTools, ILoggerFactory loggerFactory)
     {
         mySession = new(
             ui,
             issueCatalog,
             workspaceTools,
             SendSerializedMessage,
-            () => myUiReady.TrySetResult());
+            () => myUiReady.TrySetResult(),
+            loggerFactory.CreateLogger<UiProtocolSession>());
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
