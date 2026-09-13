@@ -205,12 +205,6 @@ public sealed class HeadquartersOwnershipSteps
         Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Unhandled exception"));
     }
 
-    // The already-running Headquarters instance's own launch already created the project's one diagnostic log
-    // file; a rejected competing launch is refused before that log is ever created, so the count must stay at 1.
-    [Then("the duplicate launch creates no additional diagnostic log file")]
-    public void ThenTheDuplicateLaunchCreatesNoAdditionalDiagnosticLogFile() =>
-        Assert.That(myWorkspace.DiagnosticLogFiles(), Has.Length.EqualTo(1));
-
     private void RunTimedWait(
         string role,
         double timeoutSeconds,

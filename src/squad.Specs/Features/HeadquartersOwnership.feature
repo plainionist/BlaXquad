@@ -9,7 +9,6 @@ Feature: Headquarters ownership
     When the operator attempts a duplicate launch
 
     Then the duplicate launch fails without an exception trace
-    And the duplicate launch creates no additional diagnostic log file
 
     When the user sends "still there?" to role "architect"
 

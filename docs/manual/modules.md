@@ -13,6 +13,11 @@ Headquarters executable and composition root. Implements `launch`, `shutdown`,
 and `wait-for-agent`, and wires workspace preparation, Headquarters control, the
 Copilot backend, handoff delivery, application state, and the desktop UI.
 
+Once the Headquarters lease is acquired, `launch` creates and owns the process's single diagnostic log
+file (see [Diagnostic log](glossary.md#diagnostic-log)) for the rest of the launch, and registers the
+launch boundary's last-chance `AppDomain.UnhandledException`/`TaskScheduler.UnobservedTaskException`
+handlers alongside it.
+
 ## `squad`
 
 Agent-facing command-line executable. Resolves the current role and worktree,

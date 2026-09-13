@@ -27,16 +27,6 @@ public sealed class ScenarioWorkspace : IDisposable
     public string PathInWorkspace(params string[] parts) =>
         parts.Aggregate(Root, Path.Combine);
 
-    /// <summary>
-    /// The launch-owned diagnostic log files a real squad-hq process creates under this project's
-    /// ".blaxquad/logs" directory, one per launch. Returns an empty array before any launch has created it.
-    /// </summary>
-    public string[] DiagnosticLogFiles()
-    {
-        var logsDir = PathInWorkspace(".blaxquad", "logs");
-        return Directory.Exists(logsDir) ? Directory.GetFiles(logsDir) : [];
-    }
-
     public void Set<T>(string key, T value) where T : notnull => myValues[key] = value;
 
     public T Get<T>(string key) => (T)myValues[key];

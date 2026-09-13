@@ -240,6 +240,14 @@ and shutdown requests.
 
 The lease prevents two Headquarters instances from managing the same project concurrently.
 
+## Diagnostic log
+
+The single backend log file one `squad-hq launch` process owns for its complete lifetime, created only once the
+Headquarters lease is held and placed under `.blaxquad/logs/`, named from the launch's UTC start time plus process
+ID. Each record is plain text with a UTC timestamp, severity, source category, message, and full exception details;
+`Warning` is the minimum level, so no routine lifecycle, prompt, transcript, or tool payload is recorded. A clean
+shutdown produces no warning/error record, and a rejected competing launch never creates one.
+
 ## Session generation
 
 The complete set of role sessions created by one headquarters startup. A

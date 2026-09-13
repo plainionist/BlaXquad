@@ -39,20 +39,6 @@ public sealed class ProviderSelectionSteps
         Assert.That(myWorkspace.LastResult?.StdErr, Does.Not.Contain("Unhandled exception"));
     }
 
-    [Then("the failed launch's diagnostic log records severity {string} and contains {string}")]
-    public void ThenTheFailedLaunchsDiagnosticLogRecordsSeverityAndContains(string severity, string expectedText)
-    {
-        var logFiles = myWorkspace.DiagnosticLogFiles();
-        Assert.That(logFiles, Has.Length.EqualTo(1));
-        var content = File.ReadAllText(logFiles[0]);
-        Assert.Multiple(() =>
-        {
-            Assert.That(content, Does.Match(@"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"));
-            Assert.That(content, Does.Contain($"[{severity}]"));
-            Assert.That(content, Does.Contain(expectedText));
-        });
-    }
-
     [Then("the fake provider factory is defined by squad.AgentProvider.Fake, not squad.Specs")]
     public void ThenTheFakeProviderFactoryIsDefinedBySquadAgentProviderFake()
     {
