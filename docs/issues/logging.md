@@ -24,3 +24,175 @@ priority: 40
 - this is about backend only!
 - this issue does not require any new tests or scenarios
 
+## Review decisions
+
+The plan deliberately makes the following interpretations so that logging does not become a new subsystem:
+
+- A **session** is one successful `squad-hq launch` process lifetime, not one agent-provider session per member. One
+	launch therefore owns one log file even when it starts several member sessions.
+- Logging covers the long-running Headquarters backend. The `squad` role CLI, the Vue client, and the short-lived
+	`squad-hq shutdown` and `wait-for-agent` clients stay out of scope.
+- Use `Microsoft.Extensions.Logging` contracts in backend code and Serilog with its file sink only in the
+	`squad-hq` composition root. Do not add a `squad.Logging` assembly or a project-specific logging abstraction.
+- Write plain-text diagnostic records containing a UTC timestamp, severity, category, message, and full exception
+	details. Configure `Warning` as the minimum level; do not add routine lifecycle, prompt, transcript, tool payload,
+	debug, or trace records.
+- Name each file from the launch's UTC start time plus process ID and place it under
+	`<project-root>/.blaxquad/logs/`. Do not add rotation, retention, compression, upload, or runtime configuration.
+- Preserve every existing UI error, standard-error message, exit code, and cancellation behavior. Logging is an
+	additional diagnostic side effect only.
+- Record an unexpected failure once, where it becomes terminal, is converted into a user-visible error, or is
+	deliberately recovered so processing can continue. Do not duplicate exceptions at intermediate catch/aggregate/
+	rethrow sites.
+- Expected cancellation, defensive catches whose failure is still propagated to one of those owning boundaries,
+	best-effort usage refresh, and the opt-in raw SDK event trace are not production warning/error records. Keep the
+	raw trace independent when `BLAXQUAD_SDK_EVENT_TRACE` is explicitly enabled.
+- Do not add a custom exception type for logging; no caller needs a new distinguishable failure across an API
+	boundary.
+
+There is one policy conflict for review: the issue says no tests are required, while `docs/manual/test-strategy.md`
+requires backend behavior to be covered through the black-box Gherkin suite. The slices below follow the current
+test strategy by extending existing scenarios with focused filesystem assertions. They add no unit-test project,
+test-only production seam, or broad logging matrix. If the no-test statement is intentional, approve that exception
+explicitly before implementation and remove the test bullets below.
+
+## Design
+
+`squad-hq launch` creates and disposes one `ILoggerFactory` after resolving the project root and acquiring the
+Headquarters lease. The concrete Serilog setup remains in that composition root. The factory is passed through the
+existing runtime and hosting composition paths; consumers request typed `ILogger<T>` instances and depend only on
+`Microsoft.Extensions.Logging.Abstractions`.
+
+Four existing boundaries need contextual logging:
+
+1. `Launch` records fatal startup, runtime, cleanup, and otherwise unhandled process failures before preserving the
+	 current command-line result.
+2. `SessionGeneration` records provider error events and unexpected event/session termination before those failures
+	 become member error state visible in the dashboard.
+3. `HandoffDeliveryService` records recoverable delivery, archival, and recipient-notification failures before its
+	scan continues.
+4. The existing backend UI-error publication path records an error before sending the message that opens the
+	dismissible error alert. Member-specific error alerts are already covered by `SessionGeneration` and are not
+	logged a second time.
+
+Expected shutdown/cancellation is not a warning or error. Log messages include stable context such as member ID,
+but never serialized UI messages, prompts, transcript text, interaction answers, environment variables, or other
+user payloads.
+
+## Slice 1: Per-launch file and last-chance Headquarters failures
+
+**Logical change:** A Headquarters launch owns one backend log file and records every failure that escapes the
+long-running process boundary.
+
+Implementation:
+
+- Add the concrete Serilog logging bridge and file sink only to `squad-hq`; add
+	`Microsoft.Extensions.Logging.Abstractions` only to modules that consume its contracts.
+- Resolve `ProjectLayout`, acquire the Headquarters lease, and then create one log file at the agreed path before
+	loading provider/hosting plug-ins or preparing the workspace. A failed competing launch does not create a second
+	session log.
+- Keep one logger factory alive for the complete launch and flush/dispose it during final cleanup.
+- Add the launch boundary's last-chance exception handling, including `AppDomain.UnhandledException` and
+	`TaskScheduler.UnobservedTaskException` callbacks for failures outside the awaited main task. Record the original
+	exception with stack and inner exceptions before retaining today's stderr text and exit code, and unregister the
+	callbacks when the launch ends. Do not log normal Ctrl+C or requested shutdown.
+
+Acceptance criteria:
+
+- One successful launch creates exactly one file under `.blaxquad/logs`; a second launch after shutdown creates a
+	distinct second file.
+- A failure escaping launch is present in that launch's file with UTC date/time, severity, source category, original
+	message, and exception details.
+- The same failure still produces the pre-existing standard-error text and exit code.
+- A clean shutdown produces no warning/error record, and a rejected competing launch creates no extra log file.
+- Extend the closest existing Headquarters lifecycle/provider-selection Gherkin scenarios and shared process support
+	to inspect the real workspace log files.
+
+## Slice 2: Provider and member-session errors before UI projection
+
+**Logical change:** Provider failures that become a member's visible error state are recorded with member context
+without moving logging into application or domain state.
+
+Implementation:
+
+- Pass the launch-owned logger factory through `Headquarters` and `SquadRuntime` to `SessionGeneration`.
+- Log an `AgentErrorEvent` before enqueueing it for projection, including the member ID and provider message.
+- Log an unexpected provider event-stream or session-completion exception before it is propagated or passed to
+	`MarkRoleFailedAsync`. In particular, record an event-stream exception before either the existing early return or
+	rethrow when session completion is observed. Continue to ignore expected teardown cancellation.
+- Do not log ordinary provider events, prompts, transcripts, usage values, or successful lifecycle transitions.
+
+Acceptance criteria:
+
+- A provider error event is logged with its member ID before the unchanged error reaches that member's dashboard
+	state/transcript.
+- A failed member session is logged with its member ID and full exception while Headquarters and unaffected members
+	continue running exactly as today.
+- Expected session cancellation during Headquarters shutdown adds no warning/error record.
+- Extend the existing terminal-session Gherkin coverage; add only the minimal fake-provider command needed to emit a
+	provider error event if no existing command exposes it.
+
+## Slice 3: Recoverable handoff delivery failures
+
+**Logical change:** Handoff failures that are deliberately isolated so later files can still be delivered move into
+the launch's diagnostic log instead of a separate fixed-purpose log.
+
+Implementation:
+
+- Pass an abstraction logger from `SquadRuntime` into `InProcessHandoffPoller` and `HandoffDeliveryService`.
+- Record a delivery or failed-archive exception as an error with the handoff path and full exception; record a
+	recipient notification failure as a warning with member and handoff context before continuing.
+- Remove `HandoffDeliveryLog` and its `HandoffLog` path plumbing from workspace preparation after its failure records
+	have moved to the session log. Do not carry its successful `delivered` entries forward because this issue excludes
+	routine informational logging.
+- Preserve handoff delivery, retry, failed-artifact archival, and recipient notification behavior.
+
+Acceptance criteria:
+
+- A failed handoff delivery or failed archival is present in the current launch log with its path and exception,
+	while the scan continues and existing failed-artifact behavior is unchanged.
+- A notification failure is logged as a warning with recipient context without undoing the completed delivery.
+- A successful delivery adds no warning/error entry.
+- Extend the existing handoff delivery Gherkin scenarios and remove obsolete assertions for the old fixed log, if
+	any are found.
+
+## Slice 4: Errors shown in the existing UI alert
+
+**Logical change:** Every backend error that opens an existing dismissible error alert in the UI is recorded before
+that error is sent to the UI.
+
+Implementation:
+
+- Carry the launch-owned `ILoggerFactory` in `HostingContext`; each hosting adapter creates and passes a typed
+	`ILogger<UiProtocolSession>` when constructing its existing protocol session.
+- Route every existing backend publication that opens the general UI error alert through one `UiProtocolSession`
+	helper. That helper logs the same error at `Error` level immediately before sending it to the UI, including the
+	original exception when one exists.
+- Keep member-operation failures in `squad.Application` free of logging dependencies: their completion tasks already
+	propagate to this boundary, which records them before showing the existing alert.
+- Do not log the serialized request or any additional UI payload, and do not add new error categories, UI behavior,
+	or client-side logging.
+- Keep the existing error message, dismiss behavior, transport envelope, correlation, and hosting plug-in selection
+	unchanged.
+
+Acceptance criteria:
+
+- A representative backend failure that opens the general UI error alert is present in the current launch log with
+	the same message before the unchanged alert appears.
+- A provider/member failure remains visible in its existing role error alert and is logged once through Slice 2,
+	not again while snapshots are delivered.
+- Extend the closest existing Gherkin scenarios for those two alerts rather than creating a protocol-validation or
+	parallel logging test matrix.
+
+## Slice order and completion
+
+Implement and integrate the slices in order: Slice 1 establishes the process-owned logger, Slice 2 extends it along
+the provider-session path, Slice 3 replaces the separate handoff failure log, and Slice 4 extends logging across the
+hosting plug-in boundary. After each slice, build `squad.slnx` and run only the affected Gherkin features; run the
+full backend acceptance suite after Slice 4. Each slice includes its own implementation, acceptance coverage, and
+directly affected manual update, and leaves a buildable, releasable intermediate state.
+
+The issue is complete when all four error boundaries write to the same per-launch file, existing user-visible error
+behavior is unchanged, the focused and full backend suites pass, and no logging dependency has entered
+`squad.Domain`, `squad.Application`, `squad.Ui.Abstractions`, or the Vue client.
+
