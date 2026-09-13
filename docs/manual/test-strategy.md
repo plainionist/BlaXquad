@@ -3,7 +3,7 @@
 ## Purpose
 
 The C# backend is tested as a black box through the same process and protocol boundaries used by users and agents.
-Tests focus on supported use cases rather than the internal structure of `Headquarters`, `Squad`, `SquadViewModel`, runtime
+Tests focus on supported use cases rather than the internal structure of `Headquarters`, `SquadRuntime`, `SquadViewModel`, runtime
 coordination, or protocol implementation helpers.
 
 All backend tests remain in `src/squad.Specs`. Do not create test assemblies aligned with product assemblies. Mirroring
@@ -49,7 +49,7 @@ The process and wire protocols are the public test boundary. Product object grap
 
 Gherkin scenarios describe an operator, user, or agent action and its observable result. They do not mention:
 
-- `Headquarters`, `Squad`, or `SquadViewModel`;
+- `Headquarters`, `SquadRuntime`, or `SquadViewModel`;
 - session registries or lifecycle coordinator types;
 - concrete provider sessions;
 - callback counts or injected delegates;
@@ -314,8 +314,8 @@ Both ends and all DTOs live in `squad.Specs`. This is not product API.
 
 The target architecture does not require:
 
-- a test-specific `Headquarters` or `Squad` constructor or factory;
-- `Headquarters.Squad`, `Squad.Members`, or `Squad.Sessions`;
+- a test-specific `Headquarters` or `SquadRuntime` constructor or factory;
+- `Headquarters.SquadRuntime`, `SquadRuntime.Members`, or `SquadRuntime.Sessions`;
 - public role, pending-interaction, transcript, or lifecycle collections;
 - an event sink or lifecycle trace callback;
 - optional collaborators that select test behavior;

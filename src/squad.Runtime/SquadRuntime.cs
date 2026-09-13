@@ -12,7 +12,7 @@ namespace squad.Runtime;
 /// participation. Headquarters owns the process shell and at most one of these generations; it never dismantles
 /// these resources in individual steps but retires the whole generation through <see cref="RetireAsync"/>.
 /// </summary>
-internal sealed class Squad
+internal sealed class SquadRuntime
 {
     private static readonly Task myNever = Task.Delay(Timeout.InfiniteTimeSpan);
     private readonly SquadMembers myMembers;
@@ -26,7 +26,7 @@ internal sealed class Squad
     private bool myHandoffStarted;
     private bool myStarted;
 
-    internal Squad(
+    internal SquadRuntime(
         SquadMembers members,
         IAgentBackend agentBackend,
         IReadOnlyList<SquadMemberDefinition> handoffMembers,

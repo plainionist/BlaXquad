@@ -6,7 +6,7 @@ namespace squad.Runtime;
 
 /// <summary>
 /// The sole owner of one backend generation's runtime handle, registered-session projection, event/completion
-/// observer tasks, and observer cancellation sources. It is created by and bound to one <see cref="Squad"/>
+/// observer tasks, and observer cancellation sources. It is created by and bound to one <see cref="SquadRuntime"/>
 /// generation - it observes and projects only into that generation's <see cref="SquadMembers"/> and dies with it.
 /// It never disposes sessions directly; session disposal is entirely the runtime owner's responsibility.
 /// </summary>

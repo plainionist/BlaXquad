@@ -36,7 +36,7 @@ internal sealed class FakeAgentRuntime(AgentBackendContext context, FakeProvider
         {
             if (gateAfterSessions == sessionIndex)
             {
-                // Blocks on the same cancellation token Squad.StartAsync was given, which
+                // Blocks on the same cancellation token SquadRuntime.StartAsync was given, which
                 // Headquarters.RunAsync cancels the instant its own shutdown-vs-startup race resolves in
                 // shutdown's favor - proving a Headquarters-control shutdown requested while provider startup is paused
                 // here still terminates cleanly and disposes every session already registered above, without

@@ -251,9 +251,9 @@ owner of the active-session catalog: one synchronization boundary admits a
 command and captures its role's current session together. `SessionGeneration`
 separately owns the provider runtime handle and the event/completion observers
 for one generation, registering each started session directly into that
-generation's member directory as it starts. Both belong to the `Squad` that
+generation's member directory as it starts. Both belong to the `SquadRuntime` that
 owns the generation, and the process-lifetime `SquadViewModel` facade forwards
-commands to whichever `Squad` is currently installed.
+commands to whichever `SquadMembers` is currently installed.
 
 ## UI protocol
 

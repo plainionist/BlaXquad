@@ -11,7 +11,7 @@ namespace squad.Application;
 /// <summary>
 /// One squad generation's ordered member directory, command admission, and read-model composition. It is created
 /// with its generation identity and configuration snapshot, owns every member processor and all transient member
-/// state, and is reached only through the <see cref="Squad"/>-equivalent owner that installs it: nothing outside
+/// state, and is reached only through the <see cref="SquadRuntime"/> owner that installs it: nothing outside
 /// this object holds a member processor or aggregate.
 /// </summary>
 public sealed class SquadMembers : IDisposable

@@ -14,7 +14,7 @@ namespace squad.Runtime;
 /// control endpoint, the window and UI transport, sleep inhibition, the durable workspace services, and the
 /// transcript archive - plus one serialized active-squad slot. It never owns a backend, a session, a member
 /// processor, an interaction, or handoff participation: every resource whose lifetime follows a generation belongs
-/// to the installed <see cref="Squad"/> and is released only through <see cref="Squad.RetireAsync"/>.
+/// to the installed <see cref="SquadRuntime"/> and is released only through <see cref="SquadRuntime.RetireAsync"/>.
 ///
 /// Installation, replacement, and the final stop all pass through the same gate, so at most one generation exists
 /// at a time and a new one never starts over a retirement that is not conclusive.
@@ -34,7 +34,7 @@ public sealed class Headquarters : IAsyncDisposable
     // two generations can never overlap and a stop can never race an installation.
     private readonly SemaphoreSlim mySlotGate = new(1, 1);
     private readonly object myCleanupLock = new();
-    private Squad? mySquad;
+    private SquadRuntime? mySquadRuntime;
     private Task<IReadOnlyList<Exception>>? myCleanup;
     private bool myWindowStarted;
     // Set once, only while collecting the process's own cleanup failures. While Headquarters keeps running (a
@@ -112,8 +112,8 @@ public sealed class Headquarters : IAsyncDisposable
             ThrowForTerminalSignal(serverFailure, handoffFailure, backendFailure, shutdown, cancellationToken);
             startupObserved = true;
             await startup;
-            handoffFailure = mySquad?.HandoffFailure ?? myNever;
-            backendFailure = mySquad?.BackendFailure ?? myNever;
+            handoffFailure = mySquadRuntime?.HandoffFailure ?? myNever;
+            backendFailure = mySquadRuntime?.BackendFailure ?? myNever;
             ThrowForTerminalSignal(serverFailure, handoffFailure, backendFailure, shutdown, cancellationToken);
 
             var close = myWindowHost.WaitForCloseAsync(cancellationToken);
@@ -174,7 +174,7 @@ public sealed class Headquarters : IAsyncDisposable
     /// serializes the initial installation and the final stop. A retirement that is not conclusive keeps its
     /// generation owned and refuses the replacement; a replacement that fails to start leaves the slot empty and
     /// retryable without touching any process resource. Nothing triggers this yet - the restart issue is what
-    /// exposes it - but it moves no resource that this slice has not already given to <see cref="Squad"/>.
+    /// exposes it - but it moves no resource that this slice has not already given to <see cref="SquadRuntime"/>.
     /// </summary>
     public async Task ReplaceSquadAsync(CancellationToken cancellationToken = default)
     {
@@ -226,7 +226,7 @@ public sealed class Headquarters : IAsyncDisposable
     /// </summary>
     private async Task InstallSquadUnlockedAsync(CancellationToken cancellationToken)
     {
-        Contract.Invariant(mySquad is null, "Installing into a non-empty active-squad slot.");
+        Contract.Invariant(mySquadRuntime is null, "Installing into a non-empty active-squad slot.");
 
         var prepared = await myLaunchPreparer.PrepareGenerationAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -238,14 +238,14 @@ public sealed class Headquarters : IAsyncDisposable
             prepared.Definition,
             myTranscripts,
             myViewModel);
-        var squad = new Squad(
+        var squadRuntime = new SquadRuntime(
             members,
             agentBackend,
             prepared.Definition.Members,
             prepared.HandoffLogPath,
             myWindowHost.SessionsStartedAsync);
         
-        mySquad = squad;
+        mySquadRuntime = squadRuntime;
         
         try
         {
@@ -259,7 +259,7 @@ public sealed class Headquarters : IAsyncDisposable
             await EnsureWindowStartedAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             
-            await squad.StartAsync(cancellationToken);
+            await squadRuntime.StartAsync(cancellationToken);
         }
         catch
         {
@@ -278,15 +278,15 @@ public sealed class Headquarters : IAsyncDisposable
     /// </summary>
     private async Task<IReadOnlyList<Exception>> RetireSquadUnlockedAsync()
     {
-        if (mySquad is null)
+        if (mySquadRuntime is null)
         {
             return [];
         }
-        var generation = mySquad.Generation;
-        var retirement = await mySquad.RetireAsync();
+        var generation = mySquadRuntime.Generation;
+        var retirement = await mySquadRuntime.RetireAsync();
         if (retirement.IsConclusive)
         {
-            mySquad = null;
+            mySquadRuntime = null;
             if (!myStopping)
             {
                 myViewModel.Uninstall(generation);
