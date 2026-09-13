@@ -10,7 +10,6 @@ These names always refer to the persistent roles in this squad, not to generic, 
 ## Rules
 
 - On startup, read only the files explicitly named by the launch instructions or these prompts.
-- Follow the repository-wide engineering rules in `.github/copilot-instructions.md`.
 - Stay within the responsibilities and workflow defined by your role prompt.
 - Respect role ownership: only the coder implements code, and only the reviewer reviews it.
 - Coordinate with other squad roles only through `squad handoff`.

@@ -1,6 +1,6 @@
 ## Knowledge base discovery
 
-- Use `docs/manual` as the primary source for stable domain, architecture, testing, and process knowledge.
+- Use `docs/manual/` as the primary source for stable domain, architecture, testing, and process knowledge.
 - The manual provides concepts and background; detailed behavior rules live in Gherkin `.feature` files in `**/*.Specs` assemblies.
 - Do not use `docs/issues` as stable project knowledge unless the current task explicitly refers to an issue.
 - When scope is unclear, search `docs/manual` with domain keywords before searching the wider repository.
