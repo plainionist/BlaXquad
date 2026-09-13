@@ -50,11 +50,9 @@ The plan deliberately makes the following interpretations so that logging does n
 - Do not add a custom exception type for logging; no caller needs a new distinguishable failure across an API
 	boundary.
 
-There is one policy conflict for review: the issue says no tests are required, while `docs/manual/test-strategy.md`
-requires backend behavior to be covered through the black-box Gherkin suite. The slices below follow the current
-test strategy by extending existing scenarios with focused filesystem assertions. They add no unit-test project,
-test-only production seam, or broad logging matrix. If the no-test statement is intentional, approve that exception
-explicitly before implementation and remove the test bullets below.
+This issue has an explicit exception from `docs/manual/test-strategy.md`: do not add or modify tests or scenarios.
+The coder must still build the solution and run the existing affected Gherkin features after each slice, followed by
+the full backend acceptance suite after the final slice.
 
 ## Design
 
@@ -105,8 +103,6 @@ Acceptance criteria:
 	message, and exception details.
 - The same failure still produces the pre-existing standard-error text and exit code.
 - A clean shutdown produces no warning/error record, and a rejected competing launch creates no extra log file.
-- Extend the closest existing Headquarters lifecycle/provider-selection Gherkin scenarios and shared process support
-	to inspect the real workspace log files.
 
 ## Slice 2: Provider and member-session errors before UI projection
 
@@ -129,8 +125,6 @@ Acceptance criteria:
 - A failed member session is logged with its member ID and full exception while Headquarters and unaffected members
 	continue running exactly as today.
 - Expected session cancellation during Headquarters shutdown adds no warning/error record.
-- Extend the existing terminal-session Gherkin coverage; add only the minimal fake-provider command needed to emit a
-	provider error event if no existing command exposes it.
 
 ## Slice 3: Recoverable handoff delivery failures
 
@@ -153,8 +147,6 @@ Acceptance criteria:
 	while the scan continues and existing failed-artifact behavior is unchanged.
 - A notification failure is logged as a warning with recipient context without undoing the completed delivery.
 - A successful delivery adds no warning/error entry.
-- Extend the existing handoff delivery Gherkin scenarios and remove obsolete assertions for the old fixed log, if
-	any are found.
 
 ## Slice 4: Errors shown in the existing UI alert
 
@@ -181,18 +173,15 @@ Acceptance criteria:
 	the same message before the unchanged alert appears.
 - A provider/member failure remains visible in its existing role error alert and is logged once through Slice 2,
 	not again while snapshots are delivered.
-- Extend the closest existing Gherkin scenarios for those two alerts rather than creating a protocol-validation or
-	parallel logging test matrix.
 
 ## Slice order and completion
 
 Implement and integrate the slices in order: Slice 1 establishes the process-owned logger, Slice 2 extends it along
 the provider-session path, Slice 3 replaces the separate handoff failure log, and Slice 4 extends logging across the
-hosting plug-in boundary. After each slice, build `squad.slnx` and run only the affected Gherkin features; run the
-full backend acceptance suite after Slice 4. Each slice includes its own implementation, acceptance coverage, and
-directly affected manual update, and leaves a buildable, releasable intermediate state.
+hosting plug-in boundary. After each slice, build `squad.slnx` and run the existing affected Gherkin features; run
+the full backend acceptance suite after Slice 4. Each slice includes its own implementation and directly affected
+manual update, and leaves a buildable, releasable intermediate state.
 
 The issue is complete when all four error boundaries write to the same per-launch file, existing user-visible error
 behavior is unchanged, the focused and full backend suites pass, and no logging dependency has entered
 `squad.Domain`, `squad.Application`, `squad.Ui.Abstractions`, or the Vue client.
-
