@@ -19,7 +19,7 @@ public sealed class SquadMembers : IDisposable
     private readonly CancellationTokenSource myShutdown = new();
     // The ordered member directory is the only application-domain collection keyed by member identity. Each
     // member's processor is its aggregate's sole mutable accessor - the sole path through which a prompt, harness,
-    // abort, interaction-response, provider-event, or session-terminal message reaches that member's SquadMemberAggregate,
+    // abort, interaction-response, provider-event, or session-terminal message reaches that member's SquadMember,
     // reached here only through processor.Aggregate for read-only snapshot and query composition. A slow or blocked
     // provider call for one member can never delay another member's processor, and never delays this member's own
     // provider-event or session-terminal messages either, since those are applied inline without awaiting provider
@@ -54,7 +54,7 @@ public sealed class SquadMembers : IDisposable
             {
                 continue;
             }
-            var aggregate = new SquadMemberAggregate(
+            var aggregate = new SquadMember(
                 Generation,
                 member.Id,
                 member.DisplayName,
@@ -329,7 +329,7 @@ public sealed class SquadMembers : IDisposable
         throw new InvalidOperationException($"Unknown role: {memberId}");
     }
 
-    private SquadMemberAggregate GetMember(SquadMemberId memberId) => GetProcessor(memberId).Aggregate;
+    private SquadMember GetMember(SquadMemberId memberId) => GetProcessor(memberId).Aggregate;
 
     private bool IsAccepting
     {
