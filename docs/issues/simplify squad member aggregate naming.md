@@ -19,7 +19,7 @@ or behavior.
 
 ## Implementation plan
 
-### Slice 1: Rename the live member state type
+### Slice 1: Rename the live member state type [done]
 
 Rename `src/squad.Application/SquadMemberAggregate.cs` and its internal `SquadMemberAggregate` type and constructor
 to `SquadMember`. Update every compile-time reference in `SquadMembers`, `SquadMemberProcessor`,
@@ -39,6 +39,12 @@ Acceptance criteria:
   or mutation paths.
 - No specification changes are needed; the full solution builds and the unchanged black-box acceptance suite
   passes.
+
+**Status: complete (b14f78a23d).** `SquadMemberAggregate` and its file are now `SquadMember`. Compile-time
+references in `SquadMembers`, `SquadMemberProcessor`, `SquadMemberEventProjector`, `OperationLease`, `AbortLease`,
+and the `MemberInteractionState` XML docs use `SquadMember`. `SquadMemberProcessor.Aggregate` still exposes the
+renamed type without changing visibility, ownership, or mutation paths. The current-state description in
+`docs/issues/squad member naming inconsistent.md` now names `SquadMember`. Naming-only; no specification changes.
 
 ### Slice 2: Name the processor-owned object as the member
 
