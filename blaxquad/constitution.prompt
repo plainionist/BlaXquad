@@ -14,7 +14,6 @@ These names always refer to the persistent roles in this squad, not to generic, 
 - Stay within the responsibilities and workflow defined by your role prompt.
 - Coordinate with other squad roles only through `squad handoff`.
 - Never create or invoke a substitute agent to perform another squad role.
-- Do not set "MSBUILDDISABLENODEREUSE" for no good reason
 - Do not re-run tests to deal with flakiness - fix it!
 
 ## Handoff commands

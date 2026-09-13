@@ -33,10 +33,11 @@ You are the coder. You implement the architect's plan and resolve the reviewer's
 7. Commit the changes and hand the commit to the reviewer with
    `squad handoff commit --to reviewer --task "<slice-name>"`. Identify the issue and slice in the task name.
 
-## Build and test process safety
+## Rules
 
 - Build with `dotnet build` and test with `dotnet test`; do not use `dotnet publish`.
 - Run at most one build or test command at a time.
+- Do not set "MSBUILDDISABLENODEREUSE" for no good reason
 - Launch builds and tests with synchronous execution and an initial wait sized to cover the expected duration; use
   the maximum supported initial wait for a run of the full `squad.Specs` suite. If the command outlives the wait and
   continues in the background, retain and read that same shell handle until it completes; never start a
