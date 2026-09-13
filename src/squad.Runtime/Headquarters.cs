@@ -248,7 +248,6 @@ public sealed class Headquarters : IAsyncDisposable
             squad,
             agentBackend,
             prepared.Definition.Members,
-            prepared.HandoffLogPath,
             myWindowHost.SessionsStartedAsync,
             myLoggerFactory);
         

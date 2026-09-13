@@ -31,7 +31,6 @@ public sealed class LaunchPreparer
             RolesDir = layout.RolesDir,
             ConstitutionFile = layout.ConstitutionFile,
             StateDir = layout.StateDir,
-            HandoffLog = layout.HandoffLog,
             ContinueLaunch = continueLaunch,
             Members = [],
         };
@@ -90,7 +89,6 @@ public sealed class LaunchPreparer
         return Task.FromResult(new PreparedLaunch(
             BuildBackendContext(myContext),
             definition,
-            myContext.HandoffLog,
             myContext.GitHistoryCommand));
     }
 

@@ -11,5 +11,4 @@ namespace squad.Workspaces;
 public sealed record PreparedLaunch(
     AgentBackendContext BackendContext,
     SquadDefinition Definition,
-    string HandoffLogPath,
     IReadOnlyList<string>? GitHistoryCommand);

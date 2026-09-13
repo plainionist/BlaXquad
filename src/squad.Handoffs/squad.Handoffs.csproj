@@ -1,6 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- Only the Microsoft.Extensions.Logging contracts: HandoffDeliveryService requests a typed ILogger from the
+         launch-owned factory squad-hq passes in, without depending on Serilog or any other concrete logging
+         framework. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\squad.Domain\squad.Domain.csproj" />
     <ProjectReference Include="..\squad.Process\squad.Process.csproj" />
   </ItemGroup>

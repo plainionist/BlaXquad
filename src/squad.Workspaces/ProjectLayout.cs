@@ -9,8 +9,7 @@ public record ProjectLayout(
     string ConfigFile,
     string RolesDir,
     string ConstitutionFile,
-    string StateDir,
-    string HandoffLog)
+    string StateDir)
 {
     /// <summary>Resolves workspace paths from the requested directory and tool paths from the installed application.</summary>
     public static ProjectLayout Create(string workingDirArg)
@@ -30,7 +29,6 @@ public record ProjectLayout(
             Path.Combine(packDir, "squad.json"),
             Path.Combine(packDir, "roles"),
             Path.Combine(packDir, "constitution.prompt"),
-            stateDir,
-            Path.Combine(stateDir, "handoff-delivery.log"));
+            stateDir);
     }
 }

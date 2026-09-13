@@ -31,14 +31,13 @@ internal sealed class SquadRuntime
         Squad squad,
         IAgentBackend agentBackend,
         IReadOnlyList<SquadMemberDefinition> handoffMembers,
-        string handoffLogPath,
         Func<CancellationToken, Task> sessionsStarted,
         ILoggerFactory loggerFactory)
     {
         mySquad = squad;
         myAgentBackend = agentBackend;
         myHandoffPump = new InProcessHandoffPoller(
-            handoffMembers, new SessionRoleNotifier(squad), new HandoffDeliveryLog(handoffLogPath));
+            handoffMembers, new SessionRoleNotifier(squad), loggerFactory.CreateLogger<InProcessHandoffPoller>());
         mySessions = new SessionGeneration(agentBackend, squad, myStopping.Token, loggerFactory.CreateLogger<SessionGeneration>());
         mySessionsStarted = sessionsStarted;
         BackendFailure = (agentBackend as IAgentBackendFailureSource)?.Failure ?? myNever;

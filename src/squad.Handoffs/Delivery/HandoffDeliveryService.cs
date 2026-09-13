@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using squad.Domain;
 
 namespace squad.Handoffs.Delivery;
@@ -9,12 +10,12 @@ namespace squad.Handoffs.Delivery;
 sealed class HandoffDeliveryService
 {
     private readonly IRoleNotifier myNotifier;
-    private readonly HandoffDeliveryLog myLog;
+    private readonly ILogger myLogger;
 
-    public HandoffDeliveryService(IRoleNotifier notifier, HandoffDeliveryLog log)
+    public HandoffDeliveryService(IRoleNotifier notifier, ILogger logger)
     {
         myNotifier = notifier;
-        myLog = log;
+        myLogger = logger;
     }
 
     public async Task ProcessOnceAsync(IReadOnlyList<SquadMemberDefinition> members, CancellationToken cancellationToken = default)
@@ -39,7 +40,7 @@ sealed class HandoffDeliveryService
                 }
                 catch (Exception exception)
                 {
-                    myLog.Append(["error", path, exception.Message]);
+                    myLogger.LogError(exception, "Handoff delivery failed for '{HandoffPath}'.", path);
 
                     try
                     {
@@ -47,7 +48,7 @@ sealed class HandoffDeliveryService
                     }
                     catch (Exception nested)
                     {
-                        myLog.Append(["failed-to-archive", path, nested.Message]);
+                        myLogger.LogError(nested, "Failed to archive handoff '{HandoffPath}' after a delivery failure.", path);
                     }
                 }
             }
@@ -84,7 +85,6 @@ sealed class HandoffDeliveryService
 
         var sentDir = HandoffQueue.Sent(HandoffQueue.Root(members[senderMember].WorktreePath));
         MoveWithCollision(path, sentDir);
-        myLog.Append(["delivered", path]);
 
         foreach (var (_, memberInfo) in deliveries)
         {
@@ -94,7 +94,7 @@ sealed class HandoffDeliveryService
             }
             catch (Exception exception)
             {
-                myLog.Append(["notify-failed", memberInfo.Id.Value, exception.Message]);
+                myLogger.LogWarning(exception, "Failed to notify '{MemberId}' of handoff '{HandoffPath}'.", memberInfo.Id.Value, path);
             }
         }
     }
@@ -130,7 +130,6 @@ sealed class HandoffDeliveryService
     {
         var handoffsDir = Path.GetDirectoryName(Path.GetDirectoryName(path))!;
         var failedDir = HandoffQueue.Failed(handoffsDir);
-        myLog.Append(["failed", path, reason]);
         File.WriteAllText(path + ".error", reason + "\n");
         MoveWithCollision(path, failedDir);
     }

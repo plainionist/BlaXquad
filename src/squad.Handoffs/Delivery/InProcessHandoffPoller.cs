@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using squad.Domain;
 namespace squad.Handoffs.Delivery;
 
@@ -16,10 +17,10 @@ public sealed class InProcessHandoffPoller : IAsyncDisposable
     private Task? myPolling;
     private bool myDisposed;
 
-    public InProcessHandoffPoller(IReadOnlyList<SquadMemberDefinition> members, IRoleNotifier notifier, HandoffDeliveryLog log)
+    public InProcessHandoffPoller(IReadOnlyList<SquadMemberDefinition> members, IRoleNotifier notifier, ILogger logger)
     {
         myMembers = members;
-        myDelivery = new HandoffDeliveryService(notifier, log);
+        myDelivery = new HandoffDeliveryService(notifier, logger);
     }
 
     public Task Failure => myFailure.Task;

@@ -99,7 +99,13 @@ handoff-state directory - legacy `.handoff` artifacts included - before role
 commands can run against it, so no legacy-queue guard is needed. Its
 `Delivery` submodule runs Headquarters-side handoff delivery: it polls role
 outboxes, durably writes recipient inbox copies, archives sent or failed
-items, and wakes recipient sessions.
+items, and wakes recipient sessions. A delivery failure or a failed-artifact
+archival failure is recorded as an error with the handoff path and full
+exception, and a recipient notification failure is recorded as a warning with
+member and handoff context, into the launch's diagnostic log (see
+[glossary.md#diagnostic-log](glossary.md#diagnostic-log)) rather than a
+separate fixed-purpose delivery log; a successful delivery adds no
+warning/error entry.
 
 ## `squad.Hosting.Abstractions`
 

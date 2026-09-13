@@ -17,7 +17,6 @@ internal class Ctx
     public string RolesDir { get; set; } = "";
     public string ConstitutionFile { get; set; } = "";
     public string StateDir { get; set; } = "";
-    public string HandoffLog { get; set; } = "";
     public bool ContinueLaunch { get; set; }
     public IReadOnlyList<SquadMemberConfiguration> Members { get; set; } = [];
     public SquadMemberId? Leader { get; set; }
