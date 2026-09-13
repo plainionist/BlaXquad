@@ -37,15 +37,17 @@ public sealed class SquadMembers : IDisposable
     private volatile bool myRetired;
 
     public SquadMembers(
-        SquadGenerationId generation,
         SquadDefinition definition,
         TranscriptStore transcripts,
         ISquadPublication publication)
     {
-        Generation = generation;
         myLeader = definition.Leader;
         myPublication = publication;
-        myTranscripts = transcripts.OpenGeneration(generation);
+        
+        Generation = SquadGenerationId.New();
+
+        myTranscripts = transcripts.OpenGeneration(Generation);
+
         foreach (var member in definition.Members)
         {
             if (myMembers.ContainsKey(member.Id))
@@ -53,7 +55,7 @@ public sealed class SquadMembers : IDisposable
                 continue;
             }
             var aggregate = new SquadMemberAggregate(
-                generation,
+                Generation,
                 member.Id,
                 member.DisplayName,
                 myTranscripts.OpenMember(member.Id));

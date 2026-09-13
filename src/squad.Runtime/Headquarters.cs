@@ -232,7 +232,6 @@ public sealed class Headquarters : IAsyncDisposable
         myWorkspaceTools.Configure(prepared.GitHistoryCommand);
         var agentBackend = await myAgentProviderFactory.CreateAsync(prepared.BackendContext, cancellationToken);
         var members = new SquadMembers(
-            SquadGenerationId.New(),
             prepared.Definition,
             myTranscripts,
             myViewModel);

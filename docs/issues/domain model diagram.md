@@ -8,6 +8,11 @@ identify the key concepts like squad, generation, member, ...
 - naming clear?
 - multiple dictionaries?
 
+- what is the relationship and responsibility of
+  - squad -> squadmembers -> squadmemberaggregate
+  - what is a "squadgenerationid"
+  - what is a "squadinstallation"
+
 anything to be moved to "domain"?
 
 once cleared, draw domain model diagram
