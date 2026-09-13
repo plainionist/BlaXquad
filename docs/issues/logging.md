@@ -108,7 +108,7 @@ Acceptance criteria:
 - A clean shutdown produces no warning/error record, and a rejected competing launch creates no extra log file.
 
 **Status:** complete in 8721ff8c0e. Review findings on f8ba27ba17 are resolved (no test/scenario changes;
-diagnostic log documented). Slices 2-4 remain.
+diagnostic log documented).
 
 ## Slice 2: Provider and member-session errors before UI projection
 
@@ -131,6 +131,8 @@ Acceptance criteria:
 - A failed member session is logged with its member ID and full exception while Headquarters and unaffected members
 	continue running exactly as today.
 - Expected session cancellation during Headquarters shutdown adds no warning/error record.
+
+**Status:** complete in f7952d8710. Slices 3-4 remain.
 
 ## Slice 3: Recoverable handoff delivery failures
 
