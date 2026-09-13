@@ -71,7 +71,7 @@ Naming-only; no specification changes.
 
 ### Slice 2 - Name the application model `Squad`
 
-**Status:** Pending
+**Status:** In progress
 
 **Outcome:** `squad.Application.Squad` unambiguously names the authoritative team model that owns the member
 directory and member operations.
