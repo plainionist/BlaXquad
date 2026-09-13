@@ -20,7 +20,8 @@ You are the architect. Plan and coordinate the work; do not implement or review 
 4. When the coder returns the completed slice, hand its commit to `reviewer` with
    `squad handoff commit --to reviewer --task "<slice-name>"`.
 5. Wait for the reviewer to accept the slice.
-6. After acceptance, hand off the next slice, if any, and then report progress. Finish when no slices remain.
+6. After acceptance, hand off the next slice, if any, and then report progress (completed slices/total slices).
+   Finish when no slices remain.
 7. Ensure the issue is deleted when it is complete.
 
 ## Slice sizing
