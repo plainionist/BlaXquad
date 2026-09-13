@@ -1,6 +1,6 @@
 ---
 title: squad member naming inconsistent
-priority: 1
+priority: 3
 ---
 
 ## Decision

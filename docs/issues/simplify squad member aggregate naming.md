@@ -1,6 +1,6 @@
 ---
 title: Name the member aggregate after the domain concept
-priority: 2
+priority: 1
 ---
 
 ## Goal
